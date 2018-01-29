@@ -61,6 +61,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.optimizerStr = ""
 		self.criterion = None
 		self.metrics = {"Loss" : Loss()}
+		self.startEpoch = 1
 		super(NeuralNetworkPyTorch, self).__init__()
 
 	def setOptimizer(self, optimizerType, **kwargs):
@@ -72,6 +73,10 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	def setCriterion(self, criterion):
 		self.criterion = criterion
+
+	def setStartEpoch(self, epoch):
+		assert epoch >= 1 and type(epoch) == int, "Epoch is a non-zero natural number"
+		self.startEpoch = epoch
 
 	def setMetrics(self, metrics):
 		assert "Loss" in metrics, "At least one metric is required and Loss must be in them"
@@ -160,7 +165,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		validationSteps=0):
 		assert self.optimizer != None and self.criterion != None, "Set optimizer and criterion before training"
 		sys.stdout.write("Training for %d epochs...\n" % (numEpochs))
-		for epoch in range(numEpochs):
+		for epoch in range(self.startEpoch - 1, numEpochs):
 			done = (epoch + 1) / numEpochs * 100
 			message = "Epoch %d/%d. Done: %2.2f%%." % (epoch + 1, numEpochs, done)
 
@@ -217,7 +222,11 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	def load_weights(self, path):
 		params = tr.load(path)
-		self._load_weights(params)
+		# The file can be a weights file (just weights then) or a state file (so file["params"] are the weights)
+		if type(params) == dict:
+			self._load_weights(params["params"])
+		else:
+			self._load_weights(params)
 		print("Succesfully loaded weights")
 
 	# actual function that loads the params and checks consistency
