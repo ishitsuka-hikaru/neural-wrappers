@@ -49,11 +49,11 @@ class SaveModels(Callback):
 		if self.type == "improvements":
 			# nan != nan is True
 			if self.best != self.best or loss < self.best:
-				kwargs["model"].save_weights(fileName)
+				kwargs["model"].save_model(fileName)
 				sys.stdout.write("Epoch %d. Improvement from %2.2f to %2.2f\n" % (kwargs["epoch"], self.best, loss))
 				self.best = loss
 			else:
 				sys.stdout.write("Epoch %d did not improve best loss (%2.2f)\n" % (kwargs["epoch"], self.best))
 			sys.stdout.flush()
 		else:
-			kwargs["model"].save_weights(fileName)
+			kwargs["model"].save_model(fileName)

@@ -37,6 +37,21 @@ def getNumParams(params):
 			numTrainable += npParamCount
 	return numParams, numTrainable
 
+# Get all the parameters of the optimizer state, except the 'params' key, which is stored separated
+def getOptimizerParams(optimizer):
+	assert len(optimizer.param_groups) == 1
+	paramGroups = optimizer.param_groups[0]
+	optimizerState = {}
+	for key in paramGroups:
+		if key == "params":
+			continue
+
+		if hasattr(paramGroups[key], "cpu"):
+			optimizerState[key] = maybeCpu(paramGroups[key])
+		else:
+			optimizerState[key] = paramGroups[key]
+	return optimizerState
+
 # Wrapper on top of the PyTorch model. Added methods for saving and loading a state. To completly implement a PyTorch
 #  model, one must define layers in the object's constructor, call setOptimizer, setCriterion and implement the
 #  forward method identically like a normal PyTorch model.
@@ -46,10 +61,6 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.optimizerStr = ""
 		self.criterion = None
 		self.metrics = {"Loss" : Loss()}
-		# The hyperparameters are saved here (and should only be sent to constructor if they are to be included in the
-		#  state of the model. Anything that happens in setup method, is about the learnable parameters s.a. weights,
-		#  layers, etc)
-		self.hyperParametersState = copy(vars(self))
 		super(NeuralNetworkPyTorch, self).__init__()
 
 	def setOptimizer(self, optimizerType, **kwargs):
@@ -206,6 +217,11 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	def load_weights(self, path):
 		params = tr.load(path)
+		self._load_weights(params)
+		print("Succesfully loaded weights")
+
+	# actual function that loads the params and checks consistency
+	def _load_weights(self, params):
 		loadedParams, _ = getNumParams(params)
 		thisParams, _ = getNumParams(self.parameters())
 		if loadedParams != thisParams:
@@ -216,17 +232,23 @@ class NeuralNetworkPyTorch(nn.Module):
 				raise Exception("Inconsistent parameters: %d vs %d." % (item.data.shape, params[i].data.shape))
 			item.data = maybeCuda(params[i].data)
 
-	# Method used to save the current state of the model (any hyperparameters that are not trainable, but fixed at
-	#  train time and needed at test time).
-	def save_state(self, path):
-		print("Saving the hyperparamters state of the model to", path)
-		joblib.dump(self.hyperParametersState, path)
+	# Saves a complete model, consisting of weights, state and optimizer params
+	def save_model(self, path):
+		state = {
+			"params" : list(map(lambda x : x.cpu(), self.parameters())),
+			"optimizer" : getOptimizerParams(self.optimizer)
+		}
+		tr.save(state, path)
 
-	# Used to load the state of this object from a previous saved file.
-	def load_state(self, path):
-		print("Loading the state of the model from", path)
-		state = joblib.load(path)
-		for key in state:
-			setattr(self, key, state[key])
-			self.hyperParametersState[key] = state[key]
-		self.setup()
+	def load_model(self, path):
+		loaded_model = tr.load(path)
+		self._load_weights(loaded_model["params"])
+
+		# Load optimizer state now
+		assert len(self.optimizer.param_groups) == 1
+		for key in loaded_model["optimizer"]:
+			assert key != "params"
+			self.optimizer.param_groups[0][key] = loaded_model["optimizer"][key]
+		# Load params now
+		self.optimizer.param_groups[0]["params"] = self.parameters()
+		print("Succesfully loaded model")
