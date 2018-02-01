@@ -231,15 +231,6 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.train_generator(dataGenerator, stepsPerEpoch=numIterations, numEpochs=numEpochs, callbacks=callbacks, \
 			validationGenerator=validationGenerator, validationSteps=1)
 
-	# def test_generator(self, dataGenerator, numIterations):
-	# 	return self.run_one_epoch(dataGenerator, numIterations)
-
-	# # labels can be None if not available
-	# def test(self, data, labels, batchSize):
-	# 	testGenerator = makeGenerator(test, labels, batchSize)
-	# 	numIterations = data.shape[0] // batchSize + (data.shape[0] % batchSize != 0)
-	# 	return self.run_one_epoch(testGenerator, numIterations, optimize=False, printMessage=False)
-
 	def save_weights(self, path):
 		modelParams = list(map(lambda x : x.cpu(), self.parameters()))
 		tr.save(modelParams, path)
