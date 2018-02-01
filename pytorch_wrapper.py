@@ -38,7 +38,7 @@ def getNumParams(params):
 	return numParams, numTrainable
 
 # Get all the parameters of the optimizer state, except the 'params' key, which is stored separated
-def getOptimizerParams(optimizer):
+def getOptimizerHyperParams(optimizer):
 	assert len(optimizer.param_groups) == 1
 	paramGroups = optimizer.param_groups[0]
 	optimizerState = {}
@@ -51,6 +51,21 @@ def getOptimizerParams(optimizer):
 		else:
 			optimizerState[key] = paramGroups[key]
 	return optimizerState
+
+def getOptimizerParamsState(optimizer):
+	states = []
+	# Just iterate through values, because keys are the weights themselves, and we already save those.
+	for param_state in list(optimizer.state.values()):
+		# optimizer.state :: [param -> param_state]
+		# param_state :: {Str -> state_tensor}
+		saved_state = {}
+		for key in param_state:
+			if hasattr(param_state[key], "cpu"):
+				saved_state[key] = maybeCpu(param_state[key])
+			else:
+				saved_state[key] = param_state[key]
+		states.append(saved_state)
+	return states
 
 # Wrapper on top of the PyTorch model. Added methods for saving and loading a state. To completly implement a PyTorch
 #  model, one must define layers in the object's constructor, call setOptimizer, setCriterion and implement the
@@ -243,9 +258,12 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	# Saves a complete model, consisting of weights, state and optimizer params
 	def save_model(self, path):
+		assert self.optimizer != None, "No optimizer was set for this model. Cannot save."
 		state = {
 			"params" : list(map(lambda x : x.cpu(), self.parameters())),
-			"optimizer" : getOptimizerParams(self.optimizer)
+			"optimizer_type" : type(self.optimizer),
+			"optimizer_hyper_params" : getOptimizerHyperParams(self.optimizer),
+			"optimizer_params_state" : getOptimizerParamsState(self.optimizer)
 		}
 		tr.save(state, path)
 
@@ -253,11 +271,25 @@ class NeuralNetworkPyTorch(nn.Module):
 		loaded_model = tr.load(path)
 		self._load_weights(loaded_model["params"])
 
-		# Load optimizer state now
+		# Create a new instance of the optimizer. Some optimizers require a lr to be set as well
+		self.setOptimizer(loaded_model["optimizer_type"], lr=0.01)
+
+		# Load optimizer hyper parameters
 		assert len(self.optimizer.param_groups) == 1
-		for key in loaded_model["optimizer"]:
+		for key in loaded_model["optimizer_hyper_params"]:
 			assert key != "params"
-			self.optimizer.param_groups[0][key] = loaded_model["optimizer"][key]
+			self.optimizer.param_groups[0][key] = loaded_model["optimizer_hyper_params"][key]
 		# Load params now
-		self.optimizer.param_groups[0]["params"] = self.parameters()
+		self.optimizer.param_groups[0]["params"] = list(self.parameters())
+
+		# Load parameters state from the stored list
+		for i, param in enumerate(self.optimizer.param_groups[0]["params"]):
+			self.optimizer.state[param] = loaded_model["optimizer_params_state"][i]
+
+		# Optimizer consistency checks
+		l1 = list(self.optimizer.state_dict()["state"].keys())
+		l2 = self.optimizer.state_dict()["param_groups"][0]["params"]
+		l3 = list(map(lambda x : id(x), self.parameters()))
+		assert l1 == l2 and l1 == l3, "Something was wrong with loading optimizer"
+
 		print("Succesfully loaded model")
