@@ -61,13 +61,26 @@ def getOptimizerParamsState(optimizer):
 		states.append(saved_state)
 	return states
 
+def getOptimizerStr(optimizer):
+	groups = optimizer.param_groups[0]
+	if type(optimizer) == tr.optim.SGD:
+		optimizerType = "SGD"
+		params = "Learning rate: %s, Momentum: %s, Dampening: %s, Weight Decay: %s, Nesterov: %s" % (groups["lr"], \
+			groups["momentum"], groups["dampening"], groups["weight_decay"], groups["nesterov"])
+	elif type(optimizer) == tr.optim.Adam:
+		optimizerType = "Adam"
+		params = "Learning rate: %s, Betas: %s, Eps: %s, Weight Decay: %s" % (groups["lr"], groups["betas"], \
+			groups["eps"], groups["weight_decay"])
+	else:
+		raise NotImplementedError("Not yet implemneted optimizer str for %s" % (type(optimizer)))
+	return "%s. %s" % (optimizerType, params)
+
 # Wrapper on top of the PyTorch model. Added methods for saving and loading a state. To completly implement a PyTorch
 #  model, one must define layers in the object's constructor, call setOptimizer, setCriterion and implement the
 #  forward method identically like a normal PyTorch model.
 class NeuralNetworkPyTorch(nn.Module):
 	def __init__(self):
 		self.optimizer = None
-		self.optimizerStr = ""
 		self.criterion = None
 		self.metrics = {"Loss" : Loss()}
 		self.startEpoch = 1
@@ -77,9 +90,6 @@ class NeuralNetworkPyTorch(nn.Module):
 	def setOptimizer(self, optimizerType, **kwargs):
 		trainableParams = filter(lambda p : p.requires_grad, self.parameters())
 		self.optimizer = optimizerType(trainableParams, **kwargs)
-
-	def setOptimizerStr(self, Str):
-		self.optimizerStr = Str
 
 	def setCriterion(self, criterion):
 		self.criterion = criterion
@@ -124,7 +134,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		strMetrics = str(list(self.metrics.keys()))[1 : -1]
 		summaryStr += "Metrics: %s\n" % (strMetrics)
 
-		summaryStr += "Optimizer: %s\n" % (self.optimizerStr) if self.optimizerStr != None else ""
+		summaryStr += "Optimizer: %s\n" % getOptimizerStr(self.optimizer)
 
 		return summaryStr
 
