@@ -62,6 +62,9 @@ def getOptimizerParamsState(optimizer):
 	return states
 
 def getOptimizerStr(optimizer):
+	if optimizer is None:
+		return "None"
+
 	groups = optimizer.param_groups[0]
 	if type(optimizer) == tr.optim.SGD:
 		optimizerType = "SGD"
@@ -86,6 +89,9 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.startEpoch = 1
 		self.isCudaEnabled = False
 		super(NeuralNetworkPyTorch, self).__init__()
+
+	def __str__(self):
+		return "General neural network architecture. Update __str__ in your model for more details when using summary."
 
 	def setOptimizer(self, optimizerType, **kwargs):
 		trainableParams = filter(lambda p : p.requires_grad, self.parameters())
@@ -127,6 +133,7 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	def summary(self):
 		summaryStr = "[Model summary]\n"
+		summaryStr += self.__str__() + "\n"
 
 		numParams, numTrainable = getNumParams(self.parameters())
 		summaryStr += "Parameters count: %d. Trainable parameters: %d.\n" % (numParams, numTrainable)
