@@ -22,7 +22,7 @@ def makeGenerator(data, labels, batchSize):
 		numIterations = numData // batchSize + (numData % batchSize != 0)
 		for i in range(numIterations):
 			startIndex = i * batchSize
-			endIndex = (i + 1) * batchSize
+			endIndex = np.minimum((i + 1) * batchSize, numData)
 			if not labels is None:
 				yield data[startIndex : endIndex], labels[startIndex : endIndex]
 			else:
@@ -155,7 +155,7 @@ class NeuralNetworkPyTorch(nn.Module):
 	# @param[in] metrics A dictionary containing the metrics over which the epoch is run
 	# @param[in] optimize If true, then the optimizer is also called after each iteration
 	# @return The mean metrics over all the steps.
-	def run_one_epoch(self, generator, stepsPerEpoch, optimize=False, printMessage=False):
+	def run_one_epoch(self, generator, stepsPerEpoch, optimize=False, printMessage=False, debug=False):
 		assert "Loss" in self.metrics.keys(), "At least one metric is required and Loss must be in them"
 		metricResults = {metric : 0 for metric in self.metrics.keys()}
 
@@ -168,6 +168,8 @@ class NeuralNetworkPyTorch(nn.Module):
 			
 			loss = self.criterion(results, labels)
 			npLoss = maybeCpu(loss.data).numpy()
+			if debug:
+				print("\nLoss: %2.6f" % (npLoss))
 
 			if optimize:
 				self.optimizer.zero_grad()
@@ -190,7 +192,15 @@ class NeuralNetworkPyTorch(nn.Module):
 
 		for metric in metricResults:
 			metricResults[metric] /= stepsPerEpoch
-		return npResults, metricResults
+		return metricResults
+
+	def test_generator(self, generator, stepsPerEpoch):
+		return self.run_one_epoch(generator, stepsPerEpoch, optimize=False, printMessage=False, debug=False)
+
+	def test_model(self, data, labels, batchSize):
+		dataGenerator = makeGenerator(data, labels, batchSize)
+		numIterations = data.shape[0] // batchSize + (data.shape[0] % batchSize != 0)
+		return self.test_generator(dataGenerator, stepsPerEpoch=numIterations)
 
 	def train_generator(self, generator, stepsPerEpoch, numEpochs, callbacks=[], validationGenerator=None, \
 		validationSteps=0):
@@ -201,14 +211,13 @@ class NeuralNetworkPyTorch(nn.Module):
 			message = "Epoch %d/%d. Done: %2.2f%%." % (epoch + 1, numEpochs, done)
 
 			# Run for training data and append the results
-			_, trainMetrics = self.run_one_epoch(generator, stepsPerEpoch, optimize=True, printMessage=True)
+			trainMetrics = self.run_one_epoch(generator, stepsPerEpoch, optimize=True, printMessage=True)
 			for metric in trainMetrics:
 				message += " %s: %2.2f." % (metric, trainMetrics[metric])
 
 			# Run for validation data and append the results
 			if validationGenerator != None:
-				_, validationMetrics = \
-					self.run_one_epoch(validationGenerator, validationSteps, optimize=False, printMessage=False)
+				validationMetrics = self.run_one_epoch(validationGenerator, validationSteps, optimize=False, debug=False)
 				for metric in validationMetrics:
 					message += " %s: %2.2f." % ("Val " + metric, validationMetrics[metric])
 
@@ -232,11 +241,15 @@ class NeuralNetworkPyTorch(nn.Module):
 		dataGenerator = makeGenerator(data, labels, batchSize)
 		numIterations = data.shape[0] // batchSize + (data.shape[0] % batchSize != 0)
 
-		validationGenerator = makeGenerator(validationData, validationLabels, validationData.shape[0]) if \
-			not validationLabels is None else None
+		if not validationData is None:
+			valNumIterations = validationData.shape[0] // batchSize + (validationData.shape[0] % batchSize != 0)
+			validationGenerator = makeGenerator(validationData, validationLabels, batchSize)
+		else:
+			valNumIterations = 1
+			validationGenerator = None
 
 		self.train_generator(dataGenerator, stepsPerEpoch=numIterations, numEpochs=numEpochs, callbacks=callbacks, \
-			validationGenerator=validationGenerator, validationSteps=1)
+			validationGenerator=validationGenerator, validationSteps=valNumIterations)
 
 	def save_weights(self, path):
 		modelParams = list(map(lambda x : x.cpu(), self.parameters()))
