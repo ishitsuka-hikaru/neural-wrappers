@@ -155,7 +155,7 @@ class NeuralNetworkPyTorch(nn.Module):
 	# @param[in] metrics A dictionary containing the metrics over which the epoch is run
 	# @param[in] optimize If true, then the optimizer is also called after each iteration
 	# @return The mean metrics over all the steps.
-	def run_one_epoch(self, generator, stepsPerEpoch, optimize=False, printMessage=False, debug=False):
+	def run_one_epoch(self, generator, stepsPerEpoch, callbacks=[], optimize=False, printMessage=False, debug=False):
 		assert "Loss" in self.metrics.keys(), "At least one metric is required and Loss must be in them"
 		metricResults = {metric : 0 for metric in self.metrics.keys()}
 
@@ -176,6 +176,16 @@ class NeuralNetworkPyTorch(nn.Module):
 				loss.backward()
 				self.optimizer.step()
 
+			# Iteration callbacks are called here (i.e. for plotting results!)
+			callbackArgs = {
+				"data" : npData,
+				"labels" : npLabels,
+				"results" : npResults,
+				"loss" : npLoss
+			}
+			for callback in callbacks:
+				callback(**callbackArgs)
+
 			for metric in self.metrics:
 				metricResults[metric] += self.metrics[metric](npResults, npLabels, loss=npLoss)
 
@@ -194,13 +204,13 @@ class NeuralNetworkPyTorch(nn.Module):
 			metricResults[metric] /= stepsPerEpoch
 		return metricResults
 
-	def test_generator(self, generator, stepsPerEpoch):
-		return self.run_one_epoch(generator, stepsPerEpoch, optimize=False, printMessage=False, debug=False)
+	def test_generator(self, generator, stepsPerEpoch, callbacks=[]):
+		return self.run_one_epoch(generator, stepsPerEpoch, callbacks=callbacks, optimize=False, printMessage=False)
 
-	def test_model(self, data, labels, batchSize):
+	def test_model(self, data, labels, batchSize, callbacks=[]):
 		dataGenerator = makeGenerator(data, labels, batchSize)
 		numIterations = data.shape[0] // batchSize + (data.shape[0] % batchSize != 0)
-		return self.test_generator(dataGenerator, stepsPerEpoch=numIterations)
+		return self.test_generator(dataGenerator, stepsPerEpoch=numIterations, callbacks=callbacks)
 
 	def train_generator(self, generator, stepsPerEpoch, numEpochs, callbacks=[], validationGenerator=None, \
 		validationSteps=0):
@@ -217,7 +227,7 @@ class NeuralNetworkPyTorch(nn.Module):
 
 			# Run for validation data and append the results
 			if validationGenerator != None:
-				validationMetrics = self.run_one_epoch(validationGenerator, validationSteps, optimize=False, debug=False)
+				validationMetrics = self.run_one_epoch(validationGenerator, validationSteps, optimize=False)
 				for metric in validationMetrics:
 					message += " %s: %2.2f." % ("Val " + metric, validationMetrics[metric])
 
