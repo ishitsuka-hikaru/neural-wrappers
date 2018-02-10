@@ -122,7 +122,7 @@ class Transformer:
 	#  identically. Example of usage: random crop on both depth and semantic segmentation image, but we want to have
 	#  an identical random crop for all 3 images (rgb, depth and segmentation).
 	def applyTransform(self, transform, data, labels):
-		print("Applying '%s' transform" % (transform))
+		# print("Applying '%s' transform" % (transform))
 		numData = len(data)
 
 		# There is a special "transform" that does nothing, just uses the resize at end.

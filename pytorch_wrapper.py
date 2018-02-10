@@ -180,8 +180,8 @@ class NeuralNetworkPyTorch(nn.Module):
 				message = "Iteration: %d/%d." % (i + 1, stepsPerEpoch)
 				for metric in metricResults:
 					message += " %s: %2.2f." % (metric, metricResults[metric] / (i + 1))
-				# sys.stdout.write(message + "\r")
-				# sys.stdout.flush()
+				sys.stdout.write(message + "\r")
+				sys.stdout.flush()
 
 			del data, labels
 			if i == stepsPerEpoch - 1:
