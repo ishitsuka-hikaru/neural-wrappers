@@ -2,31 +2,18 @@
 import torch as tr
 import torch.nn as nn
 import numpy as np
-import joblib
 import sys
 from torch.autograd import Variable
 from copy import copy
 
 from metrics import Accuracy, Loss
+from utils import makeGenerator
 
 def maybeCuda(x):
 	return x.cuda() if tr.cuda.is_available() and hasattr(x, "cuda") else x
 
 def maybeCpu(x):
 	return x.cpu() if tr.cuda.is_available() and hasattr(x, "cpu") else x
-
-# Labels can be None, in that case only data is available (testing cases without labels)
-def makeGenerator(data, labels, batchSize):
-	while True:
-		numData = data.shape[0]
-		numIterations = numData // batchSize + (numData % batchSize != 0)
-		for i in range(numIterations):
-			startIndex = i * batchSize
-			endIndex = np.minimum((i + 1) * batchSize, numData)
-			if not labels is None:
-				yield data[startIndex : endIndex], labels[startIndex : endIndex]
-			else:
-				yield data[startIndex : endIndex]
 
 def getNumParams(params):
 	numParams, numTrainable = 0, 0
@@ -193,8 +180,8 @@ class NeuralNetworkPyTorch(nn.Module):
 				message = "Iteration: %d/%d." % (i + 1, stepsPerEpoch)
 				for metric in metricResults:
 					message += " %s: %2.2f." % (metric, metricResults[metric] / (i + 1))
-				sys.stdout.write(message + "\r")
-				sys.stdout.flush()
+				# sys.stdout.write(message + "\r")
+				# sys.stdout.flush()
 
 			del data, labels
 			if i == stepsPerEpoch - 1:
@@ -320,8 +307,8 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.optimizer.param_groups[0]["params"] = list(self.parameters())
 
 		# Load parameters state from the stored list
-		for i, param in enumerate(self.optimizer.param_groups[0]["params"]):
-			self.optimizer.state[param] = maybeCuda(loaded_model["optimizer_params_state"][i])
+		for i, param in enumerate(self.parameters()):
+			self.optimizer.state[param] = loaded_model["optimizer_params_state"][i]
 			if self.isCudaEnabled:
 				for key in self.optimizer.state[param]:
 					self.optimizer.state[param][key] = maybeCuda(self.optimizer.state[param][key])
