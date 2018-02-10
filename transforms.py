@@ -84,19 +84,34 @@ class Transformer:
 		# This parameter controls if the transformation for the labels is done on the shape of the data or the label
 		sentLabelShape = self.dataShape if applyOnDataShapeForLabels else self.labelShape
 
+		# Built-in transforms
+		mirror = Mirror(dataShape, sentLabelShape)
+		cropTopLeft = CropTopLeft(dataShape, sentLabelShape)
+		cropTopRight = CropTopRight(dataShape, sentLabelShape)
+		cropBottomLeft = CropBottomLeft(dataShape, sentLabelShape)
+		cropBottomRight = CropBottomRight(dataShape, sentLabelShape)
+
 		# There are some built-in transforms that can be sent as strings. For more complex ones, a lambda functon
 		#  or a class that implements the __call__ function must be used. See class Transform for parameters.
 		for i, transform in enumerate(self.transforms):
 			if transform == "mirror":
-				self.transforms[i] = Mirror(dataShape, sentLabelShape)
+				self.transforms[i] = mirror
 			elif transform == "crop_top_left":
-				self.transforms[i] = CropTopLeft(dataShape, sentLabelShape)
+				self.transforms[i] = cropTopLeft
 			elif transform == "crop_top_right":
-				self.transforms[i] = CropTopRight(dataShape, sentLabelShape)
+				self.transforms[i] = cropTopRight
 			elif transform == "crop_bottom_left":
-				self.transforms[i] = CropBottomLeft(dataShape, sentLabelShape)
+				self.transforms[i] = cropBottomLeft
 			elif transform == "crop_bottom_right":
-				self.transforms[i] = CropBottomRight(dataShape, sentLabelShape)
+				self.transforms[i] = cropBottomRight
+			elif transform == "crop_top_left_mirror":
+				self.transforms[i] = lambda data, labels: mirror(*cropTopLeft(data, labels))
+			elif transform == "crop_top_right_mirror":
+				self.transforms[i] = lambda data, labels: mirror(*cropTopRight(data, labels))
+			elif transform == "crop_bottom_left_mirror":
+				self.transforms[i] = lambda data, labels: mirror(*cropBottomLeft(data, labels))
+			elif transform == "crop_bottom_right_mirror":
+				self.transforms[i] = lambda data, labels: mirror(*cropBottomRight(data, labels))
 			elif transform == "none":
 				self.transforms[i] = lambda data, labels: data, labels
 			else:
