@@ -2,16 +2,19 @@ import numpy as np
 from lycon import resize, Interpolation
 from scipy.ndimage import gaussian_filter
 
-def anti_alias_resize_batch(data, dataShape):
+def resize_batch(data, dataShape, type="bilinear"):
 	# No need to do anything if shapes are identical.
 	if data.shape == dataShape:
 		return data
 
+	print(type)
+	assert type in ("bilinear", "nearest")
 	numData = len(data)
 	newData = np.zeros((numData, *dataShape), dtype=data.dtype)
 
+	interpolationType = Interpolation.LINEAR if type == "bilinear" else Interpolation.NEAREST
 	for i in range(len(data)):
-		newData[i] = resize(data[i], height=dataShape[0], width=dataShape[1], interpolation=Interpolation.NEAREST)
+		newData[i] = resize(data[i], height=dataShape[0], width=dataShape[1], interpolation=interpolationType)
 	return newData
 
 # Labels can be None, in that case only data is available (testing cases without labels)

@@ -1,5 +1,5 @@
 import numpy as np
-from utils import anti_alias_resize_batch
+from utils import resize_batch
 
 # Generic transform
 class Transform:
@@ -121,15 +121,15 @@ class Transformer:
 	# TODO: make it generic, so it can receive or not a label (or a list of labels) and apply the transforms on them
 	#  identically. Example of usage: random crop on both depth and semantic segmentation image, but we want to have
 	#  an identical random crop for all 3 images (rgb, depth and segmentation).
-	def applyTransform(self, transform, data, labels):
+	def applyTransform(self, transform, data, labels, interpolationType):
 		print("Applying '%s' transform" % (transform))
 		numData = len(data)
 		if transform == "none":
 			transform = lambda data, labels: (data, labels)
 		newData, newLabels = transform(data, labels)
 
-		newData = anti_alias_resize_batch(newData, self.dataShape)
-		newLabels = anti_alias_resize_batch(newLabels, self.labelShape)
+		newData = resize_batch(newData, self.dataShape, interpolationType)
+		newLabels = resize_batch(newLabels, self.labelShape, interpolationType)
 
 		assert newData.shape == (numData, *self.dataShape) and newData.dtype == data.dtype \
 			and newLabels.shape == (numData, *self.labelShape) and newLabels.dtype == labels.dtype, "Expected data " \
@@ -143,7 +143,7 @@ class Transformer:
 	# @param[in] labels (optional) The original labels (or list of labels) on which the transforms are done, which are
 	#  done in same manner as they are done for the data (for example for random cropping, same random indexes are
 	#  chosen).
-	def applyTransforms(self, data, labels=None):
+	def applyTransforms(self, data, labels=None, interpolationType="bilinear"):
 		# assert self.labelsPresent == False or (self.labelsPresent == True and not labels is None)
 		for transform in self.transforms:
-			yield self.applyTransform(transform, data, labels)
+			yield self.applyTransform(transform, data, labels, interpolationType)
