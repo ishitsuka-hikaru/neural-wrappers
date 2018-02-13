@@ -1,3 +1,6 @@
+How to install:
+- Add the path to the src directory of this project in PYTHONPATH environment variable.
+
 Structure of this project:
 - examples/ - TODO - simple examples for training/testing etc.
 - test/ - TODO - make a unit test for all functions used
