@@ -113,7 +113,7 @@ class Transformer:
 			elif transform == "crop_bottom_right_mirror":
 				self.transforms[i] = lambda data, labels: mirror(*cropBottomRight(data, labels))
 			elif transform == "none":
-				self.transforms[i] = lambda data, labels: data, labels
+				self.transforms[i] = lambda data, labels: (data, labels)
 			else:
 				assert hasattr(transform, "__call__"), "The user provided transformation %s must be callable" % \
 					(transform)
@@ -122,20 +122,17 @@ class Transformer:
 	#  identically. Example of usage: random crop on both depth and semantic segmentation image, but we want to have
 	#  an identical random crop for all 3 images (rgb, depth and segmentation).
 	def applyTransform(self, transform, data, labels):
-		# print("Applying '%s' transform" % (transform))
+		print("Applying '%s' transform" % (transform))
 		numData = len(data)
-
-		# There is a special "transform" that does nothing, just uses the resize at end.
-		if transform != "none":
-			newData, newLabels = transform(data, labels)
-		else:
-			newData, newLabels = data, labels
+		if transform == "none":
+			transform = lambda data, labels: (data, labels)
+		newData, newLabels = transform(data, labels)
 
 		newData = anti_alias_resize_batch(newData, self.dataShape)
 		newLabels = anti_alias_resize_batch(newLabels, self.labelShape)
 
 		assert newData.shape == (numData, *self.dataShape) and newData.dtype == data.dtype \
-			and newLabels.shape == (numData, *self.labelShape) and newLabels.dtype == labels.dtype, "Expected data "\
+			and newLabels.shape == (numData, *self.labelShape) and newLabels.dtype == labels.dtype, "Expected data " \
 			+ "shape %s, found %s. Expected labels shape %s, found %s." % (newData.shape, (numData, *self.dataShape),\
 			newLabels.shape, (numData, *self.labelShape))
 		return newData, newLabels

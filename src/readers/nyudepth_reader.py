@@ -56,11 +56,12 @@ class NYUDepthReader(DatasetReader):
 			assert startIndex < endIndex, "startIndex < endIndex. Got values: %d %d" % (startIndex, endIndex)
 			numData = endIndex - startIndex
 
-			labelType = "depths" if self.labels == depths else "labels"
+			labelType = "depths" if self.labelsType == "depths" else "labels"
 			# N x 3 x 640 x 480 => N x 480 x 640 x 3
 			images = np.swapaxes(self.dataset["images"][startIndex : endIndex], 1, 3).astype(np.float32)
 			# N x 640 x 480 => N x 480 x 640. Labels can be "depths" or "labels" (for segmentation), not both yet.
-			labels = np.swapaxes(self.dataset[labelType][startIndex : endIndex], 1, 2)
+			labels = self.dataset[labelType][startIndex : endIndex]
+			labels = np.swapaxes(labels, 1, 2)
 
 			if self.normalization == "standardize":
 				assert False, "Standardization not yet supported"
