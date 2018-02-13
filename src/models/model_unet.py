@@ -71,10 +71,9 @@ class outconv(nn.Module):
 		return x
 
 class ModelUNet(NeuralNetworkPyTorch):
-	def __init__(self, lossType, depthShape):
+	def __init__(self, depthShape):
 		super(ModelUNet, self).__init__()
 
-		self.lossType = lossType
 		self.depthShape = depthShape
 
 		self.inc = inconv(3, 64)
@@ -89,7 +88,7 @@ class ModelUNet(NeuralNetworkPyTorch):
 		self.outc = outconv(64, 1)
 
 	def __str__(self):
-		return "UNet. Loss Type: %s. Label shape: %s" % (self.lossType, self.depthShape)
+		return "UNet. Label shape: %s" % (self.depthShape)
 
 	def forward(self, x):
 		# Move depth first (MB, 228, 304, 3) => (MB, 3, 228, 304)

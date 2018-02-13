@@ -55,16 +55,14 @@ class ModelDepthFine(NeuralNetworkPyTorch):
 		return fine4
 
 class ModelEigen(NeuralNetworkPyTorch):
-	def __init__(self, lossType, coarseOnly, depthShape):
+	def __init__(self,  coarseOnly, depthShape):
 		super().__init__()
-		self.lossType = lossType
 		self.coarseOnly = coarseOnly
 		self.depthShape = depthShape
 		self.setup()
 
 	def __str__(self):
-		return "Eigen. Coarse only: %s. Loss Type: %s. Label shape: %s" % (self.coarseOnly, self.lossType, \
-			self.depthShape)
+		return "Eigen. Coarse only: %s. Label shape: %s" % (self.coarseOnly, self.depthShape)
 
 	def setup(self):
 		self.coarse = ModelDepthCoarse()
