@@ -1,0 +1,12 @@
+Structure of this project:
+- examples/ - TODO - simple examples for training/testing etc.
+- test/ - TODO - make a unit test for all functions used
+- src/
+	dataset_reader/ - Base class for all readers and various readers for known datasets.
+	models/ - Various PyTorch models from different papers implemented. May contain additional or missing features from
+		original articles.
+	callbacks.py - Basic callback class and some built-in callbacks for training (history.txt, model saving)
+	metrics.py - Basic metrics and some built-in metrics for training (accuracy/loss)
+	transforms.py - Basic transforms and some built-in transforms for data augmentation (mirror, cropping)
+	utils.py - Various functions
+- README - this file
