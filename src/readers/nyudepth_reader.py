@@ -1,5 +1,7 @@
+import h5py
 import numpy as np
 from .dataset_reader import DatasetReader
+from transforms import Transformer
 
 class NYUDepthReader(DatasetReader):
 	def __init__(self, datasetPath, labels="depths", imagesShape=(240, 320, 3), depthShape=(55, 74), \

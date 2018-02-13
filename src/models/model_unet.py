@@ -2,7 +2,6 @@ import torch as tr
 import torch.nn as nn
 import torch.nn.functional as F
 from pytorch_wrapper import NeuralNetworkPyTorch
-from loss import l2_loss
 
 class double_conv(nn.Module):
 	'''(conv => BN => ReLU) * 2'''
@@ -78,11 +77,6 @@ class ModelUNet(NeuralNetworkPyTorch):
 		self.lossType = lossType
 		self.depthShape = depthShape
 
-		if self.lossType == "l2_loss":
-			self.setCriterion(l2_loss)
-		else:
-			raise NotImplemented("Wrong loss type. Expected: l2_loss.")
-
 		self.inc = inconv(3, 64)
 		self.down1 = down(64, 128)
 		self.down2 = down(128, 256)
@@ -95,7 +89,7 @@ class ModelUNet(NeuralNetworkPyTorch):
 		self.outc = outconv(64, 1)
 
 	def __str__(self):
-		return "UNet. Loss Type: %s. Depth shape: %s" % (self.lossType, self.depthShape)
+		return "UNet. Loss Type: %s. Label shape: %s" % (self.lossType, self.depthShape)
 
 	def forward(self, x):
 		# Move depth first (MB, 228, 304, 3) => (MB, 3, 228, 304)

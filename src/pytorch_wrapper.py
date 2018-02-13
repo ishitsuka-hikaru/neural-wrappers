@@ -144,6 +144,7 @@ class NeuralNetworkPyTorch(nn.Module):
 	# @return The mean metrics over all the steps.
 	def run_one_epoch(self, generator, stepsPerEpoch, callbacks=[], optimize=False, printMessage=False, debug=False):
 		assert "Loss" in self.metrics.keys(), "At least one metric is required and Loss must be in them"
+		assert not self.criterion is None, "Expected a criterion/loss to be set before training/testing."
 		metricResults = {metric : 0 for metric in self.metrics.keys()}
 
 		for i, (npData, npLabels) in enumerate(generator):

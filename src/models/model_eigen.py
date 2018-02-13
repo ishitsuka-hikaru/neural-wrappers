@@ -2,7 +2,6 @@ from pytorch_wrapper import NeuralNetworkPyTorch
 import torch as tr
 import torch.nn as nn
 import torch.nn.functional as F
-from loss import l2_loss, l2_log_loss
 
 # The top architeture in the original paper.
 class ModelDepthCoarse(NeuralNetworkPyTorch):
@@ -64,20 +63,13 @@ class ModelEigen(NeuralNetworkPyTorch):
 		self.setup()
 
 	def __str__(self):
-		return "Eigen. Coarse only: %s. Loss Type: %s. Depth shape: %s" % (self.coarseOnly, self.lossType, \
+		return "Eigen. Coarse only: %s. Loss Type: %s. Label shape: %s" % (self.coarseOnly, self.lossType, \
 			self.depthShape)
 
 	def setup(self):
 		self.coarse = ModelDepthCoarse()
 		if not self.coarseOnly:
 			self.fine = ModelDepthFine(self.depthShape)
-
-		if self.lossType == "l2_loss":
-			self.setCriterion(l2_loss)
-		elif self.lossType == "l2_log_loss":
-			self.setCriterion(l2_log_loss)
-		else:
-			raise NotImplemented("Wrong loss type. Expected: l2_loss, l2_log_loss.")
 
 	def forward(self, x):
 		coarseForward = self.coarse.forward(x)
