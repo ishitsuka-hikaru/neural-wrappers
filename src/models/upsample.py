@@ -9,6 +9,7 @@ from pytorch_wrapper import NeuralNetworkPyTorch, maybeCuda
 class UpSampleUnpool(NeuralNetworkPyTorch):
 	def __init__(self, inShape, dIn, dOut):
 		super(UpSampleUnpool, self).__init__()
+		assert not inShape is None
 		self.upSample = nn.MaxUnpool2d(kernel_size=2)
 		# inShape is needed to pre-compute the indices for the unpooling (as they are not prouced by down pool)
 		ind = np.mgrid[0 : inShape[0] * 2 : 2, 0 : inShape[1] * 2 : 2]
@@ -35,13 +36,16 @@ class UpSampleUnpool(NeuralNetworkPyTorch):
 		return self.upSample(x, ind)
 
 class UpSampleConvTransposed(NeuralNetworkPyTorch):
-	def __init__(self, inShape, dIn, dOut):
+	def __init__(self, dIn, dOut):
 		super(UpSampleConvTransposed, self).__init__()
-		self.outShape = (2 * inShape[0], 2 * inShape[1])
 		self.upSample = nn.ConvTranspose2d(in_channels=dIn, out_channels=dIn, kernel_size=2, stride=2)
 
 	def forward(self, x):
-		return F.relu(self.upSample(x, output_size=self.outShape))
+		out = F.relu(self.upSample(x))
+		# MB x dIn x H x W => MB x dOut x 2*H x 2*W
+		assert x.shape[2] * 2 == out.shape[2] and x.shape[3] * 2 == out.shape[3], "Expected upconv transposed to " + \
+			"double the output shape, got: in %s, out %s" % (x.shape[2 : 4], out.shape[2 : 4])
+		return out
 
 # Class that implements 3 methods for up-sampling from the bottom encoding layer
 # "unpool" is the method described in Laina paper, with unpooling method with zeros + conv
@@ -50,7 +54,8 @@ class UpSampleLayer(NeuralNetworkPyTorch):
 	def __init__(self, inShape, dIn, dOut, Type):
 		super(UpSampleLayer, self).__init__()
 		assert Type in ("unpool", "bilinear", "nearest", "conv_transposed")
-		assert len(inShape) == 2
+		assert (Type != "unpool") or (Type == "unpool" and len(inShape) == 2), "For unpool, inShape must be provided \
+			as a tuple so indices for max unpool can be pre-computed."
 		self.conv = nn.Conv2d(in_channels=dIn, out_channels=dOut, kernel_size=5)
 
 		if Type == "unpool":
@@ -58,7 +63,7 @@ class UpSampleLayer(NeuralNetworkPyTorch):
 		elif Type in ("bilinear", "nearest"):
 			self.upSampleLayer = nn.Upsample(scale_factor=2, mode=Type)
 		elif Type == "conv_transposed":
-			self.upSampleLayer = UpSampleConvTransposed(inShape=inShape, dIn=dIn, dOut=dOut)
+			self.upSampleLayer = UpSampleConvTransposed(dIn=dIn, dOut=dOut)
 
 	def forward(self, x):
 		y1 = self.upSampleLayer(x)

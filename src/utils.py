@@ -4,10 +4,9 @@ from scipy.ndimage import gaussian_filter
 
 def resize_batch(data, dataShape, type="bilinear"):
 	# No need to do anything if shapes are identical.
-	if data.shape == dataShape:
-		return data
+	if data.shape[1 : ] == dataShape:
+		return np.copy(data)
 
-	print(type)
 	assert type in ("bilinear", "nearest")
 	numData = len(data)
 	newData = np.zeros((numData, *dataShape), dtype=data.dtype)

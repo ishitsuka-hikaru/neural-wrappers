@@ -2,108 +2,87 @@ import torch as tr
 import torch.nn as nn
 import torch.nn.functional as F
 from pytorch_wrapper import NeuralNetworkPyTorch
+from .upsample import UpSampleLayer
 
-class double_conv(nn.Module):
-	'''(conv => BN => ReLU) * 2'''
-	def __init__(self, in_ch, out_ch):
-		super(double_conv, self).__init__()
-		self.conv = nn.Sequential(
-			nn.Conv2d(in_ch, out_ch, 3, padding=1),
-			nn.BatchNorm2d(out_ch),
-			nn.ReLU(inplace=True),
-			nn.Conv2d(out_ch, out_ch, 3, padding=1),
-			nn.BatchNorm2d(out_ch),
-			nn.ReLU(inplace=True)
-		)
+# A simple block that implements the 2 convs + Relu layers
+class UNetBlock(NeuralNetworkPyTorch):
+	def __init__(self, dIn, dOut):
+		super(UNetBlock, self).__init__()
+		self.conv1 = nn.Conv2d(in_channels=dIn, out_channels=dOut, kernel_size=3)
+		self.conv2 = nn.Conv2d(in_channels=dOut, out_channels=dOut, kernel_size=3)
 
 	def forward(self, x):
-		x = self.conv(x)
-		return x
+		out1 = F.relu(self.conv1(x))
+		out2 = F.relu(self.conv2(out1))
+		return out2
 
-class inconv(nn.Module):
-	def __init__(self, in_ch, out_ch):
-		super(inconv, self).__init__()
-		self.conv = double_conv(in_ch, out_ch)
+# A class that implements the upsample+concatenation of the output of the downsample part with the result of the up
+class UNetConcatenateBlock(NeuralNetworkPyTorch):
+	def __init__(self, dIn, dOut, upSampleType):
+		super(UNetConcatenateBlock, self).__init__()
+		assert upSampleType in ("conv_transposed", "conv_transposed_simple", "nearest", "bilinear", "unpool")
+		# The last ones also have a 5x5 convolution after the upsample to smooth out artefacts, but have more params.
+		if upSampleType == "conv_transposed_simple":
+			self.upsample = nn.ConvTranspose2d(in_channels=dIn, out_channels=dIn//2, kernel_size=2, stride=2)
+		else:
+			self.upsample = UpSampleLayer(inShape=None, dIn=dIn, dOut=dIn//2, Type=upSampleType)
 
-	def forward(self, x):
-		x = self.conv(x)
-		return x
+	def forward(self, y_down, x):
+		# As example y_down:(64x64), x:(28x28), out_upsample:(56x56), so we need to cut ((64 - 56)/2) = 4 on each side
+		out_upsample = self.upsample(x)
+		# This should be 4 each in the example
+		diffH, diffW = (y_down.shape[2] - out_upsample.shape[2]) // 2, (y_down.shape[3] - out_upsample.shape[3]) // 2
+		# This should the slice of (56x56)
+		y_down_view = y_down[:, :, diffH : -diffH, diffW : -diffW]
+		# This should concatenate both (56x56) sides on the first (features), not minibatch: (MB x 2*D x 56 x 56)
+		out_cat = tr.cat([y_down_view, out_upsample], dim=1)
+		return out_cat
 
-
-class down(nn.Module):
-	def __init__(self, in_ch, out_ch):
-		super(down, self).__init__()
-		self.mpconv = nn.Sequential(
-			nn.MaxPool2d(2),
-			double_conv(in_ch, out_ch)
-		)
-
-	def forward(self, x):
-		x = self.mpconv(x)
-		return x
-
-class up(nn.Module):
-	def __init__(self, in_ch, out_ch):
-		super(up, self).__init__()
-
-		#  would be a nice idea if the upsampling could be learned too,
-		#  but my machine do not have enough memory to handle all those weights
-		self.up = nn.Upsample(scale_factor=2, mode="bilinear")
-
-		self.conv = double_conv(in_ch, out_ch)
-
-	def forward(self, x1, x2):
-		x1 = self.up(x1)
-		diffX = x1.size()[2] - x2.size()[2]
-		diffY = x1.size()[3] - x2.size()[3]
-		x2 = F.pad(x2, (diffX // 2, diffX // 2, diffY // 2, diffY //2))
-		x = tr.cat([x2, x1], dim=1)
-		x = self.conv(x)
-		return x
-
-class outconv(nn.Module):
-	def __init__(self, in_ch, out_ch):
-		super(outconv, self).__init__()
-		self.conv = nn.Conv2d(in_ch, out_ch, 1)
-
-	def forward(self, x):
-		x = self.conv(x)
-		return x
-
+# Implementation of the UNet model from https://arxiv.org/abs/1505.04597
 class ModelUNet(NeuralNetworkPyTorch):
-	def __init__(self, depthShape):
+	def __init__(self, upSampleType):
 		super(ModelUNet, self).__init__()
+		assert upSampleType in ("bilinear", "nearest", "conv_transposed", "conv_transposed_simple")
 
-		self.depthShape = depthShape
-
-		self.inc = inconv(3, 64)
-		self.down1 = down(64, 128)
-		self.down2 = down(128, 256)
-		self.down3 = down(256, 512)
-		self.down4 = down(512, 512)
-		self.up1 = up(1024, 256)
-		self.up2 = up(512, 128)
-		self.up3 = up(256, 64)
-		self.up4 = up(128, 64)
-		self.outc = outconv(64, 1)
-
-	def __str__(self):
-		return "UNet. Label shape: %s" % (self.depthShape)
+		self.pool22 = nn.MaxPool2d(kernel_size=2)
+		# Downsample part
+		self.block1 = UNetBlock(dIn=3, dOut=64)
+		self.block2 = UNetBlock(dIn=64, dOut=128)
+		self.block3 = UNetBlock(dIn=128, dOut=256)
+		self.block4 = UNetBlock(dIn=256, dOut=512)
+		# Middle part - standard architecture
+		self.block5 = UNetBlock(dIn=512, dOut=1024)
+		# Upsample part
+		self.upconcat6 = UNetConcatenateBlock(dIn=1024, dOut=1024, upSampleType=upSampleType)
+		self.block6 = UNetBlock(dIn=1024, dOut=512)
+		self.upconcat7 = UNetConcatenateBlock(dIn=512, dOut=512, upSampleType=upSampleType)
+		self.block7 = UNetBlock(dIn=512, dOut=256)
+		self.upconcat8 = UNetConcatenateBlock(dIn=256, dOut=256, upSampleType=upSampleType)
+		self.block8 = UNetBlock(dIn=256, dOut=128)
+		self.upconcat9 = UNetConcatenateBlock(dIn=128, dOut=128, upSampleType=upSampleType)
+		self.block9 = UNetBlock(dIn=128, dOut=64)
+		self.conv10 = nn.Conv2d(in_channels=64, out_channels=1, kernel_size=1)
 
 	def forward(self, x):
-		# Move depth first (MB, 228, 304, 3) => (MB, 3, 228, 304)
+		# Move depth first (MB, H, W, 3) => (MB, 3, H, W)
 		x = tr.transpose(tr.transpose(x, 1, 3), 2, 3)
 
-		x1 = self.inc(x)
-		x2 = self.down1(x1)
-		x3 = self.down2(x2)
-		x4 = self.down3(x3)
-		x5 = self.down4(x4)
-		x = self.up1(x5, x4)
-		x = self.up2(x, x3)
-		x = self.up3(x, x2)
-		x = self.up4(x, x1)
-		x = self.outc(x)
-		x = x.view(x.shape[0], x.shape[2], x.shape[3])
-		assert tuple(x.shape[1 : 3]) == self.depthShape
-		return x
+		out1 = self.block1(x)
+		out2 = self.block2(self.pool22(out1))
+		out3 = self.block3(self.pool22(out2))
+		out4 = self.block4(self.pool22(out3))
+
+		out5 = self.block5(self.pool22(out4))
+
+		in6 = self.upconcat6(out4, out5)
+		out6 = self.block6(in6)
+		in7 = self.upconcat7(out3, out6)
+		out7 = self.block7(in7)
+		in8 = self.upconcat8(out2, out7)
+		out8 = self.block8(in8)
+		in9 = self.upconcat9(out1, out8)
+		out9 = self.block9(in9)
+
+		out10 = self.conv10(out9)
+		out10 = out10.view(out10.shape[0], out10.shape[2], out10.shape[3])
+		return out10

@@ -77,8 +77,6 @@ class NYUDepthReader(DatasetReader):
 					labels /= 10
 
 			interpolationType = "nearest" if self.labelsType == "segmentation" else "bilinear"
-			# Use the "none" transform just for its resize operation it does at end.
-			yield self.dataAugmenter.applyTransform("none", images, labels, interpolationType)
 			# Apply each transform
 			for augImages, augLabels in self.dataAugmenter.applyTransforms(images, labels, interpolationType):
 				yield augImages, augLabels

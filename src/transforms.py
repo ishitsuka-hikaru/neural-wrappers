@@ -26,6 +26,25 @@ class Mirror(Transform):
 	def __str__(self):
 		return "Image mirroring transformation"
 
+class CropMiddle(Transform):
+	def __call__(self, data, labels):
+		assert data.shape[1] > self.dataShape[0] and data.shape[2] > self.dataShape[1]
+		dataIndexes = self.computeIndexes(data.shape)
+		labelIndexes = self.computeIndexes(labels.shape)
+		newData = data[:, dataIndexes[0] : -dataIndexes[1], dataIndexes[2] : -dataIndexes[3]]
+		newLabels = labels[:, labelIndexes[0] : -labelIndexes[1], labelIndexes[2] : -labelIndexes[3]]
+		return newData, newLabels
+
+	def computeIndexes(self, dataShape):
+		diffTop = (dataShape[1] - self.dataShape[0]) // 2 + ((dataShape[1] - self.dataShape[0]) % 2 == 1)
+		diffBottom = (dataShape[1] - self.dataShape[0]) // 2
+		diffLeft = (dataShape[2] - self.dataShape[1]) // 2 + ((dataShape[2] - self.dataShape[1]) % 2 == 1)
+		diffRight = (dataShape[2] - self.dataShape[1]) // 2
+		return diffTop, diffBottom, diffLeft, diffRight
+
+	def __str__(self):
+		return "Crop middle transformation"
+
 class CropTopLeft(Transform):
 	def __call__(self, data, labels):
 		# Remember that first dimension is the batch
@@ -86,6 +105,7 @@ class Transformer:
 
 		# Built-in transforms
 		mirror = Mirror(dataShape, sentLabelShape)
+		cropMiddle = CropMiddle(dataShape, sentLabelShape)
 		cropTopLeft = CropTopLeft(dataShape, sentLabelShape)
 		cropTopRight = CropTopRight(dataShape, sentLabelShape)
 		cropBottomLeft = CropBottomLeft(dataShape, sentLabelShape)
@@ -94,8 +114,12 @@ class Transformer:
 		# There are some built-in transforms that can be sent as strings. For more complex ones, a lambda functon
 		#  or a class that implements the __call__ function must be used. See class Transform for parameters.
 		for i, transform in enumerate(self.transforms):
-			if transform == "mirror":
+			if transform == "none":
+				self.transforms[i] = lambda data, labels: (data, labels)
+			elif transform == "mirror":
 				self.transforms[i] = mirror
+			elif transform == "crop_middle":
+				self.transforms[i] = cropMiddle
 			elif transform == "crop_top_left":
 				self.transforms[i] = cropTopLeft
 			elif transform == "crop_top_right":
@@ -104,6 +128,8 @@ class Transformer:
 				self.transforms[i] = cropBottomLeft
 			elif transform == "crop_bottom_right":
 				self.transforms[i] = cropBottomRight
+			elif transform == "crop_middle_mirror":
+				self.transforms[i] = lambda data, labels: mirror(*cropMiddle(data, labels))
 			elif transform == "crop_top_left_mirror":
 				self.transforms[i] = lambda data, labels: mirror(*cropTopLeft(data, labels))
 			elif transform == "crop_top_right_mirror":
@@ -112,8 +138,6 @@ class Transformer:
 				self.transforms[i] = lambda data, labels: mirror(*cropBottomLeft(data, labels))
 			elif transform == "crop_bottom_right_mirror":
 				self.transforms[i] = lambda data, labels: mirror(*cropBottomRight(data, labels))
-			elif transform == "none":
-				self.transforms[i] = lambda data, labels: (data, labels)
 			else:
 				assert hasattr(transform, "__call__"), "The user provided transformation %s must be callable" % \
 					(transform)
@@ -122,7 +146,7 @@ class Transformer:
 	#  identically. Example of usage: random crop on both depth and semantic segmentation image, but we want to have
 	#  an identical random crop for all 3 images (rgb, depth and segmentation).
 	def applyTransform(self, transform, data, labels, interpolationType):
-		print("Applying '%s' transform" % (transform))
+		# print("Applying '%s' transform" % (transform))
 		numData = len(data)
 		if transform == "none":
 			transform = lambda data, labels: (data, labels)
