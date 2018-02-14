@@ -26,7 +26,8 @@ class DatasetReader:
 	#  represent same epoch.
 	def getNumIterations(self, type, miniBatchSize, accountTransforms=False):
 		N = self.numData[type] // miniBatchSize + (self.numData[type] % miniBatchSize != 0)
-		return N if accountTransforms == False else N * (len(self.transforms) + 1)
+		assert len(self.transforms), "No transforms used, perhaps set just \"none\""
+		return N if accountTransforms == False else N * len(self.transforms)
 
 	# Returns the mean of the dataset. Sometimes differnt means are used for different shapes (due to rescaling).
 	def getMean(self, shape=None):
