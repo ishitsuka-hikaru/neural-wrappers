@@ -26,10 +26,7 @@ class UpSampleUnpool(NeuralNetworkPyTorch):
 		ind[0 : ] = self.indices
 		trInd = tr.from_numpy(ind).long()
 
-		if self.isCudaEnabled:
-			return Variable(maybeCuda(trInd), requires_grad=False)
-		else:
-			return Variable(trInd, requires_grad=False)
+		return Variable(maybeCuda(trInd), requires_grad=False)
 
 	def forward(self, x):
 		ind = self.computeIndexesMethod(x)

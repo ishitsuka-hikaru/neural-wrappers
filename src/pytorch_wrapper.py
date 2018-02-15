@@ -74,7 +74,6 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.criterion = None
 		self.metrics = {"Loss" : Loss()}
 		self.startEpoch = 1
-		self.isCudaEnabled = False
 		super(NeuralNetworkPyTorch, self).__init__()
 
 	def __str__(self):
@@ -90,17 +89,6 @@ class NeuralNetworkPyTorch(nn.Module):
 	def setStartEpoch(self, epoch):
 		assert epoch >= 1 and type(epoch) == int, "Epoch is a non-zero natural number"
 		self.startEpoch = epoch
-
-	# Set the cuda flag so when we load models, we can see if we have to load the parameters as cuda or cpu tensors
-	def cuda(self):
-		if tr.cuda.is_available():
-			self.isCudaEnabled = True
-			super().cuda()
-		return self
-
-	def cpu(self):
-		self.isCudaEnabled = False
-		return super().cpu()
 
 	def setMetrics(self, metrics):
 		assert "Loss" in metrics, "At least one metric is required and Loss must be in them"
@@ -272,10 +260,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		for i, item in enumerate(self.parameters()):
 			if item.data.shape != params[i].data.shape:
 				raise Exception("Inconsistent parameters: %d vs %d." % (item.data.shape, params[i].data.shape))
-			if self.isCudaEnabled:
-				item.data = maybeCuda(params[i].data)
-			else:
-				item.data = params[i].data
+			item.data = maybeCuda(params[i].data)
 
 	# Saves a complete model, consisting of weights, state and optimizer params
 	def save_model(self, path):
@@ -299,20 +284,16 @@ class NeuralNetworkPyTorch(nn.Module):
 		assert len(self.optimizer.param_groups) == 1
 		for key in loaded_model["optimizer_hyper_params"]:
 			assert key != "params"
-			if self.isCudaEnabled:
-				self.optimizer.param_groups[0][key] = loaded_model["optimizer_hyper_params"][key]
-			else:
-				self.optimizer.param_groups[0][key] = maybeCuda(loaded_model["optimizer_hyper_params"][key])
+			self.optimizer.param_groups[0][key] = maybeCuda(loaded_model["optimizer_hyper_params"][key])
 
 		# Load params now
 		self.optimizer.param_groups[0]["params"] = list(self.parameters())
 
 		# Load parameters state from the stored list
 		for i, param in enumerate(self.parameters()):
-			self.optimizer.state[param] = loaded_model["optimizer_params_state"][i]
-			if self.isCudaEnabled:
-				for key in self.optimizer.state[param]:
-					self.optimizer.state[param][key] = maybeCuda(self.optimizer.state[param][key])
+			self.optimizer.state[param] = {}
+			for key in loaded_model["optimizer_params_state"][i]:
+				self.optimizer.state[param][key] = maybeCuda(loaded_model["optimizer_params_state"][i][key])
 
 		# Optimizer consistency checks
 		l1 = list(self.optimizer.state_dict()["state"].keys())
