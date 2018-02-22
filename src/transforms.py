@@ -115,46 +115,40 @@ class Transformer:
 		cropTopRight = CropTopRight(dataShape, sentLabelShape)
 		cropBottomLeft = CropBottomLeft(dataShape, sentLabelShape)
 		cropBottomRight = CropBottomRight(dataShape, sentLabelShape)
-		cropMiddleMirror = lambda data, labels: mirror(*cropMiddle(data, labels))
-		cropTopLeftMirror = lambda data, labels: mirror(*cropTopLeft(data, labels))
-		cropTopRightMirror = lambda data, labels: mirror(*cropTopRight(data, labels))
-		cropBottomLeftMirror = lambda data, labels: mirror(*cropBottomLeft(data, labels))
-		cropBottomRightMirror = lambda data, labels: mirror(*cropBottomRight(data, labels))
+		builtInTransforms = {
+			"none" : lambda data, labels: (data, labels),
+			"mirror" : mirror,
+			"crop_middle" : cropMiddle,
+			"crop_top_left" : cropTopLeft,
+			"crop_top_right" : cropTopRight,
+			"crop_bottom_left" : cropBottomLeft,
+			"crop_bottom_right" : cropBottomRight,
+			"crop_middle_mirror" : lambda data, labels: mirror(*cropMiddle(data, labels)),
+			"crop_top_left_mirror" : lambda data, labels: mirror(*cropTopLeft(data, labels)),
+			"crop_top_right_mirror" : lambda data, labels: mirror(*cropTopRight(data, labels)),
+			"crop_bottom_left_mirror" : lambda data, labels: mirror(*cropBottomLeft(data, labels)),
+			"crop_bottom_right_mirror" : lambda data, labels: mirror(*cropBottomRight(data, labels))
+		}
 
 		if type(transforms) == list:
 			# There are some built-in transforms that can be sent as strings. For more complex ones, a lambda functon
 			#  or a class that implements the __call__ function must be used as well as a name, sent in a tuple/list.
 			#  See class Transform for parameters for __call__. Example: ("cool_transform", lambda x, y : (x+1, y+1)).
 			for i, transform in enumerate(transforms):
-				if transform == "none":
-					dictTransforms["none"] = lambda data, labels: (data, labels)
-				elif transform == "mirror":
-					dictTransforms["mirror"] = mirror
-				elif transform == "crop_middle":
-					dictTransforms["crop_middle"] = cropMiddle
-				elif transform == "crop_top_left":
-					dictTransforms["crop_top_left"] = cropTopLeft
-				elif transform == "crop_top_right":
-					dictTransforms["crop_top_right"] = cropTopRight
-				elif transform == "crop_bottom_left":
-					dictTransforms["crop_bottom_left"] = cropBottomLeft
-				elif transform == "crop_bottom_right":
-					dictTransforms["crop_bottom_right"] = cropBottomRight
-				elif transform == "crop_middle_mirror":
-					dictTransforms["crop_middle_mirror"] = cropMiddleMirror
-				elif transform == "crop_top_left_mirror":
-					dictTransforms["crop_top_left_mirror"] = cropTopLeftMirror
-				elif transform == "crop_top_right_mirror":
-					dictTransforms["crop_top_right_mirror"] = cropTopRightMirror
-				elif transform == "crop_bottom_left_mirror":
-					dictTransforms["crop_bottom_left_mirror"] = cropBottomLeftMirror
-				elif transform == "crop_bottom_right_mirror":
-					dictTransforms["crop_bottom_right_mirror"] = cropBottomRightMirror
-				else:
+				if type(transform) == str:
+					assert transform in builtInTransforms, "If only name is given, expect one of the built-in " + \
+						"transforms to be given: %s" % (builtInTransforms.keys())
+					dictTransforms[transform] = builtInTransforms[transform]
+				elif type(transform) in (tuple, list):
+					assert len(transform) == 2
 					name, transformFunc = transform
-					assert hasattr(transformFunc, "__call__"), "The user provided transformation %s must be " +\
+					assert hasattr(transformFunc, "__call__"), "The user provided transformation %s must be " + \
 						"callable" % (name)
+					assert not name in builtInTransforms, "Cannot overwrite a built-in transform name: %s" % (name)
+					assert not name in dictTransforms, "Cannot give the same name to two transforms: %s" % (name)
 					dictTransforms[name] = transformFunc
+				else:
+					assert False, "Expected either a str for built-in or a (str, func) pair for user transform"
 		elif type(transforms) == dict:
 			dictTransforms = transforms
 		else:
