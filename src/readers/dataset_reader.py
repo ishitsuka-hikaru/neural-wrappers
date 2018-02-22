@@ -36,6 +36,17 @@ class DatasetReader:
 	def getStd(self, shape=None):
 		raise NotImplementedError("Should have implemented this")
 
+	def __str__(self):
+		return "General dataset reader. Update __str__ in your dataset for more details when using summary."
+
+	def summary(self):
+		summaryStr = "[Dataset summary]\n"
+		summaryStr += self.__str__() + "\n"
+
+		summaryStr += "Num data: %s\n" % (self.numData)
+		summaryStr += "Transforms(%i): %s\n" % (len(self.transforms), self.transforms)
+		return summaryStr
+
 class ClassificationDatasetReader(DatasetReader):
 	# Classification problems are split into N classes which varies from data to data.
 	def getNumberOfClasses(self):

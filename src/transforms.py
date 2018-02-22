@@ -96,12 +96,17 @@ class Transformer:
 	#  done at end. There may also be cases where the crop must be done on [0 : 50, 0 : 70], so leave it as an option.
 	def __init__(self, transforms, dataShape, labelShape, applyOnDataShapeForLabels=False):
 		# assert labelsPresent == False or (labelsPresent == True and labelShape != None)
-		self.transforms = transforms
 		self.dataShape = dataShape
 		self.labelShape = labelShape
+		self.applyOnDataShapeForLabels = applyOnDataShapeForLabels
 
 		# This parameter controls if the transformation for the labels is done on the shape of the data or the label
-		sentLabelShape = self.dataShape if applyOnDataShapeForLabels else self.labelShape
+		self.transforms = self.handleTransforms(transforms)
+
+	def handleTransforms(self, transforms):
+		sentLabelShape = self.dataShape if self.applyOnDataShapeForLabels else self.labelShape
+		dictTransforms = {}
+		dataShape = self.dataShape
 
 		# Built-in transforms
 		mirror = Mirror(dataShape, sentLabelShape)
@@ -110,47 +115,59 @@ class Transformer:
 		cropTopRight = CropTopRight(dataShape, sentLabelShape)
 		cropBottomLeft = CropBottomLeft(dataShape, sentLabelShape)
 		cropBottomRight = CropBottomRight(dataShape, sentLabelShape)
+		cropMiddleMirror = lambda data, labels: mirror(*cropMiddle(data, labels))
+		cropTopLeftMirror = lambda data, labels: mirror(*cropTopLeft(data, labels))
+		cropTopRightMirror = lambda data, labels: mirror(*cropTopRight(data, labels))
+		cropBottomLeftMirror = lambda data, labels: mirror(*cropBottomLeft(data, labels))
+		cropBottomRightMirror = lambda data, labels: mirror(*cropBottomRight(data, labels))
 
-		# There are some built-in transforms that can be sent as strings. For more complex ones, a lambda functon
-		#  or a class that implements the __call__ function must be used. See class Transform for parameters.
-		for i, transform in enumerate(self.transforms):
-			if transform == "none":
-				self.transforms[i] = lambda data, labels: (data, labels)
-			elif transform == "mirror":
-				self.transforms[i] = mirror
-			elif transform == "crop_middle":
-				self.transforms[i] = cropMiddle
-			elif transform == "crop_top_left":
-				self.transforms[i] = cropTopLeft
-			elif transform == "crop_top_right":
-				self.transforms[i] = cropTopRight
-			elif transform == "crop_bottom_left":
-				self.transforms[i] = cropBottomLeft
-			elif transform == "crop_bottom_right":
-				self.transforms[i] = cropBottomRight
-			elif transform == "crop_middle_mirror":
-				self.transforms[i] = lambda data, labels: mirror(*cropMiddle(data, labels))
-			elif transform == "crop_top_left_mirror":
-				self.transforms[i] = lambda data, labels: mirror(*cropTopLeft(data, labels))
-			elif transform == "crop_top_right_mirror":
-				self.transforms[i] = lambda data, labels: mirror(*cropTopRight(data, labels))
-			elif transform == "crop_bottom_left_mirror":
-				self.transforms[i] = lambda data, labels: mirror(*cropBottomLeft(data, labels))
-			elif transform == "crop_bottom_right_mirror":
-				self.transforms[i] = lambda data, labels: mirror(*cropBottomRight(data, labels))
-			else:
-				assert hasattr(transform, "__call__"), "The user provided transformation %s must be callable" % \
-					(transform)
+		if type(transforms) == list:
+			# There are some built-in transforms that can be sent as strings. For more complex ones, a lambda functon
+			#  or a class that implements the __call__ function must be used as well as a name, sent in a tuple/list.
+			#  See class Transform for parameters for __call__. Example: ("cool_transform", lambda x, y : (x+1, y+1)).
+			for i, transform in enumerate(transforms):
+				if transform == "none":
+					dictTransforms["none"] = lambda data, labels: (data, labels)
+				elif transform == "mirror":
+					dictTransforms["mirror"] = mirror
+				elif transform == "crop_middle":
+					dictTransforms["crop_middle"] = cropMiddle
+				elif transform == "crop_top_left":
+					dictTransforms["crop_top_left"] = cropTopLeft
+				elif transform == "crop_top_right":
+					dictTransforms["crop_top_right"] = cropTopRight
+				elif transform == "crop_bottom_left":
+					dictTransforms["crop_bottom_left"] = cropBottomLeft
+				elif transform == "crop_bottom_right":
+					dictTransforms["crop_bottom_right"] = cropBottomRight
+				elif transform == "crop_middle_mirror":
+					dictTransforms["crop_middle_mirror"] = cropMiddleMirror
+				elif transform == "crop_top_left_mirror":
+					dictTransforms["crop_top_left_mirror"] = cropTopLeftMirror
+				elif transform == "crop_top_right_mirror":
+					dictTransforms["crop_top_right_mirror"] = cropTopRightMirror
+				elif transform == "crop_bottom_left_mirror":
+					dictTransforms["crop_bottom_left_mirror"] = cropBottomLeftMirror
+				elif transform == "crop_bottom_right_mirror":
+					dictTransforms["crop_bottom_right_mirror"] = cropBottomRightMirror
+				else:
+					name, transformFunc = transform
+					assert hasattr(transformFunc, "__call__"), "The user provided transformation %s must be " +\
+						"callable" % (name)
+					dictTransforms[name] = transformFunc
+		elif type(transforms) == dict:
+			dictTransforms = transforms
+		else:
+			raise Exception("Expected transforms to be a list or dict, got: " + type(transforms))
+		return dictTransforms
 
 	# TODO: make it generic, so it can receive or not a label (or a list of labels) and apply the transforms on them
 	#  identically. Example of usage: random crop on both depth and semantic segmentation image, but we want to have
 	#  an identical random crop for all 3 images (rgb, depth and segmentation).
-	def applyTransform(self, transform, data, labels, interpolationType):
-		# print("Applying '%s' transform" % (transform))
+	def applyTransform(self, transformName, data, labels, interpolationType):
+		# print("Applying '%s' transform" % (transformName))
 		numData = len(data)
-		if transform == "none":
-			transform = lambda data, labels: (data, labels)
-		newData, newLabels = transform(data, labels)
+		newData, newLabels = self.transforms[transformName](data, labels)
 
 		newData = resize_batch(newData, self.dataShape, interpolationType)
 		newLabels = resize_batch(newLabels, self.labelShape, interpolationType)

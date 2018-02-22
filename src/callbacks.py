@@ -33,6 +33,11 @@ class SaveHistory(Callback):
 		
 		self.file.write(message + "\n")
 
+	def write(self, message):
+		sys.stdout.write(message + "\n")
+		sys.stdout.flush()
+		self.file.write(message + "\n")
+
 # TODO: add format to saving files
 class SaveModels(Callback):
 	def __init__(self, type="all"):
