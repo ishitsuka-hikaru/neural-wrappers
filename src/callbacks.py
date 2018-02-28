@@ -26,11 +26,10 @@ class SaveHistory(Callback):
 
 		for metric in sorted(kwargs["trainMetrics"]):
 			message += " %s: %2.2f." % (metric, kwargs["trainMetrics"][metric])
-		
+
 		if kwargs["validationMetrics"] != None:
 			for metric in sorted(kwargs["validationMetrics"]):
 				message += " %s: %2.2f." % (metric, kwargs["validationMetrics"][metric])
-		
 		self.file.write(message + "\n")
 
 	def write(self, message):

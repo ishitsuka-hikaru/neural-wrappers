@@ -5,7 +5,7 @@ from transforms import Transformer
 
 class NYUDepthReader(DatasetReader):
 	def __init__(self, datasetPath, labelsType="depths", imagesShape=(240, 320, 3), labelShape=(55, 74), \
-		normalization="normalize", transforms=[], dataSplit=(60, 30, 10)):
+		normalization="normalize", transforms=[], validationTransforms=None, dataSplit=(60, 30, 10)):
 		assert len(imagesShape) == 3 and len(labelShape) == 2
 		assert labelsType in ("depths", "segmentation"), "Only \"depths\" and \"segmentation\" supported for now. " + \
 			"Expected values \"depths\", \"segmentation\", \"both\""
@@ -19,6 +19,12 @@ class NYUDepthReader(DatasetReader):
 		self.labelsType = labelsType
 		self.dataAugmenter = Transformer(transforms, dataShape=imagesShape, labelShape=labelShape, \
 			applyOnDataShapeForLabels=True)
+		# For training, we may not want to use all the transforms when doing validation to increase speed.
+		if validationTransforms == None:
+			self.validationAugmenter = self.dataAugmenter
+		else:
+			self.validationAugmenter = Transformer(validationTransforms, dataSplit=imagesShape, \
+				labelShape=labelShape, applyOnDataShapeForLabels=True)
 		self.setup()
 
 	def setup(self):
@@ -49,6 +55,9 @@ class NYUDepthReader(DatasetReader):
 
 	def iterate_once(self, type, miniBatchSize):
 		assert type in ("train", "test", "validation")
+
+		augmenter = self.dataAugmenter if type == "train" else self.validationAugmenter
+
 		# One iteration in this method accounts for all transforms at once
 		for i in range(self.getNumIterations(type, miniBatchSize, accountTransforms=False)):
 			startIndex = self.indexes[type][0] + i * miniBatchSize
@@ -78,5 +87,5 @@ class NYUDepthReader(DatasetReader):
 
 			interpolationType = "nearest" if self.labelsType == "segmentation" else "bilinear"
 			# Apply each transform
-			for augImages, augLabels in self.dataAugmenter.applyTransforms(images, labels, interpolationType):
+			for augImages, augLabels in augmenter.applyTransforms(images, labels, interpolationType):
 				yield augImages, augLabels
