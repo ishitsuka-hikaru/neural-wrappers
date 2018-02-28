@@ -23,7 +23,7 @@ class NYUDepthReader(DatasetReader):
 		if validationTransforms == None:
 			self.validationAugmenter = self.dataAugmenter
 		else:
-			self.validationAugmenter = Transformer(validationTransforms, dataSplit=imagesShape, \
+			self.validationAugmenter = Transformer(validationTransforms, dataShape=imagesShape, \
 				labelShape=labelShape, applyOnDataShapeForLabels=True)
 		self.setup()
 
