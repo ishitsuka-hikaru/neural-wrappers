@@ -1,7 +1,10 @@
 import torch as tr
 import numpy as np
+import sys
 from .network import NeuralNetworkPyTorch
 from torch.autograd import Variable
+from utils import DummyIter
+from .utils import maybeCuda, maybeCpu
 
 class RecurrentNeuralNetworkPyTorch(NeuralNetworkPyTorch):
 	# Basic method that does a forward phase for one epoch given a generator modified for recurrent neural networks. It
@@ -57,6 +60,8 @@ class RecurrentNeuralNetworkPyTorch(NeuralNetworkPyTorch):
 				"labels" : npLabels,
 				"results" : npResults,
 				"loss" : npLoss,
+				"iteration" : i,
+				"numIterations" : stepsPerEpoch,
 				"hiddenState" : hiddenState
 			}
 			for callback in callbacks:

@@ -98,7 +98,9 @@ class NeuralNetworkPyTorch(nn.Module):
 				"data" : npData,
 				"labels" : npLabels,
 				"results" : npResults,
-				"loss" : npLoss
+				"loss" : npLoss,
+				"iteration" : i,
+				"numIterations" : stepsPerEpoch
 			}
 			for callback in callbacks:
 				callback(**callbackArgs)
