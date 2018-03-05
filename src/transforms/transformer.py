@@ -1,92 +1,7 @@
-import numpy as np
+# transformer.py Generic class for data augmentation. Definitely not Optimus Prime.
 from utils import resize_batch
+from .transforms import Mirror, CropMiddle, CropTopLeft, CropTopRight, CropBottomLeft, CropBottomRight
 
-# Generic transform
-class Transform:
-	def __init__(self, dataShape, labelsShape):
-		self.dataShape = dataShape
-		self.labelsShape = labelsShape
-
-	# Main function that is called to apply a transformation on one data item
-	# TODO: make label a list or None (case explained below with depth+semantic)
-	def __call__(self, data, labels):
-		raise NotImplementedError("Should have implemented this")
-
-	def __str__(self):
-		return "Generic data transformation"
-
-class Mirror(Transform):
-	def __call__(self, data, labels):
-		# Expected NxHxWxD data or NxHxW. For anything else, implement your own mirroring.
-		assert len(data.shape) in (3, 4) and len(labels.shape) in (3, 4)
-		newData = np.flip(data, 2)
-		newLabels = np.flip(labels, 2)
-		return newData, newLabels
-
-	def __str__(self):
-		return "Image mirroring transformation"
-
-class CropMiddle(Transform):
-	def __call__(self, data, labels):
-		assert data.shape[1] > self.dataShape[0] and data.shape[2] > self.dataShape[1]
-		dataIndexes = self.computeIndexes(data.shape)
-		labelIndexes = self.computeIndexes(labels.shape)
-		newData = data[:, dataIndexes[0] : -dataIndexes[1], dataIndexes[2] : -dataIndexes[3]]
-		newLabels = labels[:, labelIndexes[0] : -labelIndexes[1], labelIndexes[2] : -labelIndexes[3]]
-		return newData, newLabels
-
-	def computeIndexes(self, dataShape):
-		diffTop = (dataShape[1] - self.dataShape[0]) // 2 + ((dataShape[1] - self.dataShape[0]) % 2 == 1)
-		diffBottom = (dataShape[1] - self.dataShape[0]) // 2
-		diffLeft = (dataShape[2] - self.dataShape[1]) // 2 + ((dataShape[2] - self.dataShape[1]) % 2 == 1)
-		diffRight = (dataShape[2] - self.dataShape[1]) // 2
-		return diffTop, diffBottom, diffLeft, diffRight
-
-	def __str__(self):
-		return "Crop middle transformation"
-
-class CropTopLeft(Transform):
-	def __call__(self, data, labels):
-		# Remember that first dimension is the batch
-		assert data.shape[1] > self.dataShape[0] and data.shape[2] > self.dataShape[1]
-		newData = data[:, 0 : self.dataShape[0], 0 : self.dataShape[1]]
-		newLabels = labels[:, 0 : self.labelsShape[0], 0 : self.labelsShape[1]]
-		return newData, newLabels
-
-	def __str__(self):
-		return "Crop top left transformation"
-
-class CropTopRight(Transform):
-	def __call__(self, data, labels):
-		assert data.shape[1] > self.dataShape[0] and data.shape[2] > self.dataShape[1]
-		newData = data[:, 0 : self.dataShape[0], -self.dataShape[1] : ]
-		newLabels = labels[:, 0 : self.labelsShape[0], -self.labelsShape[1] : ]
-		return newData, newLabels
-
-	def __str__(self):
-		return "Crop top right transformation"
-
-class CropBottomLeft(Transform):
-	def __call__(self, data, labels):
-		assert data.shape[1] > self.dataShape[0] and data.shape[2] > self.dataShape[1]
-		newData = data[:, -self.dataShape[0] : , 0 : self.dataShape[1]]
-		newLabels = labels[:, -self.labelsShape[0] : , 0 : self.labelsShape[1]]
-		return newData, newLabels
-
-	def __str__(self):
-		return "Crop bottom left transformation"
-
-class CropBottomRight(Transform):
-	def __call__(self, data, labels):
-		assert data.shape[1] > self.dataShape[0] and data.shape[2] > self.dataShape[1]
-		newData = data[:, -self.dataShape[0] : , -self.dataShape[1] : ]
-		newLabels = labels[:, -self.labelsShape[0] : , -self.labelsShape[1] : ]
-		return newData, newLabels
-
-	def __str__(self):
-		return "Crop bottom right transformation"
-
-# Generic class for data augmentation. Definitely not Optimus Prime.
 class Transformer:
 	# TODO: find a better name for last parameter. It is used for the case where I want to apply some transformation
 	#  for example a top-left crop, but the labelShape (at the end) is smaller than the dataShape. If we were to apply
@@ -159,7 +74,7 @@ class Transformer:
 	#  identically. Example of usage: random crop on both depth and semantic segmentation image, but we want to have
 	#  an identical random crop for all 3 images (rgb, depth and segmentation).
 	def applyTransform(self, transformName, data, labels, interpolationType):
-		# print("Applying '%s' transform" % (transformName))
+		print("Applying '%s' transform" % (transformName))
 		numData = len(data)
 		newData, newLabels = self.transforms[transformName](data, labels)
 
@@ -168,7 +83,7 @@ class Transformer:
 
 		assert newData.shape == (numData, *self.dataShape) and newData.dtype == data.dtype \
 			and newLabels.shape == (numData, *self.labelShape) and newLabels.dtype == labels.dtype, "Expected data " \
-			+ "shape %s, found %s. Expected labels shape %s, found %s." % (newData.shape, (numData, *self.dataShape),\
+			+ "shape %s, found %s. Expected labels shape %s, found %s." % (newData.shape, (numData, *self.dataShape), \
 			newLabels.shape, (numData, *self.labelShape))
 		return newData, newLabels
 
