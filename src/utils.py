@@ -28,3 +28,8 @@ def makeGenerator(data, labels, batchSize):
 				yield data[startIndex : endIndex], labels[startIndex : endIndex]
 			else:
 				yield data[startIndex : endIndex]
+
+# Class used by RecurrentNeuralNetwork wrapper, which for the initial hidden state requires an variable list of Nones.
+class DummyIter:
+	def __getitem__(self, key):
+		return None

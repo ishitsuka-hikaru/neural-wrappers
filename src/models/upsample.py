@@ -3,7 +3,7 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-from pytorch_wrapper import NeuralNetworkPyTorch, maybeCuda
+from wrappers.pytorch import NeuralNetworkPyTorch, maybeCuda
 
 # UnPool Layer as defined by Laina paper
 class UpSampleUnpool(NeuralNetworkPyTorch):

@@ -1,7 +1,7 @@
 import torch as tr
 import torch.nn as nn
 import torch.nn.functional as F
-from pytorch_wrapper import NeuralNetworkPyTorch
+from wrappers.pytorch import NeuralNetworkPyTorch
 from .upsample import UpSampleLayer
 
 # A simple block that implements the 2 convs + Relu layers

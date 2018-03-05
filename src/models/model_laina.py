@@ -1,6 +1,6 @@
 from .resnet50_notop import ResNet50NoTop
 from .upsample import UpSampleLayer
-from pytorch_wrapper import NeuralNetworkPyTorch, maybeCuda
+from wrappers.pytorch import NeuralNetworkPyTorch
 import torch as tr
 import torch.nn as nn
 import torch.nn.functional as F

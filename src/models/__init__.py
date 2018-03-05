@@ -2,5 +2,7 @@ from .model_eigen import ModelEigen
 from .model_laina import ModelLaina
 from .model_unet import ModelUNet
 from .upsample import UpSampleLayer
+from .resnet50_notop import ResNet50NoTop
+from .squeezenet_notop import SqueezeNetNoTop
 
-__all__ = ["ModelEigen", "ModelLaina", "ModelUNet", "UpSampleLayer"]
+__all__ = ["ModelEigen", "ModelLaina", "ModelUNet", "UpSampleLayer", "ResNet50NoTop", "SqueezeNetNoTop"]

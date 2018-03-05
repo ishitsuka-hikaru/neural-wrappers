@@ -1,4 +1,4 @@
-from pytorch_wrapper import NeuralNetworkPyTorch
+from wrappers.pytorch import NeuralNetworkPyTorch
 import torch as tr
 import torch.nn as nn
 import torch.nn.functional as F
@@ -60,15 +60,12 @@ class ModelEigen(NeuralNetworkPyTorch):
 		super().__init__()
 		self.coarseOnly = coarseOnly
 		self.labelShape = labelShape
-		self.setup()
-
-	def __str__(self):
-		return "Eigen. Coarse only: %s. Label shape: %s" % (self.coarseOnly, self.labelShape)
-
-	def setup(self):
 		self.coarse = ModelDepthCoarse()
 		if not self.coarseOnly:
 			self.fine = ModelDepthFine(self.labelShape)
+
+	def __str__(self):
+		return "Eigen. Coarse only: %s. Label shape: %s" % (self.coarseOnly, self.labelShape)
 
 	def forward(self, x):
 		coarseForward = self.coarse.forward(x)
