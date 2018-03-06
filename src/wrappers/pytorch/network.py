@@ -1,11 +1,12 @@
 import torch as tr
 import torch.nn as nn
+import torch.optim as optim
 import numpy as np
 import sys
 
 from torch.autograd import Variable
 from metrics import Accuracy, Loss
-from utils import makeGenerator, DummyIter
+from utils import makeGenerator, DummyIter, LinePrinter
 from .utils import maybeCuda, maybeCpu, getNumParams, getOptimizerHyperParams, getOptimizerParamsState, \
 	getOptimizerStr
 
@@ -21,9 +22,16 @@ class NeuralNetworkPyTorch(nn.Module):
 		super(NeuralNetworkPyTorch, self).__init__()
 
 	### Various setters for the network ###
-	def setOptimizer(self, optimizerType, **kwargs):
-		trainableParams = filter(lambda p : p.requires_grad, self.parameters())
-		self.optimizer = optimizerType(trainableParams, **kwargs)
+	# Optimizer can be either a class or an object. If it's a class, it will be instantiated on all the trainable
+	#  parameters, and using the arguments in the variable kwargs. If it's an object, we will just use that object,
+	#  and assume it's correct (for example if we want only some parameters to be trained this has to be used)
+	# Examples of usage: model.setOptimizer(nn.Adam, lr=0.01), model.setOptimizer(nn.Adam(model.parameters(), lr=0.01))
+	def setOptimizer(self, optimizer, **kwargs):
+		if isinstance(optimizer, optim.Optimizer):
+			self.optimizer = optimizer
+		else:
+			trainableParams = filter(lambda p : p.requires_grad, self.parameters())
+			self.optimizer = optimizer(trainableParams, **kwargs)
 
 	def setCriterion(self, criterion):
 		self.criterion = criterion
@@ -75,6 +83,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		assert "Loss" in self.metrics.keys(), "At least one metric is required and Loss must be in them"
 		assert not self.criterion is None, "Expected a criterion/loss to be set before training/testing."
 		metricResults = {metric : 0 for metric in self.metrics.keys()}
+		linePrinter = LinePrinter()
 
 		for i, (npData, npLabels) in enumerate(generator):
 			data = maybeCuda(Variable(tr.from_numpy(npData)))
@@ -112,8 +121,7 @@ class NeuralNetworkPyTorch(nn.Module):
 				message = "Iteration: %d/%d." % (i + 1, stepsPerEpoch)
 				for metric in metricResults:
 					message += " %s: %2.2f." % (metric, metricResults[metric] / (i + 1))
-				sys.stdout.write(message + "\r")
-				sys.stdout.flush()
+				linePrinter.print(message)
 
 			del data, labels
 			if i == stepsPerEpoch - 1:

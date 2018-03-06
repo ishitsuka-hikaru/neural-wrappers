@@ -64,7 +64,7 @@ def storeFrames(finalArray, sequenceSize, **kwargs):
 	results = kwargs["results"]
 	iteration = kwargs["iteration"]
 	startIndex, endIndex = sequenceSize * iteration, (sequenceSize * iteration) + results.shape[1]
-	print("%d:%d out of %d" % (startIndex, endIndex, sequenceSize * kwargs["numIterations"]))
+	print("%d:%d out of %d. Loss %2.2f" % (startIndex, endIndex, sequenceSize * kwargs["numIterations"], kwargs["loss"]))
 
 	frames = list(map(lambda x : np.array(toimage(x)), results[0]))
 	finalArray[startIndex : endIndex] = frames
@@ -74,36 +74,33 @@ def main():
 
 	video, label = readVideo(sys.argv[2]), readVideo(sys.argv[3])
 	assert len(video) == len(label)
-	numFrames = len(video)
-	sequenceSize = 5
+	numFrames = len(video) // 2
+	sequenceSize = 3
+	model = maybeCuda(RecurrentCNN(inputSize=video.frame_shape, hiddenSize=300, outputSize=label.frame_shape))
+	model.setCriterion(lambda x, y : tr.sum((x - y)**2))
 
 	if sys.argv[1] == "train":
 		assert len(sys.argv) == 4
-		model = maybeCuda(RecurrentCNN(inputSize=video.frame_shape, hiddenSize=300, outputSize=label.frame_shape))
+		model.setOptimizer(optim.Adam, lr=0.01)
 		print(model.summary())
 
 		generator = videoGenerator(video, label, numEpochs=10, numFrames=numFrames, sequenceSize=sequenceSize)
 		numSequences = numFrames // sequenceSize + (numFrames % sequenceSize != 0)
 		print("Video shape: %s. Label shape: %s. Num frames: %d" % (video.frame_shape, label.frame_shape, numFrames))
 
-		model.setOptimizer(optim.Adam, lr=0.1)
-		model.setCriterion(lambda x, y : tr.mean((x - y)**2))
 		model.train_generator(generator, stepsPerEpoch=numSequences, numEpochs=10, callbacks=[SaveModels(type="all")])
 	elif sys.argv[1] == "test":
 		assert len(sys.argv) == 5
 		# Here label is used just to extract the correct shape
-		video, label = readVideo(sys.argv[2]), readVideo(sys.argv[3])
-		model = maybeCuda(RecurrentCNN(inputSize=video.frame_shape, hiddenSize=300, outputSize=label.frame_shape))
 		model.load_weights(sys.argv[4])
-		model.setCriterion(lambda x, y : tr.mean((x - y)**2))
 
-		numFrames = len(video) // 2
 		result = np.zeros(shape=(numFrames, *label.frame_shape), dtype=np.uint8)
 		storeFramesCallback = partial(storeFrames, finalArray=result, sequenceSize=sequenceSize)
 		generator = videoGenerator(video, label, numEpochs=10, numFrames=numFrames, sequenceSize=sequenceSize)
 		numSequences = numFrames // sequenceSize + (numFrames % sequenceSize != 0)
 
 		model.test_generator(generator, numSequences, callbacks=[storeFramesCallback])
+		print(np.mean(result), np.std(result), np.min(result), np.max(result))
 		saveVideo(npData=result, fileName="video_result.mp4", fps=30)
 
 if __name__ == "__main__":

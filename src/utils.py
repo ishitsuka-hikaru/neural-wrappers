@@ -1,4 +1,5 @@
 import numpy as np
+import sys
 from lycon import resize, Interpolation
 from scipy.ndimage import gaussian_filter
 
@@ -33,3 +34,13 @@ def makeGenerator(data, labels, batchSize):
 class DummyIter:
 	def __getitem__(self, key):
 		return None
+
+class LinePrinter:
+	def __init__(self):
+		self.maxLength = 0
+
+	def print(self, message):
+		self.maxLength = np.maximum(len(message), self.maxLength)
+		message += (self.maxLength - len(message)) * " "
+		sys.stdout.write(message + "\r")
+		sys.stdout.flush()

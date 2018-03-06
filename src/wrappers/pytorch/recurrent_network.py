@@ -1,12 +1,15 @@
 import torch as tr
 import numpy as np
-import sys
 from .network import NeuralNetworkPyTorch
 from torch.autograd import Variable
-from utils import DummyIter
+from utils import DummyIter, LinePrinter
 from .utils import maybeCuda, maybeCpu
 
 class RecurrentNeuralNetworkPyTorch(NeuralNetworkPyTorch):
+	def __str__(self):
+		return "General recurrent neural network architecture. Update __str__ in your model for more details when " + \
+			"using summary."
+
 	# Basic method that does a forward phase for one epoch given a generator modified for recurrent neural networks. It
 	#  can apply a step of optimizer or not.
 	# @param[in] generator Object used to get a batch of data and labels at each step
@@ -18,6 +21,7 @@ class RecurrentNeuralNetworkPyTorch(NeuralNetworkPyTorch):
 		assert "Loss" in self.metrics.keys(), "At least one metric is required and Loss must be in them"
 		assert not self.criterion is None, "Expected a criterion/loss to be set before training/testing."
 		metricResults = {metric : 0 for metric in self.metrics.keys()}
+		linePrinter = LinePrinter()
 
 		for i, (npData, npLabels) in enumerate(generator):
 			loss = 0
@@ -74,8 +78,7 @@ class RecurrentNeuralNetworkPyTorch(NeuralNetworkPyTorch):
 				message = "Iteration: %d/%d." % (i + 1, stepsPerEpoch)
 				for metric in metricResults:
 					message += " %s: %2.2f." % (metric, metricResults[metric] / (i + 1))
-				sys.stdout.write(message + "\r")
-				sys.stdout.flush()
+				linePrinter.print(message)
 
 			del data, labels
 			if i == stepsPerEpoch - 1:
