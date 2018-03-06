@@ -2,8 +2,9 @@ import torch as tr
 import numpy as np
 from .network import NeuralNetworkPyTorch
 from torch.autograd import Variable
-from utils import DummyIter, LinePrinter
+from utils import LinePrinter
 from .utils import maybeCuda, maybeCpu
+from inspect import signature
 
 class RecurrentNeuralNetworkPyTorch(NeuralNetworkPyTorch):
 	def __str__(self):
@@ -24,12 +25,8 @@ class RecurrentNeuralNetworkPyTorch(NeuralNetworkPyTorch):
 		linePrinter = LinePrinter()
 
 		for i, (npData, npLabels) in enumerate(generator):
-			loss = 0
-			hiddenState = DummyIter()
-
 			trData = tr.from_numpy(npData)
 			trLabels = tr.from_numpy(npLabels)
-			npResults = np.zeros(npLabels.shape)
 
 			# Each timestep is sent manually (instead of letting pytorch do the loop itself). The shape of trData
 			#  should be: MB x T x dataShape. This is needed since there may be other network components that do not
@@ -40,13 +37,26 @@ class RecurrentNeuralNetworkPyTorch(NeuralNetworkPyTorch):
 			#  generator to be identical.
 			sequenceSize = npData.shape[1]
 
-			for t in range(sequenceSize):
+			# Do the first timestamp separate, so we can infer the result shape
+			data = maybeCuda(Variable(trData[:, 0]))
+			labels = maybeCuda(Variable(trLabels[:, 0]))
+			# For the hiden states, use a list of Nones, expecting the signature to be: (x, hidden1, ..., hiddenN)
+			initialHiddenState = [None] * (len(signature(self.forward).parameters) - 1)
+			results, hiddenState = self.forward(data, *initialHiddenState)
+			npResult = maybeCpu(results.data).numpy()
+			npResults = np.zeros((npData.shape[0], npData.shape[1], *npResult.shape[1 : ]))
+			npResults[:, 0] = npResult
+			loss = self.criterion(results, labels)
+
+			# Then the next N - 1 timesteps are done assuming that the shape of the result doensn't change.
+			for t in range(1, sequenceSize):
 				# Slicing the data as: MB x 1 x dataShape, sending each sequence one by one.
 				data = maybeCuda(Variable(trData[:, t]))
 				labels = maybeCuda(Variable(trLabels[:, t]))
 
 				results, hiddenState = self.forward(data, hiddenState)
-				npResults[:, t] = maybeCpu(results.data).numpy()
+				result = maybeCpu(results.data).numpy()
+				npResults[:, t] = result
 
 				loss += self.criterion(results, labels)
 			npLoss = maybeCpu(loss.data).numpy()

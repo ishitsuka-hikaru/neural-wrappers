@@ -6,7 +6,7 @@ import sys
 
 from torch.autograd import Variable
 from metrics import Accuracy, Loss
-from utils import makeGenerator, DummyIter, LinePrinter
+from utils import makeGenerator, LinePrinter
 from .utils import maybeCuda, maybeCpu, getNumParams, getOptimizerHyperParams, getOptimizerParamsState, \
 	getOptimizerStr
 

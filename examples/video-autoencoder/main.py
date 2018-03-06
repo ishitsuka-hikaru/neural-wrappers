@@ -44,11 +44,11 @@ class RecurrentCNN(RecurrentNeuralNetworkPyTorch):
 		y2 = self.avgpool(y1)
 		y2 = y2.view(miniBatch, 1, self.lstmInputShape).contiguous()
 		# self.lstm1.flatten_parameters()
-		y3, h = self.lstm1(y2, hidden[0])
+		y3, h = self.lstm1(y2, hidden)
 		y4 = self.fc1(y3)
 		# MBx4500 => MBx30x50x3 (for example)
 		y4 = y4.view(miniBatch, *self.outputSize)
-		return y4, [h]
+		return y4, h
 
 def videoGenerator(video, label, numEpochs, numFrames, sequenceSize):
 	numSequences = numFrames // sequenceSize + (numFrames % sequenceSize != 0)
@@ -74,9 +74,9 @@ def main():
 
 	video, label = readVideo(sys.argv[2]), readVideo(sys.argv[3])
 	assert len(video) == len(label)
-	numFrames = len(video) // 2
-	sequenceSize = 3
-	model = maybeCuda(RecurrentCNN(inputSize=video.frame_shape, hiddenSize=300, outputSize=label.frame_shape))
+	numFrames = len(video)
+	sequenceSize = 10
+	model = maybeCuda(RecurrentCNN(inputSize=video.frame_shape, hiddenSize=500, outputSize=label.frame_shape))
 	model.setCriterion(lambda x, y : tr.sum((x - y)**2))
 
 	if sys.argv[1] == "train":
@@ -99,9 +99,9 @@ def main():
 		generator = videoGenerator(video, label, numEpochs=10, numFrames=numFrames, sequenceSize=sequenceSize)
 		numSequences = numFrames // sequenceSize + (numFrames % sequenceSize != 0)
 
-		model.test_generator(generator, numSequences, callbacks=[storeFramesCallback])
+		model.test_generator(generator, stepsPerEpoch=numSequences, callbacks=[storeFramesCallback])
 		print(np.mean(result), np.std(result), np.min(result), np.max(result))
-		saveVideo(npData=result, fileName="video_result.mp4", fps=30)
+		saveVideo(npData=result, fileName="video_result.mp4", fps=video.frame_rate)
 
 if __name__ == "__main__":
 	main()
