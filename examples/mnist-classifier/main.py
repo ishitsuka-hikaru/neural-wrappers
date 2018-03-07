@@ -8,6 +8,7 @@ from readers import MNISTReader
 from wrappers.pytorch import NeuralNetworkPyTorch, maybeCuda
 from callbacks import SaveModels
 from metrics import Loss, Accuracy
+from functools import partial
 
 class ModelFC(NeuralNetworkPyTorch):
 	def __init__(self):
@@ -42,16 +43,22 @@ class ModelConv(NeuralNetworkPyTorch):
 		y5 = nn.functional.softmax(y4, dim=1)
 		return y5
 
+def computeConfusion(confusionMatrix, **kwargs):
+	results = np.argmax(kwargs["results"], axis=1)
+	labels = np.where(kwargs["labels"] == 1)[1]
+	for i in range(len(labels)):
+		confusionMatrix[labels[i], results[i]] += 1
+
 def main():
 	assert len(sys.argv) >= 4, "Usage: python main.py <train/test> <model_fc/model_conv> <path/to/mnist.h5> [model]"
 	assert sys.argv[1] in ("train", "test")
 	assert sys.argv[2] in ("model_fc", "model_conv")
 
-	if sys.argv[2] == "model_fc":
-		model = maybeCuda(ModelFC())
-	else:
-		model = maybeCuda(ModelConv())
+	model = maybeCuda(ModelFC() if sys.argv[2] == "model_fc" else ModelConv())
 	model.setOptimizer(optim.SGD, lr=0.01, momentum=0.5)
+	model.setMetrics({"Loss" : Loss(), "Accuracy" : Accuracy(categoricalLabels=True)})
+	# Negative log-likeklihood (used for softmax+NLL for classification), expecting targets are one-hot encoded
+	model.setCriterion(lambda y, t : tr.mean(-tr.log(y[t] + 1e-5)))
 	print(model.summary())
 
 	reader = MNISTReader(sys.argv[3])
@@ -60,17 +67,22 @@ def main():
 
 	if sys.argv[1] == "train":
 		assert len(sys.argv) == 4
-		trainGenerator = reader.iterate("train", miniBatchSize=5)
-		trainNumIterations = reader.getNumIterations("train", miniBatchSize=5)
+		trainGenerator = reader.iterate("train", miniBatchSize=20)
+		trainNumIterations = reader.getNumIterations("train", miniBatchSize=20)
 
-		callbacks = [SaveModels(type="last")]
-		# Negative log-likeklihood (used for softmax+NLL for classification), expecting targets are one-hot encoded
-		model.setCriterion(lambda y, t : tr.mean(-tr.log(y[t] + 1e-5)))
-		model.setMetrics({"Loss" : Loss(), "Accuracy" : Accuracy(categoricalLabels=True)})
+		callbacks = [SaveModels(type="best")]
 		model.train_generator(trainGenerator, stepsPerEpoch=trainNumIterations, numEpochs=10, callbacks=callbacks, \
 			validationGenerator=testGenerator, validationSteps=testNumIterations)
 	elif sys.argv[1] == "test":
-		pass
+		assert len(sys.argv) == 5
+		model.load_weights(sys.argv[4])
+		confusionMatrix = np.zeros((10, 10), dtype=np.int32)
+		computeConfusionCallback = partial(computeConfusion, confusionMatrix=confusionMatrix)
+		metrics = model.test_generator(testGenerator, testNumIterations, callbacks=[computeConfusionCallback])
+
+		loss, accuracy = metrics["Loss"], metrics["Accuracy"]
+		print("Testing complete. Loss: %2.2f. Accuracy: %2.2f" % (loss, accuracy))
+		print("Confusion matrix:\n", confusionMatrix)
 
 if __name__ == "__main__":
 	main()

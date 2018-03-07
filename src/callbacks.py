@@ -40,7 +40,7 @@ class SaveHistory(Callback):
 # TODO: add format to saving files
 class SaveModels(Callback):
 	def __init__(self, type="all"):
-		assert type in ("all", "improvements", "last")
+		assert type in ("all", "improvements", "last", "best")
 		self.type = type
 		self.best = float("nan")
 
@@ -64,3 +64,9 @@ class SaveModels(Callback):
 		elif self.type == "last":
 			if kwargs["epoch"] == kwargs["numEpochs"]:
 				kwargs["model"].save_model(fileName)
+		elif self.type == "best":
+			# nan != nan is True
+			if self.best != self.best or loss < self.best:
+				kwargs["model"].save_model("model_best.pkl")
+				sys.stdout.write("Epoch %d. Improvement from %2.2f to %2.2f\n" % (kwargs["epoch"], self.best, loss))
+				self.best = loss
