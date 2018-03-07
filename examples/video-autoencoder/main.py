@@ -70,13 +70,13 @@ def storeFrames(finalArray, sequenceSize, **kwargs):
 	finalArray[startIndex : endIndex] = frames
 
 def main():
-	assert sys.argv[1] in ("train", "test")
+	assert sys.argv[1] in ("train", "test", "retrain")
 
 	video, label = readVideo(sys.argv[2]), readVideo(sys.argv[3])
 	assert len(video) == len(label)
-	numFrames = len(video)
-	sequenceSize = 10
-	model = maybeCuda(RecurrentCNN(inputSize=video.frame_shape, hiddenSize=500, outputSize=label.frame_shape))
+	numFrames = (len(video) * 3) // 5
+	sequenceSize = 5
+	model = maybeCuda(RecurrentCNN(inputSize=video.frame_shape, hiddenSize=10, outputSize=label.frame_shape))
 	model.setCriterion(lambda x, y : tr.sum((x - y)**2))
 
 	if sys.argv[1] == "train":
@@ -102,6 +102,17 @@ def main():
 		model.test_generator(generator, stepsPerEpoch=numSequences, callbacks=[storeFramesCallback])
 		print(np.mean(result), np.std(result), np.min(result), np.max(result))
 		saveVideo(npData=result, fileName="video_result.mp4", fps=video.frame_rate)
+	elif sys.argv[1] == "retrain":
+		assert len(sys.argv) == 6
+		model.load_model(sys.argv[4])
+		model.setStartEpoch(int(sys.argv[5]))
+		print(model.summary())
+
+		generator = videoGenerator(video, label, numEpochs=10, numFrames=numFrames, sequenceSize=sequenceSize)
+		numSequences = numFrames // sequenceSize + (numFrames % sequenceSize != 0)
+		print("Video shape: %s. Label shape: %s. Num frames: %d" % (video.frame_shape, label.frame_shape, numFrames))
+
+		model.train_generator(generator, stepsPerEpoch=numSequences, numEpochs=10, callbacks=[SaveModels(type="all")])
 
 if __name__ == "__main__":
 	main()

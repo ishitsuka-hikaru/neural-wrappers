@@ -9,7 +9,7 @@ class Transformer:
 	#  Concrete case: image:(480x640x3), label:(480x640), dataShape:(240x320x3), desiredLabelShape:(50x70). The crop
 	#  must be applied for values in [0 : 240, 0 : 320] on the (400x640) label, not for [0 : 50, 0 :70]. The reshape is
 	#  done at end. There may also be cases where the crop must be done on [0 : 50, 0 : 70], so leave it as an option.
-	def __init__(self, transforms, dataShape, labelShape, applyOnDataShapeForLabels=False):
+	def __init__(self, transforms, dataShape, labelShape=None, applyOnDataShapeForLabels=False):
 		# assert labelsPresent == False or (labelsPresent == True and labelShape != None)
 		self.dataShape = dataShape
 		self.labelShape = labelShape
@@ -17,6 +17,9 @@ class Transformer:
 
 		# This parameter controls if the transformation for the labels is done on the shape of the data or the label
 		self.transforms = self.handleTransforms(transforms)
+
+	def getNumTransforms(self):
+		return 
 
 	def handleTransforms(self, transforms):
 		sentLabelShape = self.dataShape if self.applyOnDataShapeForLabels else self.labelShape
@@ -74,17 +77,26 @@ class Transformer:
 	#  identically. Example of usage: random crop on both depth and semantic segmentation image, but we want to have
 	#  an identical random crop for all 3 images (rgb, depth and segmentation).
 	def applyTransform(self, transformName, data, labels, interpolationType):
-		print("Applying '%s' transform" % (transformName))
+		# print("Applying '%s' transform" % (transformName))
 		numData = len(data)
 		newData, newLabels = self.transforms[transformName](data, labels)
 
 		newData = resize_batch(newData, self.dataShape, interpolationType)
-		newLabels = resize_batch(newLabels, self.labelShape, interpolationType)
 
-		assert newData.shape == (numData, *self.dataShape) and newData.dtype == data.dtype \
-			and newLabels.shape == (numData, *self.labelShape) and newLabels.dtype == labels.dtype, "Expected data " \
-			+ "shape %s, found %s. Expected labels shape %s, found %s." % (newData.shape, (numData, *self.dataShape), \
-			newLabels.shape, (numData, *self.labelShape))
+		# Consistency checks
+		assert newData.shape == (numData, *self.dataShape), "Expected data shape %s, found %s." % \
+			((numData, *self.dataShape), newData.shape)
+		assert newData.dtype == data.dtype
+
+		# For labels, do consistency checks only if labels are provided, otherwise expect transformer to return None
+		if not labels is None:
+			newLabels = resize_batch(newLabels, self.labelShape, interpolationType)
+			assert newLabels.shape == (numData, *self.labelShape), "Expected labels shape %s, found %s." % \
+				(newLabels.shape, (numData, *self.labelShape))
+			assert newLabels.dtype == labels.dtype
+		else:
+			assert newLabels is None
+
 		return newData, newLabels
 
 	# Main function, that loops throught all transforms and through all data (and labels) and yields each transformed
@@ -94,6 +106,7 @@ class Transformer:
 	#  done in same manner as they are done for the data (for example for random cropping, same random indexes are
 	#  chosen).
 	def applyTransforms(self, data, labels=None, interpolationType="bilinear"):
-		# assert self.labelsPresent == False or (self.labelsPresent == True and not labels is None)
+		assert (self.labelShape is None and labels is None) or (not self.labelShape is None), "When not providing " + \
+			"a labelShape on transformer constructor, the labels argument must be None as well"
 		for transform in self.transforms:
 			yield self.applyTransform(transform, data, labels, interpolationType)

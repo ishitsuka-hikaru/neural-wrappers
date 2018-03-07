@@ -17,6 +17,12 @@ def resize_batch(data, dataShape, type="bilinear"):
 		newData[i] = resize(data[i], height=dataShape[0], width=dataShape[1], interpolation=interpolationType)
 	return newData
 
+def toCategorical(data, numClasses):
+	numData = len(data)
+	newData = np.zeros((numData, numClasses), dtype=np.uint8)
+	newData[np.arange(numData), data] = 1
+	return newData
+
 # Labels can be None, in that case only data is available (testing cases without labels)
 def makeGenerator(data, labels, batchSize):
 	while True:
@@ -29,6 +35,10 @@ def makeGenerator(data, labels, batchSize):
 				yield data[startIndex : endIndex], labels[startIndex : endIndex]
 			else:
 				yield data[startIndex : endIndex]
+
+def NoneAssert(conndition, noneCheck, message=""):
+	if noneCheck:
+		assert conndition, message
 
 class LinePrinter:
 	def __init__(self):

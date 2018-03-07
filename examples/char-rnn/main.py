@@ -53,14 +53,15 @@ class TextUtils:
 		return "".join(map(lambda x : TextUtils.alphabet[x], intSequence))
 
 	@staticmethod
-	# (MB, N, ) => (MB, N, M)
 	def toCategorical(input):
 		numClasses = len(TextUtils.alphabet)
+		# int => (M, )
 		if type(input) in (int, np.int32, np.int64):
 			x = tr.zeros(numClasses,)
 			x = np.zeros((numClasses, ), dtype=np.float32)
 			x[input] = 1
 		else:
+			# (MB, N, ) => (MB, N, M)
 			mbSize = input.shape[0]
 			seqSize = input.shape[1]
 			assert np.max(input) < numClasses

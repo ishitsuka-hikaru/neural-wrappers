@@ -45,7 +45,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		if type(metrics) in (list, tuple):
 			for metric in metrics:
 				if metric == "Accuracy":
-					self.metrics[metric] = Accuracy()
+					self.metrics[metric] = Accuracy(categoricalLabels=True)
 				elif metric == "Loss":
 					self.metrics[metric] = Loss()
 				else:
