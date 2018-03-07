@@ -4,7 +4,9 @@ How to install:
 
 Structure of this project:
 - examples/ 
-    - TODO - simple examples for training/testing etc.
+    - mnist-classifier - Simple MNIST classifier using 2 networks (FC and Conv). See this for basic usage of the framework
+    - char-rnn - Implementation of a simple recurrent network that predicts one character after another. Inspired by: http://karpathy.github.io/2015/05/21/rnn-effectiveness/
+    - video-autoencoder - Implementation of a simple video auto-encoder, that takes two videos (say 240p and 120p) and creates a convolutional + LSTM network that tries to compress the given video. Can be used to generate a new video of a smaller dimension (or even increase resolution, if a better model would be implemented)
 - test/
     - Unit tests for all the implemented modules (WIP)
     - To run tests, go in the tests directory and type 'pytest' in the console. Requires the pytest module to be
