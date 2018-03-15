@@ -5,11 +5,11 @@ import torch as tr
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
-from wrappers.pytorch import RecurrentNeuralNetworkPyTorch, maybeCuda, maybeCpu
-from models.resnet50_notop import ResNet50NoTop
+from neural_wrappers.pytorch import RecurrentNeuralNetworkPyTorch, maybeCuda, maybeCpu
+from neural_wrappers.callbacks import SaveModels
+from neural_wrappers.models.resnet50_notop import ResNet50NoTop
 from scipy.misc import toimage
 from Mihlib import readVideo, saveVideo
-from callbacks import SaveModels
 from functools import partial
 
 class RecurrentCNN(RecurrentNeuralNetworkPyTorch):

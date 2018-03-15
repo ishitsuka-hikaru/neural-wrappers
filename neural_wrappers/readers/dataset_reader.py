@@ -1,5 +1,6 @@
+import sys
+sys.path.append("..")
 import numpy as np
-from utilities.public_api import normalizeData
 
 class DatasetReader:
 	# Handles all the initilization stuff of a specific dataset object.

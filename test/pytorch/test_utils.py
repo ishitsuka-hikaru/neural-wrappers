@@ -1,4 +1,4 @@
-from wrappers.pytorch.utils import maybeCuda
+from neural_wrappers.pytorch import maybeCuda
 import torch as tr
 
 class TestUtils:

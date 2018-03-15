@@ -1,4 +1,4 @@
-from wrappers.pytorch import NeuralNetworkPyTorch
+from neural_wrappers.pytorch import NeuralNetworkPyTorch
 import torch as tr
 import torch.nn as nn
 import torch.nn.functional as F

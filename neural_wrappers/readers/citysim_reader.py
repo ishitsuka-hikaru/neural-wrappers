@@ -1,22 +1,17 @@
 import h5py
 import numpy as np
 from .dataset_reader import DatasetReader
-from transforms import Transformer
+from neural_wrappers.transforms import Transformer
 
-class NYUDepthReader(DatasetReader):
-	def __init__(self, datasetPath, labelsType="depths", imagesShape=(240, 320, 3), labelShape=(55, 74), \
-		normalization="normalize", transforms=[], validationTransforms=None, dataSplit=(60, 30, 10)):
+class CitySimReader(DatasetReader):
+	def __init__(self, datasetPath, imagesShape=(240, 320, 3), labelShape=(55, 74), transforms=[], \
+		validationTransforms=None, dataSplit=(60, 30, 10)):
 		assert len(imagesShape) == 3 and len(labelShape) == 2
-		assert labelsType in ("depths", "segmentation"), "Only \"depths\" and \"segmentation\" supported for now. " + \
-			"Expected values \"depths\", \"segmentation\", \"both\""
-		assert normalization in ("normalize", "standardize")
 		self.datasetPath = datasetPath
 		self.imagesShape = imagesShape
 		self.labelShape = labelShape
-		self.normalization = normalization
 		self.transforms = transforms
 		self.dataSplit = dataSplit
-		self.labelsType = labelsType
 		self.dataAugmenter = Transformer(transforms, dataShape=imagesShape, labelShape=labelShape, \
 			applyOnDataShapeForLabels=True)
 		# For training, we may not want to use all the transforms when doing validation to increase speed.
@@ -65,27 +60,15 @@ class NYUDepthReader(DatasetReader):
 			assert startIndex < endIndex, "startIndex < endIndex. Got values: %d %d" % (startIndex, endIndex)
 			numData = endIndex - startIndex
 
-			labelType = "depths" if self.labelsType == "depths" else "labels"
-			# N x 3 x 640 x 480 => N x 480 x 640 x 3
-			images = np.swapaxes(self.dataset["images"][startIndex : endIndex], 1, 3).astype(np.float32)
-			# N x 640 x 480 => N x 480 x 640. Labels can be "depths" or "labels" (for segmentation), not both yet.
-			labels = self.dataset[labelType][startIndex : endIndex]
-			labels = np.swapaxes(labels, 1, 2)
+			# Data is already normalized in 0-1
+			# N N x 240 x 320 x 3
+			images = self.dataset["images"][startIndex : endIndex]
+			# N x 240 x 320.
+			labels = self.dataset["depths"][startIndex : endIndex]
+			labels = 1 - labels
+			labels[np.where(labels == 1)] = 0
 
-			if self.normalization == "standardize":
-				assert False, "Standardization not yet supported"
-				# img_mean = np.array([122.54539034, 104.78338964, 100.02394636])
-				# img_std = np.array([73.74140829, 75.4556151, 78.87249644])
-
-				# images -= img_mean
-				# images /= img_std
-			# Perhaps a better name ?
-			elif self.normalization == "normalize":
-				images /= 255
-				if self.labelsType == "depths":
-					labels /= 10
-
-			interpolationType = "nearest" if self.labelsType == "segmentation" else "bilinear"
+			interpolationType = "bilinear"
 			# Apply each transform
 			for augImages, augLabels in augmenter.applyTransforms(images, labels, interpolationType):
 				yield augImages, augLabels

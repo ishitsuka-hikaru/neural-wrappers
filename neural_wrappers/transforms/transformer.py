@@ -1,5 +1,5 @@
 # transformer.py Generic class for data augmentation. Definitely not Optimus Prime.
-from utils import resize_batch
+from neural_wrappers.utilities import resize_batch
 from .transforms import Mirror, CropMiddle, CropTopLeft, CropTopRight, CropBottomLeft, CropBottomRight
 
 class Transformer:

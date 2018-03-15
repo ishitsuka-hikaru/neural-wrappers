@@ -1,8 +1,9 @@
 import torch as tr
 import numpy as np
+
 from .network import NeuralNetworkPyTorch
 from torch.autograd import Variable
-from utils import LinePrinter
+from neural_wrappers.utilities import LinePrinter
 from .utils import maybeCuda, maybeCpu
 from inspect import signature
 

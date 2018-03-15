@@ -4,10 +4,10 @@ import numpy as np
 import torch as tr
 import torch.nn as nn
 import torch.optim as optim
-from readers import MNISTReader
-from wrappers.pytorch import NeuralNetworkPyTorch, maybeCuda
-from callbacks import SaveModels
-from metrics import Loss, Accuracy
+from neural_wrappers.readers import MNISTReader
+from neural_wrappers.pytorch import NeuralNetworkPyTorch, maybeCuda
+from neural_wrappers.callbacks import SaveModels
+from neural_wrappers.metrics import Loss, Accuracy
 from functools import partial
 
 class ModelFC(NeuralNetworkPyTorch):
@@ -55,7 +55,7 @@ def main():
 	assert sys.argv[2] in ("model_fc", "model_conv")
 
 	model = maybeCuda(ModelFC() if sys.argv[2] == "model_fc" else ModelConv())
-	model.setOptimizer(optim.SGD, lr=0.01, momentum=0.5)
+	model.setOptimizer(optim.SGD, lr=0.01, momentum=0.3)
 	model.setMetrics({"Loss" : Loss(), "Accuracy" : Accuracy(categoricalLabels=True)})
 	# Negative log-likeklihood (used for softmax+NLL for classification), expecting targets are one-hot encoded
 	model.setCriterion(lambda y, t : tr.mean(-tr.log(y[t] + 1e-5)))

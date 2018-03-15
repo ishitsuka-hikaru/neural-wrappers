@@ -1,4 +1,4 @@
-from utils import resize_batch, makeGenerator
+from neural_wrappers.utilities import resize_batch
 import numpy as np
 
 class TestUtils:

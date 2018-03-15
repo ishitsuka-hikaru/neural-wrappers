@@ -1,5 +1,4 @@
 import numpy as np
-from utils import NoneAssert
 
 # Generic transform
 class Transform:

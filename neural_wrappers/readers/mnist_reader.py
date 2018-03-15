@@ -1,8 +1,8 @@
 import h5py
 import numpy as np
 from .dataset_reader import DatasetReader
-from transforms import Transformer
-from utils import toCategorical
+from neural_wrappers.transforms import Transformer
+from neural_wrappers.utilities import toCategorical
 
 class MNISTReader(DatasetReader):
 	def __init__(self, datasetPath, imagesShape=(28, 28), transforms=["none"], testTransforms=None):

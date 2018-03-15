@@ -6,9 +6,9 @@ import torch.nn as nn
 import torch.optim as optim
 import sys
 import time
-from wrappers.pytorch import RecurrentNeuralNetworkPyTorch, maybeCuda, maybeCpu
-from readers import DatasetReader
-from callbacks import SaveModels
+from neural_wrappers.pytorch import RecurrentNeuralNetworkPyTorch, maybeCuda, maybeCpu
+from neural_wrappers.readers import DatasetReader
+from neural_wrappers.callbacks import SaveModels
 from torch.autograd import Variable
 
 class RNN_PyTorch(RecurrentNeuralNetworkPyTorch):
