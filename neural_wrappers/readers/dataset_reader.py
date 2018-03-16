@@ -46,7 +46,7 @@ class DatasetReader:
 	# @param[in] type The type of data from which this is computed (e.g "train", "test", "validation")
 	# @param[in] miniBatchSize How many data from all the data is taken at every iteration
 	# @param[in] accountTransforms Take into account transformations or not. True value is used in neural_network
-	#  wrappers, so if there are 4 transforms, the amount of required iterations for one epoch is numData * 5.
+	#  wrappers, so if there are 4 transforms, the amount of required iterations for one epoch is numData * 4.
 	#  Meanwhile, in reader classes, all transforms are done in the same loop (see NYUDepthReader), so these all
 	#  represent same epoch.
 	def getNumIterations(self, type, miniBatchSize, accountTransforms=False):

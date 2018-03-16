@@ -125,9 +125,10 @@ class NeuralNetworkPyTorch(nn.Module):
 				linePrinter.print(message)
 
 			del data, labels
-			if i == stepsPerEpoch - 1:
-				break
 
+		if i == stepsPerEpoch - 1:
+			sys.stderr.write("Warning! Number of iterations (%d) does not match expected iterations in reader (%d)" % \
+				i, stepsPerEpoch - 1)
 		for metric in metricResults:
 			metricResults[metric] /= stepsPerEpoch
 		return metricResults

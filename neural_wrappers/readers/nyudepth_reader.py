@@ -17,14 +17,12 @@ class NYUDepthReader(DatasetReader):
 		self.transforms = transforms
 		self.dataSplit = dataSplit
 		self.labelsType = labelsType
-		self.dataAugmenter = Transformer(transforms, dataShape=imageShape, labelShape=labelShape, \
-			applyOnDataShapeForLabels=True)
+		self.dataAugmenter = Transformer(transforms, dataShape=imageShape, labelShape=labelShape)
 		# For training, we may not want to use all the transforms when doing validation to increase speed.
 		if validationTransforms == None:
 			self.validationAugmenter = self.dataAugmenter
 		else:
-			self.validationAugmenter = Transformer(validationTransforms, dataShape=imageShape, \
-				labelShape=labelShape, applyOnDataShapeForLabels=True)
+			self.validationAugmenter = Transformer(validationTransforms, dataShape=imageShape, labelShape=labelShape)
 		self.setup()
 
 	def __str__(self):

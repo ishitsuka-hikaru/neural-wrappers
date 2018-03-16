@@ -9,7 +9,7 @@ class Transformer:
 	#  Concrete case: image:(480x640x3), label:(480x640), dataShape:(240x320x3), desiredLabelShape:(50x70). The crop
 	#  must be applied for values in [0 : 240, 0 : 320] on the (400x640) label, not for [0 : 50, 0 :70]. The reshape is
 	#  done at end. There may also be cases where the crop must be done on [0 : 50, 0 : 70], so leave it as an option.
-	def __init__(self, transforms, dataShape, labelShape=None, applyOnDataShapeForLabels=False):
+	def __init__(self, transforms, dataShape, labelShape=None, applyOnDataShapeForLabels=True):
 		# assert labelsPresent == False or (labelsPresent == True and labelShape != None)
 		self.dataShape = dataShape
 		self.labelShape = labelShape
