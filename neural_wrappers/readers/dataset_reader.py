@@ -11,6 +11,30 @@ class DatasetReader:
 	def iterate_once(self, type, miniBatchSize=None):
 		raise NotImplementedError("Should have implemented this")
 
+	# Computes the class members indexes and numData, which represent the amount of data of each portion of the
+	#  datset (train/test/val) as well as the starting indexes
+	def computeIndexesSplit(self, numAllData):
+		# Check validity of the dataSplit (sums to 100 and positive)
+		assert len(self.dataSplit) == 3 and self.dataSplit[0] >= 0 and self.dataSplit[1] >= 0 \
+			and self.dataSplit[2] >= 0 and self.dataSplit[0] + self.dataSplit[1] + self.dataSplit[2] == 100
+
+		trainStartIndex = 0
+		testStartIndex = self.dataSplit[0] * numAllData // 100
+		validationStartIndex = testStartIndex + (self.dataSplit[1] * numAllData // 100)
+
+		indexes = {
+			"train" : (trainStartIndex, testStartIndex),
+			"test" : (testStartIndex, validationStartIndex),
+			"validation" : (validationStartIndex, numAllData)
+		}
+
+		numSplitData = {
+			"train" : testStartIndex,
+			"test" : validationStartIndex - testStartIndex,
+			"validation" : numAllData - validationStartIndex
+		}
+		return indexes, numSplitData
+
 	# Generic infinite generator, that simply does a while True over the iterate_once method (which only goes one epoch)
 	def iterate(self, type, miniBatchSize=None):
 		while True:

@@ -32,13 +32,12 @@ class ModelDepthCoarse(NeuralNetworkPyTorch):
 		return coarse7
 
 class ModelDepthFine(NeuralNetworkPyTorch):
-	def __init__(self, labelShape):
+	def __init__(self):
 		super().__init__()
 		self.conv1 = nn.Conv2d(in_channels=3, out_channels=63, kernel_size=9, stride=2)
 		self.conv2 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=5, stride=1)
 		self.conv3 = nn.Conv2d(in_channels=64, out_channels=1, kernel_size=5, stride=1)
 		self.pool22 = nn.MaxPool2d(2, 2)
-		self.labelShape = labelShape
 
 	def forward(self, x, y_coarse):
 		x = tr.transpose(tr.transpose(x, 1, 3), 2, 3)
@@ -50,22 +49,19 @@ class ModelDepthFine(NeuralNetworkPyTorch):
 		fine4 = self.conv3(fine3)
 		# fine4 (MB, 1, 50, 70) => (MB, 50, 70)
 		fine4 = fine4.view(fine4.shape[0], fine4.shape[2], fine4.shape[3])
-
-		assert tuple(fine4.shape)[1 : 3] == self.labelShape
 		return fine4
 
 # Implementation of the Eigen model from https://arxiv.org/abs/1406.2283
 class ModelEigen(NeuralNetworkPyTorch):
-	def __init__(self,  coarseOnly, labelShape):
+	def __init__(self,  coarseOnly):
 		super().__init__()
 		self.coarseOnly = coarseOnly
-		self.labelShape = labelShape
 		self.coarse = ModelDepthCoarse()
 		if not self.coarseOnly:
-			self.fine = ModelDepthFine(self.labelShape)
+			self.fine = ModelDepthFine()
 
 	def __str__(self):
-		return "Eigen. Coarse only: %s. Label shape: %s" % (self.coarseOnly, self.labelShape)
+		return "Eigen. Coarse only: %s." % (self.coarseOnly)
 
 	def forward(self, x):
 		coarseForward = self.coarse.forward(x)

@@ -4,54 +4,38 @@ from .dataset_reader import DatasetReader
 from neural_wrappers.transforms import Transformer
 
 class NYUDepthReader(DatasetReader):
-	def __init__(self, datasetPath, labelsType="depths", imagesShape=(240, 320, 3), labelShape=(55, 74), \
+	def __init__(self, datasetPath, labelsType="depths", imageShape=(240, 320, 3), labelShape=(55, 74), \
 		normalization="normalize", transforms=[], validationTransforms=None, dataSplit=(60, 30, 10)):
-		assert len(imagesShape) == 3 and len(labelShape) == 2
+		assert len(imageShape) == 3 and len(labelShape) == 2
 		assert labelsType in ("depths", "segmentation"), "Only \"depths\" and \"segmentation\" supported for now. " + \
 			"Expected values \"depths\", \"segmentation\", \"both\""
 		assert normalization in ("normalize", "standardize")
 		self.datasetPath = datasetPath
-		self.imagesShape = imagesShape
+		self.imageShape = imageShape
 		self.labelShape = labelShape
 		self.normalization = normalization
 		self.transforms = transforms
 		self.dataSplit = dataSplit
 		self.labelsType = labelsType
-		self.dataAugmenter = Transformer(transforms, dataShape=imagesShape, labelShape=labelShape, \
+		self.dataAugmenter = Transformer(transforms, dataShape=imageShape, labelShape=labelShape, \
 			applyOnDataShapeForLabels=True)
 		# For training, we may not want to use all the transforms when doing validation to increase speed.
 		if validationTransforms == None:
 			self.validationAugmenter = self.dataAugmenter
 		else:
-			self.validationAugmenter = Transformer(validationTransforms, dataShape=imagesShape, \
+			self.validationAugmenter = Transformer(validationTransforms, dataShape=imageShape, \
 				labelShape=labelShape, applyOnDataShapeForLabels=True)
 		self.setup()
 
+	def __str__(self):
+		return "NYUDepth Reader"
+
 	def setup(self):
-		# Check validity of the dataSplit (sums to 100 and positive)
-		# TODO: maybe move some of this in a base class, since it's going to be common code anyway (getNumIterations
-		#  expects self.numData for example, so it's tied code).
-		assert len(self.dataSplit) == 3 and self.dataSplit[0] >= 0 and self.dataSplit[1] >= 0 \
-			and self.dataSplit[2] >= 0 and self.dataSplit[0] + self.dataSplit[1] + self.dataSplit[2] == 100
-
 		self.dataset = h5py.File(self.datasetPath, "r")
-		trainStartIndex = 0
-		testStartIndex = self.dataSplit[0] * len(self.dataset["images"]) // 100
-		validationStartIndex = testStartIndex + (self.dataSplit[1] * len(self.dataset["images"]) // 100)
-
-		self.indexes = {
-			"train" : (trainStartIndex, testStartIndex),
-			"test" : (testStartIndex, validationStartIndex),
-			"validation" : (validationStartIndex, len(self.dataset["images"]))
-		}
-
-		self.numData = {
-			"train" : testStartIndex,
-			"test" : validationStartIndex - testStartIndex,
-			"validation" : len(self.dataset["images"]) - validationStartIndex
-		}
-
-		print("[NYUDepth Reader] Setup complete.")
+		numAllData = len(self.dataset["images"])
+		self.indexes, self.numData = self.computeIndexesSplit(numAllData)
+		print("[NYUDepth Reader] Setup complete. Num data: %d. Train: %d, Test: %d, Validation: %d" % \
+			(numAllData, self.numData["train"], self.numData["test"], self.numData["validation"]))
 
 	def iterate_once(self, type, miniBatchSize):
 		assert type in ("train", "test", "validation")

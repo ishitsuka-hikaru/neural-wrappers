@@ -29,8 +29,8 @@ class UpSampleUnpool(NeuralNetworkPyTorch):
 
 	# Fake indices for max unpooling, where it expects indices coming from a previous max pooling
 	def getIndices(self, x):
+		assert x.shape[1] == self.dIn
 		if self.preComputedIndices is None:
-			assert x.shape[1] == self.dIn
 			indices = self.computeIndices((x.shape[2], x.shape[3]))
 		else:
 			indices = self.preComputedIndices

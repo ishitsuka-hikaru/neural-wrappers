@@ -7,11 +7,10 @@ import torch.nn.functional as F
 
 # Implementation of the Laina model from https://arxiv.org/abs/1606.00373
 class ModelLaina(NeuralNetworkPyTorch):
-	def __init__(self, labelShape, baseModelType, upSampleType):
+	def __init__(self, baseModelType, upSampleType):
 		super().__init__()
 		assert baseModelType in ("resnet50", )
 		assert upSampleType in ("unpool", "bilinear", "nearest", "conv_transposed")
-		self.labelShape = labelShape
 		self.baseModelType = baseModelType
 		self.upSampleType = upSampleType
 
@@ -27,8 +26,7 @@ class ModelLaina(NeuralNetworkPyTorch):
 		self.conv_3_6 = nn.Conv2d(in_channels=64, out_channels=1, kernel_size=3)
 
 	def __str__(self):
-		return "Laina. Base model: %s. Upsample type: %s. Label shape: %s" % (self.baseModelType, \
-			self.upSampleType, self.labelShape)
+		return "Laina. Base model: %s. Upsample type: %s" % (self.baseModelType, self.upSampleType)
 
 	def forward(self, x):
 		# Move depth first (MB, 228, 304, 3) => (MB, 3, 228, 304)
@@ -47,5 +45,4 @@ class ModelLaina(NeuralNetworkPyTorch):
 		# y_3_6 shape = (N, 1, 128, 160) => (N, 128, 160)
 		y_3_6 = y_3_6.view(y_3_6.shape[0], y_3_6.shape[2], y_3_6.shape[3])
 
-		assert tuple(y_3_6.shape[1 : 3]) == self.labelShape
 		return y_3_6
