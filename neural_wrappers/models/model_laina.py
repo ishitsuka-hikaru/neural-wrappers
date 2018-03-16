@@ -20,10 +20,10 @@ class ModelLaina(NeuralNetworkPyTorch):
 
 		self.conv_3_1 = nn.Conv2d(in_channels=2048, out_channels=1024, kernel_size=1)
 		self.bn_3_1 = nn.BatchNorm2d(1024)
-		self.upConv_3_2 = UpSampleLayer(inShape=(8, 10), dIn=1024, dOut=512, Type=upSampleType)
-		self.upConv_3_3 = UpSampleLayer(inShape=(16, 20), dIn=512, dOut=256, Type=upSampleType)
-		self.upConv_3_4 = UpSampleLayer(inShape=(32, 40), dIn=256, dOut=128, Type=upSampleType)
-		self.upConv_3_5 = UpSampleLayer(inShape=(64, 80), dIn=128, dOut=64, Type=upSampleType)
+		self.upConv_3_2 = UpSampleLayer(dIn=1024, dOut=512, Type=upSampleType)
+		self.upConv_3_3 = UpSampleLayer(dIn=512, dOut=256, Type=upSampleType)
+		self.upConv_3_4 = UpSampleLayer(dIn=256, dOut=128, Type=upSampleType)
+		self.upConv_3_5 = UpSampleLayer(dIn=128, dOut=64, Type=upSampleType)
 		self.conv_3_6 = nn.Conv2d(in_channels=64, out_channels=1, kernel_size=3)
 
 	def __str__(self):
