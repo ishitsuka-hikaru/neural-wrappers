@@ -109,4 +109,6 @@ class Transformer:
 		assert (self.labelShape is None and labels is None) or (not self.labelShape is None), "When not providing " + \
 			"a labelShape on transformer constructor, the labels argument must be None as well"
 		for transform in self.transforms:
-			yield self.applyTransform(transform, data, labels, interpolationType)
+			newData, newLabels = self.applyTransform(transform, data, labels, interpolationType)
+			yield newData, newLabels
+			del newData, newLabels

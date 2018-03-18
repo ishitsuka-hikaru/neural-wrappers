@@ -124,11 +124,11 @@ class NeuralNetworkPyTorch(nn.Module):
 					message += " %s: %2.2f." % (metric, metricResults[metric] / (i + 1))
 				linePrinter.print(message)
 
-			del data, labels
+			del data, labels, results, npData, npLabels, npResults
 
-		if i == stepsPerEpoch - 1:
+		if i != stepsPerEpoch - 1:
 			sys.stderr.write("Warning! Number of iterations (%d) does not match expected iterations in reader (%d)" % \
-				i, stepsPerEpoch - 1)
+				(i, stepsPerEpoch - 1))
 		for metric in metricResults:
 			metricResults[metric] /= stepsPerEpoch
 		return metricResults
