@@ -7,14 +7,29 @@ from neural_wrappers.transforms import Transformer
 from neural_wrappers.utilities import resize_batch
 
 class CityScapesReader(DatasetReader):
-	# @param skipFrames Each video is consistent of multiple 30-frames scenes (1 second at 30fps). For videos, we want
-	#  to process every frame (so skipFrames is 1 by default). For some other type of processing (like training a
+	# @param[in] datasetPath The path to the root directory of the CityScapes videos
+	# @param[in] imageShape The shape to which the images are resized during the iteration phase. Frames have shape
+	#  870x1820x3, but normal values are 512x1024x3 (some networks require power of 2 inputs).
+	# @param[in] labelShape The shape of the depths (TOOD: a list including shape of flow as well). Frames have a shape
+	#  of 870x1820, but normal values are 256x512, which is the network output for 512x1024x3 input.
+	# @param[in] skipFrames Each video is consistent of multiple 30-frames scenes (1 second at 30fps). For videos, we
+	# want to process every frame (so skipFrames is 1 by default). For some other type of processing (like training a
 	#  non-recurrent neural network), we might want to skip some frames (like get only every nth frame), so this value
 	#  is higher. It cannot exceed 30, because there are only 30 frames in every scene and each scene is an independent
 	#  unit of work.
+	# @param[in] transforms A list of transformations to be applied on each iteration.
+	# @param[in] dataSplit A list/tuple that sums to 100 representing the split between train/test/validation sets.
+	#  The split is done based on the videos (so for 80/0/20, 80% of videos are used for training, 0% for testing and
+	#  20% for validation). This does not take into account the size of the videos. So the 80% of the videos could be
+	#  much smaller in number of frames than the last 20%. Depends on the dataset. For CityScapes, most of videos are
+	#  600 frames long, with some final videos of each scenes being smaller (varying from 30 to 570).
+	# @param[in] precomputedDurations If set true, the totalDurations and durations arrays are pre-computed. This is
+	#  only valid for a dataSplit of (80, 0, 20). For genericity, this should be False, but takes about 10 seconds
+	#  when the object is instantiated.
 	def __init__(self, datasetPath, imageShape, labelShape, skipFrames=1, transforms=["none"], dataSplit=(80, 0, 20),\
 		precomputedDurations=False):
 		assert skipFrames > 0 and skipFrames <= 30
+		assert precomputedDurations == False or (precomputedDurations == True and dataSplit == (80, 0, 20))
 		self.datasetPath = datasetPath
 		self.imageShape = imageShape
 		self.labelShape = labelShape
