@@ -12,16 +12,19 @@ class CityScapesReader(DatasetReader):
 	#  non-recurrent neural network), we might want to skip some frames (like get only every nth frame), so this value
 	#  is higher. It cannot exceed 30, because there are only 30 frames in every scene and each scene is an independent
 	#  unit of work.
-	def __init__(self, datasetPath, imageShape, labelShape, skipFrames=1, transforms=["none"], dataSplit=(80, 0, 20)):
+	def __init__(self, datasetPath, imageShape, labelShape, skipFrames=1, transforms=["none"], dataSplit=(80, 0, 20),\
+		precomputedDurations=False):
 		assert skipFrames > 0 and skipFrames <= 30
 		self.datasetPath = datasetPath
 		self.imageShape = imageShape
 		self.labelShape = labelShape
 		self.transforms = transforms
 		self.dataSplit = dataSplit
+		self.skipFrames = skipFrames
+		self.precomputedDurations = precomputedDurations
+
 		self.dataAugmenter = Transformer(transforms, dataShape=imageShape, labelShape=labelShape)
 		self.validationAugmenter = Transformer(["none"], dataShape=imageShape, labelShape=labelShape)
-		self.skipFrames = skipFrames
 		self.setup()
 
 	def setup(self):
@@ -60,21 +63,50 @@ class CityScapesReader(DatasetReader):
 			}
 		}
 
-		self.totalDurations = {
-			"train" : 0,
-			"test" : 0,
-			"validation" : 0
-		}
+		if self.precomputedDurations == True:
+			self.totalDurations = {
+				'train': 120480,
+				'test': 0,
+				'validation': 29520
+			}
 
-		self.durations = {
-			"train" : [],
-			"test" : [],
-			"validation" : []
-		}
+			self.durations = {
+				'train': np.array([600, 600, 600, 600, 600, 600, 600, 600, 420, 600, 600, 600, 600, 600, \
+					600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 120, 600, \
+					600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 30, 600, \
+					600, 600, 600, 480, 600, 600, 180, 600, 600, 600, 600, 600, 600, 600, 480, 600, 600, \
+					600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 420, 600, 600, 600, \
+					600, 150, 600, 600, 600, 30, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, \
+					600, 600, 270, 600, 600, 600, 600, 600, 210, 600, 600, 600, 600, 600, 600, 600, 600, 600, \
+					600, 600, 600, 240, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, \
+					600, 600, 600, 480, 600, 600, 600, 600, 600, 570, 600, 600, 600, 600, 570, 600, 600, \
+					540, 600, 600, 570, 600, 600, 600, 600, 600, 600, 540, 600, 600, 600, 600, 600, 600, \
+					600, 600, 600, 600, 600, 600, 420, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, \
+					600, 540, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, \
+					600, 420, 600, 600, 600, 600]),
+				'test': np.array([]),
+				'validation': np.array([600, 600, 600, 600, 600, 600, 150, 600, 600, 600, 600, 600, 600, \
+					600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 480, 600, 600, 600, 600, 600, \
+					600, 600, 120, 600, 600, 600, 600, 450, 600, 600, 600, 600, 600, 600, 600, 60, 600, \
+					600, 600, 600, 600, 600, 60])
+			}
+		else:
+			self.totalDurations = {
+				"train" : 0,
+				"test" : 0,
+				"validation" : 0
+			}
+
+			self.durations = {
+				"train" : None,
+				"test" : None,
+				"validation" : None
+			}
 
 		for Type in ["train", "test", "validation"]:
 			typeVideos = allVideos[self.indexes[Type][0] : self.indexes[Type][1]]
-			self.durations[Type] = np.zeros((len(typeVideos), ), dtype=np.int32)
+			if self.precomputedDurations == False:
+				self.durations[Type] = np.zeros((len(typeVideos), ), dtype=np.int32)
 			for i in range(len(typeVideos)):
 				videoName = typeVideos[i]
 				depthName = depthPath + os.sep + "depth_" + videoName[6 : ]
@@ -88,36 +120,14 @@ class CityScapesReader(DatasetReader):
 				self.paths[Type]["flow_deepflow2"].append(videoName)
 
 				# Also save the duration, so we can compute the number of iterations (Takes about 10s for all dataset)
-				# video = pims.Video(videoName)
-				# Some videos have 601 frames, instead of 600, so remove that last one (also during iteration)
-				# videoLen = len(video) - (len(video) % 30)
-				# self.totalDurations[Type] += videoLen
-				# self.durations[Type][i] = videoLen
+				if self.precomputedDurations == False:
+					video = pims.Video(videoName)
+					# Some videos have 601 frames, instead of 600, so remove that last one (also during iteration)
+					videoLen = len(video) - (len(video) % 30)
+					self.totalDurations[Type] += videoLen
+					self.durations[Type][i] = videoLen
 
-		self.totalDurations = {
-			'train': 120480,
-			'test': 0,
-			'validation': 29520
-		}
-
-		self.durations = {
-			'train': np.array([600, 600, 600, 600, 600, 600, 600, 600, 420, 600, 600, 600, 600, 600, 600, 600, 600, \
-				600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 120, 600, 600, 600, 600, 600, 600, 600, \
-				600, 600, 600, 600, 600, 600, 600, 600, 600, 30, 600, 600, 600, 600, 480, 600, 600, 180, 600, 600, \
-				600, 600, 600, 600, 600, 480, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, \
-				600, 420, 600, 600, 600, 600, 150, 600, 600, 600, 30, 600, 600, 600, 600, 600, 600, 600, 600, 600, \
-				600, 600, 600, 600, 270, 600, 600, 600, 600, 600, 210, 600, 600, 600, 600, 600, 600, 600, 600, 600, \
-				600, 600, 600, 240, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, \
-				600, 480, 600, 600, 600, 600, 600, 570, 600, 600, 600, 600, 570, 600, 600, 540, 600, 600, 570, 600, \
-				600, 600, 600, 600, 600, 540, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 420, 600, \
-				600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 540, 600, 600, 600, 600, 600, 600, 600, 600, 600, \
-				600, 600, 600, 600, 600, 600, 600, 420, 600, 600, 600, 600]),
-			'test': np.array([]),
-			'validation': np.array([600, 600, 600, 600, 600, 600, 150, 600, 600, 600, 600, 600, 600, 600, 600, 600, \
-				600, 600, 600, 600, 600, 600, 600, 600, 480, 600, 600, 600, 600, 600, 600, 600, 120, 600, 600, 600, \
-				600, 450, 600, 600, 600, 600, 600, 600, 600, 60, 600, 600, 600, 600, 600, 600, 60])
-		}
-
+		# print(self.durations)
 		print(("[CityScapes Reader] Setup complete. Num videos: %d. Train: %d, Test: %d, Validation: %d. " + \
 			"Frame shape: %s. Labels shape: %s. Frames: Train: %d, Test: %d, Validation: %d.") % (numVideos, \
 			self.numData["train"], self.numData["test"], self.numData["validation"], self.imageShape, \
@@ -155,30 +165,31 @@ class CityScapesReader(DatasetReader):
 			depth_videos = [pims.Video(thisPaths["depth"][j]) for j in range(startIndex, endIndex)]
 			# flow_farneback_videos = [pims.Video(thisPaths["flow_farnaback"][j]) for j in range(startIndex, endIndex)]
 			# flow_deepflow2_videos = [pims.Video(thisPaths["flow_deepflow2"][j]) for j in range(startIndex, endIndex)]
-			# print(len(videos), len(depth_videos))
+
+			numVideos = len(videos)
+			frameShape = videos[0].frame_shape
+			images = np.zeros((numVideos, *frameShape))
+			# Depths are 3 grayscale identical channels (due to necessity of saving them as RGB)
+			depths = np.zeros((numVideos, *frameShape[0 : 2]))
+			# flow_farnaback, flow_deepflow2 = ...
+
 			thisVideosDurations = thisDurations[startIndex : endIndex]
 			maxDuration = np.max(thisVideosDurations)
 			batchContribution = int(np.ceil(maxDuration / self.skipFrames))
-			frameShape = videos[0].frame_shape
 
 			for frame_i in range(0, maxDuration, self.skipFrames):
-				numVideos = len(videos)
-				images = np.zeros((numVideos, *frameShape))
-				# Depths are 3 grayscale identical channels (due to necessity of saving them as RGB)
-				depths = np.zeros((numVideos, *frameShape[0 : 2]))
-				# flow_farnaback, flow_deepflow2 = ...
-
-				numPopped = 0
+				validIndex = 0
 				for video_i in range(numVideos):
-					images[video_i - numPopped] = videos[video_i - numPopped][frame_i]
-					depths[video_i - numPopped] = depth_videos[video_i - numPopped][frame_i][..., 0]
+					if thisVideosDurations[video_i] <= frame_i:
+						continue
 
-					if len(videos[video_i - numPopped]) <= frame_i + 1:
-						videos.pop(video_i - numPopped)
-						numPopped += 1
+					images[validIndex] = videos[video_i][frame_i]
+					depths[validIndex] = depth_videos[video_i][frame_i][..., 0]
+					validIndex += 1
 
-				for augmentedImages, augmentedDepths in augmenter.applyTransforms(images, depths, "bilinear"):
+				transformGenerator = augmenter.applyTransforms(images[0 : validIndex], \
+					depths[0 : validIndex], "bilinear")
+				for augmentedImages, augmentedDepths in transformGenerator:
 					yield np.float32(augmentedImages), np.float32(augmentedDepths)
 					del augmentedImages, augmentedDepths
-				del images, depths
 			del videos
