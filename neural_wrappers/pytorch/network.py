@@ -85,6 +85,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		assert not self.criterion is None, "Expected a criterion/loss to be set before training/testing."
 		metricResults = {metric : 0 for metric in self.metrics.keys()}
 		linePrinter = LinePrinter()
+		i = None
 
 		for i, (npData, npLabels) in enumerate(generator):
 			data = maybeCuda(Variable(tr.from_numpy(npData)))
