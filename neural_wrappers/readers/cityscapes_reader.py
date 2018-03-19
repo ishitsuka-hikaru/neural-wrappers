@@ -20,6 +20,7 @@ class CityScapesReader(DatasetReader):
 		self.transforms = transforms
 		self.dataSplit = dataSplit
 		self.dataAugmenter = Transformer(transforms, dataShape=imageShape, labelShape=labelShape)
+		self.validationAugmenter = Transformer(["none"], dataShape=imageShape, labelShape=labelShape)
 		self.skipFrames = skipFrames
 		self.setup()
 
@@ -128,8 +129,8 @@ class CityScapesReader(DatasetReader):
 		numIterations = 0
 		thisDurations = self.durations[type]
 		for i in range(N):
-			startIndex = self.indexes[type][0] + i * miniBatchSize
-			endIndex = min(self.indexes[type][0] + (i + 1) * miniBatchSize, self.indexes[type][1])
+			startIndex = i * miniBatchSize
+			endIndex = min((i + 1) * miniBatchSize, self.numData[type])
 			thisVideosDurations = thisDurations[startIndex : endIndex]
 			# [30, 60, 450, 420, 60] => 450 iterations for this batch, but the other elements will only contribute
 			#  for their amount (so 30, 60, 420, 60). Thus, for first 30 iterations we get 5 items from this batch,
@@ -148,8 +149,8 @@ class CityScapesReader(DatasetReader):
 		thisDurations = self.durations[type]
 
 		for i in range(N):
-			startIndex = self.indexes[type][0] + i * miniBatchSize
-			endIndex = min(self.indexes[type][0] + (i + 1) * miniBatchSize, self.indexes[type][1])
+			startIndex = i * miniBatchSize
+			endIndex = min((i + 1) * miniBatchSize, self.numData[type])
 			videos = [pims.Video(thisPaths["video"][j]) for j in range(startIndex, endIndex)]
 			depth_videos = [pims.Video(thisPaths["depth"][j]) for j in range(startIndex, endIndex)]
 			# flow_farneback_videos = [pims.Video(thisPaths["flow_farnaback"][j]) for j in range(startIndex, endIndex)]
@@ -177,7 +178,7 @@ class CityScapesReader(DatasetReader):
 						numPopped += 1
 
 				for augmentedImages, augmentedDepths in augmenter.applyTransforms(images, depths, "bilinear"):
-					yield augmentedImages, augmentedDepths
+					yield np.float32(augmentedImages), np.float32(augmentedDepths)
 					del augmentedImages, augmentedDepths
 				del images, depths
 			del videos
