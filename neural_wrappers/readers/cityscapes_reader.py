@@ -24,11 +24,18 @@ class CityScapesReader(DatasetReader):
 	#  much smaller in number of frames than the last 20%. Depends on the dataset. For CityScapes, most of videos are
 	#  600 frames long, with some final videos of each scenes being smaller (varying from 30 to 570).
 	# @param[in] precomputedDurations If set true, the totalDurations and durations arrays are pre-computed. This is
-	#  only valid for a dataSplit of (80, 0, 20). For genericity, this should be False, but takes about 10 seconds
-	#  when the object is instantiated.
-	def __init__(self, datasetPath, imageShape, labelShape, skipFrames=1, transforms=["none"], dataSplit=(80, 0, 20),\
-		precomputedDurations=False):
+	#  only valid for the current video configuration, but adding more videos or changing any video in any way that
+	#  modifies the number of frames will result in the values to be invalid.
+	# @param[in] flowAlgorithm An optical flow algorithm for each frame. Valid algorithms are "farneback" (requires
+	#  OpenCV) and "deepflow2" (requires DeepFlow2 from NVIDIA with pre-computted weights). The required libraries can
+	#  be omitted if the flows were pre-computted and stored as vidoes, which can be loaded on demand
+	#  (see next parameter).
+	# @param[in] useStoredFlow The flow algorithm can either computed on demand (requiring the library to be installed)
+	#  or loaded from a pre-computted video.
+	def __init__(self, datasetPath, imageShape, labelShape, skipFrames=1, transforms=["none"], dataSplit=(80, 0, 20), \
+		precomputedDurations=False, flowAlgorithm=None, useStoredFlow=None):
 		assert skipFrames > 0 and skipFrames <= 30
+		assert flowAlgorithm is None or (not flowAlgorithm is None and type(useStoredFlow) is bool)
 		self.datasetPath = datasetPath
 		self.imageShape = imageShape
 		self.labelShape = labelShape
@@ -36,6 +43,8 @@ class CityScapesReader(DatasetReader):
 		self.dataSplit = dataSplit
 		self.skipFrames = skipFrames
 		self.precomputedDurations = precomputedDurations
+		self.flowAlgorithm = flowAlgorithm
+		self.useStoredFlow = useStoredFlow
 
 		self.dataAugmenter = Transformer(transforms, dataShape=imageShape, labelShape=labelShape)
 		self.validationAugmenter = Transformer(["none"], dataShape=imageShape, labelShape=labelShape)
@@ -60,19 +69,19 @@ class CityScapesReader(DatasetReader):
 			"train" : {
 				"video" : [],
 				"depth" : [],
-				"flow_farnaback" : [],
+				"flow_farneback" : [],
 				"flow_deepflow2" : []
 			},
 			"test" : {
 				"video" : [],
 				"depth" : [],
-				"flow_farnaback" : [],
+				"flow_farneback" : [],
 				"flow_deepflow2" : []
 			},
 			"validation" : {
 				"video" : [],
 				"depth" : [],
-				"flow_farnaback" : [],
+				"flow_farneback" : [],
 				"flow_deepflow2" : []
 			}
 		}
@@ -122,7 +131,7 @@ class CityScapesReader(DatasetReader):
 		for Type in ["train", "test", "validation"]:
 			typeVideos = allVideos[self.indexes[Type][0] : self.indexes[Type][1]]
 			if self.precomputedDurations == False:
-				self.durations[Type] = np.zeros((len(typeVideos), ), dtype=np.int32)
+				self.durations[Type] = np.zeros((len(typeVideos), ), dtype=np.uint32)
 			for i in range(len(typeVideos)):
 				videoName = typeVideos[i]
 				depthName = depthPath + os.sep + "depth_" + videoName[6 : ]
@@ -132,7 +141,7 @@ class CityScapesReader(DatasetReader):
 
 				self.paths[Type]["video"].append(videoName)
 				self.paths[Type]["depth"].append(depthName)
-				self.paths[Type]["flow_farnaback"].append(flowFarnebackName)
+				self.paths[Type]["flow_farneback"].append(flowFarnebackName)
 				self.paths[Type]["flow_deepflow2"].append(videoName)
 
 				# Also save the duration, so we can compute the number of iterations (Takes about 10s for all dataset)
@@ -165,6 +174,14 @@ class CityScapesReader(DatasetReader):
 			numIterations += batchContribution
 		return numIterations if accountTransforms == False else numIterations * len(self.transforms)
 
+	def getOpticalFlow(self, video, flowVideo, thisFrame, frameIndex):
+		assert self.useStoredFlow == True
+		# TODO: useStoredflow == False requires to compute the flow from this frame. If it's last frame, use previous
+		#  frame for flow disparity, otherwise always use the next one.
+		if frameIndex % 30 == 29:
+			frameIndex -= 1
+		return flowVideo[frameIndex][..., 0 : 2]
+
 	def iterate_once(self, type, miniBatchSize):
 		assert type in ("train", "test", "validation")
 		augmenter = self.dataAugmenter if type == "train" else self.validationAugmenter
@@ -178,33 +195,44 @@ class CityScapesReader(DatasetReader):
 			endIndex = min((i + 1) * miniBatchSize, self.numData[type])
 			videos = [pims.Video(thisPaths["video"][j]) for j in range(startIndex, endIndex)]
 			depth_videos = [pims.Video(thisPaths["depth"][j]) for j in range(startIndex, endIndex)]
-			# flow_farneback_videos = [pims.Video(thisPaths["flow_farnaback"][j]) for j in range(startIndex, endIndex)]
-			# flow_deepflow2_videos = [pims.Video(thisPaths["flow_deepflow2"][j]) for j in range(startIndex, endIndex)]
+			if not self.flowAlgorithm is None and self.useStoredFlow == True:
+				# For each flow algorithm that has a pre-computted flow video, load that video in memory
+				# All the other flows that are not loaded here will be computed manually, and the library is expected
+				#  to be installed for each of them.
+				flowType = "flow_" + self.flowAlgorithm
+				flow_videos = [pims.Video(thisPaths[flowType][j]) for j in range(startIndex, endIndex)]
 
 			numVideos = len(videos)
-			frameShape = videos[0].frame_shape
-			images = np.zeros((numVideos, *frameShape))
+			frameShape = videos[0].frame_shape[0 : 2]
+			# If no flow algorithm is used, just 3 channels (RGB) are needed. Otherwise, the flow is concatenated
+			#  with the RGB image, so we get 5 channels: R, G, B, U, V
+			numChannels = 3 if self.flowAlgorithm is None else 5
+			images = np.zeros((numVideos, *frameShape, numChannels), dtype=np.float32)
 			# Depths are 3 grayscale identical channels (due to necessity of saving them as RGB)
-			depths = np.zeros((numVideos, *frameShape[0 : 2]))
-			# flow_farnaback, flow_deepflow2 = ...
+			depths = np.zeros((numVideos, *frameShape), dtype=np.float32)
 
 			thisVideosDurations = thisDurations[startIndex : endIndex]
 			maxDuration = np.max(thisVideosDurations)
-			batchContribution = int(np.ceil(maxDuration / self.skipFrames))
 
 			for frame_i in range(0, maxDuration, self.skipFrames):
+				print(frame_i)
 				validIndex = 0
 				for video_i in range(numVideos):
 					if thisVideosDurations[video_i] <= frame_i:
 						continue
 
-					images[validIndex] = videos[video_i][frame_i] / 255
+					image = videos[video_i][frame_i]
+					images[validIndex][..., 0 : 3] = image / 255
 					depths[validIndex] = depth_videos[video_i][frame_i][..., 0] / 255
+
+					if not self.flowAlgorithm is None:
+						flowVideo = flow_videos[video_i] if self.useStoredFlow == True else None
+						flow = self.getOpticalFlow(videos[video_i], flowVideo, image, frame_i)
+						images[validIndex][..., 3 : 5] = flow / 255
 					validIndex += 1
 
-				transformGenerator = augmenter.applyTransforms(images[0 : validIndex], \
-					depths[0 : validIndex], "bilinear")
-				for augmentedImages, augmentedDepths in transformGenerator:
-					yield np.float32(augmentedImages), np.float32(augmentedDepths)
+				augGenerator = augmenter.applyTransforms(images[0 : validIndex], depths[0 : validIndex], "bilinear")
+				for augmentedImages, augmentedDepths in augGenerator:
+					yield augmentedImages, augmentedDepths
 					del augmentedImages, augmentedDepths
 			del videos
