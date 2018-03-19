@@ -198,8 +198,8 @@ class CityScapesReader(DatasetReader):
 					if thisVideosDurations[video_i] <= frame_i:
 						continue
 
-					images[validIndex] = videos[video_i][frame_i]
-					depths[validIndex] = depth_videos[video_i][frame_i][..., 0]
+					images[validIndex] = videos[video_i][frame_i] / 255
+					depths[validIndex] = depth_videos[video_i][frame_i][..., 0] / 255
 					validIndex += 1
 
 				transformGenerator = augmenter.applyTransforms(images[0 : validIndex], \
