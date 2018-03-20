@@ -85,7 +85,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		assert not self.criterion is None, "Expected a criterion/loss to be set before training/testing."
 		metricResults = {metric : 0 for metric in self.metrics.keys()}
 		linePrinter = LinePrinter()
-		i = None
+		i = 0
 
 		for i, (npData, npLabels) in enumerate(generator):
 			data = maybeCuda(Variable(tr.from_numpy(npData)))
@@ -126,6 +126,8 @@ class NeuralNetworkPyTorch(nn.Module):
 				linePrinter.print(message)
 
 			del data, labels, results, npData, npLabels, npResults
+			if i == stepsPerEpoch - 1:
+				break
 
 		if i != stepsPerEpoch - 1:
 			sys.stderr.write("Warning! Number of iterations (%d) does not match expected iterations in reader (%d)" % \
