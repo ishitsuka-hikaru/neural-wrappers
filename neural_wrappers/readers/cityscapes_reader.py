@@ -5,6 +5,7 @@ import pims
 from .dataset_reader import DatasetReader
 from neural_wrappers.transforms import Transformer
 from neural_wrappers.utilities import resize_batch
+from datetime import datetime
 
 class CityScapesReader(DatasetReader):
 	# @param[in] datasetPath The path to the root directory of the CityScapes videos
@@ -153,10 +154,10 @@ class CityScapesReader(DatasetReader):
 					self.durations[Type][i] = videoLen
 
 		print(("[CityScapes Reader] Setup complete. Num videos: %d. Train: %d, Test: %d, Validation: %d. " + \
-			"Frame shape: %s. Labels shape: %s. Frames: Train: %d, Test: %d, Validation: %d.") % (numVideos, \
-			self.numData["train"], self.numData["test"], self.numData["validation"], self.imageShape, \
+			"Frame shape: %s. Labels shape: %s. Frames: Train: %d, Test: %d, Validation: %d. Skip frames: %d") % \
+			(numVideos, self.numData["train"], self.numData["test"], self.numData["validation"], self.imageShape, \
 			self.labelShape, self.totalDurations["train"], self.totalDurations["test"], \
-			self.totalDurations["validation"]))
+			self.totalDurations["validation"], self.skipFrames))
 
 	def getNumIterations(self, type, miniBatchSize, accountTransforms=False):
 		N = self.numData[type] // miniBatchSize + (self.numData[type] % miniBatchSize != 0)
@@ -178,9 +179,10 @@ class CityScapesReader(DatasetReader):
 		assert self.useStoredFlow == True
 		# TODO: useStoredflow == False requires to compute the flow from this frame. If it's last frame, use previous
 		#  frame for flow disparity, otherwise always use the next one.
-		if frameIndex % 30 == 29:
-			frameIndex -= 1
-		return flowVideo[frameIndex][..., 0 : 2]
+		# if frameIndex % 30 == 29 => frameIndex -= 1
+		frameIndex -= int(((frameIndex % 30) // 29))
+		frames = flowVideo[frameIndex]
+		return frames[..., 0 : 2]
 
 	def iterate_once(self, type, miniBatchSize):
 		assert type in ("train", "test", "validation")
