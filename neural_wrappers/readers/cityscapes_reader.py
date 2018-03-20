@@ -203,19 +203,18 @@ class CityScapesReader(DatasetReader):
 				flow_videos = [pims.Video(thisPaths[flowType][j]) for j in range(startIndex, endIndex)]
 
 			numVideos = len(videos)
-			frameShape = videos[0].frame_shape[0 : 2]
+			frameShape, depthFrameShape = videos[0].frame_shape[0 : 2], depth_videos[0].frame_shape[0 : 2]
 			# If no flow algorithm is used, just 3 channels (RGB) are needed. Otherwise, the flow is concatenated
 			#  with the RGB image, so we get 5 channels: R, G, B, U, V
 			numChannels = 3 if self.flowAlgorithm is None else 5
 			images = np.zeros((numVideos, *frameShape, numChannels), dtype=np.float32)
 			# Depths are 3 grayscale identical channels (due to necessity of saving them as RGB)
-			depths = np.zeros((numVideos, *frameShape), dtype=np.float32)
+			depths = np.zeros((numVideos, *depthFrameShape), dtype=np.float32)
 
 			thisVideosDurations = thisDurations[startIndex : endIndex]
 			maxDuration = np.max(thisVideosDurations)
 
 			for frame_i in range(0, maxDuration, self.skipFrames):
-				print(frame_i)
 				validIndex = 0
 				for video_i in range(numVideos):
 					if thisVideosDurations[video_i] <= frame_i:
