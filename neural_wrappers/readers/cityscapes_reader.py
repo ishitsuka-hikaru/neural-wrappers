@@ -62,6 +62,30 @@ class CityScapesReader(DatasetReader):
 		assert numVideos > 0
 
 		self.indexes, self.numData = self.computeIndexesSplit(numVideos)
+
+		# Using the indexes, find all the paths to all the videos of all types for all labels. These will be used
+		#  during iteration to actually read the videos and access the frame for training/testing.
+		self.paths = {
+			"train" : {
+				"video" : [],
+				"depth" : [],
+				"flow_farneback" : [],
+				"flow_deepflow2" : []
+			},
+			"test" : {
+				"video" : [],
+				"depth" : [],
+				"flow_farneback" : [],
+				"flow_deepflow2" : []
+			},
+			"validation" : {
+				"video" : [],
+				"depth" : [],
+				"flow_farneback" : [],
+				"flow_deepflow2" : []
+			}
+		}
+
 		self.totalDurations = {
 			"train" : 0,
 			"test" : 0,
@@ -74,6 +98,8 @@ class CityScapesReader(DatasetReader):
 			"validation" : None
 		}
 
+		# Data structure that holds references to actual video objects, pre-loaded so they can be fast accessed.
+		# It will be populated during iterate_once method, first time a video is requested (using self.paths).
 		self.videos = {
 			"train" : {
 				"video" : [],
@@ -105,20 +131,19 @@ class CityScapesReader(DatasetReader):
 				flowDeepFlow2Name = flowDeepFlow2Path + os.sep + "flow_deepflow2_" + videoName[6 : -4] + ".avi"
 				videoName = videosPath + os.sep + videoName
 
+				self.paths[Type]["video"].append(videoName)
+				self.paths[Type]["depth"].append(depthName)
+				if self.flowAlgorithm == "farneback":
+					self.paths[Type]["flow_farneback"].append(flowFarnebackName)
+				if self.flowAlgorithm == "deepflow2":
+					self.paths[Type]["flow_deepflow2"].append(videoName)
+
 				# Also save the duration, so we can compute the number of iterations (Takes about 10s for all dataset)
-				video = pims.PyAVReaderIndexed(videoName)
+				video = pims.Video(videoName)
 				# Some videos have 601 frames, instead of 600, so remove that last one (also during iteration)
 				videoLen = len(video) - (len(video) % 30)
 				self.totalDurations[Type] += videoLen
 				self.durations[Type][i] = videoLen
-
-				# Finally, open all the videos, so the library can pre-compute stuff about it for fast accessing
-				self.videos[Type]["video"].append(video)
-				self.videos[Type]["depth"].append(pims.PyAVReaderIndexed(depthName))
-				if self.flowAlgorithm == "flow_farneback":
-					self.videos[Type]["flow_farneback"].append(pims.PyAVReaderIndexed(flowFarnebackName))
-				if self.flowAlgorithm == "flow_deepflow2":
-					self.videos[Type]["flow_deepflow2"].append(pims.PyAVReaderIndexed(flowDeepFlow2Name))
 
 		print(("[CityScapes Reader] Setup complete. Num videos: %d. Train: %d, Test: %d, Validation: %d. " + \
 			"Frame shape: %s. Labels shape: %s. Frames: Train: %d, Test: %d, Validation: %d. Skip frames: %d") % \
@@ -151,25 +176,40 @@ class CityScapesReader(DatasetReader):
 		frames = flowVideo[frameIndex]
 		return frames[..., 0 : 2]
 
+	# Accesses videos[startIndex : endIndex]. If they don't exist, loads from paths[startIndex : endIndex], so the
+	#  next time they're called, the videos are already loaded.
+	def getOrLoadVideo(self, videos, paths, startIndex, endIndex):
+		assert startIndex >= 0 and endIndex > startIndex
+		res = videos[startIndex : endIndex]
+		if len(res) != endIndex - startIndex:
+			# print("Loading videos %d to %d" % (startIndex, endIndex))
+			videos[startIndex : endIndex] = [pims.PyAVReaderIndexed(paths[j]) for j in range(startIndex, endIndex)]
+		else:
+			pass
+			# print("Already loaded videos %d to %d" % (startIndex, endIndex))
+		return videos[startIndex : endIndex]
+
 	def iterate_once(self, type, miniBatchSize):
 		assert type in ("train", "test", "validation")
 		augmenter = self.dataAugmenter if type == "train" else self.validationAugmenter
 
 		N = self.numData[type] // miniBatchSize + (self.numData[type] % miniBatchSize != 0)
 		thisVideos = self.videos[type]
+		thisPaths = self.paths[type]
 		thisDurations = self.durations[type]
 
 		for i in range(N):
 			startIndex = i * miniBatchSize
 			endIndex = min((i + 1) * miniBatchSize, self.numData[type])
-			videos = thisVideos["video"][startIndex : endIndex]
-			depth_videos = thisVideos["depth"][startIndex : endIndex]
+			videos = self.getOrLoadVideo(thisVideos["video"], thisPaths["video"], startIndex, endIndex)
+			depth_videos = self.getOrLoadVideo(thisVideos["depth"], thisPaths["depth"], startIndex, endIndex)
 			if not self.flowAlgorithm is None and self.useStoredFlow == True:
 				# For each flow algorithm that has a pre-computted flow video, load that video in memory
 				# All the other flows that are not loaded here will be computed manually, and the library is expected
 				#  to be installed for each of them.
 				flowType = "flow_" + self.flowAlgorithm
-				flow_videos = thisVideos[flowType][startIndex : endIndex]
+				flow_videos = self.getOrLoadVideo(thisVideos[flowType], thisPaths[flowType], startIndex, endIndex)
+			print("Here2?")
 
 			numVideos = len(videos)
 			frameShape, depthFrameShape = videos[0].frame_shape[0 : 2], depth_videos[0].frame_shape[0 : 2]
