@@ -34,7 +34,7 @@ class CityScapesReader(DatasetReader):
 	# @param[in] useStoredFlow The flow algorithm can either computed on demand (requiring the library to be installed)
 	#  or loaded from a pre-computted video.
 	def __init__(self, datasetPath, imageShape, labelShape, skipFrames=1, transforms=["none"], dataSplit=(80, 0, 20), \
-		precomputedDurations=False, flowAlgorithm=None, useStoredFlow=None):
+		flowAlgorithm=None, useStoredFlow=None):
 		assert skipFrames > 0 and skipFrames <= 30
 		assert flowAlgorithm is None or (not flowAlgorithm is None and type(useStoredFlow) is bool)
 		self.datasetPath = datasetPath
@@ -43,7 +43,6 @@ class CityScapesReader(DatasetReader):
 		self.transforms = transforms
 		self.dataSplit = dataSplit
 		self.skipFrames = skipFrames
-		self.precomputedDurations = precomputedDurations
 		self.flowAlgorithm = flowAlgorithm
 		self.useStoredFlow = useStoredFlow
 
@@ -63,10 +62,19 @@ class CityScapesReader(DatasetReader):
 		assert numVideos > 0
 
 		self.indexes, self.numData = self.computeIndexesSplit(numVideos)
+		self.totalDurations = {
+			"train" : 0,
+			"test" : 0,
+			"validation" : 0
+		}
 
-		# Using the indexes, find all the paths to all the videos of all types for all labels. These will be used
-		#  during iteration to actually read the videos and access the frame for training/testing.
-		self.paths = {
+		self.durations = {
+			"train" : None,
+			"test" : None,
+			"validation" : None
+		}
+
+		self.videos = {
 			"train" : {
 				"video" : [],
 				"depth" : [],
@@ -87,52 +95,9 @@ class CityScapesReader(DatasetReader):
 			}
 		}
 
-		if self.precomputedDurations == True:
-			self.allDurations = np.array([ 600, 600, 600, 600, 600, 600, 600, 600, 420, 600, 600, 600, 600, 600, \
-				600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 120, 600, \
-				600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 30, 600, \
-				600, 600, 600, 480, 600, 600, 180, 600, 600, 600, 600, 600, 600, 600, 480, 600, 600, \
-				600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 420, 600, 600, 600, \
-				600, 150, 600, 600, 600, 30, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, \
-				600, 600, 270, 600, 600, 600, 600, 600, 210, 600, 600, 600, 600, 600, 600, 600, 600, 600, \
-				600, 600, 600, 240, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, \
-				600, 600, 600, 480, 600, 600, 600, 600, 600, 570, 600, 600, 600, 600, 570, 600, 600, \
-				540, 600, 600, 570, 600, 600, 600, 600, 600, 600, 540, 600, 600, 600, 600, 600, 600, \
-				600, 600, 600, 600, 600, 600, 420, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, \
-				600, 540, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, \
-				600, 420, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 150, 600, 600, 600, 600, 600, 600, \
-				600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 600, 480, 600, 600, 600, 600, 600, \
-				600, 600, 120, 600, 600, 600, 600, 450, 600, 600, 600, 600, 600, 600, 600, 60, 600, \
-				600, 600, 600, 600, 600, 60])
-
-			self.durations = {
-				"train" : self.allDurations[self.indexes["train"][0] : self.indexes["train"][1]],
-				"test" : self.allDurations[self.indexes["test"][0] : self.indexes["test"][1]],
-				"validation" : self.allDurations[self.indexes["validation"][0] : self.indexes["validation"][1]]
-			}
-
-			self.totalDurations = {
-				"train": np.sum(self.durations["train"]),
-				"test": np.sum(self.durations["test"]),
-				"validation": np.sum(self.durations["validation"])
-			}
-		else:
-			self.totalDurations = {
-				"train" : 0,
-				"test" : 0,
-				"validation" : 0
-			}
-
-			self.durations = {
-				"train" : None,
-				"test" : None,
-				"validation" : None
-			}
-
 		for Type in ["train", "test", "validation"]:
 			typeVideos = allVideos[self.indexes[Type][0] : self.indexes[Type][1]]
-			if self.precomputedDurations == False:
-				self.durations[Type] = np.zeros((len(typeVideos), ), dtype=np.uint32)
+			self.durations[Type] = np.zeros((len(typeVideos), ), dtype=np.uint32)
 			for i in range(len(typeVideos)):
 				videoName = typeVideos[i]
 				depthName = depthPath + os.sep + "depth_" + videoName[6 : ]
@@ -140,18 +105,20 @@ class CityScapesReader(DatasetReader):
 				flowDeepFlow2Name = flowDeepFlow2Path + os.sep + "flow_deepflow2_" + videoName[6 : -4] + ".avi"
 				videoName = videosPath + os.sep + videoName
 
-				self.paths[Type]["video"].append(videoName)
-				self.paths[Type]["depth"].append(depthName)
-				self.paths[Type]["flow_farneback"].append(flowFarnebackName)
-				self.paths[Type]["flow_deepflow2"].append(videoName)
-
 				# Also save the duration, so we can compute the number of iterations (Takes about 10s for all dataset)
-				if self.precomputedDurations == False:
-					video = pims.Video(videoName)
-					# Some videos have 601 frames, instead of 600, so remove that last one (also during iteration)
-					videoLen = len(video) - (len(video) % 30)
-					self.totalDurations[Type] += videoLen
-					self.durations[Type][i] = videoLen
+				video = pims.PyAVReaderIndexed(videoName)
+				# Some videos have 601 frames, instead of 600, so remove that last one (also during iteration)
+				videoLen = len(video) - (len(video) % 30)
+				self.totalDurations[Type] += videoLen
+				self.durations[Type][i] = videoLen
+
+				# Finally, open all the videos, so the library can pre-compute stuff about it for fast accessing
+				self.videos[Type]["video"].append(video)
+				self.videos[Type]["depth"].append(pims.PyAVReaderIndexed(depthName))
+				if self.flowAlgorithm == "flow_farneback":
+					self.videos[Type]["flow_farneback"].append(pims.PyAVReaderIndexed(flowFarnebackName))
+				if self.flowAlgorithm == "flow_deepflow2":
+					self.videos[Type]["flow_deepflow2"].append(pims.PyAVReaderIndexed(flowDeepFlow2Name))
 
 		print(("[CityScapes Reader] Setup complete. Num videos: %d. Train: %d, Test: %d, Validation: %d. " + \
 			"Frame shape: %s. Labels shape: %s. Frames: Train: %d, Test: %d, Validation: %d. Skip frames: %d") % \
@@ -189,20 +156,20 @@ class CityScapesReader(DatasetReader):
 		augmenter = self.dataAugmenter if type == "train" else self.validationAugmenter
 
 		N = self.numData[type] // miniBatchSize + (self.numData[type] % miniBatchSize != 0)
-		thisPaths = self.paths[type]
+		thisVideos = self.videos[type]
 		thisDurations = self.durations[type]
 
 		for i in range(N):
 			startIndex = i * miniBatchSize
 			endIndex = min((i + 1) * miniBatchSize, self.numData[type])
-			videos = [pims.Video(thisPaths["video"][j]) for j in range(startIndex, endIndex)]
-			depth_videos = [pims.Video(thisPaths["depth"][j]) for j in range(startIndex, endIndex)]
+			videos = thisVideos["video"][startIndex : endIndex]
+			depth_videos = thisVideos["depth"][startIndex : endIndex]
 			if not self.flowAlgorithm is None and self.useStoredFlow == True:
 				# For each flow algorithm that has a pre-computted flow video, load that video in memory
 				# All the other flows that are not loaded here will be computed manually, and the library is expected
 				#  to be installed for each of them.
 				flowType = "flow_" + self.flowAlgorithm
-				flow_videos = [pims.Video(thisPaths[flowType][j]) for j in range(startIndex, endIndex)]
+				flow_videos = thisVideos[flowType][startIndex : endIndex]
 
 			numVideos = len(videos)
 			frameShape, depthFrameShape = videos[0].frame_shape[0 : 2], depth_videos[0].frame_shape[0 : 2]

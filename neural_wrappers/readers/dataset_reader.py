@@ -1,5 +1,5 @@
 import numpy as np
-from neural_wrappers.utilities import PrefetchGenerator
+from prefetch_generator import BackgroundGenerator
 
 class DatasetReader:
 	# Handles all the initilization stuff of a specific dataset object.
@@ -45,7 +45,8 @@ class DatasetReader:
 		while True:
 			iterateGenerator = self.iterate_once(type, miniBatchSize)
 			if maxPrefetch > 0:
-				iterateGenerator = PrefetchGenerator(iterateGenerator, maxPrefetch=maxPrefetch)
+				# iterateGenerator = PrefetchGenerator(iterateGenerator, maxPrefetch=maxPrefetch)
+				iterateGenerator = BackgroundGenerator(iterateGenerator, max_prefetch=maxPrefetch)
 			for items in iterateGenerator:
 				yield items
 				del items
