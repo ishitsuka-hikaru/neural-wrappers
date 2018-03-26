@@ -1,13 +1,10 @@
-import h5py
 import numpy as np
 import os
 import pims
 from .dataset_reader import DatasetReader
 from neural_wrappers.transforms import Transformer
-from neural_wrappers.utilities import resize_batch
-from datetime import datetime
 
-class CityScapesReader(DatasetReader):
+class CityScapesVideosReader(DatasetReader):
 	# @param[in] datasetPath The path to the root directory of the CityScapes videos
 	# @param[in] imageShape The shape to which the images are resized during the iteration phase. Frames have shape
 	#  870x1820x3, but normal values are 512x1024x3 (some networks require power of 2 inputs).
@@ -24,9 +21,6 @@ class CityScapesReader(DatasetReader):
 	#  20% for validation). This does not take into account the size of the videos. So the 80% of the videos could be
 	#  much smaller in number of frames than the last 20%. Depends on the dataset. For CityScapes, most of videos are
 	#  600 frames long, with some final videos of each scenes being smaller (varying from 30 to 570).
-	# @param[in] precomputedDurations If set true, the totalDurations and durations arrays are pre-computed. This is
-	#  only valid for the current video configuration, but adding more videos or changing any video in any way that
-	#  modifies the number of frames will result in the values to be invalid.
 	# @param[in] flowAlgorithm An optical flow algorithm for each frame. Valid algorithms are "farneback" (requires
 	#  OpenCV) and "deepflow2" (requires DeepFlow2 from NVIDIA with pre-computted weights). The required libraries can
 	#  be omitted if the flows were pre-computted and stored as vidoes, which can be loaded on demand
@@ -145,11 +139,11 @@ class CityScapesReader(DatasetReader):
 				self.totalDurations[Type] += videoLen
 				self.durations[Type][i] = videoLen
 
-		print(("[CityScapes Reader] Setup complete. Num videos: %d. Train: %d, Test: %d, Validation: %d. " + \
-			"Frame shape: %s. Labels shape: %s. Frames: Train: %d, Test: %d, Validation: %d. Skip frames: %d") % \
-			(numVideos, self.numData["train"], self.numData["test"], self.numData["validation"], self.imageShape, \
-			self.labelShape, self.totalDurations["train"], self.totalDurations["test"], \
-			self.totalDurations["validation"], self.skipFrames))
+		print(("[CityScapes Videos Reader] Setup complete. Num videos: %d. Train: %d, Test: %d, Validation: %d. " + \
+			"Frame shape: %s. Labels shape: %s. Frames: Train: %d, Test: %d, Validation: %d. Skip frames: %d. " + \
+			"Flow algorithm: %s") % (numVideos, self.numData["train"], self.numData["test"], \
+			self.numData["validation"], self.imageShape, self.labelShape, self.totalDurations["train"], \
+			self.totalDurations["test"], self.totalDurations["validation"], self.skipFrames, self.flowAlgorithm))
 
 	def getNumIterations(self, type, miniBatchSize, accountTransforms=False):
 		N = self.numData[type] // miniBatchSize + (self.numData[type] % miniBatchSize != 0)

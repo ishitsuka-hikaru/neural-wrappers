@@ -17,6 +17,12 @@ def resize_batch(data, dataShape, type="bilinear"):
 		newData[i] = resize(data[i], height=dataShape[0], width=dataShape[1], interpolation=interpolationType)
 	return newData
 
+def standardizeData(data, mean, std):
+	data = np.float32(data)
+	data -= mean
+	data /= std
+	return data
+
 def toCategorical(data, numClasses):
 	numData = len(data)
 	newData = np.zeros((numData, numClasses), dtype=np.uint8)
