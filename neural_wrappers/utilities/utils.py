@@ -14,7 +14,8 @@ def resize_batch(data, dataShape, type="bilinear"):
 
 	interpolationType = Interpolation.LINEAR if type == "bilinear" else Interpolation.NEAREST
 	for i in range(len(data)):
-		newData[i] = resize(data[i], height=dataShape[0], width=dataShape[1], interpolation=interpolationType)
+		result = resize(data[i], height=dataShape[0], width=dataShape[1], interpolation=interpolationType)
+		newData[i] = result.reshape(newData[i].shape)
 	return newData
 
 def standardizeData(data, mean, std):
