@@ -6,10 +6,10 @@ from .upsample import UpSampleLayer
 
 # A simple block that implements the 2 convs + Relu layers
 class UNetBlock(NeuralNetworkPyTorch):
-	def __init__(self, dIn, dOut):
+	def __init__(self, dIn, dOut, padding=0):
 		super(UNetBlock, self).__init__()
-		self.conv1 = nn.Conv2d(in_channels=dIn, out_channels=dOut, kernel_size=3)
-		self.conv2 = nn.Conv2d(in_channels=dOut, out_channels=dOut, kernel_size=3)
+		self.conv1 = nn.Conv2d(in_channels=dIn, out_channels=dOut, kernel_size=3, padding=padding)
+		self.conv2 = nn.Conv2d(in_channels=dOut, out_channels=dOut, kernel_size=3, padding=padding)
 
 	def forward(self, x):
 		out1 = F.relu(self.conv1(x))
