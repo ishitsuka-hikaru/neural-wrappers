@@ -86,7 +86,6 @@ class NeuralNetworkPyTorch(nn.Module):
 		metricResults = {metric : 0 for metric in self.metrics.keys()}
 		linePrinter = LinePrinter()
 		i = 0
-
 		for i, (npData, npLabels) in enumerate(generator):
 			data = maybeCuda(Variable(tr.from_numpy(npData)))
 			labels = maybeCuda(Variable(tr.from_numpy(npLabels)))
@@ -136,24 +135,28 @@ class NeuralNetworkPyTorch(nn.Module):
 			metricResults[metric] /= stepsPerEpoch
 		return metricResults
 
-	def test_generator(self, generator, stepsPerEpoch, callbacks=[]):
-		return self.run_one_epoch(generator, stepsPerEpoch, callbacks=callbacks, optimize=False, printMessage=False)
+	def test_generator(self, generator, stepsPerEpoch, callbacks=[], printMessage=False):
+		return self.run_one_epoch(generator, stepsPerEpoch, callbacks=callbacks, optimize=False, \
+			printMessage=printMessage)
 
-	def test_model(self, data, labels, batchSize, callbacks=[]):
+	def test_model(self, data, labels, batchSize, callbacks=[], printMessage=False):
 		dataGenerator = makeGenerator(data, labels, batchSize)
 		numIterations = data.shape[0] // batchSize + (data.shape[0] % batchSize != 0)
-		return self.test_generator(dataGenerator, stepsPerEpoch=numIterations, callbacks=callbacks)
+		return self.test_generator(dataGenerator, stepsPerEpoch=numIterations, callbacks=callbacks, \
+			printMessage=printMessage)
 
 	def train_generator(self, generator, stepsPerEpoch, numEpochs, callbacks=[], validationGenerator=None, \
-		validationSteps=0):
+		validationSteps=0, printMessage=True):
 		assert self.optimizer != None and self.criterion != None, "Set optimizer and criterion before training"
-		sys.stdout.write("Training for %d epochs...\n" % (numEpochs))
+		if printMessage:
+			sys.stdout.write("Training for %d epochs...\n" % (numEpochs))
+	
 		for epoch in range(self.startEpoch - 1, numEpochs):
 			done = (epoch + 1) / numEpochs * 100
 			message = "Epoch %d/%d. Done: %2.2f%%." % (epoch + 1, numEpochs, done)
 
 			# Run for training data and append the results
-			trainMetrics = self.run_one_epoch(generator, stepsPerEpoch, optimize=True, printMessage=True)
+			trainMetrics = self.run_one_epoch(generator, stepsPerEpoch, optimize=True, printMessage=printMessage)
 			for metric in trainMetrics:
 				message += " %s: %2.2f." % (metric, trainMetrics[metric])
 
@@ -163,8 +166,9 @@ class NeuralNetworkPyTorch(nn.Module):
 				for metric in validationMetrics:
 					message += " %s: %2.2f." % ("Val " + metric, validationMetrics[metric])
 
-			sys.stdout.write(message + "\n")
-			sys.stdout.flush()
+			if printMessage:
+				sys.stdout.write(message + "\n")
+				sys.stdout.flush()
 
 			# Do the callbacks
 			callbackArgs = {
@@ -178,7 +182,7 @@ class NeuralNetworkPyTorch(nn.Module):
 				callback(**callbackArgs)
 
 	def train_model(self, data, labels, batchSize, numEpochs, callbacks=[], validationData=None, \
-		validationLabels=None):
+		validationLabels=None, printMessage=True):
 		assert self.optimizer != None and self.criterion != None, "Set optimizer and criterion before training"
 		dataGenerator = makeGenerator(data, labels, batchSize)
 		numIterations = data.shape[0] // batchSize + (data.shape[0] % batchSize != 0)
@@ -191,7 +195,7 @@ class NeuralNetworkPyTorch(nn.Module):
 			validationGenerator = None
 
 		self.train_generator(dataGenerator, stepsPerEpoch=numIterations, numEpochs=numEpochs, callbacks=callbacks, \
-			validationGenerator=validationGenerator, validationSteps=valNumIterations)
+			validationGenerator=validationGenerator, validationSteps=valNumIterations, printMessage=printMessage)
 
 	def save_weights(self, path):
 		modelParams = list(map(lambda x : x.cpu(), self.parameters()))

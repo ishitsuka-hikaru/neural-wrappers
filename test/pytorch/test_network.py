@@ -3,7 +3,8 @@ import numpy as np
 import torch as tr
 
 import torch.nn as nn
-from torch.autograd import Variable 
+from torch.autograd import Variable
+from torch.optim import Adam
 
 class Model(NeuralNetworkPyTorch):
 	def __init__(self, inputSize, hiddenSize, outputSize):
@@ -44,5 +45,32 @@ class TestNetwork:
 		error_new = tr.sum((outputs_new - targets)**2).data.numpy()
 		assert np.abs(error - error_new) < 1e-5
 
+	def test_save_model_1(self):
+		N, I, H, O = 500, 100, 50, 30
+		inputs = np.float32(np.random.randn(N, I))	
+		targets = np.float32(np.random.randn(N, O))
+
+		model = Model(I, H, O)
+		model.setOptimizer(Adam, lr=0.001)
+		model.setCriterion(lambda y, t : tr.sum((y - t)**2))
+
+		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=5, printMessage=False)
+		model.save_model("test_model.pkl")
+		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=5, printMessage=False)
+		model_new = Model(I, H, O)
+		model_new.load_model("test_model.pkl")
+		model_new.setCriterion(lambda y, t : tr.sum((y - t)**2))
+		model_new.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=5, printMessage=False)
+
+		weights_model = list(model.parameters())
+		weights_model_new = list(model_new.parameters())
+
+		assert len(weights_model) == len(weights_model_new)
+		for j in range(len(weights_model)):
+			weight = weights_model[j]
+			weight_new = weights_model_new[j]
+			diff = tr.sum(tr.abs(weight - weight_new)).data.numpy()
+			assert diff < 1e-5, "%d: Diff: %2.5f.\n %s %s" % (j, diff, weight, weight_new)
+
 if __name__ == "__main__":
-	TestNetwork().test_save_weights_1()
+	TestNetwork().test_save_model_1()
