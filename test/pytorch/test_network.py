@@ -1,4 +1,4 @@
-from neural_wrappers.pytorch import NeuralNetworkPyTorch
+from neural_wrappers.pytorch import NeuralNetworkPyTorch, maybeCuda, maybeCpu
 import numpy as np
 import torch as tr
 
@@ -22,10 +22,10 @@ class Model(NeuralNetworkPyTorch):
 class TestNetwork:
 	def test_save_weights_1(self):
 		N, I, H, O = 500, 100, 50, 30
-		inputs = Variable(tr.from_numpy(np.float32(np.random.randn(N, I))))	
-		targets = Variable(tr.from_numpy(np.float32(np.random.randn(N, O))))
+		inputs = maybeCuda(Variable(tr.from_numpy(np.float32(np.random.randn(N, I)))))
+		targets = maybeCuda(Variable(tr.from_numpy(np.float32(np.random.randn(N, O)))))
 
-		model = Model(I, H, O)
+		model = maybeCuda(Model(I, H, O))
 		for i in range(5):
 			outputs = model.forward(inputs)
 			error = tr.sum((outputs - targets)**2)
@@ -36,13 +36,13 @@ class TestNetwork:
 				param.grad *= 0
 
 		model.save_weights("test_weights.pkl")
-		model_new = Model(I, H, O)
+		model_new = maybeCuda(Model(I, H, O))
 		model_new.load_weights("test_weights.pkl")
 
 		outputs = model.forward(inputs)
-		error = tr.sum((outputs - targets)**2).data.numpy()
+		error = maybeCpu(tr.sum((outputs - targets)**2)).data.numpy()
 		outputs_new = model_new.forward(inputs)
-		error_new = tr.sum((outputs_new - targets)**2).data.numpy()
+		error_new = maybeCpu(tr.sum((outputs_new - targets)**2)).data.numpy()
 		assert np.abs(error - error_new) < 1e-5
 
 	def test_save_model_1(self):
@@ -50,14 +50,14 @@ class TestNetwork:
 		inputs = np.float32(np.random.randn(N, I))	
 		targets = np.float32(np.random.randn(N, O))
 
-		model = Model(I, H, O)
+		model = maybeCuda(Model(I, H, O))
 		model.setOptimizer(Adam, lr=0.001)
 		model.setCriterion(lambda y, t : tr.sum((y - t)**2))
 
 		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=5, printMessage=False)
 		model.save_model("test_model.pkl")
 		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=5, printMessage=False)
-		model_new = Model(I, H, O)
+		model_new = maybeCuda(Model(I, H, O))
 		model_new.load_model("test_model.pkl")
 		model_new.setCriterion(lambda y, t : tr.sum((y - t)**2))
 		model_new.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=5, printMessage=False)
@@ -69,7 +69,7 @@ class TestNetwork:
 		for j in range(len(weights_model)):
 			weight = weights_model[j]
 			weight_new = weights_model_new[j]
-			diff = tr.sum(tr.abs(weight - weight_new)).data.numpy()
+			diff = maybeCpu(tr.sum(tr.abs(weight - weight_new))).data.numpy()
 			assert diff < 1e-5, "%d: Diff: %2.5f.\n %s %s" % (j, diff, weight, weight_new)
 
 if __name__ == "__main__":
