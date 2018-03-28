@@ -26,13 +26,13 @@ class CityScapesImagesReader(DatasetReader):
 		self.means = {
 			"images" : [72.0077217043444, 81.15868796015802, 70.88520810466197],
 			"depths" : 80.00175220926421,
-			"flownet2" : [0, 2.255]
+			"flownet2" : [-0.046412684, 2.4327936]
 		}
 
 		self.stds = {
 			"images" : [48.06690873921935, 48.75020861009473, 48.214420108835114],
 			"depths" : 64.32797789334958,
-			"flownet2" : [31.977, 10.595]
+			"flownet2" : [32.09688, 11.09397]
 		}
 
 		print(("[CityScapes Images Reader] Setup complete. Num data: Train: %d, Test: %d, Validation: %d. " + \
