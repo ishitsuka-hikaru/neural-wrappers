@@ -8,8 +8,7 @@ from torch.autograd import Variable
 from neural_wrappers.transforms import *
 from neural_wrappers.metrics import Accuracy, Loss
 from neural_wrappers.utilities import makeGenerator, LinePrinter
-from .utils import maybeCuda, maybeCpu, getNumParams, getOptimizerHyperParams, getOptimizerParamsState, \
-	getOptimizerStr
+from .utils import maybeCuda, maybeCpu, getNumParams, getOptimizerStr
 
 # Wrapper on top of the PyTorch model. Added methods for saving and loading a state. To completly implement a PyTorch
 #  model, one must define layers in the object's constructor, call setOptimizer, setCriterion and implement the
@@ -228,8 +227,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		state = {
 			"params" : list(map(lambda x : x.cpu(), self.parameters())),
 			"optimizer_type" : type(self.optimizer),
-			"optimizer_hyper_params" : getOptimizerHyperParams(self.optimizer),
-			"optimizer_params_state" : getOptimizerParamsState(self.optimizer)
+			"optimizer_state" : self.optimizer.state_dict()
 		}
 		tr.save(state, path)
 
@@ -239,26 +237,12 @@ class NeuralNetworkPyTorch(nn.Module):
 
 		# Create a new instance of the optimizer. Some optimizers require a lr to be set as well
 		self.setOptimizer(loaded_model["optimizer_type"], lr=0.01)
-
-		# Load optimizer hyper parameters
-		assert len(self.optimizer.param_groups) == 1
-		for key in loaded_model["optimizer_hyper_params"]:
-			assert key != "params"
-			self.optimizer.param_groups[0][key] = maybeCuda(loaded_model["optimizer_hyper_params"][key])
-
-		# Load params now
-		self.optimizer.param_groups[0]["params"] = list(self.parameters())
-
-		# Load parameters state from the stored list
-		for i, param in enumerate(self.parameters()):
-			self.optimizer.state[param] = {}
-			for key in loaded_model["optimizer_params_state"][i]:
-				self.optimizer.state[param][key] = maybeCuda(loaded_model["optimizer_params_state"][i][key])
+		self.optimizer.load_state_dict(loaded_model["optimizer_state"])
 
 		# Optimizer consistency checks
-		l1 = list(self.optimizer.state_dict()["state"].keys())
+		# l1 = list(self.optimizer.state_dict()["state"].keys()) # Not sure if/how we can use this (not always ordered)
 		l2 = self.optimizer.state_dict()["param_groups"][0]["params"]
 		l3 = list(map(lambda x : id(x), self.parameters()))
-		assert l1 == l2 and l1 == l3, "Something was wrong with loading optimizer"
+		assert l2 == l3, "Something was wrong with loading optimizer"
 
 		print("Succesfully loaded model")

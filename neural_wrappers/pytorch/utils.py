@@ -17,30 +17,6 @@ def getNumParams(params):
 			numTrainable += npParamCount
 	return numParams, numTrainable
 
-# Get all the parameters of the optimizer state, except the 'params' key, which is stored separated
-def getOptimizerHyperParams(optimizer):
-	assert len(optimizer.param_groups) == 1
-	paramGroups = optimizer.param_groups[0]
-	optimizerState = {}
-	for key in paramGroups:
-		if key == "params":
-			continue
-
-		optimizerState[key] = maybeCpu(paramGroups[key])
-	return optimizerState
-
-def getOptimizerParamsState(optimizer):
-	states = []
-	# Just iterate through values, because keys are the weights themselves, and we already save those.
-	for param_state in list(optimizer.state.values()):
-		# optimizer.state :: [param -> param_state]
-		# param_state :: {Str -> state_tensor}
-		saved_state = {}
-		for key in param_state:
-			saved_state[key] = maybeCpu(param_state[key])
-		states.append(saved_state)
-	return states
-
 def getOptimizerStr(optimizer):
 	if optimizer is None:
 		return "None"

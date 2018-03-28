@@ -73,4 +73,5 @@ class TestNetwork:
 			assert diff < 1e-5, "%d: Diff: %2.5f.\n %s %s" % (j, diff, weight, weight_new)
 
 if __name__ == "__main__":
+	TestNetwork().test_save_weights_1()
 	TestNetwork().test_save_model_1()
