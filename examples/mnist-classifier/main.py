@@ -6,9 +6,10 @@ import torch.nn as nn
 import torch.optim as optim
 from neural_wrappers.readers import MNISTReader
 from neural_wrappers.pytorch import NeuralNetworkPyTorch, maybeCuda
-from neural_wrappers.callbacks import SaveModels, ConfusionMatrix
+from neural_wrappers.callbacks import SaveModels, ConfusionMatrix, Callback
 from neural_wrappers.metrics import Loss, Accuracy
 from functools import partial
+import matplotlib.pyplot as plt
 
 class ModelFC(NeuralNetworkPyTorch):
 	def __init__(self):
@@ -43,6 +44,34 @@ class ModelConv(NeuralNetworkPyTorch):
 		y5 = nn.functional.softmax(y4, dim=1)
 		return y5
 
+class PlotLossCallback(Callback):
+	def __init__(self):
+		self.trainLoss = []
+		self.valLoss = []
+		self.trainAcc = []
+		self.valAcc = []
+
+	def onEpochEnd(self, **kwargs):
+		self.trainLoss.append(kwargs["trainMetrics"]["Loss"])
+		self.valLoss.append(kwargs["validationMetrics"]["Loss"])
+		self.trainAcc.append(kwargs["trainMetrics"]["Accuracy"])
+		self.valAcc.append(kwargs["validationMetrics"]["Accuracy"])
+
+	def __del__(self):
+		x = np.arange(len(self.trainLoss))
+
+		plt.figure()
+		plt.plot(x, self.trainLoss, label="Train loss")
+		plt.plot(x, self.valLoss, label="Val loss")
+		plt.legend()
+		plt.savefig("loss.png")
+
+		plt.figure()
+		plt.plot(x, self.trainAcc, label="Train accuracy")
+		plt.plot(x, self.valAcc, label="Val accuracy")
+		plt.legend()
+		plt.savefig("accuracy.png")
+
 def main():
 	assert len(sys.argv) >= 4, "Usage: python main.py <train/test> <model_fc/model_conv> <path/to/mnist.h5> [model]"
 	assert sys.argv[1] in ("train", "test")
@@ -65,8 +94,8 @@ def main():
 		trainGenerator = reader.iterate("train", miniBatchSize=20)
 		trainNumIterations = reader.getNumIterations("train", miniBatchSize=20)
 
-		callbacks = [SaveModels(type="best"), confusionMatrixCallback]
-		model.train_generator(trainGenerator, stepsPerEpoch=trainNumIterations, numEpochs=3, callbacks=callbacks, \
+		callbacks = [SaveModels(type="best"), confusionMatrixCallback, PlotLossCallback()]
+		model.train_generator(trainGenerator, stepsPerEpoch=trainNumIterations, numEpochs=10, callbacks=callbacks, \
 			validationGenerator=testGenerator, validationSteps=testNumIterations)
 	elif sys.argv[1] == "test":
 		assert len(sys.argv) == 5
