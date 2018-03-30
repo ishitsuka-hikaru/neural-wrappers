@@ -3,6 +3,7 @@ import torch as tr
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
+from datetime import datetime
 
 from torch.autograd import Variable
 from neural_wrappers.transforms import *
@@ -18,7 +19,11 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.optimizer = None
 		self.criterion = None
 		self.metrics = {"Loss" : Loss()}
-		self.startEpoch = 1
+		self.currentEpoch = 1
+		# A list that stores various information about the model at each epoch. The index in the list represents the
+		#  epoch value. Each value of the list is a dictionary that holds by default only loss value, but callbacks
+		#  can add more items to this (like confusion matrix or accuracy, see mnist example).
+		self.modelHistory = []
 		super(NeuralNetworkPyTorch, self).__init__()
 
 	### Various setters for the network ###
@@ -36,9 +41,9 @@ class NeuralNetworkPyTorch(nn.Module):
 	def setCriterion(self, criterion):
 		self.criterion = criterion
 
-	def setStartEpoch(self, epoch):
+	def setCurrentEpoch(self, epoch):
 		assert epoch >= 1 and type(epoch) == int, "Epoch is a non-zero natural number"
-		self.startEpoch = epoch
+		self.currentEpoch = epoch
 
 	def setMetrics(self, metrics):
 		assert "Loss" in metrics, "At least one metric is required and Loss must be in them"
@@ -85,6 +90,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		metricResults = {metric : 0 for metric in self.metrics.keys()}
 		linePrinter = LinePrinter()
 		i = 0
+		startTime = datetime.now()
 		for i, (npData, npLabels) in enumerate(generator):
 			data = maybeCuda(Variable(tr.from_numpy(npData)))
 			labels = maybeCuda(Variable(tr.from_numpy(npLabels)))
@@ -117,10 +123,12 @@ class NeuralNetworkPyTorch(nn.Module):
 			for metric in self.metrics:
 				metricResults[metric] += self.metrics[metric](npResults, npLabels, loss=npLoss)
 
+			iterFinishTime = (datetime.now() - startTime)
 			if printMessage:
 				message = "Iteration: %d/%d." % (i + 1, stepsPerEpoch)
 				for metric in metricResults:
 					message += " %s: %2.2f." % (metric, metricResults[metric] / (i + 1))
+				message += " ETA: %s" % (iterFinishTime / (i + 1) * stepsPerEpoch)
 				linePrinter.print(message)
 
 			del data, labels, results, npData, npLabels, npResults
@@ -150,11 +158,13 @@ class NeuralNetworkPyTorch(nn.Module):
 		if printMessage:
 			sys.stdout.write("Training for %d epochs...\n" % (numEpochs))
 	
-		for epoch in range(self.startEpoch - 1, numEpochs):
-			done = (epoch + 1) / numEpochs * 100
-			message = "Epoch %d/%d. Done: %2.2f%%." % (epoch + 1, numEpochs, done)
+		# for epoch in range(self.startEpoch, numEpochs + 1):
+		while self.currentEpoch < numEpochs + 1:
+			done = self.currentEpoch / numEpochs * 100
+			message = "Epoch %d/%d. Done: %2.2f%%." % (self.currentEpoch, numEpochs, done)
 
 			# Run for training data and append the results
+			now = datetime.now()
 			trainMetrics = self.run_one_epoch(generator, stepsPerEpoch, optimize=True, printMessage=printMessage)
 			for metric in trainMetrics:
 				message += " %s: %2.2f." % (metric, trainMetrics[metric])
@@ -164,21 +174,29 @@ class NeuralNetworkPyTorch(nn.Module):
 				validationMetrics = self.run_one_epoch(validationGenerator, validationSteps, optimize=False)
 				for metric in validationMetrics:
 					message += " %s: %2.2f." % ("Val " + metric, validationMetrics[metric])
+			duration = datetime.now() - now
+			message += " Took: %s." % (duration)
 
 			if printMessage:
 				sys.stdout.write(message + "\n")
 				sys.stdout.flush()
 
+			# Add this epoch to the modelHistory list
+			self.modelHistory.append({})
+			assert len(self.modelHistory) == self.currentEpoch
+
 			# Do the callbacks
 			callbackArgs = {
 				"model" : self,
-				"epoch" : epoch + 1,
+				"epoch" : self.currentEpoch,
 				"numEpochs" : numEpochs,
 				"trainMetrics" : trainMetrics,
 				"validationMetrics" : validationMetrics if validationGenerator != None else None
 			}
 			for callback in callbacks:
 				callback(**callbackArgs)
+
+			self.currentEpoch += 1
 
 	def train_model(self, data, labels, batchSize, numEpochs, callbacks=[], validationData=None, \
 		validationLabels=None, printMessage=True):
@@ -202,9 +220,9 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	def load_weights(self, path):
 		params = tr.load(path)
-		# The file can be a weights file (just weights then) or a state file (so file["params"] are the weights)
+		# The file can be a weights file (just weights then) or a state file (so file["weights"] are the weights)
 		if type(params) == dict:
-			self._load_weights(params["params"])
+			self._load_weights(params["weights"])
 		else:
 			self._load_weights(params)
 		print("Succesfully loaded weights")
@@ -225,15 +243,16 @@ class NeuralNetworkPyTorch(nn.Module):
 	def save_model(self, path):
 		assert self.optimizer != None, "No optimizer was set for this model. Cannot save."
 		state = {
-			"params" : list(map(lambda x : x.cpu(), self.parameters())),
+			"weights" : list(map(lambda x : x.cpu(), self.parameters())),
 			"optimizer_type" : type(self.optimizer),
-			"optimizer_state" : self.optimizer.state_dict()
+			"optimizer_state" : self.optimizer.state_dict(),
+			"history_dict" : self.modelHistory
 		}
 		tr.save(state, path)
 
 	def load_model(self, path):
 		loaded_model = tr.load(path)
-		self._load_weights(loaded_model["params"])
+		self._load_weights(loaded_model["weights"])
 
 		# Create a new instance of the optimizer. Some optimizers require a lr to be set as well
 		self.setOptimizer(loaded_model["optimizer_type"], lr=0.01)
@@ -241,7 +260,7 @@ class NeuralNetworkPyTorch(nn.Module):
 
 		# Optimizer consistency checks
 		# l1 = list(self.optimizer.state_dict()["state"].keys()) # Not sure if/how we can use this (not always ordered)
-		l2 = self.optimizer.state_dict()["param_groups"][0]["params"]
+		l2 = self.optimizer.state_dict()["param_groups"][0]["weights"]
 		l3 = list(map(lambda x : id(x), self.parameters()))
 		assert l2 == l3, "Something was wrong with loading optimizer"
 
