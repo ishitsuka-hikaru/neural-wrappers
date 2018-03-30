@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 from neural_wrappers.readers import MNISTReader
 from neural_wrappers.pytorch import NeuralNetworkPyTorch, maybeCuda
-from neural_wrappers.callbacks import SaveModels
+from neural_wrappers.callbacks import SaveModels, ConfusionMatrix
 from neural_wrappers.metrics import Loss, Accuracy
 from functools import partial
 
@@ -43,12 +43,6 @@ class ModelConv(NeuralNetworkPyTorch):
 		y5 = nn.functional.softmax(y4, dim=1)
 		return y5
 
-def computeConfusion(confusionMatrix, **kwargs):
-	results = np.argmax(kwargs["results"], axis=1)
-	labels = np.where(kwargs["labels"] == 1)[1]
-	for i in range(len(labels)):
-		confusionMatrix[labels[i], results[i]] += 1
-
 def main():
 	assert len(sys.argv) >= 4, "Usage: python main.py <train/test> <model_fc/model_conv> <path/to/mnist.h5> [model]"
 	assert sys.argv[1] in ("train", "test")
@@ -64,25 +58,24 @@ def main():
 	reader = MNISTReader(sys.argv[3])
 	testGenerator = reader.iterate("test", miniBatchSize=5)
 	testNumIterations = reader.getNumIterations("test", miniBatchSize=5)
+	confusionMatrixCallback = ConfusionMatrix(numClasses=10)
 
 	if sys.argv[1] == "train":
 		assert len(sys.argv) == 4
 		trainGenerator = reader.iterate("train", miniBatchSize=20)
 		trainNumIterations = reader.getNumIterations("train", miniBatchSize=20)
 
-		callbacks = [SaveModels(type="best")]
-		model.train_generator(trainGenerator, stepsPerEpoch=trainNumIterations, numEpochs=10, callbacks=callbacks, \
+		callbacks = [SaveModels(type="best"), confusionMatrixCallback]
+		model.train_generator(trainGenerator, stepsPerEpoch=trainNumIterations, numEpochs=3, callbacks=callbacks, \
 			validationGenerator=testGenerator, validationSteps=testNumIterations)
 	elif sys.argv[1] == "test":
 		assert len(sys.argv) == 5
 		model.load_weights(sys.argv[4])
-		confusionMatrix = np.zeros((10, 10), dtype=np.int32)
-		computeConfusionCallback = partial(computeConfusion, confusionMatrix=confusionMatrix)
-		metrics = model.test_generator(testGenerator, testNumIterations, callbacks=[computeConfusionCallback])
+		metrics = model.test_generator(testGenerator, testNumIterations, callbacks=[confusionMatrixCallback])
 
 		loss, accuracy = metrics["Loss"], metrics["Accuracy"]
 		print("Testing complete. Loss: %2.2f. Accuracy: %2.2f" % (loss, accuracy))
-		print("Confusion matrix:\n", confusionMatrix)
+		print("Confusion matrix:\n", confusionMatrixCallback.confusionMatrix)
 
 if __name__ == "__main__":
 	main()

@@ -1,11 +1,18 @@
 import sys
+import numpy as np
 
 class Callback:
 	def __init__(self):
 		pass
 
-	def __call__(self, **kwargs):
-		raise NotImplementedError("Should have implemented this")
+	def onEpochStart(self, **kwargs):
+		pass
+
+	def onEpochEnd(self, **kwargs):
+		pass
+
+	def onIterationEnd(self, **kwargs):
+		pass
 
 	def __str__(self):
 		return "Generic neural network callback"
@@ -16,7 +23,7 @@ class SaveHistory(Callback):
 		self.fileName = fileName
 		self.file = open(fileName, "w", buffering=1)
 
-	def __call__(self, **kwargs):
+	def onEpochEnd(self, **kwargs):
 		if kwargs["epoch"] == 1:
 			self.file.write(kwargs["model"].summary() + "\n")
 
@@ -47,7 +54,7 @@ class SaveModels(Callback):
 	# Saving by best train loss is validation is not available, otherwise validation. Nasty situation can occur if one
 	#  epoch there is a validation loss and the next one there isn't, so we need formats to avoid this and error out
 	#  nicely if the format asks for validation loss and there's not validation metric reported.
-	def __call__(self, **kwargs):
+	def onEpochEnd(self, **kwargs):
 		loss = (kwargs["validationMetrics"] if kwargs["validationMetrics"] != None else kwargs["trainMetrics"])["Loss"]
 		fileName = "model_weights_%d_%2.2f.pkl" % (kwargs["epoch"], loss)
 		if self.type == "improvements":
@@ -70,3 +77,24 @@ class SaveModels(Callback):
 				kwargs["model"].save_model("model_best.pkl")
 				sys.stdout.write("Epoch %d. Improvement from %2.2f to %2.2f\n" % (kwargs["epoch"], self.best, loss))
 				self.best = loss
+
+# TODO: add parameters if values are not one-hot encoded (for now it's assumed for both results and labels)
+class ConfusionMatrix(Callback):
+	def __init__(self, numClasses):
+		self.numClasses = numClasses
+		self.confusionMatrix = np.zeros((numClasses, numClasses), dtype=np.int32)
+
+	def onEpochStart(self, **kwargs):
+		# Reset the confusion matrix for the next epoch
+		self.confusionMatrix *= 0
+
+	def onEpochEnd(self, **kwargs):
+		# Add to history dictionary
+		if not kwargs["historyDict"] is None:
+			kwargs["historyDict"]["confusionMatrix"] = np.copy(self.confusionMatrix)
+
+	def onIterationEnd(self, **kwargs):
+		results = np.argmax(kwargs["results"], axis=1)
+		labels = np.where(kwargs["labels"] == 1)[1]
+		for i in range(len(labels)):
+			self.confusionMatrix[labels[i], results[i]] += 1
