@@ -108,7 +108,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		callbackArgs = {
 			"model" : self,
 			"epoch" : self.currentEpoch,
-			"trainHistory" : self.trainHistory[self.currentEpoch - 1]
+			"trainHistory" : self.trainHistory[self.currentEpoch - 1] if self.trainHistory != [] else None
 		}
 		for callback in callbacks:
 			callback.onEpochStart(**callbackArgs)
@@ -289,6 +289,9 @@ class NeuralNetworkPyTorch(nn.Module):
 		params = tr.load(path)
 		# The file can be a weights file (just weights then) or a state file (so file["weights"] are the weights)
 		if type(params) == dict:
+			if not "weights" in params and "params" in params:
+				print("Warning: Depcrecated model, using \"params\" key instead of \"weights\".")
+				params["weights"] = params["params"]
 			self._load_weights(params["weights"])
 		else:
 			self._load_weights(params)
