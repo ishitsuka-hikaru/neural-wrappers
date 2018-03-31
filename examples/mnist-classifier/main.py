@@ -8,7 +8,6 @@ from neural_wrappers.readers import MNISTReader
 from neural_wrappers.pytorch import NeuralNetworkPyTorch, maybeCuda
 from neural_wrappers.callbacks import SaveModels, ConfusionMatrix, Callback
 from neural_wrappers.metrics import Loss, Accuracy
-from functools import partial
 import matplotlib.pyplot as plt
 
 class ModelFC(NeuralNetworkPyTorch):
@@ -52,13 +51,20 @@ class PlotLossCallback(Callback):
 		self.valAcc = []
 
 	def onEpochEnd(self, **kwargs):
-		self.trainLoss.append(kwargs["trainMetrics"]["Loss"])
-		self.valLoss.append(kwargs["validationMetrics"]["Loss"])
-		self.trainAcc.append(kwargs["trainMetrics"]["Accuracy"])
-		self.valAcc.append(kwargs["validationMetrics"]["Accuracy"])
+		epoch = kwargs["epoch"]
+		numEpochs = kwargs["numEpochs"]
+		# Do everything at last epoch
+		if epoch < numEpochs:
+			return
 
-	def __del__(self):
-		x = np.arange(len(self.trainLoss))
+		trainHistory = kwargs["model"].trainHistory
+		for epoch in range(len(trainHistory)):
+			self.trainLoss.append(trainHistory[epoch]["trainMetrics"]["Loss"])
+			self.valLoss.append(trainHistory[epoch]["validationMetrics"]["Loss"])
+			self.trainAcc.append(trainHistory[epoch]["trainMetrics"]["Accuracy"])
+			self.valAcc.append(trainHistory[epoch]["validationMetrics"]["Accuracy"])
+
+		x = np.arange(len(self.trainLoss)) + 1
 
 		plt.figure()
 		plt.plot(x, self.trainLoss, label="Train loss")
@@ -73,8 +79,9 @@ class PlotLossCallback(Callback):
 		plt.savefig("accuracy.png")
 
 def main():
-	assert len(sys.argv) >= 4, "Usage: python main.py <train/test> <model_fc/model_conv> <path/to/mnist.h5> [model]"
-	assert sys.argv[1] in ("train", "test")
+	assert len(sys.argv) >= 4, "Usage: python main.py <train/test/retrain> <model_fc/model_conv> " + \
+		"<path/to/mnist.h5> [model]"
+	assert sys.argv[1] in ("train", "test", "retrain")
 	assert sys.argv[2] in ("model_fc", "model_conv")
 
 	model = maybeCuda(ModelFC() if sys.argv[2] == "model_fc" else ModelConv())
@@ -99,12 +106,23 @@ def main():
 			validationGenerator=testGenerator, validationSteps=testNumIterations)
 	elif sys.argv[1] == "test":
 		assert len(sys.argv) == 5
-		model.load_weights(sys.argv[4])
+		model.load_model(sys.argv[4])
 		metrics = model.test_generator(testGenerator, testNumIterations, callbacks=[confusionMatrixCallback])
 
 		loss, accuracy = metrics["Loss"], metrics["Accuracy"]
 		print("Testing complete. Loss: %2.2f. Accuracy: %2.2f" % (loss, accuracy))
 		print("Confusion matrix:\n", confusionMatrixCallback.confusionMatrix)
+	elif sys.argv[1] == "retrain":
+		assert len(sys.argv) == 5
+		model.load_model(sys.argv[4])
+		trainGenerator = reader.iterate("train", miniBatchSize=20)
+		trainNumIterations = reader.getNumIterations("train", miniBatchSize=20)
+		# print("THIS:", len(model.trainHistory), model.currentEpoch)
+
+		callbacks = [SaveModels(type="best"), confusionMatrixCallback, PlotLossCallback()]
+		callbacks[0].best = model.trainHistory[-1]["validationMetrics"]["Loss"]
+		model.train_generator(trainGenerator, stepsPerEpoch=trainNumIterations, numEpochs=10, callbacks=callbacks, \
+			validationGenerator=testGenerator, validationSteps=testNumIterations)
 
 if __name__ == "__main__":
 	main()

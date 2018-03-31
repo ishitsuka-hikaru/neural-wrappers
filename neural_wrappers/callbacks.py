@@ -90,8 +90,8 @@ class ConfusionMatrix(Callback):
 
 	def onEpochEnd(self, **kwargs):
 		# Add to history dictionary
-		if not kwargs["historyDict"] is None:
-			kwargs["historyDict"]["confusionMatrix"] = np.copy(self.confusionMatrix)
+		if not kwargs["trainHistory"] is None:
+			kwargs["trainHistory"]["confusionMatrix"] = np.copy(self.confusionMatrix)
 
 	def onIterationEnd(self, **kwargs):
 		results = np.argmax(kwargs["results"], axis=1)

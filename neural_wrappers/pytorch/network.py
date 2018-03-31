@@ -25,7 +25,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		# A list that stores various information about the model at each epoch. The index in the list represents the
 		#  epoch value. Each value of the list is a dictionary that holds by default only loss value, but callbacks
 		#  can add more items to this (like confusion matrix or accuracy, see mnist example).
-		self.modelHistory = []
+		self.trainHistory = []
 		super(NeuralNetworkPyTorch, self).__init__()
 
 	### Various setters for the network ###
@@ -81,10 +81,11 @@ class NeuralNetworkPyTorch(nn.Module):
 		return "General neural network architecture. Update __str__ in your model for more details when using summary."
 
 	def populateHistoryDict(self, **kwargs):
-		historyDict = kwargs["historyDict"]
-		historyDict["duration"] = kwargs["duration"]
-		historyDict["trainMetrics"] = deepcopy(kwargs["trainMetrics"])
-		historyDict["validationMetrics"] = deepcopy(kwargs["validationMetrics"])
+		assert not kwargs["trainHistory"] is None
+		trainHistory = kwargs["trainHistory"]
+		trainHistory["duration"] = kwargs["duration"]
+		trainHistory["trainMetrics"] = deepcopy(kwargs["trainMetrics"])
+		trainHistory["validationMetrics"] = deepcopy(kwargs["validationMetrics"])
 
 	# Basic method that does a forward phase for one epoch given a generator. It can apply a step of optimizer or not.
 	# @param[in] generator Object used to get a batch of data and labels at each step
@@ -107,7 +108,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		callbackArgs = {
 			"model" : self,
 			"epoch" : self.currentEpoch,
-			"historyDict" : self.modelHistory[self.currentEpoch - 1]
+			"trainHistory" : self.trainHistory[self.currentEpoch - 1]
 		}
 		for callback in callbacks:
 			callback.onEpochStart(**callbackArgs)
@@ -168,8 +169,6 @@ class NeuralNetworkPyTorch(nn.Module):
 		return metricResults
 
 	def test_generator(self, generator, stepsPerEpoch, callbacks=[], printMessage=False):
-		self.modelHistory = [{}]
-
 		now = datetime.now()
 		resultMetrics = self.run_one_epoch(generator, stepsPerEpoch, callbacks=callbacks, optimize=False, \
 			printMessage=printMessage)
@@ -183,11 +182,10 @@ class NeuralNetworkPyTorch(nn.Module):
 			"trainMetrics" : None,
 			"validationMetrics" : resultMetrics,
 			"duration" : duration,
-			"historyDict" : self.modelHistory[self.currentEpoch - 1]
+			"trainHistory" : None # TODO, see what to do for case where I load a model with existing history
 		}
 
 		# Add basic value to the history dictionary (just loss and time)
-		self.populateHistoryDict(**callbackArgs)
 		for callback in callbacks:
 			callback.onEpochEnd(**callbackArgs)
 
@@ -219,9 +217,9 @@ class NeuralNetworkPyTorch(nn.Module):
 
 		# for epoch in range(self.startEpoch, numEpochs + 1):
 		while self.currentEpoch < numEpochs + 1:
-			# Add this epoch to the modelHistory list, which is used to track history
-			self.modelHistory.append({})
-			assert len(self.modelHistory) == self.currentEpoch
+			# Add this epoch to the trainHistory list, which is used to track history
+			self.trainHistory.append({})
+			assert len(self.trainHistory) == self.currentEpoch
 
 			done = self.currentEpoch / numEpochs * 100
 			message = "Epoch %d/%d. Done: %2.2f%%." % (self.currentEpoch, numEpochs, done)
@@ -257,7 +255,7 @@ class NeuralNetworkPyTorch(nn.Module):
 				"trainMetrics" : trainMetrics,
 				"validationMetrics" : validationMetrics if validationGenerator != None else None,
 				"duration" : duration,
-				"historyDict" : self.modelHistory[self.currentEpoch - 1]
+				"trainHistory" : self.trainHistory[self.currentEpoch - 1]
 			}
 
 			# Add basic value to the history dictionary (just loss and time)
@@ -315,9 +313,13 @@ class NeuralNetworkPyTorch(nn.Module):
 			"weights" : list(map(lambda x : x.cpu(), self.parameters())),
 			"optimizer_type" : type(self.optimizer),
 			"optimizer_state" : self.optimizer.state_dict(),
-			"history_dict" : self.modelHistory
+			"history_dict" : self.trainHistory
 		}
 		tr.save(state, path)
+
+	def load_history(self, trainHistory):
+		self.trainHistory = deepcopy(trainHistory)
+		self.currentEpoch = len(self.trainHistory) + 1
 
 	def load_model(self, path):
 		loaded_model = tr.load(path)
@@ -329,8 +331,12 @@ class NeuralNetworkPyTorch(nn.Module):
 
 		# Optimizer consistency checks
 		# l1 = list(self.optimizer.state_dict()["state"].keys()) # Not sure if/how we can use this (not always ordered)
-		l2 = self.optimizer.state_dict()["param_groups"][0]["weights"]
+		l2 = self.optimizer.state_dict()["param_groups"][0]["params"]
 		l3 = list(map(lambda x : id(x), self.parameters()))
 		assert l2 == l3, "Something was wrong with loading optimizer"
 
-		print("Succesfully loaded model")
+		if "history_dict" in loaded_model:
+			self.load_history(loaded_model["history_dict"])
+			print("Succesfully loaded model (with history, epoch %d)" % (self.currentEpoch))
+		else:
+			print("Succesfully loaded model (no history)")
