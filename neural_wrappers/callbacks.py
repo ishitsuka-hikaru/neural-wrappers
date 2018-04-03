@@ -19,9 +19,11 @@ class Callback:
 
 # TODO: add format to saving files
 class SaveHistory(Callback):
-	def __init__(self, fileName):
+	def __init__(self, fileName, mode="write"):
+		assert mode in ("write", "append")
+		mode = "w" if mode == "write" else "a"
 		self.fileName = fileName
-		self.file = open(fileName, "w", buffering=1)
+		self.file = open(fileName, mode=mode, buffering=1)
 
 	def onEpochEnd(self, **kwargs):
 		if kwargs["epoch"] == 1:

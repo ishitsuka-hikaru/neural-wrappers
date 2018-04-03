@@ -85,7 +85,7 @@ def main():
 	assert sys.argv[2] in ("model_fc", "model_conv")
 
 	model = maybeCuda(ModelFC() if sys.argv[2] == "model_fc" else ModelConv())
-	model.setOptimizer(optim.SGD, lr=0.01, momentum=0.3)
+	model.setOptimizer(optim.SGD, lr=0.01, momentum=0.5)
 	model.setMetrics({"Loss" : Loss(), "Accuracy" : Accuracy(categoricalLabels=True)})
 	# Negative log-likeklihood (used for softmax+NLL for classification), expecting targets are one-hot encoded
 	model.setCriterion(lambda y, t : tr.mean(-tr.log(y[t] + 1e-5)))
@@ -119,7 +119,8 @@ def main():
 		trainNumIterations = reader.getNumIterations("train", miniBatchSize=20)
 		# print("THIS:", len(model.trainHistory), model.currentEpoch)
 
-		callbacks = [SaveModels(type="best"), confusionMatrixCallback, PlotLossCallback()]
+		callbacks = [SaveModels(type="best"), confusionMatrixCallback, PlotLossCallback(), \
+			SaveHistory("history.txt", mode="append")]
 		callbacks[0].best = model.trainHistory[-1]["validationMetrics"]["Loss"]
 		model.train_generator(trainGenerator, stepsPerEpoch=trainNumIterations, numEpochs=10, callbacks=callbacks, \
 			validationGenerator=testGenerator, validationSteps=testNumIterations)

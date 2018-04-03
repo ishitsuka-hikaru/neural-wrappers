@@ -43,10 +43,6 @@ class NeuralNetworkPyTorch(nn.Module):
 	def setCriterion(self, criterion):
 		self.criterion = criterion
 
-	def setCurrentEpoch(self, epoch):
-		assert epoch >= 1 and type(epoch) == int, "Epoch is a non-zero natural number"
-		self.currentEpoch = epoch
-
 	def setMetrics(self, metrics):
 		assert "Loss" in metrics, "At least one metric is required and Loss must be in them"
 		if type(metrics) in (list, tuple):
@@ -80,12 +76,13 @@ class NeuralNetworkPyTorch(nn.Module):
 	def __str__(self):
 		return "General neural network architecture. Update __str__ in your model for more details when using summary."
 
-	def populateHistoryDict(self, **kwargs):
+	def populateHistoryDict(self, message, **kwargs):
 		assert not kwargs["trainHistory"] is None
 		trainHistory = kwargs["trainHistory"]
 		trainHistory["duration"] = kwargs["duration"]
 		trainHistory["trainMetrics"] = deepcopy(kwargs["trainMetrics"])
 		trainHistory["validationMetrics"] = deepcopy(kwargs["validationMetrics"])
+		trainHistory["message"] = message
 
 	# Basic method that does a forward phase for one epoch given a generator. It can apply a step of optimizer or not.
 	# @param[in] generator Object used to get a batch of data and labels at each step
@@ -269,13 +266,13 @@ class NeuralNetworkPyTorch(nn.Module):
 			}
 
 			# Print message is also computed in similar fashion using caallback arguments
+			message = self.computePrintMessage(**callbackArgs)
 			if printMessage:
-				message = self.computePrintMessage(**callbackArgs)
 				sys.stdout.write(message + "\n")
 				sys.stdout.flush()
 
 			# Add basic value to the history dictionary (just loss and time)
-			self.populateHistoryDict(**callbackArgs)
+			self.populateHistoryDict(message, **callbackArgs)
 			for callback in callbacks:
 				callback.onEpochEnd(**callbackArgs)
 
