@@ -26,22 +26,7 @@ class SaveHistory(Callback):
 	def onEpochEnd(self, **kwargs):
 		if kwargs["epoch"] == 1:
 			self.file.write(kwargs["model"].summary() + "\n")
-
-		done = kwargs["epoch"] / kwargs["numEpochs"] * 100
-		metrics = kwargs["validationMetrics"] if kwargs["validationMetrics"] != None else kwargs["trainMetrics"]
-		message = "Epoch %d/%d. Done: %2.2f%%." % (kwargs["epoch"], kwargs["numEpochs"], done)
-
-		for metric in sorted(kwargs["trainMetrics"]):
-			message += " %s: %2.2f." % (metric, kwargs["trainMetrics"][metric])
-
-		if kwargs["validationMetrics"] != None:
-			for metric in sorted(kwargs["validationMetrics"]):
-				message += " %s: %2.2f." % (metric, kwargs["validationMetrics"][metric])
-		self.file.write(message + "\n")
-
-	def write(self, message):
-		sys.stdout.write(message + "\n")
-		sys.stdout.flush()
+		message = kwargs["model"].computePrintMessage(**kwargs)
 		self.file.write(message + "\n")
 
 # TODO: add format to saving files

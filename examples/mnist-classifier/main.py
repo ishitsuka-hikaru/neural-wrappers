@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 from neural_wrappers.readers import MNISTReader
 from neural_wrappers.pytorch import NeuralNetworkPyTorch, maybeCuda
-from neural_wrappers.callbacks import SaveModels, ConfusionMatrix, Callback
+from neural_wrappers.callbacks import SaveModels, ConfusionMatrix, Callback, SaveHistory
 from neural_wrappers.metrics import Loss, Accuracy
 import matplotlib.pyplot as plt
 
@@ -101,7 +101,7 @@ def main():
 		trainGenerator = reader.iterate("train", miniBatchSize=20)
 		trainNumIterations = reader.getNumIterations("train", miniBatchSize=20)
 
-		callbacks = [SaveModels(type="best"), confusionMatrixCallback, PlotLossCallback()]
+		callbacks = [SaveModels(type="best"), confusionMatrixCallback, PlotLossCallback(), SaveHistory("history.txt")]
 		model.train_generator(trainGenerator, stepsPerEpoch=trainNumIterations, numEpochs=10, callbacks=callbacks, \
 			validationGenerator=testGenerator, validationSteps=testNumIterations)
 	elif sys.argv[1] == "test":

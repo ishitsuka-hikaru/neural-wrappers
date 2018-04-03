@@ -197,6 +197,28 @@ class NeuralNetworkPyTorch(nn.Module):
 		return self.test_generator(dataGenerator, stepsPerEpoch=numIterations, callbacks=callbacks, \
 			printMessage=printMessage)
 
+	# Computes the message that is printed to the stdout. This method is also called by SaveHistory callback.
+	# @param[in] kwargs The arguments sent to any regular callback.
+	# @return A string that contains the one-line message that is printed at each end of epoch.
+	def computePrintMessage(self, **kwargs):
+		currentEpoch = kwargs["epoch"]
+		numEpochs = kwargs["numEpochs"]
+		trainMetrics = kwargs["trainMetrics"]
+		validationMetrics = kwargs["validationMetrics"]
+		duration = kwargs["duration"]
+
+		done = currentEpoch / numEpochs * 100
+		message = "Epoch %d/%d. Done: %2.2f%%." % (currentEpoch, numEpochs, done)
+		for metric in trainMetrics:
+			message += " %s: %2.2f." % (metric, trainMetrics[metric])
+
+		if not validationMetrics is None:
+			for metric in validationMetrics:
+				message += " %s: %2.2f." % ("Val " + metric, validationMetrics[metric])
+
+		message += " Took: %s." % (duration)
+		return message
+
 	# @param[in] generator Generator which is used to get items for numEpochs epochs, each taking stepsPerEpoch steps
 	# @param[in] stepsPerEpoch How many steps each epoch takes (assumed constant). The generator must generate this
 	#  amount of items every epoch.
@@ -221,9 +243,6 @@ class NeuralNetworkPyTorch(nn.Module):
 			self.trainHistory.append({})
 			assert len(self.trainHistory) == self.currentEpoch
 
-			done = self.currentEpoch / numEpochs * 100
-			message = "Epoch %d/%d. Done: %2.2f%%." % (self.currentEpoch, numEpochs, done)
-
 			# Run for training data and append the results
 			now = datetime.now()
 			# No iteration callbacks are used if there is a validation set (so iteration callbacks are only
@@ -231,21 +250,12 @@ class NeuralNetworkPyTorch(nn.Module):
 			trainCallbacks = [] if validationGenerator != None else callbacks
 			trainMetrics = self.run_one_epoch(generator, stepsPerEpoch, callbacks=trainCallbacks, \
 				optimize=True, printMessage=printMessage)
-			for metric in trainMetrics:
-				message += " %s: %2.2f." % (metric, trainMetrics[metric])
 
 			# Run for validation data and append the results
 			if validationGenerator != None:
 				validationMetrics = self.run_one_epoch(validationGenerator, validationSteps, \
 					callbacks=callbacks, optimize=False, printMessage=False)
-				for metric in validationMetrics:
-					message += " %s: %2.2f." % ("Val " + metric, validationMetrics[metric])
 			duration = datetime.now() - now
-			message += " Took: %s." % (duration)
-
-			if printMessage:
-				sys.stdout.write(message + "\n")
-				sys.stdout.flush()
 
 			# Do the callbacks for the end of epoch.
 			callbackArgs = {
@@ -257,6 +267,12 @@ class NeuralNetworkPyTorch(nn.Module):
 				"duration" : duration,
 				"trainHistory" : self.trainHistory[self.currentEpoch - 1]
 			}
+
+			# Print message is also computed in similar fashion using caallback arguments
+			if printMessage:
+				message = self.computePrintMessage(**callbackArgs)
+				sys.stdout.write(message + "\n")
+				sys.stdout.flush()
 
 			# Add basic value to the history dictionary (just loss and time)
 			self.populateHistoryDict(**callbackArgs)
