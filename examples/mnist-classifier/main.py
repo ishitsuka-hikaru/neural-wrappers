@@ -117,7 +117,6 @@ def main():
 		model.load_model(sys.argv[4])
 		trainGenerator = reader.iterate("train", miniBatchSize=20)
 		trainNumIterations = reader.getNumIterations("train", miniBatchSize=20)
-		# print("THIS:", len(model.trainHistory), model.currentEpoch)
 
 		callbacks = [SaveModels(type="best"), confusionMatrixCallback, PlotLossCallback(), \
 			SaveHistory("history.txt", mode="append")]
