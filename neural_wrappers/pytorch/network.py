@@ -350,6 +350,9 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	def load_model(self, path):
 		loaded_model = tr.load(path)
+		if not "weights" in loaded_model and "params" in loaded_model:
+			print("Warning: Depcrecated model, using \"params\" key instead of \"weights\".")
+			loaded_model["weights"] = loaded_model["params"]
 		self._load_weights(loaded_model["weights"])
 
 		# Create a new instance of the optimizer. Some optimizers require a lr to be set as well
