@@ -33,7 +33,7 @@ class RecurrentNeuralNetworkPyTorch(NeuralNetworkPyTorch):
 			#  should be: MB x T x dataShape. This is needed since there may be other network components that do not
 			#  with time series (such as Conv2Ds), and we take the pressure off the model so implement just the simple
 			#  T=1 case.
-			# The sequence size is extracted from the returned data. Thus, the data INSIDE the minibatch must have
+			# The sequence size is extracted from the returned data. Thus, the data INSIDE the minibatch must be
 			#  identical w.r.t timestamps. If the data timestamps is different, they must be padded inside the
 			#  generator to be identical.
 			sequenceSize = npData.shape[1]

@@ -24,11 +24,9 @@ class BinaryMNISTReader(MNISTReader):
 			images = images > 0
 			yield np.float32(images), np.float32(images)
 
-class Encoder(NeuralNetworkPyTorch):
+class FCEncoder(NeuralNetworkPyTorch):
 	def __init__(self, numEncodings):
 		super().__init__()
-		# self.conv1 = nn.Conv2d(in_channels=1, out_channels=100, kernel_size=3, stride=1)
-		# self.conv2 = nn.Conv2d(in_channels=100, out_channels=100, kernel_size=3, stride=1)
 		self.fc1 = nn.Linear(28 * 28, 100)
 		self.fc2 = nn.Linear(100, 100)
 		self.mean_fc = nn.Linear(100, numEncodings)
@@ -40,6 +38,25 @@ class Encoder(NeuralNetworkPyTorch):
 		y2 = F.relu(self.fc2(y1))
 		y_mean = self.mean_fc(y2)
 		y_std = self.mean_std(y2)
+		return y_mean, y_std
+
+class ConvEncoder(NeuralNetworkPyTorch):
+	def __init__(self, numEncodings):
+		super().__init__()
+		self.conv1 = nn.Conv2d(in_channels=1, out_channels=100, kernel_size=3, stride=1)
+		self.conv2 = nn.Conv2d(in_channels=100, out_channels=100, kernel_size=3, stride=1)
+		self.fc = nn.Linear(24 * 24 * 100, 100)
+		self.mean_fc = nn.Linear(100, numEncodings)
+		self.mean_std = nn.Linear(100, numEncodings)
+
+	def forward(self, x):
+		x = x.view(-1, 1, 28, 28)
+		y1 = F.relu(self.conv1(x))
+		y2 = F.relu(self.conv2(y1))
+		y2 = y2.view(-1, 24 * 24 * 100)
+		y3 = F.relu(self.fc(y2))
+		y_mean = self.mean_fc(y3)
+		y_std = self.mean_std(y3)
 		return y_mean, y_std
 
 class Decoder(NeuralNetworkPyTorch):
@@ -55,10 +72,14 @@ class Decoder(NeuralNetworkPyTorch):
 		return y_decoder
 
 class VAE(NeuralNetworkPyTorch):
-	def __init__(self, numEncodings):
+	def __init__(self, numEncodings, encoderType="FCEncoder"):
 		super().__init__()
+		assert encoderType in ("FCEncoder", "ConvEncoder")
 		self.numEncodings = numEncodings
-		self.encoder = Encoder(numEncodings)
+		if encoderType == "FCEncoder":
+			self.encoder = FCEncoder(numEncodings)
+		else:
+			self.encoder = ConvEncoder(numEncodings)
 		self.decoder = Decoder(numEncodings)
 
 	def forward(self, x):
@@ -104,7 +125,8 @@ def plot_images(image1, image2, title1="", title2=""):
 	plt.show()
 
 def main():
-	assert len(sys.argv) >= 3, "Usage: python main.py <train/test/retrain/test_autoencoder> <path/to/mnist.h5> [model]"
+	assert len(sys.argv) >= 4, "Usage: python main.py <train/test/retrain/test_autoencoder> <path/to/mnist.h5> " + \
+		"<FCEncoder/ConvEncoder> [model]"
 	miniBatchSize = 100
 	numEpochs = 2000
 
@@ -112,7 +134,7 @@ def main():
 	generator = reader.iterate("train", miniBatchSize=miniBatchSize)
 	numIterations = reader.getNumIterations("train", miniBatchSize=miniBatchSize)
 	print("Batch size: %d. Num iterations: %d" % (miniBatchSize, numIterations))
-	network = maybeCuda(VAE(numEncodings=300))
+	network = maybeCuda(VAE(numEncodings=300, encoderType=sys.argv[3]))
 	network.setCriterion(lossFunction)
 	network.setOptimizer(optim.SGD, lr=0.000001, momentum=0.3)
 	metrics = { "Loss" : lambda x, y, **k : k["loss"], "Latent Loss" : lossLatent, "Decoder Loss" : lossDecoder }
@@ -124,17 +146,17 @@ def main():
 		network.train_generator(generator, stepsPerEpoch=numIterations, numEpochs=numEpochs, callbacks=callbacks)
 
 	elif sys.argv[1] == "retrain":
-		assert len(sys.argv) == 4
+		assert len(sys.argv) == 5
 		callbacks = [SaveModels("best")]
-		network.load_model(sys.argv[3])
+		network.load_model(sys.argv[4])
 		callbacks[0].best = network.trainHistory[-1]["trainMetrics"]["Loss"]
 		network.train_generator(generator, stepsPerEpoch=numIterations, numEpochs=numEpochs, callbacks=callbacks)
 
 	elif sys.argv[1] == "test_autoencoder":
-		assert len(sys.argv) == 4
+		assert len(sys.argv) == 5
 		generator = reader.iterate("test", miniBatchSize=miniBatchSize)
 		numIterations = reader.getNumIterations("test", miniBatchSize=miniBatchSize)
-		network.load_model(sys.argv[3])
+		network.load_model(sys.argv[4])
 
 		for items in generator:
 			images, _ = items
@@ -147,8 +169,8 @@ def main():
 				plt.show()
 
 	elif sys.argv[1] == "test":
-		assert len(sys.argv) == 4
-		network.load_model(sys.argv[3])
+		assert len(sys.argv) == 5
+		network.load_model(sys.argv[4])
 		while True:
 			z_samples = Variable(maybeCuda(tr.randn(1, network.numEncodings)), requires_grad=False)
 			y_result = network.decoder.forward(z_samples)
