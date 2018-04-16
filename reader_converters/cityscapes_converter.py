@@ -12,6 +12,10 @@ from argparse import ArgumentParser
 # sys.path.append("")
 # from inference import runImages
 
+def flushPrint(message):
+	sys.stdout.write(message + "\n")
+	sys.stdout.flush()
+
 def getArgs():
 	parser = ArgumentParser()
 	parser.add_argument("type", help="train/test/val")
@@ -180,69 +184,69 @@ def doTheThingy(file, args, paths):
 
 	if args.rgb:
 		numData = len(paths["rgb"])
-		print("Doing RGB (%d pictures)" % (numData))
+		flushPrint("Doing RGB (%d pictures)" % (numData))
 		prepareData(group, name="rgb", dataShape=(numData, 870, 1820, 3), dtype=np.uint8)
 		for i in range(numData):
 			if i % 10 == 0:
-				print("RGB %d/%d done." % (i, numData))
+				flushPrint("RGB %d/%d done." % (i, numData))
 			group["rgb"][i] = doPng(paths["rgb"][i])
 
 	if args.rgb_first_frame:
 		numData = len(paths["rgb_first_frame"])
-		print("Doing RGB first frame (%d pictures)" % (numData))
+		flushPrint("Doing RGB first frame (%d pictures)" % (numData))
 		prepareData(group, name="rgb_first_frame", dataShape=(numData, 870, 1820, 3), dtype=np.uint8)
 		for i in range(numData):
 			if i % 10 == 0:
-				print("RGB first frame %d/%d done." % (i, numData))
+				flushPrint("RGB first frame %d/%d done." % (i, numData))
 			group["rgb_first_frame"][i] = doPng(paths["rgb_first_frame"][i])
 
 	if args.depth:
 		numData = len(paths["depth"])
-		print("Doing Depth (%d pictures)" % (numData))
+		flushPrint("Doing Depth (%d pictures)" % (numData))
 		prepareData(group, name="depth", dataShape=(numData, 870, 1820), dtype=np.uint16)
 		for i in range(numData):
 			if i % 10 == 0:
-				print("Depth %d/%d done." % (i, numData))
+				flushPrint("Depth %d/%d done." % (i, numData))
 			group["depth"][i] = doDepth(paths["depth"][i])
 
 	if args.semantic:
 		numData = len(paths["semantic"])
-		print("Doing Semantic (%d pictures)" % (numData))
+		flushPrint("Doing Semantic (%d pictures)" % (numData))
 		prepareData(group, name="semantic", dataShape=(numData, 870, 1820), dtype=np.uint8)
 		for i in range(numData):
 			if i % 10 == 0:
-				print("Semantic %d/%d done." % (i, numData))
+				flushPrint("Semantic %d/%d done." % (i, numData))
 			group["semantic"][i] = doDepth(paths["semantic"][i])
 
 	if args.seq_rgb:
 		keyName = "seq_rgb_%d" % (args.seq_skip_frames)
 		numData = len(paths[keyName])
-		print("Doing RGB sequence (%d pictures, %d skip frame)" % (numData, args.seq_skip_frames))
+		flushPrint("Doing RGB sequence (%d pictures, %d skip frame)" % (numData, args.seq_skip_frames))
 		prepareData(group, name=keyName, dataShape=(numData, 870, 1820), dtype=np.uint8)
 		for i in range(numData):
 			if i % 10 == 0:
-				print("RGB sequence %d/%d done." % (i, numData))
+				flushPrint("RGB sequence %d/%d done." % (i, numData))
 			group[keyName][i] = doDepth(paths[keyName][i])
 
 	if args.seq_depth:
 		keyName = "seq_depth_%d" % (args.seq_skip_frames)
 		numData = len(paths[keyName])
-		print("Doing Depth sequence (%d pictures, %d skip frame)" % (numData, args.seq_skip_frames))
+		flushPrint("Doing Depth sequence (%d pictures, %d skip frame)" % (numData, args.seq_skip_frames))
 		prepareData(group, name=keyName, dataShape=(numData, 870, 1820), dtype=np.uint16)
 		for i in range(numData):
 			if i % 10 == 0:
-				print("Depth sequence %d/%d done." % (i, numData))
+				flushPrint("Depth sequence %d/%d done." % (i, numData))
 			group[keyName][i] = doDepth(paths[keyName][i])
 
 	if args.optical_flow:
 		keyName = args.optical_flow_algorithm
 		assert len(paths["rgb"]) == len(paths["rgb_next"])
 		numData = len(paths["rgb"])
-		print("Doing Optical Flow (%d pictures, %s algorithm)" % (numData, args.optical_flow_algorithm))
+		flushPrint("Doing Optical Flow (%d pictures, %s algorithm)" % (numData, args.optical_flow_algorithm))
 		prepareData(group, name=keyName, dataShape=(numData, 870, 1820, 2), dtype=np.float32)
 		for i in range(numData):
 			if i % 10 == 0:
-				print("Optical Flow %d/%d done." % (i, numData))
+				flushPrint("Optical Flow %d/%d done." % (i, numData))
 			image1 = doPng(paths["rgb"][i])
 			image2 = doPng(paths["rgb_next"][i])
 			group[keyName][i] = doFlow(image1, image2)
@@ -253,11 +257,11 @@ def doTheThingy(file, args, paths):
 		keyNameRGB2 = "seq_rgb_%d_next" % (args.seq_skip_frames)
 		assert len(paths[keyNameRGB1]) == len(paths[keyNameRGB2])
 		numData = len(paths[keyNameRGB1])
-		print("Doing Optical Flow sequence (%d pictures, %s algorithm)" % (numData, args.optical_flow_algorithm))
+		flushPrint("Doing Optical Flow sequence (%d pictures, %s algorithm)" % (numData, args.optical_flow_algorithm))
 		prepareData(group, name=keyNameFlow, dataShape=(numData, 870, 1820, 2), dtype=np.float32)
 		for i in range(numData):
 			if i % 10 == 0:
-				print("Doing Optical Flow sequence %d/%d done." % (i, numData))
+				flushPrint("Doing Optical Flow sequence %d/%d done." % (i, numData))
 			image1 = doPng(paths[keyNameRGB1][i])
 			image2 = doPng(paths[keyNameRGB2][i])
 			group[keyNameFlow][i] = doFlow(image1, image2)
@@ -267,7 +271,7 @@ def main():
 
 	paths = setup(args)
 	for key in paths:
-		print("%s => %d images" % (key, len(paths[key])))
+		flushPrint("%s => %d images" % (key, len(paths[key])))
 
 	file = h5py.File(args.output_file, "a")
 	doTheThingy(file, args, paths)
