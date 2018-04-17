@@ -177,10 +177,11 @@ def prepareData(group, name, dataShape, dtype):
 	group.create_dataset(name, shape=dataShape, dtype=dtype)
 
 def doTheThingy(file, args, paths):
-	if not args.type in file:
-		group = file.create_group(args.type)
+	Type = args.type if args.type != "val" else "validation"
+	if not Type in file:
+		group = file.create_group(Type)
 	else:
-		group = file[args.type]
+		group = file[Type]
 
 	if args.rgb:
 		numData = len(paths["rgb"])

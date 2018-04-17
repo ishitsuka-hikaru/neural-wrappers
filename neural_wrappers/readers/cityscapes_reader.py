@@ -7,7 +7,7 @@ from neural_wrappers.utilities import standardizeData
 # CityScapes Reader class, used with the data already converted in h5py format.
 class CityScapesReader(DatasetReader):
 	def __init__(self, datasetPath, imageShape, labelShape, transforms=["none"], flowAlgorithm=None):
-		assert flowAlgorithm is None or flowAlgorithm in ("flownet2s")
+		assert flowAlgorithm is None or flowAlgorithm in ("flownet2s", )
 		self.datasetPath = datasetPath
 		self.imageShape = imageShape
 		self.labelShape = labelShape
