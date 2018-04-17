@@ -3,7 +3,7 @@ from neural_wrappers.utilities import resize_batch
 from .transforms import Mirror, CropMiddle, CropTopLeft, CropTopRight, CropBottomLeft, CropBottomRight
 
 class Transformer:
-	# TODO: find a better name for last parameter. It is used for the case where I want to apply some transformation
+	# @param[in] applyOnDataShapeForLabels It is used for the case where I want to apply some transformation
 	#  for example a top-left crop, but the labelShape (at the end) is smaller than the dataShape. If we were to apply
 	#  the crop on the labelShape, we'd get a bad and different crop.
 	#  Concrete case: image:(480x640x3), label:(480x640), dataShape:(240x320x3), desiredLabelShape:(50x70). The crop
@@ -73,30 +73,31 @@ class Transformer:
 			raise Exception("Expected transforms to be a list or dict, got: " + type(transforms))
 		return dictTransforms
 
-	# TODO: make it generic, so it can receive or not a label (or a list of labels) and apply the transforms on them
-	#  identically. Example of usage: random crop on both depth and semantic segmentation image, but we want to have
-	#  an identical random crop for all 3 images (rgb, depth and segmentation).
+	# Note: The data must be just one np.array instance, so if more data or labels must be used at the same time, they
+	#  must first be concatenated beforehand. Example: random crop on both depth and semantic segmentation image, but
+	#  we want to have an identical random crop for all 3 images (rgb, depth and segmentation). Therefore, before
+	#  calling, we can use data=np.concatenate([rgb, depth, segmentation], axis=-1).
 	def applyTransform(self, transformName, data, labels, interpolationType):
 		# print("Applying '%s' transform" % (transformName))
 		numData = len(data)
 		newData, newLabels = self.transforms[transformName](data, labels)
 
+		# Resize & Consistency checks
 		newData = resize_batch(newData, self.dataShape, interpolationType)
-
-		# Consistency checks
 		assert newData.shape == (numData, *self.dataShape), "Expected data shape %s, found %s." % \
 			((numData, *self.dataShape), newData.shape)
 		assert newData.dtype == data.dtype
 
 		# For labels, do consistency checks only if labels are provided, otherwise expect transformer to return None
-		if not labels is None:
-			newLabels = resize_batch(newLabels, self.labelShape, interpolationType)
-			assert newLabels.shape == (numData, *self.labelShape), "Expected labels shape %s, found %s." % \
-				(newLabels.shape, (numData, *self.labelShape))
-			assert newLabels.dtype == labels.dtype
-		else:
-			assert newLabels is None
+		if labels is None:
+			assert newLabels is None, "Expected newLabels to be None, since no labels were provided."
+			return newData, None
 
+		# Otherwise, do the same checks.
+		newLabels = resize_batch(newLabels, self.labelShape, interpolationType)
+		assert newLabels.shape == (numData, *self.labelShape), "Expected labels shape %s, found %s." % \
+			((numData, *self.labelShape), newLabels.shape)
+		assert newLabels.dtype == labels.dtype
 		return newData, newLabels
 
 	# Main function, that loops throught all transforms and through all data (and labels) and yields each transformed
