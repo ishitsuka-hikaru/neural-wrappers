@@ -97,6 +97,21 @@ class CityScapesReader(DatasetReader):
 				data[..., i] = standardizeData(data[..., i], mean=self.means[type][i], std=self.stds[type][i])
 			return data
 
+	def prepareSemantic(self, image):
+		newImage = np.ones((*image.shape, 1), dtype=np.float32)
+		labels = {
+			"sky" : np.where(image == 23),
+			"buildings" : np.where(image == 11),
+			"logo" : np.where(image == 1),
+			"road" : np.where(image == 7),
+			"sidewalk" : np.where(image == 22)
+		}
+
+		for key in labels:
+			newImage[labels[key]] = 0
+
+		return newImage
+
 	def iterate_once(self, type, miniBatchSize):
 		assert type in ("train", "test", "validation")
 		augmenter = self.dataAugmenter if type == "train" else self.validationAugmenter
@@ -113,6 +128,8 @@ class CityScapesReader(DatasetReader):
 			images = []
 			for dim in self.dataDimensions:
 				item = self.normalizer(thisData[dim][startIndex : endIndex], dim)
+				if dim == "semantic":
+					item = self.prepareSemantic(item)
 				images.append(item)
 			images = np.concatenate(images, axis=3)
 
