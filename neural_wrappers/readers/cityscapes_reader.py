@@ -13,7 +13,7 @@ class CityScapesReader(DatasetReader):
 		sequentialData=False):
 
 		for data in dataDimensions:
-			assert data in ("rgb", "depth", "flownet2s", "semantic")
+			assert data in ("rgb", "depth", "flownet2s", "semantic", "rgb_first_frame"), "Got %s" % (data)
 			if sequentialData == True:
 				assert not data == "semantic", "Semantic data is not available for sequential dataset"
 				assert not data == "rgb_first_frame", "RGB First frame is not available for sequential dataset"
@@ -77,8 +77,6 @@ class CityScapesReader(DatasetReader):
 			"seq_flownet2s_5" : 2
 		}
 
-		self.startingDimension = { }
-
 		requiredDimensions = 0
 		for data in self.dataDimensions:
 			requiredDimensions += self.numDimensions[data]
@@ -91,6 +89,7 @@ class CityScapesReader(DatasetReader):
 			self.sequentialData))
 
 	def normalizer(self, data, type):
+		data = np.float32(data)
 		if self.numDimensions[type] == 1:
 			return standardizeData(data, mean=self.means[type], std=self.stds[type])
 		else:
