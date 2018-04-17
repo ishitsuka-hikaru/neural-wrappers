@@ -49,6 +49,7 @@ class CityScapesReader(DatasetReader):
 			"rgb_first_frame" : [74.96715607296854, 84.3387139353354, 73.62945761147961],
 			"depth" : 8277.619363028218,
 			"flownet2s" : [-0.6396361, 5.553444],
+			"semantic" : 0,
 			"seq_rgb_5" : [74.96715607296854, 84.3387139353354, 73.62945761147961],
 			"seq_depth_5" : 8277.619363028218,
 			"seq_flownet2s_5" : [-0.6396361, 5.553444]
@@ -59,6 +60,7 @@ class CityScapesReader(DatasetReader):
 			"rgb_first_frame" : [49.65527668307159, 50.01892939272212, 49.67332749250472],
 			"depth" : 6569.138224069467,
 			"flownet2s" : [32.508713, 15.168872],
+			"semantic" : 1,
 			"seq_rgb_5" : [49.65527668307159, 50.01892939272212, 49.67332749250472],
 			"seq_depth_5" : 6569.138224069467,
 			"seq_flownet2s_5" : [32.508713, 15.168872]
@@ -71,9 +73,11 @@ class CityScapesReader(DatasetReader):
 			"semantic" : 1,
 			"rgb_first_frame" : 3,
 			"seq_rgb_5" : 3,
-			"seq_depth" : 1,
+			"seq_depth_5" : 1,
 			"seq_flownet2s_5" : 2
 		}
+
+		self.startingDimension = { }
 
 		requiredDimensions = 0
 		for data in self.dataDimensions:
@@ -85,6 +89,14 @@ class CityScapesReader(DatasetReader):
 			"Images shape: %s. Depths shape: %s. Required data: %s. Sequential: %s") % (self.numData["train"], \
 			self.numData["test"], self.numData["validation"], self.imageShape, self.labelShape, self.dataDimensions, \
 			self.sequentialData))
+
+	def normalizer(self, data, type):
+		if self.numDimensions[type] == 1:
+			return standardizeData(data, mean=self.means[type], std=self.stds[type])
+		else:
+			for i in range(self.numDimensions[type]):
+				data[..., i] = standardizeData(data[..., i], mean=self.means[type][i], std=self.stds[type][i])
+			return data
 
 	def iterate_once(self, type, miniBatchSize):
 		assert type in ("train", "test", "validation")
@@ -98,13 +110,11 @@ class CityScapesReader(DatasetReader):
 			endIndex = min((i + 1) * miniBatchSize, self.numData[type])
 			assert startIndex < endIndex, "startIndex < endIndex. Got values: %d %d" % (startIndex, endIndex)
 
-			depths = thisData[depthKey][startIndex : endIndex]
-			depths = standardizeData(depths, mean=self.means[depthKey], std=self.stds[depthKey])
-
+			depths = self.normalizer(thisData[depthKey][startIndex : endIndex], depthKey)
 			images = []
 			for dim in self.dataDimensions:
-				item = thisData[dim][startIndex : endIndex]
-				images.append(standardizeData(item, mean=self.means[dim], std=self.stds[dim]))
+				item = self.normalizer(thisData[dim][startIndex : endIndex], dim)
+				images.append(item)
 			images = np.concatenate(images, axis=3)
 
 			# Apply each transform
