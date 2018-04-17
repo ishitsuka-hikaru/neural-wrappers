@@ -19,7 +19,7 @@ class CityScapesReader(DatasetReader):
 				assert not data == "rgb_first_frame", "RGB First frame is not available for sequential dataset"
 				# Only skipFrames=5 is supported now
 
-		if dataDimensions:
+		if sequentialData:
 			dataDimensions = list(map(lambda x : "seq_%s_5" % (x), dataDimensions))
 
 		self.datasetPath = datasetPath
