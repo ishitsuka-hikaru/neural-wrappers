@@ -104,7 +104,9 @@ class CityScapesReader(DatasetReader):
 			"buildings" : np.where(image == 11),
 			"logo" : np.where(image == 1),
 			"road" : np.where(image == 7),
-			"sidewalk" : np.where(image == 22)
+			"sidewalk" : np.where(image == 22),
+			"sidewalk2": np.where(image == 8),
+			"trees" : np.where(image == 21)
 		}
 
 		for key in labels:
