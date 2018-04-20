@@ -84,16 +84,31 @@ class NeuralNetworkPyTorch(nn.Module):
 		trainHistory["validationMetrics"] = deepcopy(kwargs["validationMetrics"])
 		trainHistory["message"] = message
 
-	def getNpResults(self, results):
+	# Results come in torch format, but callbacks require numpy, so convert the results back to numpy format
+	def getNpData(self, results):
 		npResults = None
 		if type(results) in (list, tuple):
 			npResults = []
 			for result in results:
-				npResult = self.getNpResults(result)
+				npResult = self.getNpData(result)
 				npResults.append(npResult)
 		elif type(results) is Variable:
 			 npResults = maybeCpu(results.data).numpy()
 		return npResults
+
+	# Equivalent of the function above, but using the data from generator (which comes in numpy format)
+	def getTrData(self, data, optimize):
+		trData = None
+		if data is None:
+			return data
+		elif type(data) in (list, tuple):
+			trData = []
+			for item in data:
+				trItem = self.getTrData(item, optimize)
+				trData.append(trItem)
+		elif type(data) is np.ndarray:
+			trData = maybeCuda(Variable(tr.from_numpy(data), requires_grad=optimize))
+		return trData
 
 	# Basic method that does a forward phase for one epoch given a generator. It can apply a step of optimizer or not.
 	# @param[in] generator Object used to get a batch of data and labels at each step
@@ -121,17 +136,21 @@ class NeuralNetworkPyTorch(nn.Module):
 		for callback in callbacks:
 			callback.onEpochStart(**callbackArgs)
 
-		for i, (npData, npLabels) in enumerate(generator):
-			data = maybeCuda(Variable(tr.from_numpy(npData)))
-			labels = maybeCuda(Variable(tr.from_numpy(npLabels)))
+		# The protocol requires the generator to have 2 items, inputs and labels (both can be None). If there are more
+		#  inputs, they can be packed together (stacked) or put into a list, in which case the ntwork will receive the
+		#  same list, but every element in the list is tranasformed in torch format.
+		for i, items in enumerate(generator):
+			npInputs, npLabels = items
+			trInputs = self.getTrData(npInputs, optimize=optimize)
+			trLabels = self.getTrData(npLabels, optimize=False)
 
-			results = self.forward(data)
-			npResults = self.getNpResults(results)
+			trResults = self.forward(trInputs)
+			npResults = self.getNpData(trResults)
 			
-			loss = self.criterion(results, labels)
+			loss = self.criterion(trResults, trLabels)
 			npLoss = maybeCpu(loss.data).numpy()
-			if debug:
-				print("\nLoss: %2.6f" % (npLoss))
+			# if debug:
+				# print("\nLoss: %2.6f" % (npLoss))
 
 			if optimize:
 				self.optimizer.zero_grad()
@@ -140,7 +159,7 @@ class NeuralNetworkPyTorch(nn.Module):
 
 			# Iteration callbacks are called here (i.e. for plotting results!)
 			callbackArgs = {
-				"data" : npData,
+				"data" : npInputs,
 				"labels" : npLabels,
 				"results" : npResults,
 				"loss" : npLoss,
@@ -165,7 +184,6 @@ class NeuralNetworkPyTorch(nn.Module):
 				message += " ETA: %s" % (ETA)
 				linePrinter.print(message)
 
-			del data, labels, results, npData, npLabels, npResults
 			if i == stepsPerEpoch - 1:
 				break
 

@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.misc import toimage
 
-from main import FCEncoder, ConvEncoder, VAE, lossFunction, lossLatent, lossDecoder
+from main_vae_classic import FCEncoder, ConvEncoder, VAE, lossFunction, lossLatent, lossDecoder
 from neural_wrappers.readers import MNISTReader
 from neural_wrappers.pytorch import NeuralNetworkPyTorch, maybeCuda, maybeCpu
 from neural_wrappers.callbacks import SaveModels
@@ -20,13 +20,13 @@ class ConditionalBinaryMNIST(MNISTReader):
 		for items in super().iterate_once(type, miniBatchSize):
 			images, _ = items
 			# Images are N(0, I), so we can threshold at 0 to get binary values.
-			images = images > 0
+			images = np.float32(images > 0)
 			# corruptedImages = corruptImages_pepper(images, threshold=0.7)
-			corruptedImages = corruptImages_erase(images)
-			givenImages = np.zeros((2, *images.shape), dtype=np.float32)
-			givenImages[0] = np.float32(images)
-			givenImages[1] = np.float32(corruptedImages)
-			yield givenImages, np.float32(images)
+			corruptedImages = np.float32(corruptImages_erase(images))
+			# givenImages = np.zeros((2, *images.shape), dtype=np.float32)
+			# givenImages[0] = np.float32(images)
+			# givenImages[1] = np.float32(corruptedImages)
+			yield [images, corruptedImages], images
 
 class Decoder(NeuralNetworkPyTorch):
 	def __init__(self, numEncodings):

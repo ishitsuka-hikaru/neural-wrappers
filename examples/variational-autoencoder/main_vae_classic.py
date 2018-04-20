@@ -21,8 +21,8 @@ class BinaryMNISTReader(MNISTReader):
 		for items in super().iterate_once(type, miniBatchSize):
 			images, _ = items
 			# Images are N(0, I), so we can threshold at 0 to get binary values.
-			images = images > 0
-			yield np.float32(images), np.float32(images)
+			images = np.float32(images > 0)
+			yield images, images
 
 class FCEncoder(NeuralNetworkPyTorch):
 	def __init__(self, numEncodings):
