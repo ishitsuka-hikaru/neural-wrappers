@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.misc import toimage
 
-from main_vae_classic import FCEncoder, ConvEncoder, VAE, lossFunction, lossLatent, lossDecoder
+from main_vae_classic import VAE, lossFunction, lossLatent, lossDecoder
 from neural_wrappers.readers import MNISTReader
 from neural_wrappers.pytorch import NeuralNetworkPyTorch, maybeCuda, maybeCpu
 from neural_wrappers.callbacks import SaveModels

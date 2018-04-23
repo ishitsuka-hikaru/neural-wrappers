@@ -107,7 +107,7 @@ class NeuralNetworkPyTorch(nn.Module):
 				trItem = self.getTrData(item, optimize)
 				trData.append(trItem)
 		elif type(data) is np.ndarray:
-			trData = maybeCuda(Variable(tr.from_numpy(data), requires_grad=optimize))
+			trData = Variable(maybeCuda(tr.from_numpy(data)), requires_grad=optimize)
 		return trData
 
 	# Basic method that does a forward phase for one epoch given a generator. It can apply a step of optimizer or not.
