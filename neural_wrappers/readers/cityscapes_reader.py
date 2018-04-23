@@ -96,9 +96,9 @@ class CityScapesReader(DatasetReader):
 			(requiredDimensions, self.imageShape, self.dataDimensions)
 
 		print(("[CityScapes Images Reader] Setup complete. Num data: Train: %d, Test: %d, Validation: %d. " + \
-			"Images shape: %s. Depths shape: %s. Required data: %s. Sequential: %s") % (self.numData["train"], \
-			self.numData["test"], self.numData["validation"], self.imageShape, self.labelShape, self.dataDimensions, \
-			self.sequentialData))
+			"Images shape: %s. Depths shape: %s. Required data: %s. Sequential: %s. Semantic type: %s") % \
+			(self.numData["train"], self.numData["test"], self.numData["validation"], self.imageShape, \
+			self.labelShape, self.dataDimensions, self.sequentialData, self.semanticTransform))
 
 	def normalizer(self, data, type):
 		data = np.float32(data)
