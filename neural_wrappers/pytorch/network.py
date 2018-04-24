@@ -366,8 +366,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.trainHistory = deepcopy(trainHistory)
 		self.currentEpoch = len(self.trainHistory) + 1
 
-	def load_model(self, path):
-		loaded_model = tr.load(path)
+	def _load_model(self, loaded_model):
 		if not "weights" in loaded_model and "params" in loaded_model:
 			print("Warning: Depcrecated model, using \"params\" key instead of \"weights\".")
 			loaded_model["weights"] = loaded_model["params"]
@@ -382,6 +381,10 @@ class NeuralNetworkPyTorch(nn.Module):
 		l2 = self.optimizer.state_dict()["param_groups"][0]["params"]
 		l3 = list(map(lambda x : id(x), self.parameters()))
 		assert l2 == l3, "Something was wrong with loading optimizer"
+
+	def load_model(self, path):
+		loaded_model = tr.load(path)
+		self._load_model(loaded_model)
 
 		if "history_dict" in loaded_model:
 			self.load_history(loaded_model["history_dict"])

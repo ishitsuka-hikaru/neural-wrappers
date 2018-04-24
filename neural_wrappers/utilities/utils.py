@@ -52,7 +52,13 @@ class LinePrinter:
 		self.maxLength = 0
 
 	def print(self, message):
+		if message[-1] == "\n":
+			message = message[0 : -1]
+			additional = "\n"
+		else:
+			additional = "\r"
+
 		self.maxLength = np.maximum(len(message), self.maxLength)
-		message += (self.maxLength - len(message)) * " "
-		sys.stdout.write(message + "\r")
+		message += (self.maxLength - len(message)) * " " + additional
+		sys.stdout.write(message)
 		sys.stdout.flush()
