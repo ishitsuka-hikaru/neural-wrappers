@@ -70,23 +70,22 @@ def main():
 	elif sys.argv[1] == "test":
 		GAN.load_model("GAN.pkl")
 
-		randomInputsG = Variable(maybeCuda(tr.randn(MB, 100)), requires_grad=False)
-		outG = GAN.generator.forward(randomInputsG)
-		outD = maybeCpu(GAN.discriminator.forward(outG).data).numpy()
-		realItems = next(generator)[0]
-		items = maybeCuda(Variable(tr.from_numpy(realItems), requires_grad=False))
-		outDReal = maybeCpu(GAN.discriminator.forward(items).data).numpy()
-		
-		for j in range(len(outG)):
-			print("Discriminator %2.2f" % (outD[j]))
-			generatedImage = maybeCpu(outG[j].data).numpy().reshape((28, 28))
-			plot_image(generatedImage, new_figure=True, axis=(1, 2, 1))
-			plot_image(np.float32(generatedImage > 0.5), new_figure=False, axis=(1, 2, 2))
-			show_plots()
+		while True:
+			randomInputsG = Variable(maybeCuda(tr.randn(MB, 100)), requires_grad=False)
+			outG = GAN.generator.forward(randomInputsG)
+			outD = maybeCpu(GAN.discriminator.forward(outG).data).numpy()
+			realItems = next(generator)[0]
+			items = maybeCuda(Variable(tr.from_numpy(realItems), requires_grad=False))
+			outDReal = maybeCpu(GAN.discriminator.forward(items).data).numpy()
 
-			print("Discriminator %2.2f" % (outDReal[j]))
-			plot_image(realItems[j])
-			show_plots()
+			for j in range(len(outG)):
+				generatedImage = maybeCpu(outG[j].data).numpy().reshape((28, 28))
+				plot_image(generatedImage, new_figure=(j==0), axis=(4, 5, j + 1), \
+					title="%2.2f" % (outD[j]), show_axis=False)
+
+				plot_image(realItems[j], new_figure=False, axis=(4, 5, j + 10 + 1), \
+					title="%2.2f" % (outDReal[j]), show_axis=False)
+			show_plots(size=(12, 8))
 
 
 if __name__ == "__main__":

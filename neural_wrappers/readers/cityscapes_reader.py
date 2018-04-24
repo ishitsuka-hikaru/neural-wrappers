@@ -14,11 +14,12 @@ from neural_wrappers.utilities import standardizeData
 # @param[optional] semanticTransform The type of transformation to be applied for semantic data. Only valid if
 #  "semantic" is used in dataDimensions.
 class CityScapesReader(DatasetReader):
-	def __init__(self, datasetPath, imageShape, labelShape, transforms=["none"], dataDimensions=["rgb"], \
-		sequentialData=False, semanticTransform=None):
+	def __init__(self, datasetPath, imageShape, labelShape, transforms=["none"], normalizationType="standardize",\
+		dataDimensions=["rgb"], sequentialData=False, semanticTransform=None):
 		self.datasetPath = datasetPath
 		self.imageShape = imageShape
 		self.labelShape = labelShape
+		self.normalizationType = normalizationType
 		self.transforms = transforms
 		self.dataDimensions = dataDimensions
 		self.sequentialData = sequentialData
@@ -47,6 +48,12 @@ class CityScapesReader(DatasetReader):
 				self.prepareSemantic = self.semanticDefault
 			elif self.semanticTransform == "foreground-background":
 				self.prepareSemantic = self.semanticFGBG
+
+		assert self.normalizationType in ("default", "standardize")
+		if self.normalizationType == "default":
+			self.normalizer = self.normalize
+		else:
+			self.normalizer = self.standardize
 
 		# Only skipFrames=5 is supported now
 		if self.sequentialData:
@@ -78,6 +85,12 @@ class CityScapesReader(DatasetReader):
 			"seq_flownet2s_5" : [32.508713, 15.168872]
 		}
 
+		self.maximums = {
+			"rgb" : [255, 255, 255],
+			"rgb_first_frame" : [255, 255, 255],
+			"depth" : 32257
+		}
+
 		self.numDimensions = {
 			"rgb" : 3,
 			"depth": 1,
@@ -96,18 +109,29 @@ class CityScapesReader(DatasetReader):
 			(requiredDimensions, self.imageShape, self.dataDimensions)
 
 		print(("[CityScapes Images Reader] Setup complete. Num data: Train: %d, Test: %d, Validation: %d. " + \
-			"Images shape: %s. Depths shape: %s. Required data: %s. Sequential: %s. Semantic type: %s") % \
+			"Images shape: %s. Depths shape: %s. Required data: %s. Sequential: %s. Semantic type: %s. " + \
+			"Normalization type: %s") % \
 			(self.numData["train"], self.numData["test"], self.numData["validation"], self.imageShape, \
-			self.labelShape, self.dataDimensions, self.sequentialData, self.semanticTransform))
+			self.labelShape, self.dataDimensions, self.sequentialData, self.semanticTransform, self.normalizationType))
 
-	def normalizer(self, data, type):
+	# TODO, add all min/max and do min-max normalization.
+	def normalize(self, data, type):
 		data = np.float32(data)
 		if self.numDimensions[type] == 1:
-			return standardizeData(data, mean=self.means[type], std=self.stds[type])
+			data /= self.maximums[type]
+		else:
+			for i in range(self.numDimensions[type]):
+				data[..., i] /= self.maximums[type][i]
+		return data
+
+	def standardize(self, data, type):
+		data = np.float32(data)
+		if self.numDimensions[type] == 1:
+			data = standardizeData(data, mean=self.means[type], std=self.stds[type])
 		else:
 			for i in range(self.numDimensions[type]):
 				data[..., i] = standardizeData(data[..., i], mean=self.means[type][i], std=self.stds[type][i])
-			return data
+		return data
 
 	def semanticDefault(self, images):
 		newImages = np.expand_dims(images, axis=-1)
