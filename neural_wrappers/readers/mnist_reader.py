@@ -5,9 +5,9 @@ from neural_wrappers.transforms import Transformer
 from neural_wrappers.utilities import toCategorical
 
 class MNISTReader(DatasetReader):
-	def __init__(self, datasetPath, imagesShape=(28, 28), transforms=["none"], normalizationType="standardize"):
+	def __init__(self, datasetPath, imagesShape=(28, 28), transforms=["none"], normalization="standardization"):
 		assert len(imagesShape) == 2
-		super().__init__(datasetPath, imagesShape, None, transforms, normalizationType)
+		super().__init__(datasetPath, imagesShape, None, transforms, normalization)
 		self.dataAugmenter = Transformer(transforms, dataShape=imagesShape)
 		self.testAugmenter = Transformer(["none"], dataShape=imagesShape)
 		self.setup()
@@ -53,7 +53,7 @@ class MNISTReader(DatasetReader):
 			assert startIndex < endIndex, "startIndex < endIndex. Got values: %d %d" % (startIndex, endIndex)
 			numData = endIndex - startIndex
 
-			images = self.normalizer(data["images"][startIndex : endIndex], type="images")
+			images = self.normalizer(data=data["images"][startIndex : endIndex], type="images")
 			labels = toCategorical(data["labels"][startIndex : endIndex], numClasses=10)
 
 			for augImages, _ in augmenter.applyTransforms(images, labels=None):

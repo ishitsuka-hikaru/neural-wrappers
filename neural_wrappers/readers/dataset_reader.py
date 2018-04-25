@@ -2,24 +2,30 @@ import numpy as np
 from prefetch_generator import BackgroundGenerator
 from neural_wrappers.transforms import Transformer
 from neural_wrappers.utilities import standardizeData, minMaxNormalizeData
+from functools import partial
 
 class DatasetReader:
 	def __init__(self, datasetPath, dataShape, labelShape=None, transforms=["none"], \
-		normalizationType="standardization"):
+		normalization="standardization"):
 		self.datasetPath = datasetPath
 		self.dataShape = dataShape
 		self.labelShape = labelShape
 		self.transforms = transforms
-		assert normalizationType in ("standardization", "min_max_normalization")
-		self.normalizationType = normalizationType
+		self.normalization = normalization
 
 		self.dataAugmenter = Transformer(transforms, dataShape=dataShape, labelShape=labelShape)
 		self.validationAugmenter = Transformer(["none"], dataShape=dataShape, labelShape=labelShape)
 
-		if normalizationType == "min_max_normalization":
+		if normalization == "min_max_normalization":
 			self.normalizer = self.minMaxNormalizer
-		elif normalizationType == "standardization":
+		elif normalization == "standardization":
 			self.normalizer = self.standardizer
+		elif normalization == "none":
+			self.normalizer = lambda data, type: data
+		else:
+			assert hasattr(normalization, "__call__"), "The user provided normalization must be callable or must " + \
+				"one of \"standardization\", \"min_max_normalization\", \"none\""
+			self.normalizer = partial(normalization, obj=self)
 
 	def minMaxNormalizer(self, data, type):
 		data = np.float32(data)

@@ -12,9 +12,9 @@ from .dataset_reader import DatasetReader
 # @param[optional] semanticTransform The type of transformation to be applied for semantic data. Only valid if
 #  "semantic" is used in dataDimensions.
 class CityScapesReader(DatasetReader):
-	def __init__(self, datasetPath, imageShape, labelShape, transforms=["none"], normalizationType="standardization", \
+	def __init__(self, datasetPath, imageShape, labelShape, transforms=["none"], normalization="standardization", \
 		dataDimensions=["rgb"], sequentialData=False, semanticTransform=None):
-		super().__init__(datasetPath, imageShape, labelShape, transforms, normalizationType)
+		super().__init__(datasetPath, imageShape, labelShape, transforms, normalization)
 		self.dataDimensions = dataDimensions
 		self.sequentialData = sequentialData
 		self.semanticTransform = semanticTransform
@@ -98,7 +98,7 @@ class CityScapesReader(DatasetReader):
 			"Images shape: %s. Depths shape: %s. Required data: %s. Sequential: %s. Semantic type: %s. " + \
 			"Normalization type: %s") % \
 			(self.numData["train"], self.numData["test"], self.numData["validation"], self.dataShape, \
-			self.labelShape, self.dataDimensions, self.sequentialData, self.semanticTransform, self.normalizationType))
+			self.labelShape, self.dataDimensions, self.sequentialData, self.semanticTransform, self.normalization))
 
 	def semanticDefault(self, images):
 		newImages = np.expand_dims(images, axis=-1)
