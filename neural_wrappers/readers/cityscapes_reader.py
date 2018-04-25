@@ -1,8 +1,6 @@
 import numpy as np
 import h5py
 from .dataset_reader import DatasetReader
-from neural_wrappers.transforms import Transformer
-from neural_wrappers.utilities import standardizeData
 
 # CityScapes Reader class, used with the data already converted in h5py format.
 # @param[in] datasetPath Path the the cityscapes_v2.h5 file
@@ -14,18 +12,12 @@ from neural_wrappers.utilities import standardizeData
 # @param[optional] semanticTransform The type of transformation to be applied for semantic data. Only valid if
 #  "semantic" is used in dataDimensions.
 class CityScapesReader(DatasetReader):
-	def __init__(self, datasetPath, imageShape, labelShape, transforms=["none"], normalizationType="standardize",\
+	def __init__(self, datasetPath, imageShape, labelShape, transforms=["none"], normalizationType="standardization", \
 		dataDimensions=["rgb"], sequentialData=False, semanticTransform=None):
-		self.datasetPath = datasetPath
-		self.imageShape = imageShape
-		self.labelShape = labelShape
-		self.normalizationType = normalizationType
-		self.transforms = transforms
+		super().__init__(datasetPath, imageShape, labelShape, transforms, normalizationType)
 		self.dataDimensions = dataDimensions
 		self.sequentialData = sequentialData
 		self.semanticTransform = semanticTransform
-		self.dataAugmenter = Transformer(transforms, dataShape=imageShape, labelShape=labelShape)
-		self.validationAugmenter = Transformer(["none"], dataShape=imageShape, labelShape=labelShape)
 		self.setup()
 
 	def setup(self):
@@ -48,12 +40,6 @@ class CityScapesReader(DatasetReader):
 				self.prepareSemantic = self.semanticDefault
 			elif self.semanticTransform == "foreground-background":
 				self.prepareSemantic = self.semanticFGBG
-
-		assert self.normalizationType in ("default", "standardize")
-		if self.normalizationType == "default":
-			self.normalizer = self.normalize
-		else:
-			self.normalizer = self.standardize
 
 		# Only skipFrames=5 is supported now
 		if self.sequentialData:
@@ -105,33 +91,14 @@ class CityScapesReader(DatasetReader):
 		requiredDimensions = 0
 		for data in self.dataDimensions:
 			requiredDimensions += self.numDimensions[data]
-		assert requiredDimensions == self.imageShape[-1], "Expected: numDimensions: %s. Got imageShape: %s for: %s" % \
-			(requiredDimensions, self.imageShape, self.dataDimensions)
+		assert requiredDimensions == self.dataShape[-1], "Expected: numDimensions: %s. Got imageShape: %s for: %s" % \
+			(requiredDimensions, self.dataShape, self.dataDimensions)
 
 		print(("[CityScapes Images Reader] Setup complete. Num data: Train: %d, Test: %d, Validation: %d. " + \
 			"Images shape: %s. Depths shape: %s. Required data: %s. Sequential: %s. Semantic type: %s. " + \
 			"Normalization type: %s") % \
-			(self.numData["train"], self.numData["test"], self.numData["validation"], self.imageShape, \
+			(self.numData["train"], self.numData["test"], self.numData["validation"], self.dataShape, \
 			self.labelShape, self.dataDimensions, self.sequentialData, self.semanticTransform, self.normalizationType))
-
-	# TODO, add all min/max and do min-max normalization.
-	def normalize(self, data, type):
-		data = np.float32(data)
-		if self.numDimensions[type] == 1:
-			data /= self.maximums[type]
-		else:
-			for i in range(self.numDimensions[type]):
-				data[..., i] /= self.maximums[type][i]
-		return data
-
-	def standardize(self, data, type):
-		data = np.float32(data)
-		if self.numDimensions[type] == 1:
-			data = standardizeData(data, mean=self.means[type], std=self.stds[type])
-		else:
-			for i in range(self.numDimensions[type]):
-				data[..., i] = standardizeData(data[..., i], mean=self.means[type][i], std=self.stds[type][i])
-		return data
 
 	def semanticDefault(self, images):
 		newImages = np.expand_dims(images, axis=-1)

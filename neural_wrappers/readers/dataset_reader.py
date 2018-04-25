@@ -1,7 +1,44 @@
 import numpy as np
 from prefetch_generator import BackgroundGenerator
+from neural_wrappers.transforms import Transformer
+from neural_wrappers.utilities import standardizeData, minMaxNormalizeData
 
 class DatasetReader:
+	def __init__(self, datasetPath, dataShape, labelShape=None, transforms=["none"], \
+		normalizationType="standardization"):
+		self.datasetPath = datasetPath
+		self.dataShape = dataShape
+		self.labelShape = labelShape
+		self.transforms = transforms
+		assert normalizationType in ("standardization", "min_max_normalization")
+		self.normalizationType = normalizationType
+
+		self.dataAugmenter = Transformer(transforms, dataShape=dataShape, labelShape=labelShape)
+		self.validationAugmenter = Transformer(["none"], dataShape=dataShape, labelShape=labelShape)
+
+		if normalizationType == "min_max_normalization":
+			self.normalizer = self.minMaxNormalizer
+		elif normalizationType == "standardization":
+			self.normalizer = self.standardizer
+
+	def minMaxNormalizer(self, data, type):
+		data = np.float32(data)
+		if self.numDimensions[type] == 1:
+			data /= self.maximums[type]
+		else:
+			for i in range(self.numDimensions[type]):
+				data[..., i] /= self.maximums[type][i]
+		return data
+
+	def standardizer(self, data, type):
+		data = np.float32(data)
+		if self.numDimensions[type] == 1:
+			data = standardizeData(data, mean=self.means[type], std=self.stds[type])
+		else:
+			for i in range(self.numDimensions[type]):
+				data[..., i] = standardizeData(data[..., i], mean=self.means[type][i], std=self.stds[type][i])
+		return data
+
 	# Handles all the initilization stuff of a specific dataset object.
 	def setup(self):
 		raise NotImplementedError("Should have implemented this")
@@ -45,7 +82,6 @@ class DatasetReader:
 		while True:
 			iterateGenerator = self.iterate_once(type, miniBatchSize)
 			if maxPrefetch > 0:
-				# iterateGenerator = PrefetchGenerator(iterateGenerator, maxPrefetch=maxPrefetch)
 				iterateGenerator = BackgroundGenerator(iterateGenerator, max_prefetch=maxPrefetch)
 			for items in iterateGenerator:
 				yield items

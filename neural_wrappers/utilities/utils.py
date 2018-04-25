@@ -24,6 +24,12 @@ def standardizeData(data, mean, std):
 	data /= std
 	return data
 
+def minMaxNormalizeData(data, min, max):
+	data = np.float32(data)
+	data -= min
+	data /= (max - min)
+	return data
+
 def toCategorical(data, numClasses):
 	numData = len(data)
 	newData = np.zeros((numData, numClasses), dtype=np.uint8)

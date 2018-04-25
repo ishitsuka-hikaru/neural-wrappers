@@ -49,7 +49,8 @@ class GenerativeAdversialNetwork(NeuralNetworkPyTorch):
 				randomInputsG = Variable(maybeCuda(tr.randn(MB, 100)), requires_grad=False)
 
 				outDReal = self.discriminator.forward(images)
-				outDFake = self.discriminator.forward(self.generator.forward(randomInputsG))
+				outGD = self.generator.forward(randomInputsG)
+				outDFake = self.discriminator.forward(outGD)
 
 				# lossD = log(G(x)) + log(1 - D(G(z)))
 				lossD = self.criterion(outDReal, realLabels) + self.criterion(outDFake, fakeLabels)

@@ -58,14 +58,14 @@ def main():
 	numIterations = reader.getNumIterations("train", miniBatchSize=MB)
 
 	if sys.argv[1] == "train":
-		GAN.generator.setOptimizer(optim.SGD, lr=0.01)
-		GAN.discriminator.setOptimizer(optim.SGD, lr=0.0001)
+		GAN.generator.setOptimizer(optim.Adam, lr=0.01)
+		GAN.discriminator.setOptimizer(optim.Adam, lr=0.001)
 		
-		GAN.train_generator(generator, stepsPerEpoch=numIterations, numEpochs=numEpochs, generatorSteps=1)
+		GAN.train_generator(generator, stepsPerEpoch=numIterations, numEpochs=numEpochs, generatorSteps=100)
 
 	elif sys.argv[1] == "retrain":
 		GAN.load_model("GAN.pkl")
-		GAN.train_generator(generator, stepsPerEpoch=numIterations, numEpochs=numEpochs, generatorSteps=5)
+		GAN.train_generator(generator, stepsPerEpoch=numIterations, numEpochs=numEpochs, generatorSteps=1)
 
 	elif sys.argv[1] == "test":
 		GAN.load_model("GAN.pkl")
