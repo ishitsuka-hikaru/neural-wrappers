@@ -1,8 +1,10 @@
 import sys
+import os
+import matplotlib.pyplot as plt
 
 from neural_wrappers.readers import MNISTReader
-from neural_wrappers.pytorch import GenerativeAdversialNetwork, NeuralNetworkPyTorch, maybeCuda, maybeCpu
-from Mihlib import *
+from neural_wrappers.pytorch import NeuralNetworkPyTorch, maybeCuda, maybeCpu, GenerativeAdversialNetwork
+from neural_wrappers.callbacks import Callback
 
 import torch as tr
 import torch.nn as nn
@@ -23,10 +25,10 @@ class Generator(NeuralNetworkPyTorch):
 		self.fc5 = nn.Linear(1024, outputSize)
 
 	def forward(self, x):
-		y1 = F.relu(self.fc1(x))
-		y2 = F.relu(self.bn2(self.fc2(y1)))
-		y3 = F.relu(self.bn3(self.fc3(y2)))
-		y4 = F.relu(self.bn4(self.fc4(y3)))
+		y1 = F.leaky_relu(self.fc1(x))
+		y2 = F.leaky_relu(self.bn2(self.fc2(y1)), negative_slope=0.2)
+		y3 = F.leaky_relu(self.bn3(self.fc3(y2)), negative_slope=0.2)
+		y4 = F.leaky_relu(self.bn4(self.fc4(y3)), negative_slope=0.2)
 		y5 = F.tanh(self.fc5(y4))
 		return y5
 
@@ -40,53 +42,90 @@ class Discriminator(NeuralNetworkPyTorch):
 
 	def forward(self, x):
 		x = x.view(-1, self.inputSize)
-		y1 = F.relu(self.fc1(x))
-		y2 = F.relu(self.fc2(y1))
+		y1 = F.leaky_relu(self.fc1(x), negative_slope=0.2)
+		y2 = F.leaky_relu(self.fc2(y1), negative_slope=0.2)
 		y3 = self.fc3(y2)
 		y4 = F.sigmoid(y3)
+		y4 = y4.view(y4.shape[0])
 		return y4
 
-def main():
-	assert len(sys.argv) == 3, "Usage: python main.py <type> <path/to/mnist.h5>"
-	MB = 10
-	numEpochs = 100
-	GAN = maybeCuda(GenerativeAdversialNetwork(generator=Generator(), discriminator=Discriminator()))
-	GAN.setCriterion(nn.BCELoss())
+# For some reasons, results are much better if provided data is in range -1 : 1 (not 0 : 1 or standardized).
+def GANNormalization(obj, data, type):
+    data = obj.minMaxNormalizer(data, type)
+    data = (data - 0.5) * 2
+    return data
 
-	reader = MNISTReader(sys.argv[2])
+def plot_images(images, titles, gridShape):
+	plt.gcf().set_size_inches((12, 8))
+	for j in range(len(images)):
+		image = images[j]
+		plt.gcf().add_subplot(*gridShape, j + 1)
+		plt.gcf().gca().axis("off")
+		plt.gcf().gca().set_title(str(titles[j]))
+		plt.imshow(image, cmap="gray")
+
+class PlotCallback(Callback):
+	def __init__(self, realDataGenerator):
+		self.realDataGenerator = realDataGenerator
+
+		if not os.path.exists("images"):
+			os.mkdir("images")
+
+	def onEpochEnd(self, **kwargs):
+		GAN = kwargs["model"]
+		randomInputsG = Variable(maybeCuda(tr.randn(10, 100)))
+		randomOutG = GAN.generator.forward(randomInputsG).view(-1, 28, 28)
+		realItems = next(self.realDataGenerator)[0]
+		trRealItems = maybeCuda(Variable(tr.from_numpy(realItems)))
+
+		inD = tr.cat([randomOutG, trRealItems], dim=0)
+		outD = maybeCpu(GAN.discriminator.forward(inD).data).numpy()
+
+		items = [maybeCpu(inD[j].data).numpy().reshape((28, 28)) for j in range(len(inD))]
+		titles = ["%2.3f" % (outD[j]) for j in range(len(outD))]
+		plot_images(items, titles, gridShape=(4, 5))
+		plt.savefig("images/%d.png" % (kwargs["epoch"]))
+		plt.clf()
+
+class SaveModel(Callback):
+	def onEpochEnd(self, **kwargs):
+		kwargs["model"].save_model("GAN.pkl")
+
+def main():
+	assert len(sys.argv) == 3, "Usage: python main.py <train/retrain/test> <path/to/mnist.h5>"
+	MB = 64
+	numEpochs = 200
+
+	# Define model
+	GAN = maybeCuda(GenerativeAdversialNetwork(generator=Generator(), discriminator=Discriminator()))
+	GAN.generator.setOptimizer(tr.optim.Adam, lr=0.0002, betas=(0.5, 0.999))
+	GAN.discriminator.setOptimizer(tr.optim.Adam, lr=0.0002, betas=(0.5, 0.999))
+
+	# Define reader, generator and callbacks
+	reader = MNISTReader(sys.argv[2], normalization=GANNormalization)
 	generator = reader.iterate("train", miniBatchSize=MB, maxPrefetch=1)
 	numIterations = reader.getNumIterations("train", miniBatchSize=MB)
+	callbacks = [PlotCallback(reader.iterate("test", miniBatchSize=10, maxPrefetch=1)), SaveModel()]
 
 	if sys.argv[1] == "train":
-		GAN.generator.setOptimizer(optim.Adam, lr=0.01)
-		GAN.discriminator.setOptimizer(optim.Adam, lr=0.001)
-		
-		GAN.train_generator(generator, stepsPerEpoch=numIterations, numEpochs=numEpochs, generatorSteps=100)
-
+		GAN.train_generator(generator, numIterations, numEpochs=numEpochs, callbacks=callbacks)
 	elif sys.argv[1] == "retrain":
 		GAN.load_model("GAN.pkl")
-		GAN.train_generator(generator, stepsPerEpoch=numIterations, numEpochs=numEpochs, generatorSteps=1)
-
-	elif sys.argv[1] == "test":
+		GAN.train_generator(generator, numIterations, numEpochs=numEpochs, callbacks=callbacks)
+	else:
 		GAN.load_model("GAN.pkl")
-
 		while True:
-			randomInputsG = Variable(maybeCuda(tr.randn(MB, 100)), requires_grad=False)
-			outG = GAN.generator.forward(randomInputsG)
-			outD = maybeCpu(GAN.discriminator.forward(outG).data).numpy()
-			realItems = next(generator)[0]
-			items = maybeCuda(Variable(tr.from_numpy(realItems), requires_grad=False))
-			outDReal = maybeCpu(GAN.discriminator.forward(items).data).numpy()
+			# Generate 20 random gaussian inputs
+			randomInputsG = Variable(maybeCuda(tr.randn(20, 100)))
+			randomOutG = GAN.generator.forward(randomInputsG).view(-1, 28, 28)
+			outD = maybeCpu(GAN.discriminator.forward(randomOutG).data).numpy()
 
-			for j in range(len(outG)):
-				generatedImage = maybeCpu(outG[j].data).numpy().reshape((28, 28))
-				plot_image(generatedImage, new_figure=(j==0), axis=(4, 5, j + 1), \
-					title="%2.2f" % (outD[j]), show_axis=False)
-
-				plot_image(realItems[j], new_figure=False, axis=(4, 5, j + 10 + 1), \
-					title="%2.2f" % (outDReal[j]), show_axis=False)
-			show_plots(size=(12, 8))
-
+			# Plot the inputs and discriminator's confidence in them
+			items = [maybeCpu(randomOutG[j].data).numpy().reshape((28, 28)) for j in range(len(randomOutG))]
+			titles = ["%2.3f" % (outD[j]) for j in range(len(outD))]
+			plot_images(items, titles, gridShape=(4, 5))
+			plt.show()
+			plt.clf()
 
 if __name__ == "__main__":
 	main()

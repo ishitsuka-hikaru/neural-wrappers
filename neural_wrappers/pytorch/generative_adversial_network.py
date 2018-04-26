@@ -1,98 +1,109 @@
-from .network import NeuralNetworkPyTorch
-from .utils import maybeCuda, maybeCpu
-from neural_wrappers.utilities import LinePrinter
 from datetime import datetime
 
-import torch as tr
 from torch.autograd import Variable
+import torch.nn as nn
+import torch as tr
+
+from .utils import maybeCuda, maybeCpu
+from .network import NeuralNetworkPyTorch
+from neural_wrappers.utilities import LinePrinter
 
 class GenerativeAdversialNetwork(NeuralNetworkPyTorch):
 	def __init__(self, generator, discriminator):
 		super().__init__()
-		self.generator = generator
-		self.discriminator = discriminator
+		self.generator = generator.cuda()
+		self.discriminator = discriminator.cuda()
+		self.criterion = tr.nn.BCELoss().cuda()
 		self.linePrinter = LinePrinter()
 
-	def run_one_epoch(self, generator, stepsPerEpoch, generatorSteps, discriminatorSteps, \
-		callbacks=[], optimize=False, printMessage=False):
-		assert callbacks == []
-
+	def run_one_epoch(self, generator, stepsPerEpoch):
 		npLossD, npLossG = 0, 0
 		startTime = datetime.now()
-
 		for i in range(stepsPerEpoch):
-			images, _ = next(generator)
-			MB = images.shape[0]
+			imgs, _ = next(generator)
+			imgs = tr.from_numpy(imgs)
 
-			fakeLabels = Variable(maybeCuda(tr.zeros(MB)), requires_grad=False)
-			realLabels = Variable(maybeCuda(tr.ones(MB)), requires_grad=False)
+			# Adversarial ground truths
+			fake = Variable(tr.zeros(imgs.shape[0]).cuda(), requires_grad=False)
+			valid = Variable(tr.ones(imgs.shape[0]).cuda(), requires_grad=False)
 
-			# lossG = log(1 - D(G(z)))
-			for step in range(generatorSteps):
-				# Train generator
-				randomInputsG = Variable(maybeCuda(tr.randn(MB, 100)), requires_grad=False)
+			# Configure input
+			real_imgs = Variable(maybeCuda(imgs))
 
-				outG = self.generator.forward(randomInputsG)
-				outDG = self.discriminator.forward(outG)
-				lossG = self.criterion(outDG, realLabels)
-				currentLossG = maybeCpu(lossG.data).numpy() / generatorSteps
-				npLossG += currentLossG
+			#  Train Generator
+			# -----------------
 
-				if optimize:
-					self.generator.optimizer.zero_grad()
-					lossG.backward()
-					self.generator.optimizer.step()
+			self.generator.optimizer.zero_grad()
 
-			for step in range(discriminatorSteps):
-				# Train discriminator, by using half images and half random noise
-				images = Variable(maybeCuda(tr.from_numpy(images)), requires_grad=False)
-				randomInputsG = Variable(maybeCuda(tr.randn(MB, 100)), requires_grad=False)
+			# Sample noise as generator input
+			z = Variable(tr.randn(imgs.shape[0], 100).cuda())
 
-				outDReal = self.discriminator.forward(images)
-				outGD = self.generator.forward(randomInputsG)
-				outDFake = self.discriminator.forward(outGD)
+			# Generate a batch of images
+			gen_imgs = self.generator(z)
 
-				# lossD = log(G(x)) + log(1 - D(G(z)))
-				lossD = self.criterion(outDReal, realLabels) + self.criterion(outDFake, fakeLabels)
-				currentLossD = maybeCpu(lossD.data).numpy() / discriminatorSteps
-				npLossD += currentLossD
+			# Loss measures generator's ability to fool the discriminator
+			g_loss = self.criterion(self.discriminator(gen_imgs), valid)
+			npLossG += maybeCpu(g_loss.data).numpy()
 
-				if optimize:
-					self.discriminator.optimizer.zero_grad()
-					lossD.backward()
-					self.discriminator.optimizer.step()
-	
+			g_loss.backward()
+			self.generator.optimizer.step()
+
+			# ---------------------
+			#  Train Discriminator
+			# ---------------------
+
+			self.discriminator.optimizer.zero_grad()
+
+			# Measure discriminator's ability to classify real from generated samples
+			real_loss = self.criterion(self.discriminator(real_imgs), valid)
+			fake_loss = self.criterion(self.discriminator(gen_imgs.detach()), fake)
+			d_loss = (real_loss + fake_loss) / 2
+			npLossD += maybeCpu(d_loss.data).numpy()
+
+			d_loss.backward()
+			self.discriminator.optimizer.step()
+
 			iterFinishTime = (datetime.now() - startTime)
 			ETA = abs(iterFinishTime / (i + 1) * stepsPerEpoch - iterFinishTime)
-			if printMessage:
-				self.linePrinter.print("Epoch: %d. Iteration: %d/%d Loss D: %2.2f. Loss G: %2.2f. ETA: %s" % \
-					(self.currentEpoch, i, stepsPerEpoch, npLossD / (i + 1), npLossG / (i + 1), ETA))
+			self.linePrinter.print("Epoch: %d/%d. Iteration: %d/%d Loss D: %2.2f. Loss G: %2.2f. ETA: %s" % \
+				(self.currentEpoch, self.numEpochs, i, stepsPerEpoch, npLossD / (i + 1), npLossG / (i + 1), ETA))
+
 		return npLossD / stepsPerEpoch, npLossG / stepsPerEpoch
 
-	def train_generator(self, generator, stepsPerEpoch, numEpochs, generatorSteps=1, discriminatorSteps=1):
-		assert generatorSteps >= 1 and discriminatorSteps >= 1
-		self.linePrinter.print("Training for %d epochs...\n" % (numEpochs))
+	def train_generator(self, generator, stepsPerEpoch, numEpochs, callbacks=[]):
+		self.checkCallbacks(callbacks)
+		self.numEpochs = numEpochs
 
+		self.linePrinter.print("Training for %d epochs...\n" % (numEpochs))
 		while self.currentEpoch < numEpochs + 1:
 			self.trainHistory.append({})
-			# self.currentEpoch = epoch + 1
-			npLossD, npLossG = self.run_one_epoch(generator, stepsPerEpoch, generatorSteps=generatorSteps, \
-				discriminatorSteps=discriminatorSteps, callbacks=[], optimize=True, printMessage=True)
-			self.linePrinter.print("Epoch: %d/%d. Loss D: %2.2f. Loss G: %2.2f\n" % \
-				(self.currentEpoch, numEpochs, npLossD, npLossG))
 
-			self.trainHistory[-1] = {
+			now = datetime.now()
+			npLossD, npLossG = self.run_one_epoch(generator, stepsPerEpoch)
+			duration = datetime.now() - now
+
+			self.linePrinter.print("Epoch: %d/%d. Loss D: %2.2f. Loss G: %2.2f. Took %s\n" % \
+				(self.currentEpoch, numEpochs, npLossD, npLossG, duration))
+
+			self.trainHistory[self.currentEpoch - 1] = {
 				"generatorLoss" : npLossG,
 				"discriminatorLoss" : npLossD
 			}
 
-			self.save_model("GAN.pkl")
-			self.currentEpoch += 1
+			# Do the callbacks for the end of epoch.
+			callbackArgs = {
+				"model" : self,
+				"epoch" : self.currentEpoch,
+				"numEpochs" : numEpochs,
+				"duration" : duration,
+				"trainHistory" : self.trainHistory[self.currentEpoch - 1],
+				"trainMetrics": None,
+				"validationMetrics" : None
+			}
+			for callback in callbacks:
+				callback.onEpochEnd(**callbackArgs)
 
-	def cuda(self):
-		self.generator = maybeCuda(self.generator)
-		self.discriminator = maybeCuda(self.discriminator)
-		return self
+			self.currentEpoch += 1
 
 	def save_model(self, path):
 		generatorState = {
