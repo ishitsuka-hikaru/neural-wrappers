@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.misc import toimage
 
-from main_vae_classic import VAE, lossFunction, lossLatent, lossDecoder
+from main_vae_classic import VAE, lossFunction, lossLatent, lossDecoder, plot_images
 from neural_wrappers.readers import MNISTReader
 from neural_wrappers.pytorch import NeuralNetworkPyTorch, maybeCuda, maybeCpu
 from neural_wrappers.callbacks import SaveModels
@@ -74,17 +74,6 @@ def corruptImages_erase(images):
 		newImages[j, startPositions_i : startPositions_i + boxShape[0], \
 			startPositions_j : startPositions_j + boxShape[1]] = 0
 	return newImages
-
-def plot_images(images, titles):
-	fig = plt.figure()
-	numImages = len(images)
-
-	for j in range(numImages):
-		fig.add_subplot(1, numImages, j + 1)
-		plt.imshow(np.array(toimage(images[j])), cmap="gray")
-		plt.title(titles[j])
-		plt.axis("off")
-	plt.show()
 
 def main():
 	assert len(sys.argv) >= 4, "Usage: python main.py <train/test/retrain/test_autoencoder> <path/to/mnist.h5> " + \

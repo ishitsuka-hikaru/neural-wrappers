@@ -112,16 +112,15 @@ def lossDecoder(y_network, y_target, **kwargs):
 		Variable(tr.from_numpy(y_target)).cpu())).data.numpy()
 	return 76800 * decoder_loss
 
-def plot_images(image1, image2, title1="", title2=""):
+def plot_images(images, titles):
 	fig = plt.figure()
-	fig.add_subplot(1, 2, 1)
-	plt.imshow(np.array(toimage(image1)), cmap="gray")
-	plt.title(title1)
-	plt.axis("off")
-	fig.add_subplot(1, 2, 2)
-	plt.imshow(np.array(toimage(image2)), cmap="gray")
-	plt.title(title2)
-	plt.axis("off")
+	numImages = len(images)
+
+	for j in range(numImages):
+		fig.add_subplot(1, numImages, j + 1)
+		plt.imshow(np.array(toimage(images[j])), cmap="gray")
+		plt.title(titles[j])
+		plt.axis("off")
 	plt.show()
 
 def main():
@@ -165,7 +164,7 @@ def main():
 			for j in range(len(results)):
 				loss = lossDecoder([results[j].reshape((1, 28, 28)), None, None], images[j].reshape((1, 28, 28)))
 				print("Reconstruction loss: %d" % (loss))
-				plot_images(images[j], results[j], "Original", "Reconstruction")
+				plot_images([images[j], results[j]], ["Original", "Reconstruction"])
 				plt.show()
 
 	elif sys.argv[1] == "test":
@@ -176,7 +175,7 @@ def main():
 			y_result = network.decoder.forward(z_samples)
 			result = maybeCpu(y_result.data).numpy().reshape((28, 28))
 			result_binary = np.uint8(result > 0.5)
-			plot_images(result, result_binary, "Sampled image", "Binary")
+			plot_images([result, result_binary], ["Sampled image", "Binary"])
 
 if __name__ == "__main__":
 	main()
