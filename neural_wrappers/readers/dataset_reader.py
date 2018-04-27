@@ -4,6 +4,8 @@ from neural_wrappers.transforms import Transformer
 from neural_wrappers.utilities import standardizeData, minMaxNormalizeData
 from functools import partial
 
+# TODO: use datasetDimensions and labelDimensions for multiple dimensions from each h5py file.
+
 class DatasetReader:
 	def __init__(self, datasetPath, dataShape, labelShape=None, transforms=["none"], \
 		normalization="standardization"):
@@ -27,22 +29,30 @@ class DatasetReader:
 				"one of \"standardization\", \"min_max_normalization\", \"none\""
 			self.normalizer = partial(normalization, obj=self)
 
+	# @brief Basic min max normalizer, which receives a batches data (MB x shape) and applies the normalization for
+	#  each dimension independelty. Requires the class members minimums and maximums to be defined inside the class
+	#  for this normalization to work.
+	# @param[in] data The data on which the normalization is applied
+	# @param[in] type The type (data dimension) for which the field minimums and maximums are searched into
 	def minMaxNormalizer(self, data, type):
 		data = np.float32(data)
 		if self.numDimensions[type] == 1:
-			data /= self.maximums[type]
+			data = minMaxNormalizeData(data, self.minimums[type], self.maximums[type])
 		else:
 			for i in range(self.numDimensions[type]):
-				data[..., i] /= self.maximums[type][i]
+				data[..., i] = minMaxNormalizeData(data[..., i], self.minimums[type][i], self.maximums[type][i])
 		return data
 
+	# @brief Basic standardization normalizer, using same convention as minMaxNormalizer.
+	# @param[in] data The data on which the normalization is applied
+	# @param[in] type The type (data dimension) for which the field means and stsd are searched into
 	def standardizer(self, data, type):
 		data = np.float32(data)
 		if self.numDimensions[type] == 1:
-			data = standardizeData(data, mean=self.means[type], std=self.stds[type])
+			data = standardizeData(data, self.means[type], self.stds[type])
 		else:
 			for i in range(self.numDimensions[type]):
-				data[..., i] = standardizeData(data[..., i], mean=self.means[type][i], std=self.stds[type][i])
+				data[..., i] = standardizeData(data[..., i], self.means[type][i], self.stds[type][i])
 		return data
 
 	# Handles all the initilization stuff of a specific dataset object.

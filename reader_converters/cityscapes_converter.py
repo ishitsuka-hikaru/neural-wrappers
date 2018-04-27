@@ -171,10 +171,15 @@ def doFlow(image, nextImage):
 	flow[..., 1] = resize(flow_x, height=870, width=1820, interpolation=Interpolation.LANCZOS)
 	return flow
 
-def prepareData(group, name, dataShape, dtype):
-	if name in group:
-		del group[name]
-	group.create_dataset(name, shape=dataShape, dtype=dtype)
+def prepareData(group, baseGroup, name, dataShape, dtype):
+	assert baseGroup == "noseq" or "seq_" in baseGroup
+	# file["train"] => file["train"]["seq_5"]
+	if not baseGroup in group:
+		group.create_group(baseGroup)
+
+	if name in group[baseGroup]:
+		del group[baseGroup][name]
+	group[baseGroup].create_dataset(name, shape=dataShape, dtype=dtype)
 
 def doTheThingy(file, args, paths):
 	Type = args.type if args.type != "val" else "validation"
@@ -186,76 +191,80 @@ def doTheThingy(file, args, paths):
 	if args.rgb:
 		numData = len(paths["rgb"])
 		flushPrint("Doing RGB (%d pictures)" % (numData))
-		prepareData(group, name="rgb", dataShape=(numData, 870, 1820, 3), dtype=np.uint8)
+		prepareData(group, baseGroup="noseq", name="rgb", dataShape=(numData, 870, 1820, 3), dtype=np.uint8)
 		for i in range(numData):
 			if i % 10 == 0:
 				flushPrint("RGB %d/%d done." % (i, numData))
-			group["rgb"][i] = doPng(paths["rgb"][i])
+			group["noseq"]["rgb"][i] = doPng(paths["rgb"][i])
 
 	if args.rgb_first_frame:
 		numData = len(paths["rgb_first_frame"])
 		flushPrint("Doing RGB first frame (%d pictures)" % (numData))
-		prepareData(group, name="rgb_first_frame", dataShape=(numData, 870, 1820, 3), dtype=np.uint8)
+		prepareData(group, baseGroup="noseq", name="rgb_first_frame", \
+			dataShape=(numData, 870, 1820, 3), dtype=np.uint8)
 		for i in range(numData):
 			if i % 10 == 0:
 				flushPrint("RGB first frame %d/%d done." % (i, numData))
-			group["rgb_first_frame"][i] = doPng(paths["rgb_first_frame"][i])
+			group["noseq"]["rgb_first_frame"][i] = doPng(paths["rgb_first_frame"][i])
 
 	if args.depth:
 		numData = len(paths["depth"])
 		flushPrint("Doing Depth (%d pictures)" % (numData))
-		prepareData(group, name="depth", dataShape=(numData, 870, 1820), dtype=np.uint16)
+		prepareData(group, baseGroup="noseq", name="depth", dataShape=(numData, 870, 1820), dtype=np.uint16)
 		for i in range(numData):
 			if i % 10 == 0:
 				flushPrint("Depth %d/%d done." % (i, numData))
-			group["depth"][i] = doDepth(paths["depth"][i])
+			group["noseq"]["depth"][i] = doDepth(paths["depth"][i])
 
 	if args.semantic:
 		numData = len(paths["semantic"])
 		flushPrint("Doing Semantic (%d pictures)" % (numData))
-		prepareData(group, name="semantic", dataShape=(numData, 870, 1820), dtype=np.uint8)
+		prepareData(group, baseGroup="noseq", name="semantic", dataShape=(numData, 870, 1820), dtype=np.uint8)
 		for i in range(numData):
 			if i % 10 == 0:
 				flushPrint("Semantic %d/%d done." % (i, numData))
-			group["semantic"][i] = doDepth(paths["semantic"][i])
+			group["noseq"]["semantic"][i] = doDepth(paths["semantic"][i])
 
 	if args.seq_rgb:
 		keyName = "seq_rgb_%d" % (args.seq_skip_frames)
 		numData = len(paths[keyName])
+		baseGroupName = "seq_%d" % (args.seq_skip_frames)
 		flushPrint("Doing RGB sequence (%d pictures, %d skip frame)" % (numData, args.seq_skip_frames))
-		prepareData(group, name=keyName, dataShape=(numData, 870, 1820), dtype=np.uint8)
+		prepareData(group, baseGroup=baseGroupName, name="rgb", dataShape=(numData, 870, 1820), dtype=np.uint8)
 		for i in range(numData):
 			if i % 10 == 0:
 				flushPrint("RGB sequence %d/%d done." % (i, numData))
-			group[keyName][i] = doDepth(paths[keyName][i])
+			group[baseGroupName]["rgb"][i] = doDepth(paths[keyName][i])
 
 	if args.seq_depth:
 		keyName = "seq_depth_%d" % (args.seq_skip_frames)
 		numData = len(paths[keyName])
+		baseGroupName = "seq_%d" % (args.seq_skip_frames)
 		flushPrint("Doing Depth sequence (%d pictures, %d skip frame)" % (numData, args.seq_skip_frames))
-		prepareData(group, name=keyName, dataShape=(numData, 870, 1820), dtype=np.uint16)
+		prepareData(group, baseGroup=baseGroupName, name="depth", dataShape=(numData, 870, 1820), dtype=np.uint16)
 		for i in range(numData):
 			if i % 10 == 0:
 				flushPrint("Depth sequence %d/%d done." % (i, numData))
-			group[keyName][i] = doDepth(paths[keyName][i])
+			group[baseGroupName]["depth"][i] = doDepth(paths[keyName][i])
 
 	if args.optical_flow:
 		keyName = args.optical_flow_algorithm
 		assert len(paths["rgb"]) == len(paths["rgb_next"])
 		numData = len(paths["rgb"])
 		flushPrint("Doing Optical Flow (%d pictures, %s algorithm)" % (numData, args.optical_flow_algorithm))
-		prepareData(group, name=keyName, dataShape=(numData, 870, 1820, 2), dtype=np.float32)
+		prepareData(group, baseGroup="noseq", name=keyName, dataShape=(numData, 870, 1820, 2), dtype=np.float32)
 		for i in range(numData):
 			if i % 10 == 0:
 				flushPrint("Optical Flow %d/%d done." % (i, numData))
 			image1 = doPng(paths["rgb"][i])
 			image2 = doPng(paths["rgb_next"][i])
-			group[keyName][i] = doFlow(image1, image2)
+			group["noseq"][args.optical_flow_algorithm][i] = doFlow(image1, image2)
 
 	if args.seq_optical_flow:
 		keyNameFlow = "seq_%s_%d" % (args.optical_flow_algorithm, args.seq_skip_frames)
 		keyNameRGB1 = "seq_rgb_%d" % (args.seq_skip_frames)
 		keyNameRGB2 = "seq_rgb_%d_next" % (args.seq_skip_frames)
+		baseGroupName = "seq_%d" % (args.seq_skip_frames)
 		assert len(paths[keyNameRGB1]) == len(paths[keyNameRGB2])
 		numData = len(paths[keyNameRGB1])
 		flushPrint("Doing Optical Flow sequence (%d pictures, %s algorithm)" % (numData, args.optical_flow_algorithm))
@@ -265,7 +274,7 @@ def doTheThingy(file, args, paths):
 				flushPrint("Doing Optical Flow sequence %d/%d done." % (i, numData))
 			image1 = doPng(paths[keyNameRGB1][i])
 			image2 = doPng(paths[keyNameRGB2][i])
-			group[keyNameFlow][i] = doFlow(image1, image2)
+			group[baseGroupName][args.optical_flow_algorithm][i] = doFlow(image1, image2)
 
 def main():
 	args = getArgs()

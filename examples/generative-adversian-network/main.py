@@ -44,10 +44,9 @@ class Discriminator(NeuralNetworkPyTorch):
 		x = x.view(-1, self.inputSize)
 		y1 = F.leaky_relu(self.fc1(x), negative_slope=0.2)
 		y2 = F.leaky_relu(self.fc2(y1), negative_slope=0.2)
-		y3 = self.fc3(y2)
-		y4 = F.sigmoid(y3)
-		y4 = y4.view(y4.shape[0])
-		return y4
+		y3 = F.sigmoid(self.fc3(y2))
+		y3 = y3.view(y3.shape[0])
+		return y3
 
 # For some reasons, results are much better if provided data is in range -1 : 1 (not 0 : 1 or standardized).
 def GANNormalization(obj, data, type):

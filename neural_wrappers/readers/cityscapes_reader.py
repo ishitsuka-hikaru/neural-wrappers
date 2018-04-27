@@ -2,6 +2,20 @@ import numpy as np
 import h5py
 from .dataset_reader import DatasetReader
 
+# Structure:
+# "train"
+# 	"noseq"
+#  		"rgb"
+# 		"semantic"
+# 		"flownet2s"
+# 	"seq_5"
+#		"rgb"
+#		"flownet2s"
+#	"seq_1"
+#	....
+# "validation"
+# ...
+
 # CityScapes Reader class, used with the data already converted in h5py format.
 # @param[in] datasetPath Path the the cityscapes_v2.h5 file
 # @param[in] imageShape The shape of the images. Must coincide with what type of data is required.
@@ -31,9 +45,6 @@ class CityScapesReader(DatasetReader):
 				assert not data == "rgb_first_frame", "RGB First frame is not available for sequential dataset"
 				# Only skipFrames=5 is supported now
 
-		if self.sequentialData:
-			self.dataDimensions = list(map(lambda x : "seq_%s_5" % (x), self.dataDimensions))
-
 		if "semantic" in self.dataDimensions:
 			assert self.semanticTransform in ("default", "foreground-background")
 			if self.semanticTransform == "default":
@@ -43,9 +54,9 @@ class CityScapesReader(DatasetReader):
 
 		# Only skipFrames=5 is supported now
 		if self.sequentialData:
-			self.numData = {Type : len(self.dataset[Type]["seq_rgb_5"]) for Type in ("test", "train", "validation")}
+			self.numData = {Type : len(self.dataset[Type]["seq_5"]["rgb"]) for Type in ("test", "train", "validation")}
 		else:
-			self.numData = {Type : len(self.dataset[Type]["rgb"]) for Type in ("test", "train", "validation")}
+			self.numData = {Type : len(self.dataset[Type]["noseq"]["rgb"]) for Type in ("test", "train", "validation")}
 
 		# These values are directly computed on the training set of the sequential data (superset of original dataset).
 		# They are duplicated for sequential and non-sequential data to avoid unnecessary code.
@@ -54,10 +65,7 @@ class CityScapesReader(DatasetReader):
 			"rgb_first_frame" : [74.96715607296854, 84.3387139353354, 73.62945761147961],
 			"depth" : 8277.619363028218,
 			"flownet2s" : [-0.6396361, 5.553444],
-			"semantic" : 0,
-			"seq_rgb_5" : [74.96715607296854, 84.3387139353354, 73.62945761147961],
-			"seq_depth_5" : 8277.619363028218,
-			"seq_flownet2s_5" : [-0.6396361, 5.553444]
+			"semantic" : 0
 		}
 
 		self.stds = {
@@ -65,16 +73,23 @@ class CityScapesReader(DatasetReader):
 			"rgb_first_frame" : [49.65527668307159, 50.01892939272212, 49.67332749250472],
 			"depth" : 6569.138224069467,
 			"flownet2s" : [32.508713, 15.168872],
-			"semantic" : 1,
-			"seq_rgb_5" : [49.65527668307159, 50.01892939272212, 49.67332749250472],
-			"seq_depth_5" : 6569.138224069467,
-			"seq_flownet2s_5" : [32.508713, 15.168872]
+			"semantic" : 1
 		}
 
 		self.maximums = {
 			"rgb" : [255, 255, 255],
 			"rgb_first_frame" : [255, 255, 255],
-			"depth" : 32257
+			"depth" : 32257,
+			"flownet2s" : [278.29926, 225.12384],
+			"semantic" : 1
+		}
+
+		self.minimums = {
+			"rgb" : [0, 0, 0],
+			"rgb_first_frame" : [0, 0, 0],
+			"depth" : 0,
+			"flownet2s" : [-494.61987, -166.98322],
+			"semantic" : 0
 		}
 
 		self.numDimensions = {
@@ -82,10 +97,7 @@ class CityScapesReader(DatasetReader):
 			"depth": 1,
 			"flownet2s" : 2,
 			"semantic" : 1,
-			"rgb_first_frame" : 3,
-			"seq_rgb_5" : 3,
-			"seq_depth_5" : 1,
-			"seq_flownet2s_5" : 2
+			"rgb_first_frame" : 3
 		}
 
 		requiredDimensions = 0
@@ -123,8 +135,7 @@ class CityScapesReader(DatasetReader):
 	def iterate_once(self, type, miniBatchSize):
 		assert type in ("train", "test", "validation")
 		augmenter = self.dataAugmenter if type == "train" else self.validationAugmenter
-		thisData = self.dataset[type]
-		depthKey = "seq_depth_5" if self.sequentialData else "depth"
+		thisData = self.dataset[type]["seq_5"] if self.sequentialData else self.dataset[type]["noseq"]
 
 		# One iteration in this method accounts for all transforms at once
 		for i in range(self.getNumIterations(type, miniBatchSize, accountTransforms=False)):
@@ -132,7 +143,7 @@ class CityScapesReader(DatasetReader):
 			endIndex = min((i + 1) * miniBatchSize, self.numData[type])
 			assert startIndex < endIndex, "startIndex < endIndex. Got values: %d %d" % (startIndex, endIndex)
 
-			depths = self.normalizer(thisData[depthKey][startIndex : endIndex], depthKey)
+			depths = self.normalizer(thisData["depth"][startIndex : endIndex], "depth")
 			images = []
 			for dim in self.dataDimensions:
 				item = self.normalizer(thisData[dim][startIndex : endIndex], dim)
