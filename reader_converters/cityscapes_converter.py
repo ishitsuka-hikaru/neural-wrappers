@@ -9,11 +9,11 @@ from argparse import ArgumentParser
 
 # TODO: If Optical Flow is used, we need to import the algorithm that computes for each frame using the values at
 #  rgb and rgb_next (or seq_rgb_X and seq_rgb_X_next)
-# sys.path.append("")
+sys.path.append("/export/home/acs/stud/m/mihai_cristian.pirvu/Public/optical-flow/flownet2-pytorch")
 from flownet2s_inference import runImages as flownet2SRunImages
 
 # TODO: If DeepLabV3 is used, we need to import the algorithm that computes it.
-# sys.path.append("")
+sys.path.append("/export/home/acs/stud/m/mihai_cristian.pirvu/Public/DeepLabV3")
 from deeplabv3_inference import runImage as deepLabV3RunImages
 
 def flushPrint(message):
@@ -93,12 +93,10 @@ def setup(args):
 
 	seqRgbPath = args.base_path + os.sep + "leftImg8bit_sequence"
 	seqDepthPath = args.base_path + os.sep + "disparity_sequence"
-	if args.rgb or args.rgb_first_frame or args.seq_rgb or args.seq_optical_flow or args.optical_flow:
-		paths["seq_rgb"] = getPaths(seqRgbPath, args.type)
-	if args.depth or args.seq_depth:
-		paths["seq_depth"] = getPaths(seqDepthPath, args.type)
+	paths["seq_rgb"] = getPaths(seqRgbPath, args.type)
+	paths["seq_depth"] = getPaths(seqDepthPath, args.type)
 
-	if args.rgb or args.optical_flow:
+	if args.rgb or args.optical_flow or args.semantic:
 		# RGB are each 20th frame (out of 30) from seq_rgb
 		indexes = np.arange(len(paths["seq_rgb"]) // 30) * 30 + 19
 		paths["rgb"] = []
@@ -123,7 +121,7 @@ def setup(args):
 			semanticPath = args.base_path + os.sep + "gtFine"
 			paths["semantic"] = getPaths(semanticPath, args.type, semanticConstraint=True)
 
-	if args.seq_rgb or args.seq_optical_flow:
+	if args.seq_rgb or args.seq_optical_flow or args.seq_semantic:
 		indexes = np.arange(0, len(paths["seq_rgb"]), args.seq_skip_frames)
 		# This is needed for optical flow, so the optical flow frames are from same sequence
 		whereIndexes = np.where(indexes % 29 == 0)
@@ -160,10 +158,8 @@ def setup(args):
 		for index in indexes:
 			paths[keyName].append(paths["seq_rgb"][index])
 
-	if "seq_rgb" in paths:
-		del paths["seq_rgb"]
-	if "seq_depth" in paths:
-		del paths["seq_depth"]
+	del paths["seq_rgb"]
+	del paths["seq_depth"]
 
 	return paths
 
@@ -247,22 +243,22 @@ def doTheThingy(file, args, paths):
 			group["noseq"][args.optical_flow_algorithm][i] = doFlow(image1, image2)
 
 	if args.semantic:
-		if args.algorithm == "ground_truth_fine":
+		if args.semantic_algorithm == "ground_truth_fine":
 			numData = len(paths["semantic"])
-			print("Doing Semantic GT Fine (%d pictures)" % (numData))
+			flushPrint("Doing Semantic GT Fine (%d pictures)" % (numData))
 			prepareData(group, baseGroup="noseq", name="semantic_gt_fine", \
 				dataShape=(numData, 870, 1820), dtype=np.uint8)
 			for i in range(numData):
 				if i % 10 == 0:
-					print("Semantic %d/%d done." % (i, numData))
+					flushPrint("Semantic %d/%d done." % (i, numData))
 				group["noseq"]["semantic_gt_fine"][i] = doPng(paths["semantic_gt_fine"][i])
-		elif args.algorithm == "deeplabv3":
+		elif args.semantic_algorithm == "deeplabv3":
 			numData = len(paths["rgb"])
-			print("Doing Semantic DeepLabV3 (%d pictures)" % (numData))
+			flushPrint("Doing Semantic DeepLabV3 (%d pictures)" % (numData))
 			prepareData(group, baseGroup="noseq", name="deeplabv3", dataShape=(numData, 870, 1820), dtype=np.uint8)
 			for i in range(numData):
 				if i % 10 == 0:
-					print("Semantic %d/%d done." % (i, numData))
+					flushPrint("Semantic %d/%d done." % (i, numData))
 				image = doPng(paths["rgb"][i])
 				group["noseq"]["deeplabv3"][i] = deepLabV3RunImages(image, height=870, width=1820)
 
@@ -306,15 +302,16 @@ def doTheThingy(file, args, paths):
 
 	if args.seq_semantic:
 		baseGroupName = "seq_%d" % (args.seq_skip_frames)
-		if args.algorithm == "deeplabv3":
-			numData = len(paths["seq_rgb"])
-			print("Doing Semantic DeepLabV3 (%d pictures)" % (numData))
+		keyNameRGB = "seq_rgb_%d" % (args.seq_skip_frames)
+		if args.semantic_algorithm == "deeplabv3":
+			numData = len(paths[keyNameRGB])
+			flushPrint("Doing Semantic DeepLabV3 sequence (%d pictures)" % (numData))
 			prepareData(group, baseGroup=baseGroupName, name="deeplabv3", \
 				dataShape=(numData, 870, 1820), dtype=np.uint8)
 			for i in range(numData):
 				if i % 10 == 0:
-					print("Semantic %d/%d done." % (i, numData))
-				image = doPng(paths["rgb"][i])
+					flushPrint("Semantic %d/%d done." % (i, numData))
+				image = doPng(paths[keyNameRGB][i])
 				group[baseGroupName]["deeplabv3"][i] = deepLabV3RunImages(image, height=870, width=1820)
 
 def main():
