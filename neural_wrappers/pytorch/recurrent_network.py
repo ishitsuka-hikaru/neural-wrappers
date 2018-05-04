@@ -6,6 +6,7 @@ from torch.autograd import Variable
 from neural_wrappers.utilities import LinePrinter
 from .utils import maybeCuda, maybeCpu
 from inspect import signature
+from datetime import datetime
 
 class RecurrentNeuralNetworkPyTorch(NeuralNetworkPyTorch):
 	def __str__(self):
@@ -19,16 +20,18 @@ class RecurrentNeuralNetworkPyTorch(NeuralNetworkPyTorch):
 	# @param[in] metrics A dictionary containing the metrics over which the epoch is run
 	# @param[in] optimize If true, then the optimizer is also called after each iteration
 	# @return The mean metrics over all the steps.
-	def run_one_epoch(self, generator, stepsPerEpoch, callbacks=[], optimize=False, printMessage=False, debug=False):
-		assert "Loss" in self.metrics.keys(), "Loss metric was not found in metrics."
+	def run_one_epoch(self, generator, stepsPerEpoch, callbacks=[], optimize=False, printMessage=False):
 		if optimize:
 			assert not self.optimizer is None, "Set optimizer before training"
 		assert not self.criterion is None, "Set criterion before training or testing"
+		assert "Loss" in self.metrics.keys(), "Loss metric was not found in metrics."
+		self.checkCallbacks(callbacks)
+		self.callbacksOnEpochStart(callbacks)
 
 		metricResults = {metric : 0 for metric in self.metrics.keys()}
-		linePrinter = LinePrinter()
 		i = 0
 
+		startTime = datetime.now()
 		for i, (npData, npLabels) in enumerate(generator):
 			trData = tr.from_numpy(npData)
 			trLabels = tr.from_numpy(npLabels)
@@ -65,8 +68,6 @@ class RecurrentNeuralNetworkPyTorch(NeuralNetworkPyTorch):
 
 				loss += self.criterion(results, labels)
 			npLoss = maybeCpu(loss.data).numpy()
-			if debug:
-				print("\nLoss: %2.6f" % (npLoss))
 
 			if optimize:
 				self.optimizer.zero_grad()
@@ -74,31 +75,24 @@ class RecurrentNeuralNetworkPyTorch(NeuralNetworkPyTorch):
 				self.optimizer.step()
 
 			# Iteration callbacks are called here (i.e. for plotting results!)
-			callbackArgs = {
-				"data" : npData,
-				"labels" : npLabels,
-				"results" : npResults,
-				"loss" : npLoss,
-				"iteration" : i,
-				"numIterations" : stepsPerEpoch,
-				"hiddenState" : hiddenState
-			}
-			for callback in callbacks:
-				callback(**callbackArgs)
+			# Iteration callbacks are called here (i.e. for plotting results!)
+			self.callbacksOnIterationEnd(callbacks, data=npData, labels=npLabels, results=npResults, loss=npLoss, \
+				iteration=i, numIterations=stepsPerEpoch, hiddenState=hiddenState)
 
 			for metric in self.metrics:
 				metricResults[metric] += self.metrics[metric](npResults, npLabels, loss=npLoss)
 
+			iterFinishTime = (datetime.now() - startTime)
 			if printMessage:
-				message = "Iteration: %d/%d." % (i + 1, stepsPerEpoch)
-				for metric in metricResults:
-					message += " %s: %2.2f." % (metric, metricResults[metric] / (i + 1))
-				linePrinter.print(message)
+				self.linePrinter.print(self.computeIterPrintMessage(i, stepsPerEpoch, metricResults, iterFinishTime))
 
 			del data, labels
 			if i == stepsPerEpoch - 1:
 				break
 
+		if i != stepsPerEpoch - 1:
+			sys.stderr.write("Warning! Number of iterations (%d) does not match expected iterations in reader (%d)" % \
+				(i, stepsPerEpoch - 1))
 		for metric in metricResults:
 			metricResults[metric] /= stepsPerEpoch
 		return metricResults

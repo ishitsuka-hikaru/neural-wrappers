@@ -26,6 +26,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		#  epoch value. Each value of the list is a dictionary that holds by default only loss value, but callbacks
 		#  can add more items to this (like confusion matrix or accuracy, see mnist example).
 		self.trainHistory = []
+		self.linePrinter = LinePrinter()
 		super(NeuralNetworkPyTorch, self).__init__()
 
 	### Various setters for the network ###
@@ -134,13 +135,15 @@ class NeuralNetworkPyTorch(nn.Module):
 	# @param[in] metrics A dictionary containing the metrics over which the epoch is run
 	# @param[in] optimize If true, then the optimizer is also called after each iteration
 	# @return The mean metrics over all the steps.
-	def run_one_epoch(self, generator, stepsPerEpoch, callbacks=[], optimize=False, printMessage=False, debug=False):
+	def run_one_epoch(self, generator, stepsPerEpoch, callbacks=[], optimize=False, printMessage=False):
+		if optimize:
+			assert not self.optimizer is None, "Set optimizer before training"
+		assert not self.criterion is None, "Set criterion before training or testing"
 		assert "Loss" in self.metrics.keys(), "Loss metric was not found in metrics."
 		self.checkCallbacks(callbacks)
 		self.callbacksOnEpochStart(callbacks)
 
 		metricResults = {metric : 0 for metric in self.metrics.keys()}
-		linePrinter = LinePrinter()
 		i = 0
 
 		# The protocol requires the generator to have 2 items, inputs and labels (both can be None). If there are more
@@ -157,8 +160,6 @@ class NeuralNetworkPyTorch(nn.Module):
 			
 			loss = self.criterion(trResults, trLabels)
 			npLoss = maybeCpu(loss.data).numpy()
-			# if debug:
-				# print("\nLoss: %2.6f" % (npLoss))
 
 			if optimize:
 				self.optimizer.zero_grad()
@@ -174,7 +175,7 @@ class NeuralNetworkPyTorch(nn.Module):
 
 			iterFinishTime = (datetime.now() - startTime)
 			if printMessage:
-				linePrinter.print(self.computeIterPrintMessage(i, stepsPerEpoch, metricResults, iterFinishTime))
+				self.linePrinter.print(self.computeIterPrintMessage(i, stepsPerEpoch, metricResults, iterFinishTime))
 
 			if i == stepsPerEpoch - 1:
 				break

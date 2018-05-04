@@ -6,7 +6,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
 from neural_wrappers.pytorch import RecurrentNeuralNetworkPyTorch, maybeCuda, maybeCpu
-from neural_wrappers.callbacks import SaveModels
+from neural_wrappers.callbacks import SaveModels, Callback
 from neural_wrappers.models.resnet50_notop import ResNet50NoTop
 from scipy.misc import toimage
 from Mihlib import readVideo, saveVideo
@@ -59,15 +59,21 @@ def videoGenerator(video, label, numEpochs, numFrames, sequenceSize):
 			currentLabelSeq = np.float32(np.expand_dims(np.array(label[seqStartIndex : seqEndIndex]), axis=0) / 255)
 			yield currentVideoSeq, currentLabelSeq
 
-# At each step during one epoch, get each N : N + s frames, and store them
-def storeFrames(finalArray, sequenceSize, **kwargs):
-	results = kwargs["results"]
-	iteration = kwargs["iteration"]
-	startIndex, endIndex = sequenceSize * iteration, (sequenceSize * iteration) + results.shape[1]
-	print("%d:%d out of %d. Loss %2.2f" % (startIndex, endIndex, sequenceSize * kwargs["numIterations"], kwargs["loss"]))
+class StoreFrames(Callback):
+	def __init__(self, resultShape, sequenceSize):
+		self.result = np.zeros(shape=resultShape, dtype=np.uint8)
+		self.sequenceSize = sequenceSize
 
-	frames = list(map(lambda x : np.array(toimage(x)), results[0]))
-	finalArray[startIndex : endIndex] = frames
+	# At each step during one epoch, get each N : N + s frames, and store them
+	def onIterationEnd(self, **kwargs):
+		results = kwargs["results"]
+		iteration = kwargs["iteration"]
+		startIndex, endIndex = self.sequenceSize * iteration, (self.sequenceSize * iteration) + results.shape[1]
+		print("%d:%d out of %d. Loss %2.2f" % (startIndex, endIndex, \
+			self.sequenceSize * kwargs["numIterations"], kwargs["loss"]))
+
+		frames = list(map(lambda x : np.array(toimage(x)), results[0]))
+		self.result[startIndex : endIndex] = frames
 
 def main():
 	assert sys.argv[1] in ("train", "test", "retrain")
@@ -93,15 +99,12 @@ def main():
 		assert len(sys.argv) == 5
 		# Here label is used just to extract the correct shape
 		model.load_weights(sys.argv[4])
-
-		result = np.zeros(shape=(numFrames, *label.frame_shape), dtype=np.uint8)
-		storeFramesCallback = partial(storeFrames, finalArray=result, sequenceSize=sequenceSize)
 		generator = videoGenerator(video, label, numEpochs=10, numFrames=numFrames, sequenceSize=sequenceSize)
 		numSequences = numFrames // sequenceSize + (numFrames % sequenceSize != 0)
+		storeFrames = StoreFrames(resultShape=(numFrames, *label.frame_shape), sequenceSize=sequenceSize)
+		model.test_generator(generator, stepsPerEpoch=numSequences, callbacks=[storeFrames])
 
-		model.test_generator(generator, stepsPerEpoch=numSequences, callbacks=[storeFramesCallback])
-		print(np.mean(result), np.std(result), np.min(result), np.max(result))
-		saveVideo(npData=result, fileName="video_result.mp4", fps=video.frame_rate)
+		saveVideo(npData=storeFrames.result, fileName="video_result.mp4", fps=video.frame_rate)
 	elif sys.argv[1] == "retrain":
 		assert len(sys.argv) == 6
 		model.load_model(sys.argv[4])

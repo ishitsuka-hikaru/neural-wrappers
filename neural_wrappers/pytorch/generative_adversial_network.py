@@ -13,7 +13,6 @@ class GenerativeAdversialNetwork(NeuralNetworkPyTorch):
 		super().__init__()
 		self.generator = maybeCuda(generator)
 		self.discriminator = maybeCuda(discriminator)
-		self.linePrinter = LinePrinter()
 
 		self.metrics = {
 			"LossG" : (lambda x, y, **k : k["lossG"]),
@@ -43,7 +42,6 @@ class GenerativeAdversialNetwork(NeuralNetworkPyTorch):
 		self.callbacksOnEpochStart(callbacks)
 
 		metricResults = {metric : 0 for metric in self.metrics.keys()}
-		linePrinter = LinePrinter()
 		i = 0
 
 		startTime = datetime.now()
@@ -88,7 +86,7 @@ class GenerativeAdversialNetwork(NeuralNetworkPyTorch):
 
 			iterFinishTime = (datetime.now() - startTime)
 			if printMessage:
-				linePrinter.print(self.computeIterPrintMessage(i, stepsPerEpoch, metricResults, iterFinishTime))
+				self.linePrinter.print(self.computeIterPrintMessage(i, stepsPerEpoch, metricResults, iterFinishTime))
 
 			if i == stepsPerEpoch - 1:
 				break
