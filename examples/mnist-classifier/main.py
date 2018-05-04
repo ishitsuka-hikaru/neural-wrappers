@@ -86,7 +86,7 @@ def main():
 
 	model = maybeCuda(ModelFC() if sys.argv[2] == "model_fc" else ModelConv())
 	model.setOptimizer(optim.SGD, lr=0.01, momentum=0.5)
-	model.setMetrics({"Loss" : Loss(), "Accuracy" : Accuracy(categoricalLabels=True)})
+	model.setMetrics({"Accuracy" : Accuracy(categoricalLabels=True)})
 	# Negative log-likeklihood (used for softmax+NLL for classification), expecting targets are one-hot encoded
 	model.setCriterion(lambda y, t : tr.mean(-tr.log(y[t] + 1e-5)))
 	print(model.summary())

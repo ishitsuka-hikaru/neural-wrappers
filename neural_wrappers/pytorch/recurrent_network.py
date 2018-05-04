@@ -20,10 +20,14 @@ class RecurrentNeuralNetworkPyTorch(NeuralNetworkPyTorch):
 	# @param[in] optimize If true, then the optimizer is also called after each iteration
 	# @return The mean metrics over all the steps.
 	def run_one_epoch(self, generator, stepsPerEpoch, callbacks=[], optimize=False, printMessage=False, debug=False):
-		assert "Loss" in self.metrics.keys(), "At least one metric is required and Loss must be in them"
-		assert not self.criterion is None, "Expected a criterion/loss to be set before training/testing."
+		assert "Loss" in self.metrics.keys(), "Loss metric was not found in metrics."
+		if optimize:
+			assert not self.optimizer is None, "Set optimizer before training"
+		assert not self.criterion is None, "Set criterion before training or testing"
+
 		metricResults = {metric : 0 for metric in self.metrics.keys()}
 		linePrinter = LinePrinter()
+		i = 0
 
 		for i, (npData, npLabels) in enumerate(generator):
 			trData = tr.from_numpy(npData)

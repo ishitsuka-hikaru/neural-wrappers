@@ -44,20 +44,15 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.criterion = criterion
 
 	def setMetrics(self, metrics):
-		assert "Loss" in metrics, "At least one metric is required and Loss must be in them"
-		if type(metrics) in (list, tuple):
-			for metric in metrics:
-				if metric == "Accuracy":
-					self.metrics[metric] = Accuracy(categoricalLabels=True)
-				elif metric == "Loss":
-					self.metrics[metric] = Loss()
-				else:
-					raise NotImplementedError("Unknown metric provided: " + metric + ". Use dict and implementation")
-		else:
-			for key in metrics:
-				if not type(key) is str:
-					raise Exception("The key of the metric must be a string")
-			self.metrics = metrics
+		assert not "Loss" in metrics, "Cannot overwrite Loss metric. This is added by default for all networks."
+		assert type(metrics) == dict, "Metrics must be provided as Str=>Callback dictionary"
+
+		for key in metrics:
+			assert type(key) == str, "The key of the metric must be a string"
+			assert hasattr(metrics[key], "__call__"), "The user provided transformation %s must be callable" % (key)
+		self.metrics = metrics
+		# Set Loss metric, which should always be there.
+		self.metrics["Loss"] = Loss()
 
 	def summary(self):
 		summaryStr = "[Model summary]\n"
@@ -110,11 +105,28 @@ class NeuralNetworkPyTorch(nn.Module):
 			trData = Variable(maybeCuda(tr.from_numpy(data)), requires_grad=optimize)
 		return trData
 
+	# Checks that callbacks are indeed a subclass of the ABC Callback.
 	def checkCallbacks(self, callbacks):
 		for callback in callbacks:
 			mro = type(callback).mro()
 			assert Callback in type(callback).mro(), \
 				"Expected only subclass of types Callback, got type %s" % (type(callback))
+
+	# Other neural network architectures can update these
+	def callbacksOnEpochStart(self, callbacks):
+		# Call onEpochStart here, using only basic args
+
+		if self.trainHistory != [] and len(self.trainHistory) >= self.currentEpoch:
+			trainHistory = self.trainHistory[self.currentEpoch - 1]
+		else:
+			trainHistory = None
+
+		for callback in callbacks:
+			callback.onEpochStart(model=self, epoch=self.currentEpoch, trainHistory=trainHistory)
+
+	def callbacksOnIterationEnd(self, callbacks, **kwargs):
+		for callback in callbacks:
+			callback.onIterationEnd(**kwargs)
 
 	# Basic method that does a forward phase for one epoch given a generator. It can apply a step of optimizer or not.
 	# @param[in] generator Object used to get a batch of data and labels at each step
@@ -123,26 +135,18 @@ class NeuralNetworkPyTorch(nn.Module):
 	# @param[in] optimize If true, then the optimizer is also called after each iteration
 	# @return The mean metrics over all the steps.
 	def run_one_epoch(self, generator, stepsPerEpoch, callbacks=[], optimize=False, printMessage=False, debug=False):
-		assert "Loss" in self.metrics.keys(), "At least one metric is required and Loss must be in them"
+		assert "Loss" in self.metrics.keys(), "Loss metric was not found in metrics."
 		self.checkCallbacks(callbacks)
+		self.callbacksOnEpochStart(callbacks)
 
 		metricResults = {metric : 0 for metric in self.metrics.keys()}
 		linePrinter = LinePrinter()
 		i = 0
-		startTime = datetime.now()
-
-		# Call onEpochStart here, using only basic args
-		callbackArgs = {
-			"model" : self,
-			"epoch" : self.currentEpoch,
-			"trainHistory" : self.trainHistory[self.currentEpoch - 1] if self.trainHistory != [] else None
-		}
-		for callback in callbacks:
-			callback.onEpochStart(**callbackArgs)
 
 		# The protocol requires the generator to have 2 items, inputs and labels (both can be None). If there are more
 		#  inputs, they can be packed together (stacked) or put into a list, in which case the ntwork will receive the
 		#  same list, but every element in the list is tranasformed in torch format.
+		startTime = datetime.now()
 		for i, items in enumerate(generator):
 			npInputs, npLabels = items
 			trInputs = self.getTrData(npInputs, optimize=optimize)
@@ -162,31 +166,15 @@ class NeuralNetworkPyTorch(nn.Module):
 				self.optimizer.step()
 
 			# Iteration callbacks are called here (i.e. for plotting results!)
-			callbackArgs = {
-				"data" : npInputs,
-				"labels" : npLabels,
-				"results" : npResults,
-				"loss" : npLoss,
-				"iteration" : i,
-				"numIterations" : stepsPerEpoch
-			}
-			for callback in callbacks:
-				callback.onIterationEnd(**callbackArgs)
+			self.callbacksOnIterationEnd(callbacks, data=npInputs, labels=npLabels, results=npResults, loss=npLoss, \
+				iteration=i, numIterations=stepsPerEpoch)
 
 			for metric in self.metrics:
 				metricResults[metric] += self.metrics[metric](npResults, npLabels, loss=npLoss)
 
 			iterFinishTime = (datetime.now() - startTime)
 			if printMessage:
-				message = "Iteration: %d/%d." % (i + 1, stepsPerEpoch)
-				for metric in metricResults:
-					message += " %s: %2.2f." % (metric, metricResults[metric] / (i + 1))
-				# iterFinishTime / (i + 1) is the current estimate per iteration. That value times stepsPerEpoch is
-				#  the current estimation per epoch. That value minus current time is the current estimation for
-				#  time remaining for this epoch. It can also go negative near end of epoch, so use abs.
-				ETA = abs(iterFinishTime / (i + 1) * stepsPerEpoch - iterFinishTime)
-				message += " ETA: %s" % (ETA)
-				linePrinter.print(message)
+				linePrinter.print(self.computeIterPrintMessage(i, stepsPerEpoch, metricResults, iterFinishTime))
 
 			if i == stepsPerEpoch - 1:
 				break
@@ -227,6 +215,17 @@ class NeuralNetworkPyTorch(nn.Module):
 		return self.test_generator(dataGenerator, stepsPerEpoch=numIterations, callbacks=callbacks, \
 			printMessage=printMessage)
 
+	def computeIterPrintMessage(self, i, stepsPerEpoch, metricResults, iterFinishTime):
+		message = "Iteration: %d/%d." % (i + 1, stepsPerEpoch)
+		for metric in metricResults:
+			message += " %s: %2.2f." % (metric, metricResults[metric] / (i + 1))
+		# iterFinishTime / (i + 1) is the current estimate per iteration. That value times stepsPerEpoch is
+		#  the current estimation per epoch. That value minus current time is the current estimation for
+		#  time remaining for this epoch. It can also go negative near end of epoch, so use abs.
+		ETA = abs(iterFinishTime / (i + 1) * stepsPerEpoch - iterFinishTime)
+		message += " ETA: %s" % (ETA)
+		return message
+
 	# Computes the message that is printed to the stdout. This method is also called by SaveHistory callback.
 	# @param[in] kwargs The arguments sent to any regular callback.
 	# @return A string that contains the one-line message that is printed at each end of epoch.
@@ -258,7 +257,6 @@ class NeuralNetworkPyTorch(nn.Module):
 	#  of the types are called at the en of epoch (method onEpochEnd).
 	def train_generator(self, generator, stepsPerEpoch, numEpochs, callbacks=[], validationGenerator=None, \
 		validationSteps=0, printMessage=True):
-		assert self.optimizer != None and self.criterion != None, "Set optimizer and criterion before training"
 		self.checkCallbacks(callbacks)
 
 		if printMessage:

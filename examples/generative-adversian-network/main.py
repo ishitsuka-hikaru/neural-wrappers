@@ -13,8 +13,10 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 
 class Generator(NeuralNetworkPyTorch):
-	def __init__(self, outputSize=28 * 28):
+	def __init__(self, inputSize, outputSize=28 * 28):
 		super().__init__()
+		self.inputSize = inputSize
+
 		self.fc1 = nn.Linear(100, 128)
 		self.fc2 = nn.Linear(128, 256)
 		self.bn2 = nn.BatchNorm1d(256)
@@ -96,9 +98,10 @@ def main():
 	numEpochs = 200
 
 	# Define model
-	GAN = maybeCuda(GenerativeAdversialNetwork(generator=Generator(), discriminator=Discriminator()))
+	GAN = maybeCuda(GenerativeAdversialNetwork(generator=Generator(100), discriminator=Discriminator()))
 	GAN.generator.setOptimizer(tr.optim.Adam, lr=0.0002, betas=(0.5, 0.999))
 	GAN.discriminator.setOptimizer(tr.optim.Adam, lr=0.0002, betas=(0.5, 0.999))
+	GAN.setCriterion(tr.nn.BCELoss())
 
 	# Define reader, generator and callbacks
 	reader = MNISTReader(sys.argv[2], normalization=GANNormalization)

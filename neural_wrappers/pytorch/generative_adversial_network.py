@@ -11,99 +11,94 @@ from neural_wrappers.utilities import LinePrinter
 class GenerativeAdversialNetwork(NeuralNetworkPyTorch):
 	def __init__(self, generator, discriminator):
 		super().__init__()
-		self.generator = generator.cuda()
-		self.discriminator = discriminator.cuda()
-		self.criterion = tr.nn.BCELoss().cuda()
+		self.generator = maybeCuda(generator)
+		self.discriminator = maybeCuda(discriminator)
 		self.linePrinter = LinePrinter()
 
-	def run_one_epoch(self, generator, stepsPerEpoch):
-		npLossD, npLossG = 0, 0
+		self.metrics = {
+			"LossG" : (lambda x, y, **k : k["lossG"]),
+			"LossD" : (lambda x, y, **k : k["lossD"])
+		}
+
+	def setMetrics(self, metrics):
+		assert not "LossG" in metrics, "Cannot overwrite generator Loss metric."
+		assert not "LossD" in metrics, "Cannot overwrite discriminator Loss metric."
+
+		for key in metrics:
+			assert type(key) == str, "The key of the metric must be a string"
+			assert hasattr(metrics[key], "__call__"), "The user provided transformation %s must be callable" % (key)
+		self.metrics = metrics
+		# Set LossG and LossD by default
+		self.metrics["LossG"] = lambda x, y, **k : k["lossG"]
+		self.metrics["LossD"] = lambda x, y, **k : k["lossD"]
+
+	def run_one_epoch(self, generator, stepsPerEpoch, callbacks=[], optimize=False, printMessage=False):
+		if optimize:
+			assert not self.generator.optimizer is None, "Set generator optimizer before training"
+			assert not self.discriminator.optimizer is None, "Set discriminator optimizer before training"
+		assert not self.criterion is None, "Set criterion before training or testing"
+		assert "LossG" in self.metrics.keys(), "Generator Loss metric was not found in metrics."
+		assert "LossD" in self.metrics.keys(), "Discriminator Loss metric was not found in metrics."
+		self.checkCallbacks(callbacks)
+		self.callbacksOnEpochStart(callbacks)
+
+		metricResults = {metric : 0 for metric in self.metrics.keys()}
+		linePrinter = LinePrinter()
+		i = 0
+
 		startTime = datetime.now()
-		for i in range(stepsPerEpoch):
-			imgs, _ = next(generator)
-			imgs = tr.from_numpy(imgs)
+		for i, items in enumerate(generator):
+			npInputs, _ = items
+			trInputs = self.getTrData(npInputs, optimize=optimize)
+			batchSize = npInputs.shape[0]
 
 			# Adversarial ground truths
-			fake = Variable(tr.zeros(imgs.shape[0]).cuda(), requires_grad=False)
-			valid = Variable(tr.ones(imgs.shape[0]).cuda(), requires_grad=False)
+			fakeLabels = Variable(maybeCuda(tr.zeros(batchSize)))
+			validLabels = Variable(maybeCuda(tr.ones(batchSize)))
 
-			# Configure input
-			real_imgs = Variable(maybeCuda(imgs))
-
-			#  Train Generator
-			# -----------------
-
-			self.generator.optimizer.zero_grad()
-
-			# Sample noise as generator input
-			z = Variable(tr.randn(imgs.shape[0], 100).cuda())
-
-			# Generate a batch of images
-			gen_imgs = self.generator(z)
+			# Train Generator
+			# Sample noise as generator input and generate a bunch of data
+			z = Variable(maybeCuda(tr.randn(batchSize, self.generator.inputSize)))
+			trGeneratedInput = self.generator(z)
 
 			# Loss measures generator's ability to fool the discriminator
-			g_loss = self.criterion(self.discriminator(gen_imgs), valid)
-			npLossG += maybeCpu(g_loss.data).numpy()
+			trLossG = self.criterion(self.discriminator(trGeneratedInput), validLabels)
+			npLossG = maybeCpu(trLossG.data).numpy()
 
-			g_loss.backward()
-			self.generator.optimizer.step()
+			if optimize:
+				self.generator.optimizer.zero_grad()
+				trLossG.backward()
+				self.generator.optimizer.step()
 
-			# ---------------------
-			#  Train Discriminator
-			# ---------------------
-
-			self.discriminator.optimizer.zero_grad()
-
+			# Train Discriminator
 			# Measure discriminator's ability to classify real from generated samples
-			real_loss = self.criterion(self.discriminator(real_imgs), valid)
-			fake_loss = self.criterion(self.discriminator(gen_imgs.detach()), fake)
-			d_loss = (real_loss + fake_loss) / 2
-			npLossD += maybeCpu(d_loss.data).numpy()
+			trRealLossD = self.criterion(self.discriminator(trInputs), validLabels)
+			trFakeLossD = self.criterion(self.discriminator(trGeneratedInput.detach()), fakeLabels)
+			trLossD = (trRealLossD + trFakeLossD) / 2
+			npLossD = maybeCpu(trLossD.data).numpy()
 
-			d_loss.backward()
-			self.discriminator.optimizer.step()
+			if optimize:
+				self.discriminator.optimizer.zero_grad()
+				trLossD.backward()
+				self.discriminator.optimizer.step()
+
+			# TODO: see what kind of inputs, may be good here, for now keep API same for metrics.
+			for metric in self.metrics:
+				metricResults[metric] += self.metrics[metric](None, None, lossG=npLossG, lossD=npLossD)
 
 			iterFinishTime = (datetime.now() - startTime)
-			ETA = abs(iterFinishTime / (i + 1) * stepsPerEpoch - iterFinishTime)
-			self.linePrinter.print("Epoch: %d/%d. Iteration: %d/%d Loss D: %2.2f. Loss G: %2.2f. ETA: %s" % \
-				(self.currentEpoch, self.numEpochs, i, stepsPerEpoch, npLossD / (i + 1), npLossG / (i + 1), ETA))
+			if printMessage:
+				linePrinter.print(self.computeIterPrintMessage(i, stepsPerEpoch, metricResults, iterFinishTime))
 
-		return npLossD / stepsPerEpoch, npLossG / stepsPerEpoch
+			if i == stepsPerEpoch - 1:
+				break
 
-	def train_generator(self, generator, stepsPerEpoch, numEpochs, callbacks=[]):
-		self.checkCallbacks(callbacks)
-		self.numEpochs = numEpochs
-
-		self.linePrinter.print("Training for %d epochs...\n" % (numEpochs))
-		while self.currentEpoch < numEpochs + 1:
-			self.trainHistory.append({})
-
-			now = datetime.now()
-			npLossD, npLossG = self.run_one_epoch(generator, stepsPerEpoch)
-			duration = datetime.now() - now
-
-			self.linePrinter.print("Epoch: %d/%d. Loss D: %2.2f. Loss G: %2.2f. Took %s\n" % \
-				(self.currentEpoch, numEpochs, npLossD, npLossG, duration))
-
-			self.trainHistory[self.currentEpoch - 1] = {
-				"generatorLoss" : npLossG,
-				"discriminatorLoss" : npLossD
-			}
-
-			# Do the callbacks for the end of epoch.
-			callbackArgs = {
-				"model" : self,
-				"epoch" : self.currentEpoch,
-				"numEpochs" : numEpochs,
-				"duration" : duration,
-				"trainHistory" : self.trainHistory[self.currentEpoch - 1],
-				"trainMetrics": None,
-				"validationMetrics" : None
-			}
-			for callback in callbacks:
-				callback.onEpochEnd(**callbackArgs)
-
-			self.currentEpoch += 1
+		if i != stepsPerEpoch - 1:
+			sys.stderr.write("Warning! Number of iterations (%d) does not match expected iterations in reader (%d)" % \
+				(i, stepsPerEpoch - 1))
+		for metric in metricResults:
+			metricResults[metric] /= stepsPerEpoch
+		return metricResults
 
 	def save_model(self, path):
 		generatorState = {
