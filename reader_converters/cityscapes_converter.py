@@ -250,7 +250,7 @@ def doTheThingy(file, args, paths):
 				dataShape=(numData, 870, 1820), dtype=np.uint8)
 			for i in range(numData):
 				if i % 10 == 0:
-					flushPrint("Semantic %d/%d done." % (i, numData))
+					flushPrint("Semantic GT Fine %d/%d done." % (i, numData))
 				group["noseq"]["semantic_gt_fine"][i] = doPng(paths["semantic_gt_fine"][i])
 		elif args.semantic_algorithm == "deeplabv3":
 			numData = len(paths["rgb"])
@@ -258,7 +258,7 @@ def doTheThingy(file, args, paths):
 			prepareData(group, baseGroup="noseq", name="deeplabv3", dataShape=(numData, 870, 1820), dtype=np.uint8)
 			for i in range(numData):
 				if i % 10 == 0:
-					flushPrint("Semantic %d/%d done." % (i, numData))
+					flushPrint("Semantic DeepLabV3 %d/%d done." % (i, numData))
 				image = doPng(paths["rgb"][i])
 				group["noseq"]["deeplabv3"][i] = deepLabV3RunImages(image, height=870, width=1820)
 

@@ -41,18 +41,21 @@ class CityScapesReader(DatasetReader):
 
 		# Validty checks for data dimensions.
 		for data in self.dataDimensions:
-			assert data in ("rgb", "depth", "flownet2s", "ground_truth_fine", "rgb_first_frame"), "Got %s" % (data)
+			assert data in ("rgb", "depth", "flownet2s", "ground_truth_fine", "rgb_first_frame", "deeplabv3"), \
+				"Got %s" % (data)
 			if self.sequentialData == True:
 				assert not data == "ground_truth_fine", "Semantic data is not available for sequential dataset"
 				assert not data == "rgb_first_frame", "RGB First frame is not available for sequential dataset"
 				# Only skipFrames=5 is supported now
 
 		if "ground_truth_fine" in self.dataDimensions or "deeplabv3" in self.dataDimensions:
-			assert self.semanticTransform in ("default", "foreground-background")
+			assert self.semanticTransform in ("default", "foreground-background", "none")
 			if self.semanticTransform == "default":
 				self.prepareSemantic = self.semanticDefault
 			elif self.semanticTransform == "foreground-background":
 				self.prepareSemantic = self.semanticFGBG
+			elif self.semanticTransform == "none":
+				self.prepareSemantic = lambda x : np.expand_dims(x, axis=-1)
 
 		# Only skipFrames=5 is supported now
 		if self.sequentialData:
