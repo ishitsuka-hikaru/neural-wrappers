@@ -6,6 +6,7 @@ from .upsample import UpSampleLayer
 from .resnet50_notop import ResNet50NoTop
 from .squeezenet_notop import SqueezeNetNoTop
 from .identity import IdentityLayer
+from .model_mobilenetv2_cifar10 import MobileNetV2Cifar10
 
 __all__ = ["ModelEigen", "ModelLaina", "ModelUNet", "UpSampleLayer", "ResNet50NoTop", "SqueezeNetNoTop", \
-	"IdentityLayer", "ModelUNetDilatedConv"]
+	"IdentityLayer", "ModelUNetDilatedConv", "MobileNetV2Cifar10"]
