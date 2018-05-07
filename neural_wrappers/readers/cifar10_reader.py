@@ -4,9 +4,9 @@ from .dataset_reader import ClassificationDatasetReader
 from neural_wrappers.transforms import Transformer
 from neural_wrappers.utilities import toCategorical
 
-class MNISTReader(ClassificationDatasetReader):
-	def __init__(self, datasetPath, imagesShape=(28, 28), transforms=["none"], normalization="standardization"):
-		assert len(imagesShape) == 2
+class Cifar10Reader(ClassificationDatasetReader):
+	def __init__(self, datasetPath, imagesShape=(32, 32, 3), transforms=["none"], normalization="standardization"):
+		assert len(imagesShape) == 3
 		super().__init__(datasetPath, imagesShape, None, transforms, normalization)
 		self.dataAugmenter = Transformer(transforms, dataShape=imagesShape)
 		self.testAugmenter = Transformer(["none"], dataShape=imagesShape)
@@ -15,31 +15,31 @@ class MNISTReader(ClassificationDatasetReader):
 	def setup(self):
 		self.dataset = h5py.File(self.datasetPath, "r")
 		self.numData = {
-			"train" : 60000,
+			"train" : 50000,
 			"test" : 10000
 		}
 
 		self.numDimensions = {
-			"images" : 1
+			"images" : 3
 		}
 
 		self.means = {
-			"images" : 33.318421449829934
+			"images" : [125.306918046875, 122.950394140625, 113.86538318359375]
 		}
 
 		self.stds = {
-			"images" : 78.56748998339798
+			"images" : [62.993219278136884, 62.08870764001421, 66.70489964063091]
 		}
 
 		self.minimums = {
-			"images" : 0
+			"images" : [0, 0, 0]
 		}
 
 		self.maximums = {
-			"images" : 255
+			"images" : [255, 255, 255]
 		}
 
-		print("[MNIST Reader] Setup complete")
+		print("[Cifar10 Reader] Setup complete")
 
 	def iterate_once(self, type, miniBatchSize):
 		assert type in ("train", "test")
@@ -63,4 +63,4 @@ class MNISTReader(ClassificationDatasetReader):
 		return 10
 
 	def getClasses(self):
-		return ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+		return ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]

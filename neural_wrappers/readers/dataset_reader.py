@@ -104,7 +104,7 @@ class DatasetReader:
 				del items
 
 	# Finds the number of iterations needed for each type, given a miniBatchSize. Eachs transformations adds a new set
-	#  of parameters. If none are present then just one set of parameters 
+	#  of parameters. If none are present then just one set of parameters
 	# @param[in] type The type of data from which this is computed (e.g "train", "test", "validation")
 	# @param[in] miniBatchSize How many data from all the data is taken at every iteration
 	# @param[in] accountTransforms Take into account transformations or not. True value is used in neural_network

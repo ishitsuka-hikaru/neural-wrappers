@@ -3,10 +3,12 @@ How to install:
     - Example .bashrc: `export PYTHONPATH="$PYTHONPATH:/path/to/neural-wrappers/src"`
 
 Structure of this project:
-- examples/ 
-    - mnist-classifier - Simple MNIST classifier using 2 networks (FC and Conv). See this for basic usage of the framework
+- examples/
+    - mnist-cifar10-classifier - Simple MNIST and Cifar10 classifier using 2 networks (FC and Conv). See this for basic usage of the framework
     - char-rnn - Implementation of a simple recurrent network that predicts one character after another. Inspired by: http://karpathy.github.io/2015/05/21/rnn-effectiveness/
     - video-autoencoder - Implementation of a simple video auto-encoder, that takes two videos (say 240p and 120p) and creates a convolutional + LSTM network that tries to compress the given video. Can be used to generate a new video of a smaller dimension (or even increase resolution, if a better model would be implemented)
+    - variational-autoencoder - Implementation of a standard VAE, a reconstruction CVAE and a class-based CVAE, tested on MNIST
+    - generative-adversian-network - Implementation of the standard GAN, tested on MNIST
 - neural_wrappers/
 	- dataset_reader/ - Base class for all readers and various readers for known datasets.
 	- models/ - Various models from different papers implemented. May contain additional or missing features from
@@ -21,5 +23,5 @@ Structure of this project:
 - test/
     - Unit tests for all the implemented modules (WIP)
     - To run tests, go in the tests directory and type 'pytest' in the console. Requires the pytest module to be
-	 installed, which can be done using `pip install pytest`.
+	 installed, which can be done using `pip install pytest`
 - README.md - this file
