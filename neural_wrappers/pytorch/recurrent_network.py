@@ -31,10 +31,11 @@ class RecurrentNeuralNetworkPyTorch(NeuralNetworkPyTorch):
 		metricResults = {metric : 0 for metric in self.metrics.keys()}
 		i = 0
 
+		self.setTrainable(optimize)
 		if optimize:
 			optimizeCallback = (lambda optim, loss : (optim.zero_grad(), loss.backward(), optim.step()))
 		else:
-			optimizeCallback = lambda x, y : x, y
+			optimizeCallback = (lambda optim, loss : loss.backward(retain_graph=False))
 
 		startTime = datetime.now()
 		for i, (npData, npLabels) in enumerate(generator):

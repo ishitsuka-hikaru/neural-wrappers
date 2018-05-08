@@ -39,30 +39,46 @@ class GenerativeAdversialNetwork(NeuralNetworkPyTorch):
 	# @param[in] optimize A flag that specifies whether backpropagation is ran on the trainable weights or not.
 	#  TODO: decide whether to include 2 flags, one for generator and one for discriminator
 	# @param[in] printMessage A flag that specifies whether the training iterations message is shown.
-	# @param[in] numStepsD Training GANs is tricky. Sometimes more successive steps are required for generator or
-	#  discriminator, for better learning. This parameter specifies how many successive steps for discriminator are
-	#  ran before training the generator in the alternative fashion.
-	# @param[in] numStepsG Same as numStepsD, but for generator
-	# @note The last 2 parameters are sent from network/train_generator through the **kwargs property.
+	# @param_optional[in] numStepsD Training GANs is tricky. Sometimes more successive steps are required for generator
+	#  or discriminator, for better learning. This parameter specifies how many successive steps for discriminator are
+	#  ran before training the generator in the alternative fashion. If not specified, defaults to 1.
+	# @param_optional[in] numStepsG Same as numStepsD, but for generator.
+	# @param_optional[in] optimizeD Whether to optimize the discriminator. If not specified, defaults to the value
+	#  specified by the optimize parameter.
+	# @param_optional[in] optimizeG Whether to optimize the generator. If not specified, defaults to the value
+	#  specified by the optimize parameter.
 	def run_one_epoch(self, dataGenerator, stepsPerEpoch, callbacks=[], optimize=False, \
-		printMessage=False, numStepsD=1, numStepsG=1):
+		printMessage=False, **kwargs):
 		if optimize:
 			assert not self.generator.optimizer is None, "Set generator optimizer before training"
 			assert not self.discriminator.optimizer is None, "Set discriminator optimizer before training"
 		assert not self.criterion is None, "Set criterion before training or testing"
 		assert "LossG" in self.metrics.keys(), "Generator Loss metric was not found in metrics."
 		assert "LossD" in self.metrics.keys(), "Discriminator Loss metric was not found in metrics."
+
+		numStepsD = kwargs["numStepsD"] if "numStepsD" in kwargs else 1
+		numStepsG = kwargs["numStepsG"] if "numStepsG" in kwargs else 1
 		assert numStepsD > 0 and numStepsG > 0
+		optimizeD = kwargs["optimizeD"] if "optimizeD" in kwargs else optimize
+		optimizeG = kwargs["optimizeG"] if "optimizeG" in kwargs else optimize
+
 		self.checkCallbacks(callbacks)
 		self.callbacksOnEpochStart(callbacks)
 
 		metricResults = {metric : 0 for metric in self.metrics.keys()}
 		i = 0
 
-		if optimize:
-			optimizeCallback = (lambda optim, loss : (optim.zero_grad(), loss.backward(), optim.step()))
+		self.discriminator.setTrainable(optimizeD)
+		if optimizeD:
+			optimizeCallbackD = (lambda optim, loss : (optim.zero_grad(), loss.backward(), optim.step()))
 		else:
-			optimizeCallback = lambda x, y : x, y
+			optimizeCallbackD = (lambda optim, loss : loss.backward(retain_graph=False))
+
+		self.generator.setTrainable(optimizeG)
+		if optimizeG:
+			optimizeCallbackG = (lambda optim, loss : (optim.zero_grad(), loss.backward(), optim.step()))
+		else:
+			optimizeCallbackG = (lambda optim, loss : loss.backward(retain_graph=False))
 
 		startTime = datetime.now()
 		while True:
@@ -88,7 +104,7 @@ class GenerativeAdversialNetwork(NeuralNetworkPyTorch):
 				trFakeLossD = self.criterion(self.discriminator(trGeneratedInput.detach()), fakeLabels)
 				trLossD = (trRealLossD + trFakeLossD) / 2
 				npLossD += maybeCpu(trLossD.data).numpy()
-				optimizeCallback(self.discriminator.optimizer, trLossD)
+				optimizeCallbackD(self.discriminator.optimizer, trLossD)
 
 			npLossG = 0
 			for j in range(numStepsG):
@@ -99,7 +115,7 @@ class GenerativeAdversialNetwork(NeuralNetworkPyTorch):
 				# Loss measures generator's ability to fool the discriminator
 				trLossG = self.criterion(self.discriminator(trGeneratedInput), validLabels)
 				npLossG += maybeCpu(trLossG.data).numpy()
-				optimizeCallback(self.generator.optimizer, trLossG)
+				optimizeCallbackG(self.generator.optimizer, trLossG)
 
 			# TODO: see what kind of inputs, may be good here, for now keep API same for metrics.
 			for metric in self.metrics:

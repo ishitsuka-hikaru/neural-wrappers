@@ -55,6 +55,10 @@ class NeuralNetworkPyTorch(nn.Module):
 		# Set Loss metric, which should always be there.
 		self.metrics["Loss"] = Loss()
 
+	def setTrainable(self, mode):
+		for param in self.parameters():
+			param.requires_grad = mode
+
 	def summary(self):
 		summaryStr = "[Model summary]\n"
 		summaryStr += self.__str__() + "\n"
@@ -146,10 +150,11 @@ class NeuralNetworkPyTorch(nn.Module):
 		metricResults = {metric : 0 for metric in self.metrics.keys()}
 		i = 0
 
+		self.setTrainable(optimize)
 		if optimize:
 			optimizeCallback = (lambda optim, loss : (optim.zero_grad(), loss.backward(), optim.step()))
 		else:
-			optimizeCallback = lambda x, y : x, y
+			optimizeCallback = (lambda optim, loss : loss.backward(retain_graph=False))
 
 		# The protocol requires the generator to have 2 items, inputs and labels (both can be None). If there are more
 		#  inputs, they can be packed together (stacked) or put into a list, in which case the ntwork will receive the
