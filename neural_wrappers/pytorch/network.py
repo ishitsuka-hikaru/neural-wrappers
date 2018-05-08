@@ -146,6 +146,11 @@ class NeuralNetworkPyTorch(nn.Module):
 		metricResults = {metric : 0 for metric in self.metrics.keys()}
 		i = 0
 
+		if optimize:
+			optimizeCallback = (lambda optim, loss : (optim.zero_grad(), loss.backward(), optim.step()))
+		else:
+			optimizeCallback = lambda x, y : x, y
+
 		# The protocol requires the generator to have 2 items, inputs and labels (both can be None). If there are more
 		#  inputs, they can be packed together (stacked) or put into a list, in which case the ntwork will receive the
 		#  same list, but every element in the list is tranasformed in torch format.
@@ -160,11 +165,7 @@ class NeuralNetworkPyTorch(nn.Module):
 			
 			loss = self.criterion(trResults, trLabels)
 			npLoss = maybeCpu(loss.data).numpy()
-
-			if optimize:
-				self.optimizer.zero_grad()
-				loss.backward()
-				self.optimizer.step()
+			optimizeCallback(self.optimizer, loss)
 
 			# Iteration callbacks are called here (i.e. for plotting results!)
 			self.callbacksOnIterationEnd(callbacks, data=npInputs, labels=npLabels, results=npResults, loss=npLoss, \
@@ -257,7 +258,7 @@ class NeuralNetworkPyTorch(nn.Module):
 	#  first ones are sent to run_one_epoch method, and are called at each iteration (the method onIterationEnd). Both
 	#  of the types are called at the en of epoch (method onEpochEnd).
 	def train_generator(self, generator, stepsPerEpoch, numEpochs, callbacks=[], validationGenerator=None, \
-		validationSteps=0, printMessage=True):
+		validationSteps=0, printMessage=True, **kwargs):
 		self.checkCallbacks(callbacks)
 
 		if printMessage:
@@ -275,12 +276,12 @@ class NeuralNetworkPyTorch(nn.Module):
 			#  done on validation set). If no validation set is used, the iteration callbacks are used on train set.
 			trainCallbacks = [] if validationGenerator != None else callbacks
 			trainMetrics = self.run_one_epoch(generator, stepsPerEpoch, callbacks=trainCallbacks, \
-				optimize=True, printMessage=printMessage)
+				optimize=True, printMessage=printMessage, **kwargs)
 
 			# Run for validation data and append the results
 			if validationGenerator != None:
 				validationMetrics = self.run_one_epoch(validationGenerator, validationSteps, \
-					callbacks=callbacks, optimize=False, printMessage=False)
+					callbacks=callbacks, optimize=False, printMessage=False, **kwargs)
 			duration = datetime.now() - now
 
 			# Do the callbacks for the end of epoch.

@@ -51,11 +51,13 @@ class CityScapesReader(DatasetReader):
 		if "ground_truth_fine" in self.dataDimensions or "deeplabv3" in self.dataDimensions:
 			assert self.semanticTransform in ("default", "foreground-background", "none")
 			if self.semanticTransform == "default":
-				self.prepareSemantic = self.semanticDefault
+				self.prepareSemantic = lambda x : np.expand_dims(x, axis=-1) / 33
 			elif self.semanticTransform == "foreground-background":
 				self.prepareSemantic = self.semanticFGBG
 			elif self.semanticTransform == "none":
 				self.prepareSemantic = lambda x : np.expand_dims(x, axis=-1)
+			elif self.semanticTransform == "semantic_new_dims":
+				self.prepareSemantic = self.semanticNewDims
 
 		# Only skipFrames=5 is supported now
 		if self.sequentialData:
@@ -122,10 +124,6 @@ class CityScapesReader(DatasetReader):
 			(self.numData["train"], self.numData["test"], self.numData["validation"], self.dataShape, \
 			self.labelShape, self.dataDimensions, self.sequentialData, self.semanticTransform, self.normalization))
 
-	def semanticDefault(self, images):
-		newImages = np.expand_dims(images, axis=-1)
-		return newImages / 33
-
 	def semanticFGBG(self, images):
 		newImage = np.ones((*images.shape, 1), dtype=np.float32)
 		labels = {
@@ -141,6 +139,14 @@ class CityScapesReader(DatasetReader):
 		for key in labels:
 			newImage[labels[key]] = 0
 		return newImage
+
+	def semanticNewDims(self, images):
+		importantIds = [7, 8, 11, 12, 13, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 31, 32, 33]
+		newImages = np.zeros((*images.shape, 19), dtype=np.float32)
+		for i in range(len(importantIds)):
+			whereId = np.where(images == importantIds[i])
+			newImages[i][whereId] = 1
+		return newImages
 
 	def iterate_once(self, type, miniBatchSize):
 		assert type in ("train", "test", "validation")

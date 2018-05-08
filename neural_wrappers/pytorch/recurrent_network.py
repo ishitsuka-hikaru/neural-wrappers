@@ -31,6 +31,11 @@ class RecurrentNeuralNetworkPyTorch(NeuralNetworkPyTorch):
 		metricResults = {metric : 0 for metric in self.metrics.keys()}
 		i = 0
 
+		if optimize:
+			optimizeCallback = (lambda optim, loss : (optim.zero_grad(), loss.backward(), optim.step()))
+		else:
+			optimizeCallback = lambda x, y : x, y
+
 		startTime = datetime.now()
 		for i, (npData, npLabels) in enumerate(generator):
 			trData = tr.from_numpy(npData)
@@ -68,11 +73,7 @@ class RecurrentNeuralNetworkPyTorch(NeuralNetworkPyTorch):
 
 				loss += self.criterion(results, labels)
 			npLoss = maybeCpu(loss.data).numpy()
-
-			if optimize:
-				self.optimizer.zero_grad()
-				loss.backward()
-				self.optimizer.step()
+			optimizeCallback(self.optimizer, loss)
 
 			# Iteration callbacks are called here (i.e. for plotting results!)
 			# Iteration callbacks are called here (i.e. for plotting results!)

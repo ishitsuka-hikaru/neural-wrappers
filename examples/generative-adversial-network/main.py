@@ -108,10 +108,10 @@ def main():
 	print(GAN.summary())
 
 	if sys.argv[1] == "train":
-		GAN.train_generator(generator, numIterations, numEpochs=numEpochs, callbacks=callbacks)
+		GAN.train_generator(generator, numIterations, numEpochs=numEpochs, callbacks=callbacks, numStepsD=5)
 	elif sys.argv[1] == "retrain":
 		GAN.load_model("GAN.pkl")
-		GAN.train_generator(generator, numIterations, numEpochs=numEpochs, callbacks=callbacks)
+		GAN.train_generator(generator, numIterations, numEpochs=numEpochs, callbacks=callbacks, numStepsD=5)
 	else:
 		GAN.load_model("GAN.pkl")
 		while True:
