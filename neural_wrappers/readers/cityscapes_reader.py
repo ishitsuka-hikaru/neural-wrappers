@@ -49,7 +49,8 @@ class CityScapesReader(DatasetReader):
 				# Only skipFrames=5 is supported now
 
 		if "ground_truth_fine" in self.dataDimensions or "deeplabv3" in self.dataDimensions:
-			assert self.semanticTransform in ("default", "foreground-background", "none")
+			semanticNumDims = 1
+			assert self.semanticTransform in ("default", "foreground-background", "none", "semantic_new_dims")
 			if self.semanticTransform == "default":
 				self.prepareSemantic = lambda x : np.expand_dims(x, axis=-1) / 33
 			elif self.semanticTransform == "foreground-background":
@@ -57,6 +58,7 @@ class CityScapesReader(DatasetReader):
 			elif self.semanticTransform == "none":
 				self.prepareSemantic = lambda x : np.expand_dims(x, axis=-1)
 			elif self.semanticTransform == "semantic_new_dims":
+				semanticNumDims = 19
 				self.prepareSemantic = self.semanticNewDims
 
 		# Only skipFrames=5 is supported now
@@ -72,8 +74,8 @@ class CityScapesReader(DatasetReader):
 			"rgb_first_frame" : [74.96715607296854, 84.3387139353354, 73.62945761147961],
 			"depth" : 8277.619363028218,
 			"flownet2s" : [-0.6396361, 5.553444],
-			"ground_truth_fine" : 0,
-			"deeplabv3" : 0
+			"ground_truth_fine" : [0] * semanticNumDims,
+			"deeplabv3" : [0] * semanticNumDims
 		}
 
 		self.stds = {
@@ -81,8 +83,8 @@ class CityScapesReader(DatasetReader):
 			"rgb_first_frame" : [49.65527668307159, 50.01892939272212, 49.67332749250472],
 			"depth" : 6569.138224069467,
 			"flownet2s" : [32.508713, 15.168872],
-			"ground_truth_fine" : 1,
-			"deeplabv3" : 1
+			"ground_truth_fine" : [1] * semanticNumDims,
+			"deeplabv3" : [1] * semanticNumDims
 		}
 
 		self.maximums = {
@@ -90,8 +92,8 @@ class CityScapesReader(DatasetReader):
 			"rgb_first_frame" : [255, 255, 255],
 			"depth" : 32257,
 			"flownet2s" : [278.29926, 225.12384],
-			"ground_truth_fine" : 1,
-			"deeplabv3" : 1
+			"ground_truth_fine" : [1] * semanticNumDims,
+			"deeplabv3" : [1] * semanticNumDims
 		}
 
 		self.minimums = {
@@ -99,16 +101,16 @@ class CityScapesReader(DatasetReader):
 			"rgb_first_frame" : [0, 0, 0],
 			"depth" : 0,
 			"flownet2s" : [-494.61987, -166.98322],
-			"ground_truth_fine" : 0,
-			"deeplabv3" : 0
+			"ground_truth_fine" : [0] * semanticNumDims,
+			"deeplabv3" : [0] * semanticNumDims
 		}
 
 		self.numDimensions = {
 			"rgb" : 3,
 			"depth": 1,
 			"flownet2s" : 2,
-			"ground_truth_fine" : 1,
-			"deeplabv3" : 1,
+			"ground_truth_fine" : semanticNumDims,
+			"deeplabv3" : semanticNumDims,
 			"rgb_first_frame" : 3
 		}
 
@@ -145,7 +147,7 @@ class CityScapesReader(DatasetReader):
 		newImages = np.zeros((*images.shape, 19), dtype=np.float32)
 		for i in range(len(importantIds)):
 			whereId = np.where(images == importantIds[i])
-			newImages[i][whereId] = 1
+			newImages[..., i][whereId] = 1
 		return newImages
 
 	def iterate_once(self, type, miniBatchSize):
