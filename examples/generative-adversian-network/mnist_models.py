@@ -1,7 +1,6 @@
 import torch as tr
 import torch.nn.functional as F
 import torch.nn as nn
-from neural_wrappers.models import MobileNetV2Cifar10
 from neural_wrappers.pytorch import NeuralNetworkPyTorch
 
 class GeneratorLinear(NeuralNetworkPyTorch):
@@ -45,20 +44,3 @@ class DiscriminatorLinear(NeuralNetworkPyTorch):
 		y3 = F.sigmoid(self.fc3(y2))
 		y3 = y3.view(y3.shape[0])
 		return y3
-
-class DiscriminatorMobileNetV2(MobileNetV2Cifar10):
-	def __init__(self):
-		super().__init__(num_classes=1)
-
-	def forward(self, x):
-		x = tr.transpose(tr.transpose(x, 1, 3), 2, 3)
-		out = F.relu(self.bn1(self.conv1(x)))
-		out = self.layers(out)
-		out = F.relu(self.bn2(self.conv2(out)))
-		# NOTE: change pooling kernel_size 7 -> 4 for CIFAR10
-		out = F.avg_pool2d(out, 4)
-		out = out.view(out.size(0), -1)
-		out = self.linear(out)
-		out = F.sigmoid(out)
-		out = out.view(out.shape[0])
-		return out
