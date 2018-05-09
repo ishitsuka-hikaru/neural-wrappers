@@ -72,13 +72,13 @@ class GenerativeAdversialNetwork(NeuralNetworkPyTorch):
 		if optimizeD:
 			optimizeCallbackD = (lambda optim, loss : (optim.zero_grad(), loss.backward(), optim.step()))
 		else:
-			optimizeCallbackD = (lambda optim, loss : loss.backward(retain_graph=False))
+			optimizeCallbackD = (lambda optim, loss : loss.detach_())
 
 		self.generator.setTrainable(optimizeG)
 		if optimizeG:
 			optimizeCallbackG = (lambda optim, loss : (optim.zero_grad(), loss.backward(), optim.step()))
 		else:
-			optimizeCallbackG = (lambda optim, loss : loss.backward(retain_graph=False))
+			optimizeCallbackG = (lambda optim, loss : loss.detach_())
 
 		startTime = datetime.now()
 		while True:
@@ -89,7 +89,7 @@ class GenerativeAdversialNetwork(NeuralNetworkPyTorch):
 			actualNumStepsD = min(numStepsD, stepsPerEpoch - i)
 			for j in range(actualNumStepsD):
 				npInputs, _ = next(dataGenerator)
-				trInputs = self.getTrData(npInputs, optimize=optimize)
+				trInputs = self.getTrData(npInputs, optimize=optimizeD)
 				batchSize = npInputs.shape[0]
 
 				# Adversarial ground truths

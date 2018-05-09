@@ -154,7 +154,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		if optimize:
 			optimizeCallback = (lambda optim, loss : (optim.zero_grad(), loss.backward(), optim.step()))
 		else:
-			optimizeCallback = (lambda optim, loss : loss.backward(retain_graph=False))
+			optimizeCallback = (lambda optim, loss : loss.detach_())
 
 		# The protocol requires the generator to have 2 items, inputs and labels (both can be None). If there are more
 		#  inputs, they can be packed together (stacked) or put into a list, in which case the ntwork will receive the

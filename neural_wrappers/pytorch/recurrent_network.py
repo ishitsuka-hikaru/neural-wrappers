@@ -35,7 +35,7 @@ class RecurrentNeuralNetworkPyTorch(NeuralNetworkPyTorch):
 		if optimize:
 			optimizeCallback = (lambda optim, loss : (optim.zero_grad(), loss.backward(), optim.step()))
 		else:
-			optimizeCallback = (lambda optim, loss : loss.backward(retain_graph=False))
+			optimizeCallback = (lambda optim, loss : loss.detach_())
 
 		startTime = datetime.now()
 		for i, (npData, npLabels) in enumerate(generator):
