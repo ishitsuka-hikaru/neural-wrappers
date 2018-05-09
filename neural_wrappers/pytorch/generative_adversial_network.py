@@ -37,7 +37,6 @@ class GenerativeAdversialNetwork(NeuralNetworkPyTorch):
 	# @param[in] stepsPerEpoch How many steps the generator is expected to run
 	# @param[in] callbacks A list of callbacks that are called. Only onEpochStart is called (not onIterationEnd yet)
 	# @param[in] optimize A flag that specifies whether backpropagation is ran on the trainable weights or not.
-	#  TODO: decide whether to include 2 flags, one for generator and one for discriminator
 	# @param[in] printMessage A flag that specifies whether the training iterations message is shown.
 	# @param_optional[in] numStepsD Training GANs is tricky. Sometimes more successive steps are required for generator
 	#  or discriminator, for better learning. This parameter specifies how many successive steps for discriminator are

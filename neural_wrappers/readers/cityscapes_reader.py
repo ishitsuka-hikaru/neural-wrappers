@@ -83,8 +83,8 @@ class CityScapesReader(DatasetReader):
 			"rgb_first_frame" : [49.65527668307159, 50.01892939272212, 49.67332749250472],
 			"depth" : 6569.138224069467,
 			"flownet2s" : [32.508713, 15.168872],
-			"ground_truth_fine" : [1] * semanticNumDims,
-			"deeplabv3" : [1] * semanticNumDims
+			"ground_truth_fine" : [1] * semanticNumDims if semanticNumDims > 1 else 1,
+			"deeplabv3" : [1] * semanticNumDims if semanticNumDims > 1 else 1
 		}
 
 		self.maximums = {
@@ -92,8 +92,8 @@ class CityScapesReader(DatasetReader):
 			"rgb_first_frame" : [255, 255, 255],
 			"depth" : 32257,
 			"flownet2s" : [278.29926, 225.12384],
-			"ground_truth_fine" : [1] * semanticNumDims,
-			"deeplabv3" : [1] * semanticNumDims
+			"ground_truth_fine" : [1] * semanticNumDims if semanticNumDims > 1 else 1,
+			"deeplabv3" : [1] * semanticNumDims if semanticNumDims > 1 else 1
 		}
 
 		self.minimums = {
@@ -101,8 +101,8 @@ class CityScapesReader(DatasetReader):
 			"rgb_first_frame" : [0, 0, 0],
 			"depth" : 0,
 			"flownet2s" : [-494.61987, -166.98322],
-			"ground_truth_fine" : [0] * semanticNumDims,
-			"deeplabv3" : [0] * semanticNumDims
+			"ground_truth_fine" : [0] * semanticNumDims if semanticNumDims > 1 else 0,
+			"deeplabv3" : [0] * semanticNumDims if semanticNumDims > 1 else 0
 		}
 
 		self.numDimensions = {
