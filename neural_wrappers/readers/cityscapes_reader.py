@@ -48,8 +48,8 @@ class CityScapesReader(DatasetReader):
 				assert not data == "rgb_first_frame", "RGB First frame is not available for sequential dataset"
 				# Only skipFrames=5 is supported now
 
+		semanticNumDims = 1
 		if "ground_truth_fine" in self.dataDimensions or "deeplabv3" in self.dataDimensions:
-			semanticNumDims = 1
 			assert self.semanticTransform in ("default", "foreground-background", "none", "semantic_new_dims")
 			if self.semanticTransform == "default":
 				self.prepareSemantic = lambda x : np.expand_dims(x, axis=-1) / 33
