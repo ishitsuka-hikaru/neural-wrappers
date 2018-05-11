@@ -8,6 +8,9 @@ from .dataset_reader import DatasetReader
 #  		"rgb"
 # 		"depth"
 #		...
+#   "raw_10"
+#  		"rgb"
+# 		"depth"
 # 	"standard" (NOT YET)
 #		"rgb"
 #		"labels"
@@ -27,10 +30,11 @@ from .dataset_reader import DatasetReader
 #  are: "depth"
 class KITTIReader(DatasetReader):
 	def __init__(self, datasetPath, imageShape, labelShape, transforms=["none"], normalization="standardization", \
-		dataDimensions=["rgb"], labelsDimensions=["depth"]):
+		dataDimensions=["rgb"], labelsDimensions=["depth"], baseDataGroup="raw_10"):
 		super().__init__(datasetPath, imageShape, labelShape, transforms, normalization)
 		self.dataDimensions = dataDimensions
 		self.labelsDimensions = labelsDimensions
+		self.baseDataGroup = baseDataGroup
 		self.setup()
 
 	def setup(self):
@@ -42,18 +46,18 @@ class KITTIReader(DatasetReader):
 		for label in self.labelsDimensions:
 			assert label in ("depth", ), "Got %s" % (data)
 
-		self.numData = {Type : len(self.dataset[Type]["raw"]["rgb"]) for Type in ("test", "validation")}
+		self.numData = {Type : len(self.dataset[Type][self.baseDataGroup]["rgb"]) for Type in ("train", "validation")}
 
 		# These values are directly computed on the training set of the sequential data (superset of original dataset).
 		# They are duplicated for sequential and non-sequential data to avoid unnecessary code.
 		self.means = {
 			"rgb" : [95.26087859651416, 100.74530927690631, 95.87131461394335],
-			"depth" : 0
+			"depth" : 645.7766624941177
 		}
 
 		self.stds = {
 			"rgb" : [79.82532566402132, 81.79278558397813, 83.15537019246743],
-			"depth" : 0
+			"depth" : 1838.126104311719
 		}
 
 		self.maximums = {
@@ -78,7 +82,7 @@ class KITTIReader(DatasetReader):
 	def iterate_once(self, type, miniBatchSize):
 		assert type in ("train", "validation")
 		augmenter = self.dataAugmenter if type == "train" else self.validationAugmenter
-		thisData = self.dataset[type]["raw"]
+		thisData = self.dataset[type][self.baseDataGroup]
 
 		# One iteration in this method accounts for all transforms at once
 		for i in range(self.getNumIterations(type, miniBatchSize, accountTransforms=False)):

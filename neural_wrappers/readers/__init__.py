@@ -4,6 +4,7 @@ from .citysim_reader import CitySimReader
 from .mnist_reader import MNISTReader
 from .cityscapes_reader import CityScapesReader
 from .cifar10_reader import Cifar10Reader
+from .kitti_reader import KITTIReader
 
 __all__ = ["DatasetReader", "ClassificationDatasetReader", "NYUDepthReader", "CitySimReader", "MNISTReader", \
-	"CityScapesReader", "Cifar10Reader"]
+	"CityScapesReader", "Cifar10Reader", "KITTIReader"]
