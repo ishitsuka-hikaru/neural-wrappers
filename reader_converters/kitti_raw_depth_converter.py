@@ -48,7 +48,7 @@ def doDataset(file, baseRaw, baseDepth, mode):
 	dataShape = (numData, 375, 1224, 3)
 	labelShape = (numData, 375, 1224)
 	group.create_dataset("rgb", shape=dataShape, dtype=np.uint8)
-	group.create_dataset("depth", shape=labelShape, dtype=np.uint8)
+	group.create_dataset("depth", shape=labelShape, dtype=np.uint16)
 
 	shapes = {}
 	for i in range(numData):
