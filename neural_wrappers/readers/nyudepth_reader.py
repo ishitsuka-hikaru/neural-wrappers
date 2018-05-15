@@ -4,8 +4,9 @@ from .dataset_reader import DatasetReader
 from neural_wrappers.transforms import Transformer
 
 class NYUDepthReader(DatasetReader):
-	def __init__(self, datasetPath, imageShape, labelShape, transforms=["none"], normalization="standardization", \
-		dataDimensions=["images"], labelDimensions=["depths"], dataSplit=(80, 0, 20)):
+	def __init__(self, datasetPath, imageShape, labelShape, transforms=["none"], \
+		normalization="min_max_normalization", dataDimensions=["images"], labelDimensions=["depths"], \
+		dataSplit=(80, 0, 20)):
 		super().__init__(datasetPath, imageShape, labelShape, dataDimensions, labelDimensions, \
 			transforms, normalization)
 		self.dataSplit = dataSplit
@@ -30,6 +31,16 @@ class NYUDepthReader(DatasetReader):
 		self.maximums = {
 			"images" : [255, 255, 255],
 			"depths" : 10
+		}
+
+		self.means = {
+			"images" : [122.54539034418492, 104.78338963563233, 100.02394636162512],
+			"depths" : 2.7963083
+		}
+
+		self.stds = {
+			"images" : [73.74140829480243, 75.45561510079736, 78.87249644483357],
+			"depths" : 1.3860533
 		}
 
 		self.numDimensions = {
@@ -85,28 +96,3 @@ class NYUDepthReader(DatasetReader):
 			for augImages, augDepths in augmenter.applyTransforms(images, depths, interpolationType="bilinear"):
 				yield augImages, augDepths
 				del augImages, augDepths
-
-			# labelType = "depths" if self.labelsType == "depths" else "labels"
-			# # N x 3 x 640 x 480 => N x 480 x 640 x 3
-			# # images = np.swapaxes(self.dataset["images"][startIndex : endIndex], 1, 3).astype(np.float32)
-			# # N x 640 x 480 => N x 480 x 640. Labels can be "depths" or "labels" (for segmentation), not both yet.
-			# # labels = self.dataset[labelType][startIndex : endIndex]
-			# # labels = np.swapaxes(labels, 1, 2)
-
-			# if self.normalization == "standardize":
-			# 	assert False, "Standardization not yet supported"
-			# 	# img_mean = np.array([122.54539034, 104.78338964, 100.02394636])
-			# 	# img_std = np.array([73.74140829, 75.4556151, 78.87249644])
-
-			# 	# images -= img_mean
-			# 	# images /= img_std
-			# # Perhaps a better name ?
-			# elif self.normalization == "normalize":
-			# 	images /= 255
-			# 	if self.labelsType == "depths":
-			# 		labels /= 10
-
-			# interpolationType = "nearest" if self.labelsType == "segmentation" else "bilinear"
-			# # Apply each transform
-			# for augImages, augLabels in augmenter.applyTransforms(images, labels, interpolationType):
-			# 	yield augImages, augLabels
