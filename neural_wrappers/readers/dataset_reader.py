@@ -4,19 +4,21 @@ from neural_wrappers.transforms import Transformer
 from neural_wrappers.utilities import standardizeData, minMaxNormalizeData
 from functools import partial
 
-# TODO: use datasetDimensions and labelDimensions for multiple dimensions from each h5py file.
-
 class DatasetReader:
-	def __init__(self, datasetPath, dataShape, labelShape=None, transforms=["none"], \
-		normalization="standardization"):
+	def __init__(self, datasetPath, dataShape, labelShape, dataDimensions, labelDimensions, \
+		transforms=["none"], normalization="standardization"):
 		self.datasetPath = datasetPath
 		self.dataShape = dataShape
 		self.labelShape = labelShape
+		self.dataDimensions = dataDimensions
+		self.labelDimensions = labelDimensions
 		self.transforms = transforms
 		self.normalization = normalization
 
 		self.dataAugmenter = Transformer(transforms, dataShape=dataShape, labelShape=labelShape)
 		self.validationAugmenter = Transformer(["none"], dataShape=dataShape, labelShape=labelShape)
+		self.doNothing = lambda x : x
+		self.postDataProcessing = {}
 
 		if normalization == "min_max_normalization":
 			self.normalizer = self.minMaxNormalizer
@@ -28,6 +30,19 @@ class DatasetReader:
 			assert hasattr(normalization, "__call__"), "The user provided normalization must be callable or must " + \
 				"one of \"standardization\", \"min_max_normalization\", \"none\""
 			self.normalizer = partial(normalization, obj=self)
+
+	# @brief Generic method that looks into a dataset dictionary, and takes each aasked dimension, concatenates it into
+	#  one array and returns it back to the caller.
+	# @return One list, where each element is one required dimension, extracted from the allData parameter at given
+	#  indexes startIndex and endIndex after all processing was done.
+	def getData(self, allData, startIndex, endIndex, requiredDimensions):
+		dimList = []
+		for dim in requiredDimensions:
+			data = allData[dim][startIndex : endIndex]
+			data = self.normalizer(data, dim)
+			data = self.postDataProcessing[dim](data)
+			dimList.append(data)
+		return dimList
 
 	# @brief Basic min max normalizer, which receives a batches data (MB x shape) and applies the normalization for
 	#  each dimension independelty. Requires the class members minimums and maximums to be defined inside the class
@@ -62,6 +77,64 @@ class DatasetReader:
 	# Generic generator function, which should iterate once the dataset and yield a minibatch subset every time
 	def iterate_once(self, type, miniBatchSize):
 		raise NotImplementedError("Should have implemented this")
+
+	# Handles all common code that must be done after the setup is complete, such as computing data indexes for
+	#  iteration, checks for errors in shapes etc.
+	def postSetup(self):
+		numDims = len(self.supportedDimensions)
+		assert numDims > 0 and len(self.numDimensions) == numDims \
+			and (len(self.numData[Type]) == numDims for Type in ("train", "test", "validation"))
+		# Validty checks for data dimensions.
+		for data in self.dataDimensions: assert data in self.supportedDimensions, "Got %s" % (data)
+		for data in self.labelDimensions: assert data in self.supportedDimensions, "Got %s" % (data)
+
+		# If these values were not added manually, use the default values
+		for dim in self.supportedDimensions:
+			if not dim in self.means:
+				self.means[dim] = [0] * self.dataDimensions[dim] if self.dataDimensions[dim] > 0 else 0
+
+			if not dim in self.stds:
+				self.stds[dim] = [1] * self.dataDimensions[dim] if self.dataDimensions[dim] > 0 else 1
+
+			if not dim in self.maximums:
+				self.maximums[dim] = [255] * self.dataDimensions[dim] if dataDimensions[dim] > 0 else 255
+
+			if not dim in self.minimums:
+				self.minimums[dim] = [0] * self.dataDimensions[dim] if self.dataDimensions[dim] > 0 else 0
+
+			if not dim in self.postDataProcessing:
+				self.postDataProcessing[dim] = self.doNothing
+
+		assert len(self.means) == numDims and len(self.stds) == numDims and \
+			len(self.minimums) == numDims and len(self.maximums) == numDims
+
+		self.dimensionIndexes = {
+			"data" : { },
+			"label" : { }
+		}
+
+		# Check and compiute dimensionIndexes, required for iterating.
+		requiredDataDimensions = 0
+		for dim in self.dataDimensions:
+			endIndex = self.numDimensions[dim]
+			self.dimensionIndexes["data"][dim] = (requiredDataDimensions, endIndex)
+			requiredDataDimensions += endIndex
+
+		if requiredDataDimensions > 1:
+			assert requiredDataDimensions == self.dataShape[-1], \
+				"Expected: numDimensions: %s. Got dataShape: %s for: %s dimensions" % \
+				(requiredDataDimensions, self.dataShape, self.dataDimensions)
+
+		requiredLabelDimensions = 0
+		for dim in self.labelDimensions:
+			endIndex = self.numDimensions[dim]
+			self.dimensionIndexes["label"][dim] = (requiredLabelDimensions, endIndex)
+			requiredLabelDimensions += endIndex
+
+		if requiredLabelDimensions > 1:
+			assert requiredLabelDimensions == self.labelShape[-1], \
+				"Expected: numDimensions: %s. Got labelShape: %s for: %s dimensions" % \
+				(requiredLabelDimensions, self.labelShape, self.labelDimensions)
 
 	# Computes the class members indexes and numData, which represent the amount of data of each portion of the
 	#  datset (train/test/val) as well as the starting indexes
@@ -116,13 +189,6 @@ class DatasetReader:
 		assert len(self.transforms), "No transforms used, perhaps set just \"none\""
 		return N if accountTransforms == False else N * len(self.transforms)
 
-	# Returns the mean of the dataset. Sometimes differnt means are used for different shapes (due to rescaling).
-	def getMean(self, shape=None):
-		raise NotImplementedError("Should have implemented this")
-
-	def getStd(self, shape=None):
-		raise NotImplementedError("Should have implemented this")
-
 	def __str__(self):
 		return "General dataset reader. Update __str__ in your dataset for more details when using summary."
 
@@ -130,6 +196,7 @@ class DatasetReader:
 		summaryStr = "[Dataset summary]\n"
 		summaryStr += self.__str__() + "\n"
 
+		summaryStr += "Data dimensions: %s. Label dimensions: %s" % (self.dataDimensions, self.labelDimensions)
 		summaryStr += "Num data: %s\n" % (self.numData)
 		summaryStr += "Transforms(%i): %s\n" % (len(self.transforms), self.transforms)
 		return summaryStr

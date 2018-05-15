@@ -29,43 +29,39 @@ from .dataset_reader import DatasetReader
 #  "ground_truth_fine" is used in dataDimensions.
 class CityScapesReader(DatasetReader):
 	def __init__(self, datasetPath, imageShape, labelShape, transforms=["none"], normalization="standardization", \
-		dataDimensions=["rgb"], sequentialData=False, semanticTransform=None):
-		super().__init__(datasetPath, imageShape, labelShape, transforms, normalization)
-		self.dataDimensions = dataDimensions
-		self.sequentialData = sequentialData
+		dataDimensions=["rgb"], labelDimensions=["depth"], baseDataGroup=False, semanticTransform=None):
+		super().__init__(datasetPath, imageShape, labelShape, dataDimensions, \
+			labelDimensions, transforms, normalization)
+		assert baseDataGroup in ("noseq", "seq_5")
+		self.baseDataGroup = baseDataGroup
 		self.semanticTransform = semanticTransform
 		self.setup()
 
 	def setup(self):
 		self.dataset = h5py.File(self.datasetPath, "r")
-
-		# Validty checks for data dimensions.
-		for data in self.dataDimensions:
-			assert data in ("rgb", "depth", "flownet2s", "ground_truth_fine", "rgb_first_frame", "deeplabv3"), \
-				"Got %s" % (data)
-			if self.sequentialData == True:
-				assert not data == "ground_truth_fine", "Semantic data is not available for sequential dataset"
-				assert not data == "rgb_first_frame", "RGB First frame is not available for sequential dataset"
-				# Only skipFrames=5 is supported now
+		self.supportedDimensions = ("rgb", "depth", "flownet2s", "ground_truth_fine", "rgb_first_frame", "deeplabv3")
 
 		semanticNumDims = 1
 		if "ground_truth_fine" in self.dataDimensions or "deeplabv3" in self.dataDimensions:
 			assert self.semanticTransform in ("default", "foreground-background", "none", "semantic_new_dims")
 			if self.semanticTransform == "default":
-				self.prepareSemantic = lambda x : np.expand_dims(x, axis=-1) / 33
+				prepareSemantic = lambda x : np.expand_dims(x, axis=-1) / 33
 			elif self.semanticTransform == "foreground-background":
-				self.prepareSemantic = self.semanticFGBG
+				prepareSemantic = self.semanticFGBG
 			elif self.semanticTransform == "none":
-				self.prepareSemantic = lambda x : np.expand_dims(x, axis=-1)
+				prepareSemantic = lambda x : np.expand_dims(x, axis=-1)
 			elif self.semanticTransform == "semantic_new_dims":
 				semanticNumDims = 19
-				self.prepareSemantic = self.semanticNewDims
+				prepareSemantic = self.semanticNewDims
+
+			self.postDataProcessing = {
+				"ground_truth_fine" : prepareSemantic,
+				"deeplabv3" : prepareSemantic
+			}
 
 		# Only skipFrames=5 is supported now
-		if self.sequentialData:
-			self.numData = {Type : len(self.dataset[Type]["seq_5"]["rgb"]) for Type in ("test", "train", "validation")}
-		else:
-			self.numData = {Type : len(self.dataset[Type]["noseq"]["rgb"]) for Type in ("test", "train", "validation")}
+		self.numData = {Type : len(self.dataset[Type][self.baseDataGroup]["rgb"]) \
+			for Type in ("test", "train", "validation")}
 
 		# These values are directly computed on the training set of the sequential data (superset of original dataset).
 		# They are duplicated for sequential and non-sequential data to avoid unnecessary code.
@@ -114,17 +110,12 @@ class CityScapesReader(DatasetReader):
 			"rgb_first_frame" : 3
 		}
 
-		requiredDimensions = 0
-		for data in self.dataDimensions:
-			requiredDimensions += self.numDimensions[data]
-		assert requiredDimensions == self.dataShape[-1], "Expected: numDimensions: %s. Got imageShape: %s for: %s" % \
-			(requiredDimensions, self.dataShape, self.dataDimensions)
-
+		self.postSetup()
 		print(("[CityScapes Images Reader] Setup complete. Num data: Train: %d, Test: %d, Validation: %d. " + \
-			"Images shape: %s. Depths shape: %s. Required data: %s. Sequential: %s. Semantic type: %s. " + \
+			"Images shape: %s. Depths shape: %s. Required data: %s. Base group: %s. Semantic type: %s. " + \
 			"Normalization type: %s") % \
 			(self.numData["train"], self.numData["test"], self.numData["validation"], self.dataShape, \
-			self.labelShape, self.dataDimensions, self.sequentialData, self.semanticTransform, self.normalization))
+			self.labelShape, self.dataDimensions, self.baseDataGroup, self.semanticTransform, self.normalization))
 
 	def semanticFGBG(self, images):
 		newImage = np.ones((*images.shape, 1), dtype=np.float32)
@@ -153,22 +144,19 @@ class CityScapesReader(DatasetReader):
 	def iterate_once(self, type, miniBatchSize):
 		assert type in ("train", "test", "validation")
 		augmenter = self.dataAugmenter if type == "train" else self.validationAugmenter
-		thisData = self.dataset[type]["seq_5"] if self.sequentialData else self.dataset[type]["noseq"]
+		thisData = self.dataset[type][self.baseDataGroup]
 
 		# One iteration in this method accounts for all transforms at once
 		for i in range(self.getNumIterations(type, miniBatchSize, accountTransforms=False)):
 			startIndex = i * miniBatchSize
 			endIndex = min((i + 1) * miniBatchSize, self.numData[type])
+			print(startIndex, endIndex)
 			assert startIndex < endIndex, "startIndex < endIndex. Got values: %d %d" % (startIndex, endIndex)
 
-			depths = self.normalizer(thisData["depth"][startIndex : endIndex], "depth")
-			images = []
-			for dim in self.dataDimensions:
-				item = self.normalizer(thisData[dim][startIndex : endIndex], dim)
-				if dim in ("ground_truth_fine", "deeplabv3"):
-					item = self.prepareSemantic(item)
-				images.append(item)
-			images = np.concatenate(images, axis=3)
+			images = self.getData(thisData, startIndex, endIndex, self.dataDimensions)
+			images = np.concatenate(images, axis=-1)
+			depths = self.getData(thisData, startIndex, endIndex, self.labelDimensions)
+			depths = np.concatenate(depths, axis=-1)
 
 			# Apply each transform
 			for augImages, augDepths in augmenter.applyTransforms(images, depths, interpolationType="bilinear"):

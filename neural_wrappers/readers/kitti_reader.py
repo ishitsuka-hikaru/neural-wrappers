@@ -30,20 +30,21 @@ from .dataset_reader import DatasetReader
 #  are: "depth"
 class KITTIReader(DatasetReader):
 	def __init__(self, datasetPath, imageShape, labelShape, transforms=["none"], normalization="standardization", \
-		dataDimensions=["rgb"], labelsDimensions=["depth"], baseDataGroup="raw_10"):
-		super().__init__(datasetPath, imageShape, labelShape, transforms, normalization)
-		self.dataDimensions = dataDimensions
-		self.labelsDimensions = labelsDimensions
+		dataDimensions=["rgb"], labelDimensions=["depth"], baseDataGroup="raw_10"):
+		super().__init__(datasetPath, imageShape, labelShape, dataDimensions, labelDimensions, \
+			transforms, normalization)
+		assert baseDataGroup in ("raw", "raw_10")
 		self.baseDataGroup = baseDataGroup
 		self.setup()
 
 	def setup(self):
 		self.dataset = h5py.File(self.datasetPath, "r")
+		self.supportedDimensions = ["rgb", "depth"]
 
 		# Validty checks for data dimensions.
 		for data in self.dataDimensions:
 			assert data in ("rgb", ), "Got %s" % (data)
-		for label in self.labelsDimensions:
+		for label in self.labelDimensions:
 			assert label in ("depth", ), "Got %s" % (data)
 
 		self.numData = {Type : len(self.dataset[Type][self.baseDataGroup]["rgb"]) for Type in ("train", "validation")}
@@ -75,6 +76,7 @@ class KITTIReader(DatasetReader):
 			"depth": 1
 		}
 
+		self.postSetup()
 		print(("[KITTI Reader] Setup complete. Num data: Train: %d, Validation: %d. " + \
 			"Images shape: %s. Depths shape: %s. Normalization type: %s") % \
 			(self.numData["train"], self.numData["validation"], self.dataShape, self.labelShape, self.normalization))
@@ -90,8 +92,10 @@ class KITTIReader(DatasetReader):
 			endIndex = min((i + 1) * miniBatchSize, self.numData[type])
 			assert startIndex < endIndex, "startIndex < endIndex. Got values: %d %d" % (startIndex, endIndex)
 
-			depths = self.normalizer(thisData["depth"][startIndex : endIndex], "depth")
-			images = self.normalizer(thisData["rgb"][startIndex : endIndex], "rgb")
+			images = self.getData(thisData, startIndex, endIndex, self.dataDimensions)
+			images = np.concatenate(images, axis=-1)
+			depths = self.getData(thisData, startIndex, endIndex, self.labelDimensions)
+			depths = np.concatenate(depths, axis=-1)
 
 			# Apply each transform
 			for augImages, augDepths in augmenter.applyTransforms(images, depths, interpolationType="bilinear"):
