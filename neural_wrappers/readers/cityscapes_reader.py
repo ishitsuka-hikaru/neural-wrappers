@@ -150,7 +150,6 @@ class CityScapesReader(DatasetReader):
 		for i in range(self.getNumIterations(type, miniBatchSize, accountTransforms=False)):
 			startIndex = i * miniBatchSize
 			endIndex = min((i + 1) * miniBatchSize, self.numData[type])
-			print(startIndex, endIndex)
 			assert startIndex < endIndex, "startIndex < endIndex. Got values: %d %d" % (startIndex, endIndex)
 
 			images = self.getData(thisData, startIndex, endIndex, self.dataDimensions)

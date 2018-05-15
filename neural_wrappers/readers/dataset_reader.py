@@ -18,7 +18,7 @@ class DatasetReader:
 		self.dataAugmenter = Transformer(transforms, dataShape=dataShape, labelShape=labelShape)
 		self.validationAugmenter = Transformer(["none"], dataShape=dataShape, labelShape=labelShape)
 		self.doNothing = lambda x : x
-		self.postDataProcessing = {}
+		self.means, self.stds, self.maximums, self.minimums, self.postDataProcessing = {}, {}, {}, {}, {}
 
 		if normalization == "min_max_normalization":
 			self.normalizer = self.minMaxNormalizer
@@ -39,8 +39,8 @@ class DatasetReader:
 		dimList = []
 		for dim in requiredDimensions:
 			data = allData[dim][startIndex : endIndex]
-			data = self.normalizer(data, dim)
 			data = self.postDataProcessing[dim](data)
+			data = self.normalizer(data, dim)
 			dimList.append(data)
 		return dimList
 
@@ -82,8 +82,8 @@ class DatasetReader:
 	#  iteration, checks for errors in shapes etc.
 	def postSetup(self):
 		numDims = len(self.supportedDimensions)
-		assert numDims > 0 and len(self.numDimensions) == numDims \
-			and (len(self.numData[Type]) == numDims for Type in ("train", "test", "validation"))
+		assert numDims > 0 and len(self.numDimensions) == numDims
+		assert (len(self.numData[Type]) == numDims for Type in ("train", "test", "validation"))
 		# Validty checks for data dimensions.
 		for data in self.dataDimensions: assert data in self.supportedDimensions, "Got %s" % (data)
 		for data in self.labelDimensions: assert data in self.supportedDimensions, "Got %s" % (data)
@@ -91,16 +91,16 @@ class DatasetReader:
 		# If these values were not added manually, use the default values
 		for dim in self.supportedDimensions:
 			if not dim in self.means:
-				self.means[dim] = [0] * self.dataDimensions[dim] if self.dataDimensions[dim] > 0 else 0
+				self.means[dim] = [0] * self.numDimensions[dim] if self.numDimensions[dim] > 0 else 0
 
 			if not dim in self.stds:
-				self.stds[dim] = [1] * self.dataDimensions[dim] if self.dataDimensions[dim] > 0 else 1
+				self.stds[dim] = [1] * self.numDimensions[dim] if self.numDimensions[dim] > 0 else 1
 
 			if not dim in self.maximums:
-				self.maximums[dim] = [255] * self.dataDimensions[dim] if dataDimensions[dim] > 0 else 255
+				self.maximums[dim] = [255] * self.numDimensions[dim] if self.numDimensions[dim] > 0 else 255
 
 			if not dim in self.minimums:
-				self.minimums[dim] = [0] * self.dataDimensions[dim] if self.dataDimensions[dim] > 0 else 0
+				self.minimums[dim] = [0] * self.numDimensions[dim] if self.numDimensions[dim] > 0 else 0
 
 			if not dim in self.postDataProcessing:
 				self.postDataProcessing[dim] = self.doNothing
@@ -196,7 +196,7 @@ class DatasetReader:
 		summaryStr = "[Dataset summary]\n"
 		summaryStr += self.__str__() + "\n"
 
-		summaryStr += "Data dimensions: %s. Label dimensions: %s" % (self.dataDimensions, self.labelDimensions)
+		summaryStr += "Data dimensions: %s. Label dimensions: %s\n" % (self.dataDimensions, self.labelDimensions)
 		summaryStr += "Num data: %s\n" % (self.numData)
 		summaryStr += "Transforms(%i): %s\n" % (len(self.transforms), self.transforms)
 		return summaryStr
