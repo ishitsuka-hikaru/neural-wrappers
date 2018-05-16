@@ -179,7 +179,7 @@ def doFlow(image, nextImage):
 	image = resize(image, height=1024, width=2048, interpolation=Interpolation.LANCZOS)
 	nextImage = resize(nextImage, height=1024, width=2048, interpolation=Interpolation.LANCZOS)
 	flow = np.zeros((870, 1820, 2), dtype=np.float32)
-	flow_y, flow_x = runImages(image, nextImage)
+	flow_y, flow_x = flownet2SRunImages(image, nextImage)
 	flow[..., 0] = resize(flow_y, height=870, width=1820, interpolation=Interpolation.LANCZOS)
 	flow[..., 1] = resize(flow_x, height=870, width=1820, interpolation=Interpolation.LANCZOS)
 	return flow

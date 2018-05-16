@@ -29,12 +29,14 @@ from .dataset_reader import DatasetReader
 #  "ground_truth_fine" is used in dataDimensions.
 class CityScapesReader(DatasetReader):
 	def __init__(self, datasetPath, imageShape, labelShape, transforms=["none"], normalization="standardization", \
-		dataDimensions=["rgb"], labelDimensions=["depth"], baseDataGroup=False, semanticTransform=None):
+		dataDimensions=["rgb"], labelDimensions=["depth"], baseDataGroup=False, semanticTransform=None, \
+		opticalFlowTransform=None):
 		super().__init__(datasetPath, imageShape, labelShape, dataDimensions, \
 			labelDimensions, transforms, normalization)
 		assert baseDataGroup in ("noseq", "seq_5")
 		self.baseDataGroup = baseDataGroup
 		self.semanticTransform = semanticTransform
+		self.opticalFlowTransform = opticalFlowTransform
 		self.setup()
 
 	def setup(self):
@@ -54,10 +56,24 @@ class CityScapesReader(DatasetReader):
 				semanticNumDims = 19
 				prepareSemantic = self.semanticNewDims
 
-			self.postDataProcessing = {
-				"ground_truth_fine" : prepareSemantic,
-				"deeplabv3" : prepareSemantic
-			}
+			self.postDataProcessing["ground_truth_fine"] = prepareSemantic
+			self.postDataProcessing["deeplabv3"] = prepareSemantic
+
+		opticalFlowNumDimensions = 2
+		flownet2sMean = [-0.6396361, 5.553444]
+		flownet2sStd = [32.508713, 15.168872]
+		flownet2sMaximum = [278.29926, 225.12384]
+		flownet2sMinimum = [-494.61987, -166.98322]
+		if "flownet2s" in self.dataDimensions:
+			assert self.opticalFlowTransform in ("none", "magnitude")
+			if self.opticalFlowTransform == "magnitude":
+				self.postDataProcessing["flownet2s"] = \
+					lambda x : np.expand_dims(np.hypot(x[..., 0], x[..., 1]), axis=-1)
+				opticalFlowNumDimensions = 1
+				flownet2sMean = 19.803894
+				flownet2sStd = 20.923697
+				flownet2sMaximum = 0
+				flownet2sMinimum = 496.0213
 
 		# Only skipFrames=5 is supported now
 		self.numData = {Type : len(self.dataset[Type][self.baseDataGroup]["rgb"]) \
@@ -69,7 +85,7 @@ class CityScapesReader(DatasetReader):
 			"rgb" : [74.96715607296854, 84.3387139353354, 73.62945761147961],
 			"rgb_first_frame" : [74.96715607296854, 84.3387139353354, 73.62945761147961],
 			"depth" : 8277.619363028218,
-			"flownet2s" : [-0.6396361, 5.553444],
+			"flownet2s" : flownet2sMean,
 			"ground_truth_fine" : [0] * semanticNumDims,
 			"deeplabv3" : [0] * semanticNumDims
 		}
@@ -78,7 +94,7 @@ class CityScapesReader(DatasetReader):
 			"rgb" : [49.65527668307159, 50.01892939272212, 49.67332749250472],
 			"rgb_first_frame" : [49.65527668307159, 50.01892939272212, 49.67332749250472],
 			"depth" : 6569.138224069467,
-			"flownet2s" : [32.508713, 15.168872],
+			"flownet2s" : flownet2sStd,
 			"ground_truth_fine" : [1] * semanticNumDims if semanticNumDims > 1 else 1,
 			"deeplabv3" : [1] * semanticNumDims if semanticNumDims > 1 else 1
 		}
@@ -87,7 +103,7 @@ class CityScapesReader(DatasetReader):
 			"rgb" : [255, 255, 255],
 			"rgb_first_frame" : [255, 255, 255],
 			"depth" : 32257,
-			"flownet2s" : [278.29926, 225.12384],
+			"flownet2s" : flownet2sMaximum,
 			"ground_truth_fine" : [1] * semanticNumDims if semanticNumDims > 1 else 1,
 			"deeplabv3" : [1] * semanticNumDims if semanticNumDims > 1 else 1
 		}
@@ -96,7 +112,7 @@ class CityScapesReader(DatasetReader):
 			"rgb" : [0, 0, 0],
 			"rgb_first_frame" : [0, 0, 0],
 			"depth" : 0,
-			"flownet2s" : [-494.61987, -166.98322],
+			"flownet2s" : flownet2sMinimum,
 			"ground_truth_fine" : [0] * semanticNumDims if semanticNumDims > 1 else 0,
 			"deeplabv3" : [0] * semanticNumDims if semanticNumDims > 1 else 0
 		}
@@ -104,7 +120,7 @@ class CityScapesReader(DatasetReader):
 		self.numDimensions = {
 			"rgb" : 3,
 			"depth": 1,
-			"flownet2s" : 2,
+			"flownet2s" : opticalFlowNumDimensions,
 			"ground_truth_fine" : semanticNumDims,
 			"deeplabv3" : semanticNumDims,
 			"rgb_first_frame" : 3
@@ -112,10 +128,11 @@ class CityScapesReader(DatasetReader):
 
 		self.postSetup()
 		print(("[CityScapes Images Reader] Setup complete. Num data: Train: %d, Test: %d, Validation: %d. " + \
-			"Images shape: %s. Depths shape: %s. Required data: %s. Base group: %s. Semantic type: %s. " + \
-			"Normalization type: %s") % \
+			"Images shape: %s. Depths shape: %s. Required data: %s. Base group: %s. Normalization type: %s. " + \
+			"Semantic type: %s. Optical Flow type: %s") % \
 			(self.numData["train"], self.numData["test"], self.numData["validation"], self.dataShape, \
-			self.labelShape, self.dataDimensions, self.baseDataGroup, self.semanticTransform, self.normalization))
+			self.labelShape, self.dataDimensions, self.baseDataGroup, self.normalization, self.semanticTransform, \
+			self.opticalFlowTransform))
 
 	def semanticFGBG(self, images):
 		newImage = np.ones((*images.shape, 1), dtype=np.float32)
