@@ -71,6 +71,10 @@ class DenoisingModelFC(SelfSupervisedNetwork):
 		y3 = y3.view(-1, *self.baseModel.inputShape)
 		return y3
 
+	def pretrainLayersSetup(self):
+		if self.pretrain == False:
+			self.denoising_fc3 = None
+
 def reconstructionLossFn(y, t):
 	return tr.mean( (y - t)**2)
 
@@ -78,8 +82,8 @@ def classificationLossFn(y, t):
 	return tr.mean(-tr.log(y[t] + 1e-5))
 
 def main():
-	assert len(sys.argv) == 3, "Usage: python main.py train/retrain/test/train_classifier/pretrained_train_classifier " + \
-		"<path/to/mnist>"
+	assert len(sys.argv) == 3, "Usage: python main.py train/retrain/test/train_classifier/" + \
+		"pretrained_train_classifier <path/to/mnist>"
 
 	model = maybeCuda(DenoisingModelFC())
 	mnistReader = MNISTReader(sys.argv[2])
