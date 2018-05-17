@@ -78,7 +78,8 @@ def classificationLossFn(y, t):
 	return tr.mean(-tr.log(y[t] + 1e-5))
 
 def main():
-	assert len(sys.argv) == 3, "Usage: python main.py train/retrain/test/train_classify <path/to/mnist>"
+	assert len(sys.argv) == 3, "Usage: python main.py train/retrain/test/train_classifier/pretrained_train_classifier " + \
+		"<path/to/mnist>"
 
 	model = maybeCuda(DenoisingModelFC())
 	mnistReader = MNISTReader(sys.argv[2])
@@ -92,24 +93,40 @@ def main():
 
 	model.setCriterion(reconstructionLossFn)
 
-	if sys.argv[1] in ("train", "train_classify"):
+	if sys.argv[1] in ("train", "train_classifier"):
 		model.train_generator(generator, numIterations, numEpochs=10, \
 			validationGenerator=valGenerator, validationSteps=valNumIterations)
 		model.save_model("model_reconstruction_weights.pkl")
 
-		if sys.argv[1] == "train_classify":
+		if sys.argv[1] == "train_classifier":
 			# Pretraining done, now train for classification
 			generator = mnistReader.iterate("train", miniBatchSize=20, maxPrefetch=1)
 			numIterations = mnistReader.getNumIterations("train", miniBatchSize=20)
 			valGenerator = mnistReader.iterate("test", miniBatchSize=20, maxPrefetch=1)
 			valNumIterations = mnistReader.getNumIterations("test", miniBatchSize=20)
-			model.save_model("model_classifier_weights.pkl")
 
 			model.setPretrainMode(False)
 			model.setCriterion(classificationLossFn)
 			model.setMetrics({"Accuracy" : Accuracy(categoricalLabels=True)})
 			model.train_generator(generator, numIterations, numEpochs=10, callbacks=[PlotLossCallback()], \
 				validationGenerator=valGenerator, validationSteps=valNumIterations)
+			model.save_model("model_classifier_weights.pkl")
+
+	# Load pretrained unsupervised model, just train on classification
+	elif sys.argv[1] == "pretrained_train_classifier":
+		# Pretraining done, now train for classification
+		generator = mnistReader.iterate("train", miniBatchSize=20, maxPrefetch=1)
+		numIterations = mnistReader.getNumIterations("train", miniBatchSize=20)
+		valGenerator = mnistReader.iterate("test", miniBatchSize=20, maxPrefetch=1)
+		valNumIterations = mnistReader.getNumIterations("test", miniBatchSize=20)
+
+		model.load_model("model_reconstruction_weights.pkl")
+		model.setPretrainMode(False)
+		model.setCriterion(classificationLossFn)
+		model.setMetrics({"Accuracy" : Accuracy(categoricalLabels=True)})
+		model.train_generator(generator, numIterations, numEpochs=10, callbacks=[PlotLossCallback()], \
+			validationGenerator=valGenerator, validationSteps=valNumIterations)
+		model.save_model("model_classifier_weights.pkl")
 
 	elif sys.argv[1] == "retrain":
 		model.load_model("model_reconstruction_weights.pkl")
