@@ -82,7 +82,7 @@ def classificationLossFn(y, t):
 	return tr.mean(-tr.log(y[t] + 1e-5))
 
 def main():
-	assert len(sys.argv) == 3, "Usage: python main.py train/retrain/test/train_classifier/" + \
+	assert len(sys.argv) == 3, "Usage: python main.py train/retrain/test/train_then_classify/" + \
 		"pretrained_train_classifier <path/to/mnist>"
 
 	model = maybeCuda(DenoisingModelFC())
@@ -94,15 +94,14 @@ def main():
 	valGenerator = corrupterReader.iterate("test", miniBatchSize=20, maxPrefetch=1)
 	valNumIterations = corrupterReader.getNumIterations("test", miniBatchSize=20)
 	model.setOptimizer(SGD, lr=0.01, momentum=0.5)
-
 	model.setCriterion(reconstructionLossFn)
 
-	if sys.argv[1] in ("train", "train_classifier"):
+	if sys.argv[1] in ("train", "train_then_classify"):
 		model.train_generator(generator, numIterations, numEpochs=10, \
 			validationGenerator=valGenerator, validationSteps=valNumIterations)
 		model.save_model("model_reconstruction_weights.pkl")
 
-		if sys.argv[1] == "train_classifier":
+		if sys.argv[1] == "train_then_classify":
 			# Pretraining done, now train for classification
 			generator = mnistReader.iterate("train", miniBatchSize=20, maxPrefetch=1)
 			numIterations = mnistReader.getNumIterations("train", miniBatchSize=20)
@@ -134,7 +133,7 @@ def main():
 
 	elif sys.argv[1] == "retrain":
 		model.load_model("model_reconstruction_weights.pkl")
-		model.train_generator(generator, numIterations, numEpochs=50, \
+		model.train_generator(generator, numIterations, numEpochs=10, \
 			validationGenerator=valGenerator, validationSteps=valNumIterations)
 		model.save_model("model_reconstruction_weights.pkl")
 

@@ -96,7 +96,7 @@ def main():
 			validationGenerator=testGenerator, validationSteps=testNumIterations)
 	elif sys.argv[1] == "test":
 		assert len(sys.argv) == 6
-		model.load_model(sys.argv[5])
+		model.load_weights(sys.argv[5])
 		metrics = model.test_generator(testGenerator, testNumIterations, callbacks=[confusionMatrixCallback])
 
 		loss, accuracy = metrics["Loss"], metrics["Accuracy"]

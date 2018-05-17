@@ -4,7 +4,7 @@ class SelfSupervisedNetwork(NeuralNetworkPyTorch):
 	def __init__(self, baseModel):
 		super().__init__()
 		self.baseModel = baseModel
-		self.pretrain = True
+		self.setPretrainMode(True)
 
 	def setPretrainMode(self, mode):
 		self.linePrinter.print("Setting pretraining mode to %s. Resetting epoch and train history.\n" % (mode))
