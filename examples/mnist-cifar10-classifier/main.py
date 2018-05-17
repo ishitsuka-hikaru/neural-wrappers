@@ -6,7 +6,7 @@ import torch.optim as optim
 from neural_wrappers.readers import MNISTReader, Cifar10Reader
 from neural_wrappers.pytorch import maybeCuda
 from neural_wrappers.callbacks import SaveModels, ConfusionMatrix, Callback, SaveHistory
-from neural_wrappers.metrics import Loss, Accuracy
+from neural_wrappers.metrics import Accuracy
 import matplotlib.pyplot as plt
 
 from models import ModelFC, ModelConv, MobileNetV2

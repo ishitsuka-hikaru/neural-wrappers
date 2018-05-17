@@ -16,8 +16,8 @@ class CorrupterReader(DatasetReader):
 		noiseValues = np.random.choice([Min, Max], p=[0.5, 0.5], size=inputs.shape)
 
 		# mask = 0 => inputs * 1 + noiseValues * 0 (no change)
-		# mask = 1 => inputs * 0 + noiseValues * 1 (change value at that place)		
-		newInputs = inputs * (1 - mask) + noiseValues * mask
+		# mask = 1 => inputs * 0 + noiseValues * 1 (change value at that place)
+		newInputs = (inputs * (1 - mask) + noiseValues * mask).astype(inputs.dtype)
 		return newInputs
 
 	def iterate_once(self, type, miniBatchSize):
