@@ -4,7 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.misc import toimage
 
-from main_vae_classic import VAE, lossFunction, lossLatent, lossDecoder, plot_images
 from neural_wrappers.readers import MNISTReader
 from neural_wrappers.pytorch import NeuralNetworkPyTorch, maybeCuda, maybeCpu
 from neural_wrappers.callbacks import SaveModels
@@ -14,6 +13,52 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.autograd import Variable
 import torch.nn.functional as F
+
+class FCEncoder(NeuralNetworkPyTorch):
+	def __init__(self, numEncodings):
+		super().__init__()
+		self.fc1 = nn.Linear(28 * 28, 100)
+		self.fc2 = nn.Linear(100, 100)
+		self.mean_fc = nn.Linear(100, numEncodings)
+		self.mean_std = nn.Linear(100, numEncodings)
+
+	def forward(self, x):
+		x = x.view(-1, 28 * 28)
+		y1 = F.relu(self.fc1(x))
+		y2 = F.relu(self.fc2(y1))
+		y_mean = self.mean_fc(y2)
+		y_std = self.mean_std(y2)
+		return y_mean, y_std
+
+def lossFunction(y_network, y_target):
+	y_decoder, y_mean, y_std = y_network
+	# KL-Divergence between two Gaussians, one with y_mean, y_std and other is N(0, I)
+	latent_loss = 0.5 * tr.sum((y_std**2 + y_mean**2 - 1 - tr.log(y_std**2)))
+	# decoder_loss = tr.mean((y_decoder - y_target)**2)
+	decoder_loss = F.binary_cross_entropy(y_decoder, y_target)
+	return latent_loss + 76800 * decoder_loss
+
+def lossLatent(y_network, y_target, **kwargs):
+	y_decoder, y_mean, y_std = y_network
+	latent_loss = 0.5 * np.sum((y_std**2 + y_mean**2 - 1 - np.log(y_std**2)))
+	return latent_loss
+
+def lossDecoder(y_network, y_target, **kwargs):
+	y_decoder, y_mean, y_std = y_network
+	decoder_loss = (F.binary_cross_entropy(Variable(tr.from_numpy(y_decoder).cpu()), \
+		Variable(tr.from_numpy(y_target)).cpu())).data.numpy()
+	return 76800 * decoder_loss
+
+def plot_images(images, titles):
+	fig = plt.figure()
+	numImages = len(images)
+
+	for j in range(numImages):
+		fig.add_subplot(1, numImages, j + 1)
+		plt.imshow(np.array(toimage(images[j])), cmap="gray")
+		plt.title(titles[j])
+		plt.axis("off")
+	plt.show()
 
 class ConditionalBinaryMNIST(MNISTReader):
 	def iterate_once(self, type, miniBatchSize):
@@ -42,9 +87,15 @@ class Decoder(NeuralNetworkPyTorch):
 		y_decoder = F.sigmoid(y2)
 		return y_decoder
 
-class CVAE(VAE):
+class CVAE(NeuralNetworkPyTorch):
 	def __init__(self, numEncodings, encoderType="FCEncoder"):
-		super().__init__(numEncodings, encoderType)
+		super().__init__()
+		assert encoderType in ("FCEncoder", "ConvEncoder")
+		self.numEncodings = numEncodings
+		if encoderType == "FCEncoder":
+			self.encoder = FCEncoder(numEncodings)
+		else:
+			self.encoder = ConvEncoder(numEncodings)
 		self.decoder = Decoder(numEncodings)
 
 	def forward(self, x):
@@ -76,7 +127,7 @@ def corruptImages_erase(images):
 	return newImages
 
 def main():
-	assert len(sys.argv) >= 4, "Usage: python main.py <train/test/retrain/test_autoencoder> <path/to/mnist.h5> " + \
+	assert len(sys.argv) >= 4, "Usage: python main.py <train/test/retrain> <path/to/mnist.h5> " + \
 		"<FCEncoder/ConvEncoder> [model]"
 	miniBatchSize = 100
 	numEpochs = 2000
@@ -89,7 +140,7 @@ def main():
 	network = maybeCuda(CVAE(numEncodings=300, encoderType=sys.argv[3]))
 	network.setCriterion(lossFunction)
 	network.setOptimizer(optim.SGD, lr=0.000001, momentum=0.3)
-	metrics = { "Loss" : lambda x, y, **k : k["loss"], "Latent Loss" : lossLatent, "Decoder Loss" : lossDecoder }
+	metrics = { "Latent Loss" : lossLatent, "Decoder Loss" : lossDecoder }
 	network.setMetrics(metrics)
 	print(network.summary())
 

@@ -136,7 +136,7 @@ def main():
 	network = maybeCuda(VAE(numEncodings=300, encoderType=sys.argv[3]))
 	network.setCriterion(lossFunction)
 	network.setOptimizer(optim.SGD, lr=0.000001, momentum=0.3)
-	metrics = { "Loss" : lambda x, y, **k : k["loss"], "Latent Loss" : lossLatent, "Decoder Loss" : lossDecoder }
+	metrics = { "Latent Loss" : lossLatent, "Decoder Loss" : lossDecoder }
 	network.setMetrics(metrics)
 	print(network.summary())
 
