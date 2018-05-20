@@ -7,9 +7,7 @@ from neural_wrappers.utilities import toCategorical
 class MNISTReader(ClassificationDatasetReader):
 	def __init__(self, datasetPath, imagesShape=(28, 28), transforms=["none"], normalization="standardization"):
 		assert len(imagesShape) == 2
-		super().__init__(datasetPath, imagesShape, None, transforms, normalization)
-		self.dataAugmenter = Transformer(transforms, dataShape=imagesShape)
-		self.testAugmenter = Transformer(["none"], dataShape=imagesShape)
+		super().__init__(datasetPath, imagesShape, None, None, None, transforms, normalization)
 		self.setup()
 
 	def setup(self):
@@ -43,7 +41,7 @@ class MNISTReader(ClassificationDatasetReader):
 
 	def iterate_once(self, type, miniBatchSize):
 		assert type in ("train", "test")
-		augmenter = self.dataAugmenter if type == "train" else self.testAugmenter
+		augmenter = self.dataAugmenter if type == "train" else self.validationAugmenter
 		data = self.dataset[type]
 		numIterations = self.getNumIterations(type, miniBatchSize, accountTransforms=False)
 

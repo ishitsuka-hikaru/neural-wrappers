@@ -63,10 +63,10 @@ class SaveModel(Callback):
 def getReader(readerType, readerPath):
 	assert readerType in ("mnist", "cifar10")
 	if readerType == "mnist":
-		reader = MNISTReader(readerPath, normalization=GANNormalization)
+		reader = MNISTReader(readerPath, normalization=("GAN Normalization", GANNormalization))
 		imageShape = (28, 28, 1)
 	else:
-		reader = Cifar10Reader(readerPath, normalization=GANNormalization)
+		reader = Cifar10Reader(readerPath, normalization=("GAN Normalization", GANNormalization))
 		imageShape = (32, 32, 3)
 	return reader, imageShape
 
@@ -93,6 +93,7 @@ def main():
 
 	# Define reader, generator and callbacks
 	reader, imageShape = getReader(sys.argv[2], sys.argv[3])
+	print(reader.summary())
 	generator = reader.iterate("train", miniBatchSize=MB, maxPrefetch=1)
 	numIterations = reader.getNumIterations("train", miniBatchSize=MB)
 	callbacks = [PlotCallback(reader.iterate("test", miniBatchSize=10, maxPrefetch=1), imageShape), SaveModel()]
@@ -108,9 +109,6 @@ def main():
 	print(GAN.summary())
 
 	if sys.argv[1] == "train":
-		GAN.train_generator(generator, numIterations // 10, numEpochs=1, \
-			callbacks=callbacks, optimizeG=False, numStepsD=1)
-		generator = reader.iterate("train", miniBatchSize=MB, maxPrefetch=1)
 		GAN.train_generator(generator, numIterations, numEpochs=numEpochs, \
 			callbacks=callbacks, optimizeG=True, numStepsD=5)
 	elif sys.argv[1] == "retrain":

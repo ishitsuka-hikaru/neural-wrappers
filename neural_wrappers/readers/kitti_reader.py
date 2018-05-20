@@ -17,6 +17,14 @@ from .dataset_reader import DatasetReader
 # "validation"
 # ...
 
+# Usually closest=0, fathest=1, but with this normalizer it's reverse (closest=1, farthest=0). Empty data is still 0.
+def minMaxNormalizerReverseDepth(data, type, obj):
+	data = obj.minMaxNormalizer(data, type)
+	if type == "depth":
+		whereNotZero = (data != 0)
+		data = (1 - data) * whereNotZero
+	return data
+
 # KITTI Reader class, used with the data already converted in h5py format.
 # @param[in] datasetPath Path the the cityscapes_v2.h5 file
 # @param[in] imageShape The shape of the images. Must coincide with what type of data is required.
@@ -31,6 +39,9 @@ from .dataset_reader import DatasetReader
 class KITTIReader(DatasetReader):
 	def __init__(self, datasetPath, imageShape, labelShape, transforms=["none"], normalization="standardization", \
 		dataDimensions=["rgb"], labelDimensions=["depth"], baseDataGroup="raw_10"):
+		if normalization == "min_max_normalization_reverse":
+			normalization = (normalization, minMaxNormalizerReverseDepth)
+
 		super().__init__(datasetPath, imageShape, labelShape, dataDimensions, labelDimensions, \
 			transforms, normalization)
 		assert baseDataGroup in ("raw", "raw_10")

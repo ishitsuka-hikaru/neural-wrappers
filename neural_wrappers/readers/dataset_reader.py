@@ -27,9 +27,10 @@ class DatasetReader:
 		elif normalization == "none":
 			self.normalizer = lambda data, type: data
 		else:
-			assert hasattr(normalization, "__call__"), "The user provided normalization must be callable or must " + \
-				"one of \"standardization\", \"min_max_normalization\", \"none\""
-			self.normalizer = partial(normalization, obj=self)
+			assert hasattr(normalization[1], "__call__"), ("The user provided normalization \"%s\" must be a " + \
+				"tuple of type (Str, Callable) or must one of \"standardization\", \"min_max_normalization\", " + \
+				"\"none\"") % normalization[0]
+			self.normalizer = partial(normalization[1], obj=self)
 
 	# @brief Generic method that looks into a dataset dictionary, and takes each aasked dimension, concatenates it into
 	#  one array and returns it back to the caller.
