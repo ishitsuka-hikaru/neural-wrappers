@@ -16,9 +16,9 @@ import torch.nn.functional as F
 
 # For some reasons, results are much better if provided data is in range -1 : 1 (not 0 : 1 or standardized).
 def GANNormalization(obj, data, type):
-    data = obj.minMaxNormalizer(data, type)
-    data = (data - 0.5) * 2
-    return data
+	data = obj.minMaxNormalizer(data, type)
+	data = (data - 0.5) * 2
+	return data
 
 def plot_images(images, titles, gridShape):
 	plt.gcf().set_size_inches((12, 8))
