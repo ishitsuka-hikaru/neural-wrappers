@@ -9,7 +9,7 @@ from copy import deepcopy
 from torch.autograd import Variable
 from neural_wrappers.transforms import *
 from neural_wrappers.metrics import Accuracy, Loss
-from neural_wrappers.utilities import makeGenerator, LinePrinter
+from neural_wrappers.utilities import makeGenerator, LinePrinter, isBaseOf
 from neural_wrappers.callbacks import Callback
 from .utils import maybeCuda, maybeCpu, getNumParams, getOptimizerStr
 
@@ -113,8 +113,7 @@ class NeuralNetworkPyTorch(nn.Module):
 	# Checks that callbacks are indeed a subclass of the ABC Callback.
 	def checkCallbacks(self, callbacks):
 		for callback in callbacks:
-			mro = type(callback).mro()
-			assert Callback in type(callback).mro(), \
+			assert isBaseOf(callback, Callback), \
 				"Expected only subclass of types Callback, got type %s" % (type(callback))
 
 	# Other neural network architectures can update these

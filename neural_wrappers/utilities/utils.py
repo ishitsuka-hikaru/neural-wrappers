@@ -68,3 +68,12 @@ class LinePrinter:
 		message += (self.maxLength - len(message)) * " " + additional
 		sys.stdout.write(message)
 		sys.stdout.flush()
+
+# @brief Returns true if whatType is subclass of baseType. The parameters can be instantiated objects or types. In the
+#  first case, the parameters are converted to their type and then the check is done.
+def isBaseOf(whatType, baseType):
+	if type(whatType) != type:
+		whatType = type(whatType)
+	if type(baseType) != type:
+		baseType = type(baseType)
+	return baseType in type(object).mro(whatType)

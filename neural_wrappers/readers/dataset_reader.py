@@ -30,6 +30,7 @@ class DatasetReader:
 			assert hasattr(normalization[1], "__call__"), ("The user provided normalization \"%s\" must be a " + \
 				"tuple of type (Str, Callable) or must one of \"standardization\", \"min_max_normalization\", " + \
 				"\"none\"") % normalization[0]
+			self.normalization = normalization[0]
 			self.normalizer = partial(normalization[1], obj=self)
 
 	# @brief Generic method that looks into a dataset dictionary, and takes each aasked dimension, concatenates it into
@@ -199,6 +200,7 @@ class DatasetReader:
 
 		summaryStr += "Data dimensions: %s. Label dimensions: %s\n" % (self.dataDimensions, self.labelDimensions)
 		summaryStr += "Num data: %s\n" % (self.numData)
+		summaryStr += "Normalization: %s\n" % (self.normalization)
 		summaryStr += "Transforms(%i): %s\n" % (len(self.transforms), self.transforms)
 		return summaryStr
 
