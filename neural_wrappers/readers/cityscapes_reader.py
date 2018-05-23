@@ -1,6 +1,7 @@
 import numpy as np
 import h5py
 from .dataset_reader import DatasetReader
+from neural_wrappers.utilities import minMaxNormalizeData
 
 # Structure:
 # "train"
@@ -18,6 +19,22 @@ from .dataset_reader import DatasetReader
 # "validation"
 # ...
 
+def logit(x):
+	res1 = np.log((x + 100) / (1 - x + 1e-6))
+	res1[np.where(res1 == -np.inf)] = 0
+	res1[np.where(res1 == np.inf)] = 0
+	res1[np.where(res1 == np.nan)] = 0
+	res2 = minMaxNormalizeData(res1, np.min(res1), np.max(res1))
+	return res2
+
+def logitReverse(data, type, obj):
+	data = obj.minMaxNormalizer(data, type)
+	if type == "depth":
+		# First reverse the orders of the depth
+		data = 1 - data
+		data = logit(data)
+	return data
+
 # CityScapes Reader class, used with the data already converted in h5py format.
 # @param[in] datasetPath Path the the cityscapes_v2.h5 file
 # @param[in] imageShape The shape of the images. Must coincide with what type of data is required.
@@ -31,6 +48,8 @@ class CityScapesReader(DatasetReader):
 	def __init__(self, datasetPath, imageShape, labelShape, transforms=["none"], normalization="standardization", \
 		dataDimensions=["rgb"], labelDimensions=["depth"], baseDataGroup=False, semanticTransform=None, \
 		opticalFlowTransform=None):
+		if normalization == "min_max_normalization_reverse_logit":
+			normalization = (normalization, logitReverse)
 		super().__init__(datasetPath, imageShape, labelShape, dataDimensions, \
 			labelDimensions, transforms, normalization)
 		assert baseDataGroup in ("noseq", "seq_5")
