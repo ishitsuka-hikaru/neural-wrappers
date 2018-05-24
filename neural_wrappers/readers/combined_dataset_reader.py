@@ -25,7 +25,6 @@ class CombinedDatasetReader(DatasetReader):
 	def getActualMiniBatchSize(self, type, miniBatchSize, accountTransforms):
 		numIterations = [reader.getNumIterations(type, miniBatchSize, accountTransforms) for reader in self.readers]
 		numIterations = np.array(numIterations)
-		assert np.sum(numIterations == 0) == 0, "The minibatch is too small, and some readers have a batch size of 0"
 
 		totalNumIterations = np.sum(numIterations)
 		percentEachReader = numIterations / totalNumIterations
@@ -36,6 +35,7 @@ class CombinedDatasetReader(DatasetReader):
 		#  otherewise it's a little higher and last iterations will only uses items from that reader.
 		actualMiniBatch = np.int32(percentEachReader * miniBatchSize)
 		actualMiniBatch[-1] = miniBatchSize - np.sum(actualMiniBatch[0 : -1])
+		assert np.sum(actualMiniBatch == 0) == 0, "The minibatch is too small, and some readers have a batch size of 0"
 		return actualMiniBatch
 
 	def getNumIterations(self, type, miniBatchSize, accountTransforms=True):
