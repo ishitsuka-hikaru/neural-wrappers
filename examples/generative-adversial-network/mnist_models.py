@@ -10,7 +10,7 @@ class GeneratorLinear(NeuralNetworkPyTorch):
 		self.inputSize = inputSize
 		self.outputSize = outputSize
 
-		self.fc1 = nn.Linear(100, 128)
+		self.fc1 = nn.Linear(self.inputSize, 128)
 		self.fc2 = nn.Linear(128, 256)
 		self.bn2 = nn.BatchNorm1d(256)
 		self.fc3 = nn.Linear(256, 512)
