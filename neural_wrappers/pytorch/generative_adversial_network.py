@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch as tr
 
 from .utils import maybeCuda, maybeCpu
-from .network import NeuralNetworkPyTorch
+from .network import NeuralNetworkPyTorch, getNumParams, getOptimizerStr
 from neural_wrappers.utilities import LinePrinter
 
 class GenerativeAdversialNetwork(NeuralNetworkPyTorch):
@@ -18,6 +18,23 @@ class GenerativeAdversialNetwork(NeuralNetworkPyTorch):
 			"LossG" : (lambda x, y, **k : k["lossG"]),
 			"LossD" : (lambda x, y, **k : k["lossD"])
 		}
+
+	def summary(self):
+		summaryStr = "[Model summary]\n"
+		summaryStr += self.__str__() + "\n"
+
+		gNumParams, gNumTrainable = getNumParams(self.generator.parameters())
+		summaryStr += "Generator. Parameters count: %d. Trainable parameters: %d.\n" % (gNumParams, gNumTrainable)
+		dNumParams, dNumTrainable = getNumParams(self.discriminator.parameters())
+		summaryStr += "Discriminator. Parameters count: %d. Trainable parameters: %d.\n" % (dNumParams, dNumTrainable)
+
+		strMetrics = str(list(self.metrics.keys()))[1 : -1]
+		summaryStr += "Metrics: %s\n" % (strMetrics)
+
+		summaryStr += "Optimizer: %s\n" % getOptimizerStr(self.optimizer)
+
+		return summaryStr
+
 
 	def setMetrics(self, metrics):
 		assert not "LossG" in metrics, "Cannot overwrite generator Loss metric."

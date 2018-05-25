@@ -42,8 +42,9 @@ class PlotCallback(Callback):
 
 	def onEpochEnd(self, **kwargs):
 		GAN = kwargs["model"]
-		randomInputsG = Variable(maybeCuda(tr.randn(10, 100)))
-		randomOutG = GAN.generator.forward(randomInputsG).view(-1, *self.imageShape)
+		latentSpaceSize = GAN.generator.inputShape
+		randomInputsG = Variable(maybeCuda(tr.randn(10, latentSpaceSize)))
+		randomOutG = GAN.generator.forward(randomInputsG).contiguous().view(-1, *self.imageShape)
 		realItems = next(self.realDataGenerator)[0]
 		trRealItems = maybeCuda(Variable(tr.from_numpy(realItems)))
 
@@ -73,7 +74,7 @@ def getReader(readerType, readerPath):
 def getModel(dataset, latentSpaceSize, imageShape):
 	if dataset == "cifar10":
 		from cifar10_models import GeneratorConvTransposed as Generator
-		from cifar10_models import DiscriminatorMobileNetV2 as Discriminator
+		from cifar10_models import DiscriminatorConv as Discriminator
 		# Technically, I can still use either of the discriminator/generator from MNIST (linear models), but they
 		#  cannot understand Cifar10 as well, so results are bad (either too good discriminator, or too bad generator)
 		# from mnist_models import DiscriminatorLinear as Discriminator
@@ -87,9 +88,9 @@ def getModel(dataset, latentSpaceSize, imageShape):
 
 def main():
 	assert len(sys.argv) == 4, "Usage: python main.py <train/retrain/test> <mnist/cifar10> <path/to/dataset.h5>"
-	MB = 64
+	MB = 100
 	numEpochs = 200
-	latentSpaceSize = 100
+	latentSpaceSize = 200
 
 	# Define reader, generator and callbacks
 	reader, imageShape = getReader(sys.argv[2], sys.argv[3])
@@ -103,23 +104,22 @@ def main():
 	# Define model
 	GAN = GenerativeAdversialNetwork(generator=generatorModel, discriminator=discriminatorModel)
 	GAN = maybeCuda(GAN)
-	GAN.generator.setOptimizer(tr.optim.Adam, lr=0.0002, betas=(0.5, 0.999))
-	GAN.discriminator.setOptimizer(tr.optim.Adam, lr=0.0002, betas=(0.5, 0.999))
+	GAN.generator.setOptimizer(tr.optim.Adam, lr=0.01)
+	GAN.discriminator.setOptimizer(tr.optim.Adam, lr=0.01)
 	GAN.setCriterion(nn.BCELoss())
 	print(GAN.summary())
 
 	if sys.argv[1] == "train":
-		GAN.train_generator(generator, numIterations, numEpochs=numEpochs, \
-			callbacks=callbacks, optimizeG=True, numStepsD=5)
+		GAN.train_generator(generator, numIterations, numEpochs=numEpochs, callbacks=callbacks)
 	elif sys.argv[1] == "retrain":
 		GAN.load_model("GAN.pkl")
 		GAN.train_generator(generator, numIterations, numEpochs=numEpochs, \
-			callbacks=callbacks, optimizeG=True, numStepsD=5)
+			callbacks=callbacks, optimizeG=True, numStepsD=1)
 	else:
 		GAN.load_model("GAN.pkl")
 		while True:
 			# Generate 20 random gaussian inputs
-			randomInputsG = Variable(maybeCuda(tr.randn(20, 100)))
+			randomInputsG = Variable(maybeCuda(tr.randn(20, latentSpaceSize)))
 			randomOutG = GAN.generator.forward(randomInputsG).view(-1, *imageShape)
 			outD = maybeCpu(GAN.discriminator.forward(randomOutG).data).numpy()
 
