@@ -17,7 +17,7 @@ class DatasetReader:
 
 		self.dataAugmenter = Transformer(transforms, dataShape=dataShape, labelShape=labelShape)
 		self.validationAugmenter = Transformer(["none"], dataShape=dataShape, labelShape=labelShape)
-		self.doNothing = lambda x : x
+		self.doNothing = lambda x, *args : x
 		self.means, self.stds, self.maximums, self.minimums, self.postDataProcessing = {}, {}, {}, {}, {}
 
 		if normalization == "min_max_normalization":
@@ -35,14 +35,19 @@ class DatasetReader:
 
 	# @brief Generic method that looks into a dataset dictionary, and takes each aasked dimension, concatenates it into
 	#  one array and returns it back to the caller.
+	# @param[in] normalizer A lambda function that supports (data, type) parameters and can apply a normalization
+	#  to the dimensions required for this data (as given by requiredDimensions channels). Default it is set to
+	#  self.normalizer, that is instantiated in the constructor.
 	# @return One list, where each element is one required dimension, extracted from the allData parameter at given
 	#  indexes startIndex and endIndex after all processing was done.
-	def getData(self, allData, startIndex, endIndex, requiredDimensions):
+	def getData(self, allData, startIndex, endIndex, requiredDimensions, normalizer=None):
+		if not normalizer:
+			normalizer = self.normalizer
 		dimList = []
 		for dim in requiredDimensions:
 			data = allData[dim][startIndex : endIndex]
 			data = self.postDataProcessing[dim](data)
-			data = self.normalizer(data, dim)
+			data = normalizer(data, dim)
 			dimList.append(data)
 		return dimList
 
