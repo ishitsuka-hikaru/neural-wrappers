@@ -33,6 +33,7 @@ def getArgs():
 	parser.add_argument("--semantic", help="Do Semantic (20th frame of each sequence)")
 	parser.add_argument("--semantic_algorithm", help="What semantic segmentation algorithm to use")
 	parser.add_argument("--rgb_first_frame", help="Do RGB (1st frame of each sequence)")
+	parser.add_argument("--rgb_prev_frame", help="Do RGB (previous - aka 19th frame - of each sequence")
 
 	parser.add_argument("--seq_rgb", help="Do RGB (all 30 frames of each sequence)")
 	parser.add_argument("--seq_depth", help="Do Depth (all 30 frames of each sequence)")
@@ -49,6 +50,7 @@ def getArgs():
 	args.optical_flow = bool(args.optical_flow)
 	args.semantic = bool(args.semantic)
 	args.rgb_first_frame = bool(args.rgb_first_frame)
+	args.rgb_prev_frame = bool(args.rgb_prev_frame)
 	args.seq_rgb = bool(args.seq_rgb)
 	args.seq_depth = bool(args.seq_depth)
 	args.seq_optical_flow = bool(args.seq_optical_flow)
@@ -109,6 +111,12 @@ def setup(args):
 		paths["rgb_first_frame"] = []
 		for index in indexes:
 			paths["rgb_first_frame"].append(paths["seq_rgb"][index])
+
+	if args.rgb_prev_frame:
+		indexes = np.arange(len(paths["seq_rgb"]) // 30) * 30 + 18
+		paths["rgb_prev_frame"] = []
+		for index in indexes:
+			paths["rgb_prev_frame"].append(paths["seq_rgb"][index])
 
 	if args.depth:
 		indexes = np.arange(len(paths["seq_depth"]) // 30) * 30 + 19
@@ -219,6 +227,16 @@ def doTheThingy(file, args, paths):
 			if i % 10 == 0:
 				flushPrint("RGB first frame %d/%d done." % (i, numData))
 			group["noseq"]["rgb_first_frame"][i] = doPng(paths["rgb_first_frame"][i])
+
+	if args.rgb_first_frame:
+		numData = len(paths["rgb_prev_frame"])
+		flushPrint("Doing RGB prev frame (%d pictures)" % (numData))
+		prepareData(group, baseGroup="noseq", name="rgb_prev_frame", \
+			dataShape=(numData, 870, 1820, 3), dtype=np.uint8)
+		for i in range(numData):
+			if i % 10 == 0:
+				flushPrint("RGB prev frame %d/%d done." % (i, numData))
+			group["noseq"]["rgb_prev_frame"][i] = doPng(paths["rgb_prev_frame"][i])
 
 	if args.depth:
 		numData = len(paths["depth"])
