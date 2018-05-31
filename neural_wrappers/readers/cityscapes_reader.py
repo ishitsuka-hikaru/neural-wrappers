@@ -60,7 +60,8 @@ class CityScapesReader(DatasetReader):
 
 	def setup(self):
 		self.dataset = h5py.File(self.datasetPath, "r")
-		self.supportedDimensions = ("rgb", "depth", "flownet2s", "ground_truth_fine", "rgb_first_frame", "deeplabv3")
+		self.supportedDimensions = ("rgb", "depth", "flownet2s", "ground_truth_fine", "rgb_first_frame", "deeplabv3", \
+			"rgb_prev_frame")
 
 		semanticNumDims = 1
 		if "ground_truth_fine" in self.dataDimensions or "deeplabv3" in self.dataDimensions:
@@ -103,6 +104,7 @@ class CityScapesReader(DatasetReader):
 		self.means = {
 			"rgb" : [74.96715607296854, 84.3387139353354, 73.62945761147961],
 			"rgb_first_frame" : [74.96715607296854, 84.3387139353354, 73.62945761147961],
+			"rgb_prev_frame" : [74.96715607296854, 84.3387139353354, 73.62945761147961],
 			"depth" : 8277.619363028218,
 			"flownet2s" : flownet2sMean,
 			"ground_truth_fine" : [0] * semanticNumDims,
@@ -112,6 +114,7 @@ class CityScapesReader(DatasetReader):
 		self.stds = {
 			"rgb" : [49.65527668307159, 50.01892939272212, 49.67332749250472],
 			"rgb_first_frame" : [49.65527668307159, 50.01892939272212, 49.67332749250472],
+			"rgb_prev_frame" : [49.65527668307159, 50.01892939272212, 49.67332749250472],
 			"depth" : 6569.138224069467,
 			"flownet2s" : flownet2sStd,
 			"ground_truth_fine" : [1] * semanticNumDims if semanticNumDims > 1 else 1,
@@ -121,6 +124,7 @@ class CityScapesReader(DatasetReader):
 		self.maximums = {
 			"rgb" : [255, 255, 255],
 			"rgb_first_frame" : [255, 255, 255],
+			"rgb_prev_frame" : [255, 255, 255],
 			"depth" : 32257,
 			"flownet2s" : flownet2sMaximum,
 			"ground_truth_fine" : [1] * semanticNumDims if semanticNumDims > 1 else 1,
@@ -130,6 +134,7 @@ class CityScapesReader(DatasetReader):
 		self.minimums = {
 			"rgb" : [0, 0, 0],
 			"rgb_first_frame" : [0, 0, 0],
+			"rgb_prev_frame" : [0, 0, 0],
 			"depth" : 0,
 			"flownet2s" : flownet2sMinimum,
 			"ground_truth_fine" : [0] * semanticNumDims if semanticNumDims > 1 else 0,
@@ -138,11 +143,12 @@ class CityScapesReader(DatasetReader):
 
 		self.numDimensions = {
 			"rgb" : 3,
+			"rgb_first_frame" : 3,
+			"rgb_prev_frame" : 3,
 			"depth": 1,
 			"flownet2s" : opticalFlowNumDimensions,
 			"ground_truth_fine" : semanticNumDims,
-			"deeplabv3" : semanticNumDims,
-			"rgb_first_frame" : 3
+			"deeplabv3" : semanticNumDims
 		}
 
 		self.postSetup()
