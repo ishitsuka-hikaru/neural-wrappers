@@ -23,8 +23,9 @@ class NYUDepthReader(DatasetReader):
 		numAllData = len(self.dataset["images"])
 		self.indexes, self.numData = self.computeIndexesSplit(numAllData)
 
+		# Top 49 classes for each version of the dataset. The 50th is considered "other" and has value of 0.
 		if self.version == "v1":
-			topClasses = np.array([1296, 0, 99, 964, 423, 81, 1122, 137, 182, 341, 216, 296, 249, 823, 46, 188, 1027, \
+			topClasses = np.array([1296, 99, 964, 423, 81, 1122, 137, 182, 341, 216, 296, 249, 823, 46, 188, 1027, \
 				1362, 1360, 67, 357, 1160, 70, 450, 898, 685, 1084, 113, 942, 19, 827, 990, 1210, 683, 1060, 1314, \
 				606, 557, 7, 996, 893, 872, 691, 462, 732, 291, 285, 730, 1225, 106])
 		elif self.version == "v2":
