@@ -78,8 +78,8 @@ class NYUDepthReader(DatasetReader):
 
 		# One iteration in this method accounts for all transforms at once
 		for i in range(self.getNumIterations(type, miniBatchSize, accountTransforms=False)):
-			startIndex = i * miniBatchSize
-			endIndex = min((i + 1) * miniBatchSize, self.numData[type])
+			startIndex = self.indexes[type][0] + i * miniBatchSize
+			endIndex = self.indexes[type][0] + min((i + 1) * miniBatchSize, self.numData[type])
 			assert startIndex < endIndex, "startIndex < endIndex. Got values: %d %d" % (startIndex, endIndex)
 
 			images = self.getData(self.dataset, startIndex, endIndex, self.dataDimensions)
