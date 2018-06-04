@@ -200,10 +200,12 @@ class CityScapesReader(DatasetReader):
 
 	def semanticNewDims(self, images):
 		importantIds = [7, 8, 11, 12, 13, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 31, 32, 33]
-		newImages = np.zeros((*images.shape, 19), dtype=np.float32)
+		newImages = np.zeros((19, *images.shape), dtype=np.float32)
 		for i in range(len(importantIds)):
+			thisOne = newImages[i]
 			whereId = np.where(images == importantIds[i])
-			newImages[..., i][whereId] = 1
+			thisOne[whereId] = 1
+		newImages = np.transpose(newImages, [1, 2, 3, 0])
 		return newImages
 
 	def iterate_once(self, type, miniBatchSize):
