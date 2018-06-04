@@ -34,13 +34,13 @@ class ModelUNetDilatedConv(NeuralNetworkPyTorch):
 		self.dilate2 = nn.Conv2d(in_channels=numFilters * 8, out_channels=numFilters * 8, \
 			kernel_size=3, padding=(2, 2), dilation=2)
 		self.dilate3 = nn.Conv2d(in_channels=numFilters * 8, out_channels=numFilters * 8, \
-			kernel_size=3, padding=(3, 3), dilation=4)
+			kernel_size=3, padding=(4, 4), dilation=4)
 		self.dilate4 = nn.Conv2d(in_channels=numFilters * 8, out_channels=numFilters * 8, \
-			kernel_size=3, padding=(4, 4), dilation=8)
+			kernel_size=3, padding=(8, 8), dilation=8)
 		self.dilate5 = nn.Conv2d(in_channels=numFilters * 8, out_channels=numFilters * 8, \
-			kernel_size=3, padding=(5, 5), dilation=16)
+			kernel_size=3, padding=(16, 16), dilation=16)
 		self.dilate6 = nn.Conv2d(in_channels=numFilters * 8, out_channels=numFilters * 8, \
-			kernel_size=3, padding=(6, 6), dilation=32)
+			kernel_size=3, padding=(32, 32), dilation=32)
 
 		# Final up-sample layers
 		# Input to up3 is the output of the concatenated dilated convs (6 concatenations of numFilters * 8)
@@ -64,10 +64,10 @@ class ModelUNetDilatedConv(NeuralNetworkPyTorch):
 
 		y_dilate1 = F.relu(self.dilate1(y_down3pool))
 		y_dilate2 = F.relu(self.dilate2(y_dilate1))
-		y_dilate3 = F.relu(self.dilate2(y_dilate2))
-		y_dilate4 = F.relu(self.dilate2(y_dilate3))
-		y_dilate5 = F.relu(self.dilate2(y_dilate4))
-		y_dilate6 = F.relu(self.dilate2(y_dilate5))
+		y_dilate3 = F.relu(self.dilate3(y_dilate2))
+		y_dilate4 = F.relu(self.dilate4(y_dilate3))
+		y_dilate5 = F.relu(self.dilate5(y_dilate4))
+		y_dilate6 = F.relu(self.dilate6(y_dilate5))
 		y_dilate_concatenate = tr.cat([y_dilate1, y_dilate2, y_dilate3, y_dilate4, y_dilate5, y_dilate6], dim=1)
 
 		y_up3 = self.up3(y_down3, y_dilate_concatenate)
