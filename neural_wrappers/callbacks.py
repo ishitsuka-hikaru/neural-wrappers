@@ -1,5 +1,7 @@
 import sys
 import numpy as np
+from neural_wrappers.utilities import isBaseOf
+from copy import deepcopy
 
 class Callback:
 	def __init__(self):
@@ -64,6 +66,19 @@ class SaveModels(Callback):
 				kwargs["model"].save_model("model_best.pkl")
 				sys.stdout.write("Epoch %d. Improvement from %2.2f to %2.2f\n" % (kwargs["epoch"], self.best, loss))
 				self.best = loss
+
+# Used to save self-supervised models.
+class SaveModelsSelfSupervised(SaveModels):
+	def __init__(self, type="all"):
+		super().__init__(type)
+
+	def onEpochEnd(self, **kwargs):
+		model = deepcopy(kwargs["model"])
+		model.setPretrainMode(False)
+		model.trainHistory = []
+		kwargs["model"] = model
+		super().onEpochEnd(**kwargs)
+
 
 # TODO: add parameters if values are not one-hot encoded (for now it's assumed for both results and labels)
 class ConfusionMatrix(Callback):
