@@ -79,7 +79,7 @@ class CityScapesReader(DatasetReader):
 	def setup(self):
 		self.dataset = h5py.File(self.datasetPath, "r")
 		self.supportedDimensions = ("rgb", "depth", "flownet2s", "ground_truth_fine", "rgb_first_frame", "deeplabv3", \
-			"rgb_prev_frame", "depth_prev_frame_deeplabv3")
+			"rgb_prev_frame", "depth_prev_frame_deeplabv3_new_dims")
 
 		semanticNumDims = 1
 		if "ground_truth_fine" in self.dataDimensions or "deeplabv3" in self.dataDimensions:
@@ -127,7 +127,7 @@ class CityScapesReader(DatasetReader):
 			"flownet2s" : flownet2sMean,
 			"ground_truth_fine" : [0] * semanticNumDims,
 			"deeplabv3" : [0] * semanticNumDims,
-			"depth_prev_frame_deeplabv3" : 8277.619363028218
+			"depth_prev_frame_deeplabv3_new_dims" : 8277.619363028218
 		}
 
 		self.stds = {
@@ -138,7 +138,7 @@ class CityScapesReader(DatasetReader):
 			"flownet2s" : flownet2sStd,
 			"ground_truth_fine" : [1] * semanticNumDims if semanticNumDims > 1 else 1,
 			"deeplabv3" : [1] * semanticNumDims if semanticNumDims > 1 else 1,
-			"depth_prev_frame_deeplabv3" : 6569.138224069467
+			"depth_prev_frame_deeplabv3_new_dims" : 6569.138224069467
 		}
 
 		self.maximums = {
@@ -149,7 +149,7 @@ class CityScapesReader(DatasetReader):
 			"flownet2s" : flownet2sMaximum,
 			"ground_truth_fine" : [1] * semanticNumDims if semanticNumDims > 1 else 1,
 			"deeplabv3" : [1] * semanticNumDims if semanticNumDims > 1 else 1,
-			"depth_prev_frame_deeplabv3" : 32257
+			"depth_prev_frame_deeplabv3_new_dims" : 32257
 		}
 
 		self.minimums = {
@@ -160,7 +160,7 @@ class CityScapesReader(DatasetReader):
 			"flownet2s" : flownet2sMinimum,
 			"ground_truth_fine" : [0] * semanticNumDims if semanticNumDims > 1 else 0,
 			"deeplabv3" : [0] * semanticNumDims if semanticNumDims > 1 else 0,
-			"depth_prev_frame_deeplabv3" : 0
+			"depth_prev_frame_deeplabv3_new_dims" : 0
 		}
 
 		self.numDimensions = {
@@ -171,7 +171,7 @@ class CityScapesReader(DatasetReader):
 			"flownet2s" : opticalFlowNumDimensions,
 			"ground_truth_fine" : semanticNumDims,
 			"deeplabv3" : semanticNumDims,
-			"depth_prev_frame_deeplabv3" : 1
+			"depth_prev_frame_deeplabv3_new_dims" : 1
 		}
 
 		self.postSetup()
@@ -216,8 +216,8 @@ class CityScapesReader(DatasetReader):
 		# Hackish solution for the pre-computed depth that is stored as smaller size. We remove it at each iteration
 		#  compute the resize/transforms, and append it back. Solution to fix this is to move resize from trasnformer
 		#  to someplace else. Transformer should only apply augmentation anways, not resizes. TODO.
-		if "depth_prev_frame_deeplabv3" in self.dataDimensions:
-			depthPrevIndex = self.dataDimensions.index("depth_prev_frame_deeplabv3")
+		if "depth_prev_frame_deeplabv3_new_dims" in self.dataDimensions:
+			depthPrevIndex = self.dataDimensions.index("depth_prev_frame_deeplabv3_new_dims")
 			actualFinalIndex = 0
 			for i in range(depthPrevIndex):
 				actualFinalIndex += self.numDimensions[self.dataDimensions[i]]
