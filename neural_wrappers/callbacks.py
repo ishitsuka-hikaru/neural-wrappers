@@ -73,12 +73,11 @@ class SaveModelsSelfSupervised(SaveModels):
 		super().__init__(type)
 
 	def onEpochEnd(self, **kwargs):
-		model = deepcopy(kwargs["model"])
+		model = deepcopy(kwargs["model"]).cpu()
 		model.setPretrainMode(False)
 		model.trainHistory = []
 		kwargs["model"] = model
 		super().onEpochEnd(**kwargs)
-
 
 # TODO: add parameters if values are not one-hot encoded (for now it's assumed for both results and labels)
 class ConfusionMatrix(Callback):

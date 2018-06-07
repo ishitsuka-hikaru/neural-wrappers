@@ -8,14 +8,61 @@ def resize_batch(data, dataShape, type="bilinear"):
 	if data.shape[1 : ] == dataShape:
 		return np.copy(data)
 
-	assert type in ("bilinear", "nearest")
+	assert type in ("bilinear", "nearest", "cubic")
+	if type == "bilinear":
+		interpolationType = Interpolation.LINEAR
+	elif type == "nearest":
+		interpolationType = Interpolation.NEAREST
+	else:
+		interpolationType = Interpolation.CUBIC
+
 	numData = len(data)
 	newData = np.zeros((numData, *dataShape), dtype=data.dtype)
 
-	interpolationType = Interpolation.LINEAR if type == "bilinear" else Interpolation.NEAREST
 	for i in range(len(data)):
 		result = resize(data[i], height=dataShape[0], width=dataShape[1], interpolation=interpolationType)
 		newData[i] = result.reshape(newData[i].shape)
+	return newData
+
+# Resizes a batch of HxW images, to a desired dHxdW, but keeps the same aspect ration, and adds black bars on the
+#  dimension that does not fit (instead of streching as with regular resize).
+def resize_batch_black_bars(data, desiredShape, type="bilinear"):
+	# No need to do anything if shapes are identical.
+	if data.shape[1 : ] == desiredShape:
+		return np.copy(data)
+
+	assert type in ("bilinear", "nearest", "cubic")
+	if type == "bilinear":
+		interpolationType = Interpolation.LINEAR
+	elif type == "nearest":
+		interpolationType = Interpolation.NEAREST
+	else:
+		interpolationType = Interpolation.CUBIC
+
+	numData = len(data)
+	newData = np.zeros((numData, *desiredShape), dtype=data.dtype)
+	# newImage = np.zeros((240, 320, 3), np.uint8)
+	h, w = data.shape[1 : 3]
+	desiredH, desiredW = desiredShape[0 : 2]
+
+	# Find the rapports between the h/desiredH and w/desiredW
+	rH, rW = h / desiredH, w / desiredW
+	# print(rH, rW)
+
+	# Find which one is the highest, that one will be used
+	minRapp, maxRapp = min(rH, rW), max(rH, rW)
+	# print(minRapp, maxRapp)
+
+	# Compute the new dimensions, based on th highest rapport
+	newRh, newRw = int(h // maxRapp), int(w // maxRapp)
+	# Also, find the half, so we can inser the other dimension from the half
+	halfH, halfW = int((desiredH - newRh) // 2), int((desiredW - newRw) // 2)
+
+	# Finally, do the resizes on the batch
+	for i in range(len(data)):
+		resizedData = resize(data[i], height=newRh, width=newRw, interpolation=interpolationType)
+		newData[i, halfH : halfH + newRh, halfW : halfW + newRw] = resizedData
+
 	return newData
 
 def standardizeData(data, mean, std):
