@@ -75,7 +75,6 @@ class SaveModelsSelfSupervised(SaveModels):
 	def onEpochEnd(self, **kwargs):
 		model = deepcopy(kwargs["model"]).cpu()
 		model.setPretrainMode(False)
-		model.trainHistory = []
 		kwargs["model"] = model
 		super().onEpochEnd(**kwargs)
 

@@ -4,9 +4,10 @@ import torch.utils.model_zoo as model_zoo
 
 # Class that loads a ResNet-50 module from torchvision and deletes the FC layer at the end, to use just as extractor
 class ResNet50NoTop(ResNet):
-	def __init__(self):
+	def __init__(self, pretrained=True):
 		super().__init__(Bottleneck, [3, 4, 6, 3])
-		self.load_state_dict(model_zoo.load_url(model_urls["resnet50"]))
+		if pretrained:
+			self.load_state_dict(model_zoo.load_url(model_urls["resnet50"]))
 		self.fc = None
 		self.avgpool = None
 

@@ -7,15 +7,16 @@ import torch.nn.functional as F
 
 # Implementation of the Laina model from https://arxiv.org/abs/1606.00373
 class ModelLaina(NeuralNetworkPyTorch):
-	def __init__(self, baseModelType, upSampleType):
+	def __init__(self, baseModelType, upSampleType, baseModelPreTrained):
 		super().__init__()
 		assert baseModelType in ("resnet50", )
 		assert upSampleType in ("unpool", "bilinear", "nearest", "conv_transposed")
 		self.baseModelType = baseModelType
 		self.upSampleType = upSampleType
+		self.baseModelPreTrained = baseModelPreTrained
 
 		if self.baseModelType == "resnet50":
-			self.baseModel = ResNet50NoTop()
+			self.baseModel = ResNet50NoTop(pretrained=baseModelPreTrained)
 
 		self.conv_3_1 = nn.Conv2d(in_channels=2048, out_channels=1024, kernel_size=1)
 		self.bn_3_1 = nn.BatchNorm2d(1024)
@@ -26,7 +27,8 @@ class ModelLaina(NeuralNetworkPyTorch):
 		self.conv_3_6 = nn.Conv2d(in_channels=64, out_channels=1, kernel_size=3)
 
 	def __str__(self):
-		return "Laina. Base model: %s. Upsample type: %s" % (self.baseModelType, self.upSampleType)
+		return "Laina. Base model: %s (%spretrained). Upsample type: %s" % \
+			(self.baseModelType, ("" if self.baseModelPreTrained else "not "), self.upSampleType)
 
 	def forward(self, x):
 		# Move depth first (MB, 228, 304, 3) => (MB, 3, 228, 304)

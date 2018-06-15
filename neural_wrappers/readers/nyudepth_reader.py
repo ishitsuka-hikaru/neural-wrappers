@@ -7,6 +7,9 @@ class NYUDepthReader(DatasetReader):
 	def __init__(self, datasetPath, imageShape, labelShape, transforms=["none"], \
 		normalization="min_max_normalization", dataDimensions=["images"], labelDimensions=["depths"], \
 		dataSplit=(80, 0, 20), version="v2"):
+		if "rgb" in dataDimensions:
+			dataDimensions[dataDimensions.index("rgb")] = "images"
+
 		super().__init__(datasetPath, imageShape, labelShape, dataDimensions, labelDimensions, \
 			transforms, normalization)
 		assert version in ("v1", "v2")
@@ -16,6 +19,14 @@ class NYUDepthReader(DatasetReader):
 
 	def __str__(self):
 		return "NYUDepth Reader"
+
+	# def transform(self, x):
+	# 	y = np.expand_dims(np.swapaxes(x, 1, 2), axis=-1)
+	# 	b = np.unique(y)
+	# 	z = np.uint8(np.zeros(y.shape))
+	# 	for i in range(len(b)):
+	# 		z[np.where(y == b[i])] = i
+	# 	return z
 
 	def setup(self):
 		self.dataset = h5py.File(self.datasetPath, "r")
@@ -65,7 +76,8 @@ class NYUDepthReader(DatasetReader):
 
 		self.postDataProcessing = {
 			"images" : lambda x : np.swapaxes(x, 1, 3),
-			"depths" : lambda x : np.swapaxes(x, 1, 2)
+			"depths" : lambda x : np.swapaxes(x, 1, 2),
+			"labels" : lambda x : np.expand_dims(np.swapaxes(x, 1, 2), axis=-1)
 		}
 
 		self.postSetup()
