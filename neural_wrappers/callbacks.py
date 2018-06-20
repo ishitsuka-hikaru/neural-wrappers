@@ -13,6 +13,9 @@ class Callback:
 	def onEpochEnd(self, **kwargs):
 		pass
 
+	def onIterationStart(self, **kwargs):
+		pass
+
 	def onIterationEnd(self, **kwargs):
 		pass
 

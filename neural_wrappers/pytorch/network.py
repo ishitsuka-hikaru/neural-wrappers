@@ -6,7 +6,6 @@ import numpy as np
 from datetime import datetime
 from copy import deepcopy
 
-from torch.autograd import Variable
 from neural_wrappers.transforms import *
 from neural_wrappers.metrics import Accuracy, Loss
 from neural_wrappers.utilities import makeGenerator, LinePrinter, isBaseOf
@@ -92,8 +91,10 @@ class NeuralNetworkPyTorch(nn.Module):
 			for result in results:
 				npResult = self.getNpData(result)
 				npResults.append(npResult)
-		elif type(results) is Variable:
+		elif type(results) == tr.Tensor:
 			 npResults = maybeCpu(results.data).numpy()
+		else:
+			assert False, "Got type %s" % (type(results))
 		return npResults
 
 	# Equivalent of the function above, but using the data from generator (which comes in numpy format)
@@ -107,7 +108,7 @@ class NeuralNetworkPyTorch(nn.Module):
 				trItem = self.getTrData(item, optimize)
 				trData.append(trItem)
 		elif type(data) is np.ndarray:
-			trData = Variable(maybeCuda(tr.from_numpy(data)), requires_grad=optimize)
+			trData = maybeCuda(tr.from_numpy(data)).requires_grad_(optimize)
 		return trData
 
 	# Checks that callbacks are indeed a subclass of the ABC Callback.
@@ -127,6 +128,10 @@ class NeuralNetworkPyTorch(nn.Module):
 
 		for callback in callbacks:
 			callback.onEpochStart(model=self, epoch=self.currentEpoch, trainHistory=trainHistory)
+
+	def callbacksOnIterationStart(self, callbacks, **kwargs):
+		for callback in callbacks:
+			callback.onIterationStart(**kwargs)
 
 	def callbacksOnIterationEnd(self, callbacks, **kwargs):
 		for callback in callbacks:
@@ -160,25 +165,28 @@ class NeuralNetworkPyTorch(nn.Module):
 		#  same list, but every element in the list is tranasformed in torch format.
 		startTime = datetime.now()
 		for i, items in enumerate(generator):
+			self.callbacksOnIterationStart(callbacks)
 			npInputs, npLabels = items
 			trInputs = self.getTrData(npInputs, optimize=optimize)
 			trLabels = self.getTrData(npLabels, optimize=False)
 
 			trResults = self.forward(trInputs)
 			npResults = self.getNpData(trResults)
-			
+
 			loss = self.criterion(trResults, trLabels)
 			npLoss = maybeCpu(loss.data).numpy()
 			optimizeCallback(self.optimizer, loss)
+			iterFinishTime = (datetime.now() - startTime)
 
 			# Iteration callbacks are called here (i.e. for plotting results!)
 			self.callbacksOnIterationEnd(callbacks, data=npInputs, labels=npLabels, results=npResults, loss=npLoss, \
 				iteration=i, numIterations=stepsPerEpoch)
 
+			# Compute the metrics
 			for metric in self.metrics:
 				metricResults[metric] += self.metrics[metric](npResults, npLabels, loss=npLoss)
 
-			iterFinishTime = (datetime.now() - startTime)
+			# Print the message, after the metrics are updated.
 			if printMessage:
 				self.linePrinter.print(self.computeIterPrintMessage(i, stepsPerEpoch, metricResults, iterFinishTime))
 
@@ -333,7 +341,12 @@ class NeuralNetworkPyTorch(nn.Module):
 		tr.save(modelParams, path)
 
 	def load_weights(self, path):
-		params = tr.load(path)
+		try:
+			params = tr.load(path)
+		except Exception:
+			print("Exception raised while loading weights with tr.load(). Forcing CPU load.")
+			params = tr.load(path, map_location=lambda storage, loc: storage)
+
 		# The file can be a weights file (just weights then) or a state file (so file["weights"] are the weights)
 		if type(params) == dict:
 			if not "weights" in params and "params" in params:
@@ -388,7 +401,12 @@ class NeuralNetworkPyTorch(nn.Module):
 		assert l2 == l3, "Something was wrong with loading optimizer"
 
 	def load_model(self, path):
-		loaded_model = tr.load(path)
+		try:
+			loaded_model = tr.load(path)
+		except Exception:
+			print("Exception raised while loading model with tr.load(). Forcing CPU load")
+			loaded_model = tr.load(path, map_location=lambda storage, loc: storage)
+
 		self._load_model(loaded_model)
 
 		if "history_dict" in loaded_model:

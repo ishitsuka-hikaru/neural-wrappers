@@ -76,7 +76,7 @@ class UpSampleLayer(NeuralNetworkPyTorch):
 			inShape = kwargs["inShape"] if "inShape" in kwargs else None
 			self.upSampleLayer = UpSampleUnpool(dIn=dIn, inShape=inShape)
 		elif Type in ("bilinear", "nearest"):
-			self.upSampleLayer = nn.Upsample(scale_factor=2, mode=Type)
+			self.upSampleLayer = nn.Upsample(scale_factor=2, mode=Type, align_corners=True)
 		elif Type == "conv_transposed":
 			self.upSampleLayer = UpSampleConvTransposed(dIn=dIn)
 
