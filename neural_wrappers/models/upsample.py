@@ -47,15 +47,15 @@ class UpSampleUnpool(NeuralNetworkPyTorch):
 		return self.upSample(x, ind)
 
 class UpSampleConvTransposed(NeuralNetworkPyTorch):
-	def __init__(self, dIn):
+	def __init__(self, dIn, dOut, kernelSize, stride):
 		super(UpSampleConvTransposed, self).__init__()
-		self.upSample = nn.ConvTranspose2d(in_channels=dIn, out_channels=dIn, kernel_size=2, stride=2)
+		self.upSample = nn.ConvTranspose2d(in_channels=dIn, out_channels=dOut, kernel_size=kernelSize, stride=stride)
 
 	def forward(self, x):
 		out = F.relu(self.upSample(x))
 		# MB x dIn x H x W => MB x dIn x 2*H x 2*W
-		assert x.shape[2] * 2 == out.shape[2] and x.shape[3] * 2 == out.shape[3], "Expected upconv transposed to " + \
-			"double the output shape, got: in %s, out %s" % (x.shape[2 : 4], out.shape[2 : 4])
+		#assert x.shape[2] * 2 == out.shape[2] and x.shape[3] * 2 == out.shape[3], "Expected upconv transposed to " + \
+		#	"double the output shape, got: in %s, out %s" % (x.shape[2 : 4], out.shape[2 : 4])
 		return out
 
 # Class that implements 3 methods for up-sampling from the bottom encoding layer
@@ -65,12 +65,35 @@ class UpSampleLayer(NeuralNetworkPyTorch):
 	# @param[in] dIn Number of depth channels for input
 	# @param[in] dOut number of depth channels for output (last convolution uses this parameter)
 	# @param[in] Type The type of upsampling method. Valid values: "unpool", "nearest", "bilinear" or "conv_transposed"
+	# @optional_param[in] smoothKernelSize Value used by the Conv2d for smoothing. Values can be 1, 3 or 5 for now.
+	#  Defaults to 5.
 	# @optional_param[in] inShape Used by unpool method to pre-compute indices for unpooling. If not provided, they are
 	#  computed dynamically during each forward phase based on the input shape.
+	# @optional_param[in] noSmoothing Used by conv_transposed method, in order to compute directly the feature maps
+	#  instead of using a secondary smoothing kernel.
+	# @optional_param[in] convTransposedKernelSize Used by conv_tranposed method, in order to specify the size of the
+	#  kernels in the conv_transposed procudure
+	# @optional_param[in] convTransposedStride Used by conv_tranposed method, in order to specify the striding in the
+	#  conv_transposed procudure
 	def __init__(self, dIn, dOut, Type, **kwargs):
 		super(UpSampleLayer, self).__init__()
 		assert Type in ("unpool", "bilinear", "nearest", "conv_transposed")
-		self.conv = nn.Conv2d(in_channels=dIn, out_channels=dOut, kernel_size=5)
+
+		if "noSmoothing" in kwargs:
+			assert Type == "conv_transposed", "Only supported by conv_transposed method."
+			assert not "smoothKernelSize" in kwargs
+			self.smoothLambda = lambda x : x
+		else:
+			smoothKernelSize = 5 if not "smoothKernelSize" in kwargs else kwargs["smoothKernelSize"]
+			assert smoothKernelSize in (1, 3, 5)
+			self.conv = nn.Conv2d(in_channels=dIn, out_channels=dOut, kernel_size=smoothKernelSize)
+			if smoothKernelSize == 5:
+				self.padLambda = lambda x : F.pad(x, (2, 2, 2, 2), "reflect")
+			elif smoothKernelSize == 3:
+				self.padLambda = lambda x : F.pad(x, (1, 1, 1, 1), "reflect")
+			else:
+				self.padLambda = lambda x : x
+			self.smoothLambda = lambda x : F.relu(self.padLambda(self.conv(x)))
 
 		if Type == "unpool":
 			inShape = kwargs["inShape"] if "inShape" in kwargs else None
@@ -80,9 +103,16 @@ class UpSampleLayer(NeuralNetworkPyTorch):
 		elif Type == "nearest":
 			self.upSampleLayer = nn.Upsample(scale_factor=2, mode="nearest")
 		elif Type == "conv_transposed":
-			self.upSampleLayer = UpSampleConvTransposed(dIn=dIn)
+			assert "convTransposedStride" in kwargs and "convTransposedKernelSize" in kwargs
+			stride = kwargs["convTransposedStride"]
+			kernelSize = kwargs["convTransposedKernelSize"]
+			noSmoothing = kwargs["noSmoothing"] if "noSmoothing" in kwargs else False
+			if noSmoothing:
+				self.upSampleLayer = UpSampleConvTransposed(dIn=dIn, dOut=dOut, kernelSize=kernelSize, stride=stride)
+			else:
+				self.upSampleLayer = UpSampleConvTransposed(dIn=dIn, dOut=dIn, kernelSize=kernelSize, stride=stride)
 
 	def forward(self, x):
 		y1 = self.upSampleLayer(x)
-		y2 = F.relu(F.pad(self.conv(y1), (2, 2, 2, 2), "reflect"))
+		y2 = self.smoothLambda(y1)
 		return y2

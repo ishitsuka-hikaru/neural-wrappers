@@ -1,4 +1,5 @@
 from neural_wrappers.pytorch import NeuralNetworkPyTorch
+from .upsample import UpSampleLayer
 from .model_unet import UNetBlock
 import torch.nn as nn
 import torch.nn.functional as F
@@ -7,7 +8,8 @@ import torch as tr
 class ConcatenateBlock(NeuralNetworkPyTorch):
 	def __init__(self, dIn, dOut):
 		super().__init__()
-		self.convt = nn.ConvTranspose2d(in_channels=dIn, out_channels=dOut, kernel_size=3, stride=(2, 2))
+		self.convt = UpSampleLayer(dIn=dIn, dOut=dOut, Type="conv_transposed", noSmoothing=True, \
+			convTransposedKernelSize=3, convTransposedStride=2)
 
 	def forward(self, x_down, x_up):
 		y_up = F.relu(self.convt(x_up))
