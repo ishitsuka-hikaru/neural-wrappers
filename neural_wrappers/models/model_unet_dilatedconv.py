@@ -24,13 +24,13 @@ class BottleneckBlock(NeuralNetworkPyTorch):
 		super().__init__()
 		assert mode in ("dilate2_serial_concatenate", "dilate2_parallel_concatenate", "dilate2_serial_sum")
 		self.dIn = dIn
-		self.mod = mode
+		self.mode = mode
 		self.numFilters = numFilters
 		self.dilateLayers = nn.ModuleList()
 
+		# First convolution receives dIn dimensions, and outputs dIn* 2, the rest (because it's serial), filter
+		#  the dIn * 2 dimensions, into other seris of dIn * 2
 		if mode == "dilate2_serial_concatenate":
-			# First convolution receives dIn dimensions, and outputs dIn* 2, the rest (because it's serial), filter
-			#  the dIn * 2 dimensions, into other seris of dIn * 2
 			for i in range(numFilters):
 				in_channels = dIn if i == 0 else dIn * 2
 				newLayer = nn.Conv2d(in_channels=in_channels, out_channels=dIn * 2, kernel_size=3, \
@@ -39,6 +39,16 @@ class BottleneckBlock(NeuralNetworkPyTorch):
 			# The last layer concatentes all the numFilters features, which have a shape of dIn * 2 dimensions
 			self.finalLayer = ConcatenateBlock(dIn=dIn * 2 * numFilters, dOut=dIn)
 			self.forwardMethod = self.dilate2_serial_concatenate
+		# All the convolutions are applied to the first feature map (of shape dIn), then all of them are concatenated
+		#  at the end.
+		elif mode == "dilate2_parallel_concatenate":
+			for i in range(numFilters):
+				newLayer = nn.Conv2d(in_channels=dIn, out_channels=dIn * 2, kernel_size=3, \
+					padding=2**i, dilation=2**i)
+				self.dilateLayers.append(newLayer)
+			# The last layer concatentes all the numFilters features, which have a shape of dIn * 2 dimensions
+			self.finalLayer = ConcatenateBlock(dIn=dIn * 2 * numFilters, dOut=dIn)
+			self.forwardMethod = self.dilate2_parallel_concatenate
 
 	def dilate2_serial_concatenate(self, x_down, x_pooled):
 		y = x_pooled
@@ -51,11 +61,20 @@ class BottleneckBlock(NeuralNetworkPyTorch):
 		yFinal = self.finalLayer(x_down, yDilateConcatenate)
 		return yFinal
 
+	def dilate2_parallel_concatenate(self, x_down, x_pooled):
+		concatenatedFeatures = []
+		for i in range(self.numFilters):
+			y = F.relu(self.dilateLayers[i](x_pooled))
+			concatenatedFeatures.append(y)
+		yDilateConcatenate = tr.cat(concatenatedFeatures, dim=1)
+		yFinal = self.finalLayer(x_down, yDilateConcatenate)
+		return yFinal
+
 	def forward(self, x_down, x_pooled):
 		return self.forwardMethod(x_down, x_pooled)
 
 class ModelUNetDilatedConv(NeuralNetworkPyTorch):
-	def __init__(self, inputShape, numFilters):
+	def __init__(self, inputShape, numFilters, bottleneckMode):
 		super().__init__()
 
 		# Feature extractor part (down)
@@ -67,7 +86,7 @@ class ModelUNetDilatedConv(NeuralNetworkPyTorch):
 		self.downBlock3 = UNetBlock(dIn=numFilters * 2, dOut=numFilters * 4, padding=1)
 		self.pool3 = nn.MaxPool2d(kernel_size=2)
 
-		self.bottleneck = BottleneckBlock(numFilters * 4, mode="dilate2_serial_concatenate", numFilters=6)
+		self.bottleneck = BottleneckBlock(numFilters * 4, mode=bottleneckMode, numFilters=6)
 
 		# Final up-sample layers
 		self.upBlock3 = UNetBlock(dIn=numFilters * 8, dOut=numFilters * 4, padding=1)
