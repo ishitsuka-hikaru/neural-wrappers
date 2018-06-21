@@ -17,6 +17,43 @@ class ConcatenateBlock(NeuralNetworkPyTorch):
 		y_concat = tr.cat([x_down, y_up], dim=1)
 		return y_concat
 
+# Class that computes the layers in the bottleneck portion of the model
+# TODO: further generalize instead of using "modes"
+class BottleneckBlock(NeuralNetworkPyTorch):
+	def __init__(self, dIn, mode, numFilters=6):
+		super().__init__()
+		assert mode in ("dilate2_serial_concatenate", "dilate2_parallel_concatenate", "dilate2_serial_sum")
+		self.dIn = dIn
+		self.mod = mode
+		self.numFilters = numFilters
+		self.dilateLayers = nn.ModuleList()
+
+		if mode == "dilate2_serial_concatenate":
+			# First convolution receives dIn dimensions, and outputs dIn* 2, the rest (because it's serial), filter
+			#  the dIn * 2 dimensions, into other seris of dIn * 2
+			for i in range(numFilters):
+				in_channels = dIn if i == 0 else dIn * 2
+				newLayer = nn.Conv2d(in_channels=in_channels, out_channels=dIn * 2, kernel_size=3, \
+					padding=2**i, dilation=2**i)
+				self.dilateLayers.append(newLayer)
+			# The last layer concatentes all the numFilters features, which have a shape of dIn * 2 dimensions
+			self.finalLayer = ConcatenateBlock(dIn=dIn * 2 * numFilters, dOut=dIn)
+			self.forwardMethod = self.dilate2_serial_concatenate
+
+	def dilate2_serial_concatenate(self, x_down, x_pooled):
+		y = x_pooled
+		concatenatedFeatures = []
+		for i in range(self.numFilters):
+			y = F.relu(self.dilateLayers[i](y))
+			concatenatedFeatures.append(y)
+		yDilateConcatenate = tr.cat(concatenatedFeatures, dim=1)
+		# Final portion concatenates the features with the resdiual connection
+		yFinal = self.finalLayer(x_down, yDilateConcatenate)
+		return yFinal
+
+	def forward(self, x_down, x_pooled):
+		return self.forwardMethod(x_down, x_pooled)
+
 class ModelUNetDilatedConv(NeuralNetworkPyTorch):
 	def __init__(self, inputShape, numFilters):
 		super().__init__()
@@ -30,23 +67,9 @@ class ModelUNetDilatedConv(NeuralNetworkPyTorch):
 		self.downBlock3 = UNetBlock(dIn=numFilters * 2, dOut=numFilters * 4, padding=1)
 		self.pool3 = nn.MaxPool2d(kernel_size=2)
 
-		# Stacked dilated convolution part
-		self.dilate1 = nn.Conv2d(in_channels=numFilters * 4, out_channels=numFilters * 8, \
-			kernel_size=3, padding=(1, 1), dilation=1)
-		self.dilate2 = nn.Conv2d(in_channels=numFilters * 8, out_channels=numFilters * 8, \
-			kernel_size=3, padding=(2, 2), dilation=2)
-		self.dilate3 = nn.Conv2d(in_channels=numFilters * 8, out_channels=numFilters * 8, \
-			kernel_size=3, padding=(4, 4), dilation=4)
-		self.dilate4 = nn.Conv2d(in_channels=numFilters * 8, out_channels=numFilters * 8, \
-			kernel_size=3, padding=(8, 8), dilation=8)
-		self.dilate5 = nn.Conv2d(in_channels=numFilters * 8, out_channels=numFilters * 8, \
-			kernel_size=3, padding=(16, 16), dilation=16)
-		self.dilate6 = nn.Conv2d(in_channels=numFilters * 8, out_channels=numFilters * 8, \
-			kernel_size=3, padding=(32, 32), dilation=32)
+		self.bottleneck = BottleneckBlock(numFilters * 4, mode="dilate2_serial_concatenate", numFilters=6)
 
 		# Final up-sample layers
-		# Input to up3 is the output of the concatenated dilated convs (6 concatenations of numFilters * 8)
-		self.up3 = ConcatenateBlock(dIn=numFilters * 8 * 6, dOut=numFilters * 4)
 		self.upBlock3 = UNetBlock(dIn=numFilters * 8, dOut=numFilters * 4, padding=1)
 		self.up2 = ConcatenateBlock(dIn=numFilters * 4, dOut=numFilters * 2)
 		self.upBlock2 = UNetBlock(dIn=numFilters * 4, dOut=numFilters * 2, padding=1)
@@ -64,16 +87,9 @@ class ModelUNetDilatedConv(NeuralNetworkPyTorch):
 		y_down3 = self.downBlock3(y_down2pool)
 		y_down3pool = self.pool3(y_down3)
 
-		y_dilate1 = F.relu(self.dilate1(y_down3pool))
-		y_dilate2 = F.relu(self.dilate2(y_dilate1))
-		y_dilate3 = F.relu(self.dilate3(y_dilate2))
-		y_dilate4 = F.relu(self.dilate4(y_dilate3))
-		y_dilate5 = F.relu(self.dilate5(y_dilate4))
-		y_dilate6 = F.relu(self.dilate6(y_dilate5))
-		y_dilate_concatenate = tr.cat([y_dilate1, y_dilate2, y_dilate3, y_dilate4, y_dilate5, y_dilate6], dim=1)
+		y_bottleneck = self.bottleneck(y_down3, y_down3pool)
 
-		y_up3 = self.up3(y_down3, y_dilate_concatenate)
-		y_up3block = self.upBlock3(y_up3)
+		y_up3block = self.upBlock3(y_bottleneck)
 		y_up2 = self.up2(y_down2, y_up3block)
 		y_up2block = self.upBlock2(y_up2)
 		y_up1 = self.up1(y_down1, y_up2block)
