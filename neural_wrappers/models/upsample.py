@@ -82,6 +82,13 @@ class UpSampleLayer(NeuralNetworkPyTorch):
 		if "noSmoothing" in kwargs:
 			assert Type == "conv_transposed", "Only supported by conv_transposed method."
 			assert not "smoothKernelSize" in kwargs
+			noSmoothing = kwargs["noSmoothing"]
+		else:
+			noSmoothing = False
+
+		# Have to define this in ifs, otherwise additional parameters will be inserted in the module, which we don't
+		#  want.
+		if noSmoothing:
 			self.smoothLambda = lambda x : x
 		else:
 			smoothKernelSize = 5 if not "smoothKernelSize" in kwargs else kwargs["smoothKernelSize"]
@@ -106,7 +113,6 @@ class UpSampleLayer(NeuralNetworkPyTorch):
 			assert "convTransposedStride" in kwargs and "convTransposedKernelSize" in kwargs
 			stride = kwargs["convTransposedStride"]
 			kernelSize = kwargs["convTransposedKernelSize"]
-			noSmoothing = kwargs["noSmoothing"] if "noSmoothing" in kwargs else False
 			if noSmoothing:
 				self.upSampleLayer = UpSampleConvTransposed(dIn=dIn, dOut=dOut, kernelSize=kernelSize, stride=stride)
 			else:
