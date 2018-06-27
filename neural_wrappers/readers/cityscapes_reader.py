@@ -110,8 +110,8 @@ class CityScapesReader(DatasetReader):
 				opticalFlowNumDimensions = 1
 				flownet2sMean = 19.803894
 				flownet2sStd = 20.923697
-				flownet2sMaximum = 0
-				flownet2sMinimum = 496.0213
+				flownet2sMaximum = 496.0213
+				flownet2sMinimum = 0
 
 		# Only skipFrames=5 is supported now
 		self.numData = {Type : len(self.dataset[Type][self.baseDataGroup]["rgb"]) \
