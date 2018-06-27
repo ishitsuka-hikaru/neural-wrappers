@@ -11,7 +11,6 @@ from neural_wrappers.callbacks import Callback
 import torch as tr
 import torch.nn as nn
 import torch.optim as optim
-from torch.autograd import Variable
 import torch.nn.functional as F
 
 # For some reasons, results are much better if provided data is in range -1 : 1 (not 0 : 1 or standardized).
@@ -46,15 +45,15 @@ class PlotCallback(Callback):
 	def onEpochEnd(self, **kwargs):
 		GAN = kwargs["model"]
 		latentSpaceSize = GAN.generator.inputSize
-		randomInputsG = Variable(maybeCuda(tr.randn(10, latentSpaceSize)))
+		randomInputsG = maybeCuda(tr.randn(10, latentSpaceSize))
 		randomOutG = GAN.generator.forward(randomInputsG).contiguous().view(-1, *self.imageShape)
 		realItems = next(self.realDataGenerator)[0]
-		trRealItems = maybeCuda(Variable(tr.from_numpy(realItems)))
+		trRealItems = maybeCuda(tr.from_numpy(np.expand_dims(realItems, axis=-1)))
 
 		inD = tr.cat([randomOutG, trRealItems], dim=0)
-		outD = maybeCpu(GAN.discriminator.forward(inD).data).numpy()
+		outD = maybeCpu(GAN.discriminator.forward(inD).detach()).numpy()
 
-		items = [maybeCpu(inD[j].data).numpy().reshape(self.imageShape) for j in range(len(inD))]
+		items = [maybeCpu(inD[j].detach()).numpy().reshape(self.imageShape) for j in range(len(inD))]
 		titles = ["%2.3f" % (outD[j]) for j in range(len(outD))]
 		plot_images(items, titles, gridShape=(4, 5))
 		plt.savefig("images/%d.png" % (kwargs["epoch"]))
@@ -114,9 +113,6 @@ def main():
 	print(GAN.summary())
 
 	if sys.argv[1] == "train":
-		loaded_model = tr.load("GAN.pkl")
-		discriminatorState = loaded_model["discriminatorState"]
-		GAN.discriminator._load_weights(discriminatorState["weights"])
 		GAN.train_generator(generator, numIterations, numEpochs=numEpochs, callbacks=callbacks)
 	elif sys.argv[1] == "retrain":
 		GAN.load_model("GAN.pkl")
@@ -126,10 +122,10 @@ def main():
 		GAN.load_model("GAN.pkl")
 		while True:
 			# Generate 100 random gaussian inputs
-			randomInputsG = Variable(maybeCuda(tr.randn(100, latentSpaceSize)))
+			randomInputsG = maybeCuda(tr.randn(100, latentSpaceSize))
 			randomOutG = GAN.generator.forward(randomInputsG).view(-1, *imageShape)
-			outD = maybeCpu(GAN.discriminator.forward(randomOutG).data).numpy()
-			npRandomOutG = maybeCpu(randomOutG.data).numpy()
+			outD = maybeCpu(GAN.discriminator.forward(randomOutG).detach()).numpy()
+			npRandomOutG = maybeCpu(randomOutG.detach()).numpy()
 			indexes = np.where(outD > 0.95)[0]
 			for j in range(len(indexes)):
 				index = indexes[j]
@@ -141,10 +137,10 @@ def main():
 		GAN.load_model("GAN.pkl")
 		while True:
 			# Generate 20 random gaussian inputs
-			randomInputsG = Variable(maybeCuda(tr.randn(20, latentSpaceSize)))
+			randomInputsG = maybeCuda(tr.randn(20, latentSpaceSize))
 			randomOutG = GAN.generator.forward(randomInputsG).view(-1, *imageShape)
-			outD = maybeCpu(GAN.discriminator.forward(randomOutG).data).numpy()
-			npRandomOutG = maybeCpu(randomOutG.data).numpy()
+			outD = maybeCpu(GAN.discriminator.forward(randomOutG).detach()).numpy()
+			npRandomOutG = maybeCpu(randomOutG.detach()).numpy()
 
 			# # Plot the inputs and discriminator's confidence in them
 			items = [npRandomOutG[j] for j in range(len(randomOutG))]

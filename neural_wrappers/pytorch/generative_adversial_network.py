@@ -1,6 +1,5 @@
 from datetime import datetime
 
-from torch.autograd import Variable
 import torch.nn as nn
 import torch as tr
 
@@ -53,7 +52,6 @@ class GenerativeAdversialNetwork(NeuralNetworkPyTorch):
 	#  the standard dataset reader API returns a tuple (data, labels), the second parameter is ignored.
 	# @param[in] stepsPerEpoch How many steps the generator is expected to run
 	# @param[in] callbacks A list of callbacks that are called. Only onEpochStart is called (not onIterationEnd yet)
-	# @param[in] optimize A flag that specifies whether backpropagation is ran on the trainable weights or not.
 	# @param[in] printMessage A flag that specifies whether the training iterations message is shown.
 	# @param_optional[in] numStepsD Training GANs is tricky. Sometimes more successive steps are required for generator
 	#  or discriminator, for better learning. This parameter specifies how many successive steps for discriminator are
@@ -63,9 +61,8 @@ class GenerativeAdversialNetwork(NeuralNetworkPyTorch):
 	#  specified by the optimize parameter.
 	# @param_optional[in] optimizeG Whether to optimize the generator. If not specified, defaults to the value
 	#  specified by the optimize parameter.
-	def run_one_epoch(self, dataGenerator, stepsPerEpoch, callbacks=[], optimize=False, \
-		printMessage=False, **kwargs):
-		if optimize:
+	def run_one_epoch(self, dataGenerator, stepsPerEpoch, callbacks=[], printMessage=False, **kwargs):
+		if tr.is_grad_enabled():
 			assert not self.generator.optimizer is None, "Set generator optimizer before training"
 			assert not self.discriminator.optimizer is None, "Set discriminator optimizer before training"
 		assert not self.criterion is None, "Set criterion before training or testing"
@@ -75,8 +72,10 @@ class GenerativeAdversialNetwork(NeuralNetworkPyTorch):
 		numStepsD = kwargs["numStepsD"] if "numStepsD" in kwargs else 1
 		numStepsG = kwargs["numStepsG"] if "numStepsG" in kwargs else 1
 		assert numStepsD > 0 and numStepsG > 0
-		optimizeD = kwargs["optimizeD"] if "optimizeD" in kwargs else optimize
-		optimizeG = kwargs["optimizeG"] if "optimizeG" in kwargs else optimize
+		optimizeD = kwargs["optimizeD"] if "optimizeD" in kwargs else tr.is_grad_enabled()
+		optimizeG = kwargs["optimizeG"] if "optimizeG" in kwargs else tr.is_grad_enabled()
+		if not tr.is_grad_enabled():
+			assert optimizeD == Falase and optimizeG == False
 
 		self.checkCallbacks(callbacks)
 		self.callbacksOnEpochStart(callbacks)
@@ -105,32 +104,35 @@ class GenerativeAdversialNetwork(NeuralNetworkPyTorch):
 			actualNumStepsD = min(numStepsD, stepsPerEpoch - i)
 			for j in range(actualNumStepsD):
 				npInputs, _ = next(dataGenerator)
-				trInputs = self.getTrData(npInputs, optimize=optimizeD)
+				trInputs = self.getTrData(npInputs)
 				batchSize = npInputs.shape[0]
 
-				# Adversarial ground truths
-				fakeLabels = Variable(maybeCuda(tr.zeros(batchSize)))
-				validLabels = Variable(maybeCuda(tr.ones(batchSize)))
+				with tr.no_grad():
+					# Adversarial ground truths
+					fakeLabels = maybeCuda(tr.zeros(batchSize))
+					validLabels = maybeCuda(tr.ones(batchSize))
 
-				# Train Discriminator
-				# Measure discriminator's ability to classify real from generated samples
-				z = Variable(maybeCuda(tr.randn(batchSize, self.generator.inputSize)))
-				trGeneratedInput = self.generator(z)
+					# Train Discriminator
+					# Measure discriminator's ability to classify real from generated samples
+					z = maybeCuda(tr.randn(batchSize, self.generator.inputSize))
+					trGeneratedInput = self.generator(z)
+
 				trRealLossD = self.criterion(self.discriminator(trInputs), validLabels)
-				trFakeLossD = self.criterion(self.discriminator(trGeneratedInput.detach()), fakeLabels)
+				trFakeLossD = self.criterion(self.discriminator(trGeneratedInput), fakeLabels)
 				trLossD = (trRealLossD + trFakeLossD) / 2
-				npLossD += maybeCpu(trLossD.data).numpy()
+				npLossD += maybeCpu(trLossD.detach()).numpy()
 				optimizeCallbackD(self.discriminator.optimizer, trLossD)
 
 			npLossG = 0
 			for j in range(numStepsG):
 				# Train Generator
 				# Sample noise as generator input and generate a bunch of data
-				z = Variable(maybeCuda(tr.randn(batchSize, self.generator.inputSize)))
+				with tr.no_grad():
+					z = maybeCuda(tr.randn(batchSize, self.generator.inputSize))
 				trGeneratedInput = self.generator(z)
 				# Loss measures generator's ability to fool the discriminator
 				trLossG = self.criterion(self.discriminator(trGeneratedInput), validLabels)
-				npLossG += maybeCpu(trLossG.data).numpy()
+				npLossG += maybeCpu(trLossG.detach()).numpy()
 				optimizeCallbackG(self.generator.optimizer, trLossG)
 
 			# TODO: see what kind of inputs, may be good here, for now keep API same for metrics.
