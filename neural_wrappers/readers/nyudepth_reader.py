@@ -21,14 +21,6 @@ class NYUDepthReader(DatasetReader):
 	def __str__(self):
 		return "NYUDepth Reader"
 
-	# def transform(self, x):
-	# 	y = np.expand_dims(np.swapaxes(x, 1, 2), axis=-1)
-	# 	b = np.unique(y)
-	# 	z = np.uint8(np.zeros(y.shape))
-	# 	for i in range(len(b)):
-	# 		z[np.where(y == b[i])] = i
-	# 	return z
-
 	def semanticNewDims(self, images):
 		numClasses = len(self.topClasses)
 		newImages = np.zeros((numClasses, *images.shape), dtype=np.float32)
