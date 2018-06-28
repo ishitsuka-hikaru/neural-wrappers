@@ -368,7 +368,9 @@ class NeuralNetworkPyTorch(nn.Module):
 		for i, item in enumerate(self.parameters()):
 			if item.shape != params[i].shape:
 				raise Exception("Inconsistent parameters: %d vs %d." % (item.shape, params[i].shape))
-			item = maybeCuda(params[i])
+			with tr.no_grad():
+				item[:] = maybeCuda(params[i][:])
+			item.requires_grad_(True)
 
 	# Saves a complete model, consisting of weights, state and optimizer params
 	def save_model(self, path):

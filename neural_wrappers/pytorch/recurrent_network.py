@@ -29,7 +29,7 @@ class RecurrentNeuralNetworkPyTorch(NeuralNetworkPyTorch):
 		metricResults = {metric : 0 for metric in self.metrics.keys()}
 		i = 0
 
-		self.setTrainable(optimize)
+		self.setTrainable(tr.is_grad_enabled())
 		if tr.is_grad_enabled():
 			optimizeCallback = (lambda optim, loss : (optim.zero_grad(), loss.backward(), optim.step()))
 		else:
