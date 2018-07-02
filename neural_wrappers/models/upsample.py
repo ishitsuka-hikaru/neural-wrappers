@@ -2,7 +2,6 @@ import torch as tr
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.autograd import Variable
 from neural_wrappers.pytorch import NeuralNetworkPyTorch, maybeCuda
 
 # UnPool Layer as defined by Laina paper
@@ -40,7 +39,7 @@ class UpSampleUnpool(NeuralNetworkPyTorch):
 		miniBatchIndices = np.zeros((x.data.shape[0], *indices.shape))
 		miniBatchIndices[0 : ] = indices
 		trInd = tr.from_numpy(miniBatchIndices).long()
-		return Variable(maybeCuda(trInd), requires_grad=False)
+		return maybeCuda(trInd).requires_grad_(False)
 
 	def forward(self, x):
 		ind = self.getIndices(x)
