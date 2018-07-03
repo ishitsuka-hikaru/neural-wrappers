@@ -5,13 +5,10 @@ from neural_wrappers.transforms import Transformer
 
 class CitySimReader(DatasetReader):
 	def __init__(self, datasetPath, imageShape, labelShape, transforms=["none"], \
-		normalization="min_max_normalization", dataDimensions=["rgb"], labelDimensions=["depth"], \
-		baseDataGroup="bragadiru_1", dataSplit=(80, 0, 20), **kwargs):
+		normalization="min_max_normalization", dataDimensions=["rgb"], labelDimensions=["depth"], **kwargs):
 		super().__init__(datasetPath, imageShape, labelShape, dataDimensions, \
 			labelDimensions, transforms, normalization)
 
-		self.baseDataGroup = baseDataGroup
-		self.dataSplit = dataSplit
 		self.kwargs = kwargs
 		self.setup()
 
@@ -32,8 +29,8 @@ class CitySimReader(DatasetReader):
 		self.dataset = h5py.File(self.datasetPath, "r")
 		self.supportedDimensions = ("rgb", "depth", "hvn")
 
-		numAllData = len(self.dataset[self.baseDataGroup]["rgb"])
-		self.indexes, self.numData = self.computeIndexesSplit(numAllData)
+		# numData["train"] = N; numData["validation"] = M;
+		self.numData = { Type : len(self.dataset[Type]["rgb"]) for Type in ("train", "validation") }
 
 		hvnNumDims = 1
 		if "hvn" in self.dataDimensions:
@@ -80,18 +77,18 @@ class CitySimReader(DatasetReader):
 		}
 
 		self.postSetup()
-		print("[CitySim Reader] Setup complete. Base group: %s. Num data: %d. Train: %d, Test: %d, Validation: %d" % \
-			(self.baseDataGroup, numAllData, self.numData["train"], self.numData["test"], self.numData["validation"]))
+		print("[CitySim Reader] Setup complete. Num data: (Train: %d, Validation: %d)" % \
+			(self.numData["train"], self.numData["validation"]))
 
 	def iterate_once(self, type, miniBatchSize):
 		assert type in ("train", "validation")
 		augmenter = self.dataAugmenter if type == "train" else self.validationAugmenter
-		dataset = self.dataset[self.baseDataGroup]
+		dataset = self.dataset[type]
 
 		# One iteration in this method accounts for all transforms at once
 		for i in range(self.getNumIterations(type, miniBatchSize, accountTransforms=False)):
-			startIndex = self.indexes[type][0] + i * miniBatchSize
-			endIndex = self.indexes[type][0] + min((i + 1) * miniBatchSize, self.numData[type])
+			startIndex = i * miniBatchSize
+			endIndex = min((i + 1) * miniBatchSize, self.numData[type])
 			assert startIndex < endIndex, "startIndex < endIndex. Got values: %d %d" % (startIndex, endIndex)
 
 			images = self.getData(dataset, startIndex, endIndex, self.dataDimensions)
