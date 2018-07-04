@@ -74,12 +74,11 @@ class BottleneckBlock(NeuralNetworkPyTorch):
 		return self.forwardMethod(x_down, x_pooled)
 
 class ModelUNetDilatedConv(NeuralNetworkPyTorch):
-	def __init__(self, inputShape, numFilters, bottleneckMode):
+	def __init__(self, dIn, dOut, numFilters, bottleneckMode):
 		super().__init__()
 
 		# Feature extractor part (down)
-		inChannels = inputShape[-1]
-		self.downBlock1 = UNetBlock(dIn=inChannels, dOut=numFilters, padding=1)
+		self.downBlock1 = UNetBlock(dIn=dIn, dOut=numFilters, padding=1)
 		self.pool1 = nn.MaxPool2d(kernel_size=2)
 		self.downBlock2 = UNetBlock(dIn=numFilters, dOut=numFilters * 2, padding=1)
 		self.pool2 = nn.MaxPool2d(kernel_size=2)
@@ -95,7 +94,7 @@ class ModelUNetDilatedConv(NeuralNetworkPyTorch):
 		self.up1 = ConcatenateBlock(dIn=numFilters * 2, dOut=numFilters)
 		self.upBlock1 = UNetBlock(dIn=numFilters * 2, dOut=numFilters, padding=1)
 
-		self.finalConv = nn.Conv2d(in_channels=numFilters, out_channels=1, kernel_size=(1, 1))
+		self.finalConv = nn.Conv2d(in_channels=numFilters, out_channels=dOut, kernel_size=(1, 1))
 
 	def forward(self, x):
 		x = tr.transpose(tr.transpose(x, 1, 3), 2, 3)
