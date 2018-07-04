@@ -4,11 +4,12 @@ from .dataset_reader import DatasetReader
 from neural_wrappers.transforms import Transformer
 
 class CitySimReader(DatasetReader):
-	def __init__(self, datasetPath, imageShape, labelShape, transforms=["none"], \
+	def __init__(self, dataGroup, datasetPath, imageShape, labelShape, transforms=["none"], \
 		normalization="min_max_normalization", dataDimensions=["rgb"], labelDimensions=["depth"], **kwargs):
 		super().__init__(datasetPath, imageShape, labelShape, dataDimensions, \
 			labelDimensions, transforms, normalization)
-
+		assert dataGroup in ("bragadiru_popesti", )
+		self.dataGroup = dataGroup
 		self.kwargs = kwargs
 		self.setup()
 
@@ -25,60 +26,75 @@ class CitySimReader(DatasetReader):
 		hvn = np.transpose(hvn, [1, 2, 3, 0])
 		return hvn
 
+	# Updates missing values w.r.t the dataGroup
+	def setupMinMaxMeanStd(self):
+		# TODO, maybe update dynamically when iterate_once is called based on type: train (bragadiru) / val (popesti)
+		if self.dataGroup == "bragadiru_popesti":
+			self.maximums["depth"] = 38.837765
+			self.means["rgb"] = [121.64251106041375, 113.22833753162723, 110.21073242969062]
+			self.means["depth"] = 11.086505
+			self.stds["rgb"] = [55.31661791016009, 47.809744429727445, 45.23408344688476]
+			self.stds["depth"] = 5.856089
+		else:
+			assert False, "TODO"
+
+		# HVN Setup - TODO update names
+		allHvns = ["hvn_gt_raw", "hvn_gt_p1", "hvn_gt_p2", "hvn_gt_p3", "hvn_pred1_raw", "hvn_pred1_p1", \
+			"hvn_pred1_p2", "hvn_pred1_p3", "hvn_pred2_raw"]
+		hvnTransform = "none"
+		for hvn in allHvns:
+			if hvn in self.dataDimensions or hvn in self.labelDimensions:
+				assert "hvnTransform" in self.kwargs
+				hvnTransform = self.kwargs["hvnTransform"]
+				break
+
+		if hvnTransform == "none":
+			hvnNumDims = 1
+			hvnMax = 1
+			hvnMin = 0
+			hvnMean = 0
+			hvnStd = 1
+			hvnTransformFn = lambda x : np.expand_dims(x, axis=-1)
+		elif hvnTransform == "hvn_two_dims":
+			hvnNumDims = 2
+			hvnMax = [1, 1]
+			hvnMin = [0, 0]
+			hvnMean = [0, 0]
+			hvnStd = [1, 1]
+			hvnTransformFn = self.hvnTwoDims
+		else:
+			assert False
+
+		for hvn in allHvns:
+			self.numDimensions[hvn] = hvnNumDims
+			self.maximums[hvn] = hvnMax
+			self.minimums[hvn] = hvnMin
+			self.means[hvn] = hvnMean
+			self.stds[hvn] = hvnStd
+			self.postDataProcessing[hvn] = hvnTransformFn
+
 	def setup(self):
 		self.dataset = h5py.File(self.datasetPath, "r")
-		self.supportedDimensions = ("rgb", "depth", "hvn")
+		# TODO, update p1, p2, p3 with actual names when they are finished
+		# gt are ground truth values (from Blender)
+		# pred1 are the outputs of the first network (rgb + gt => pred1)
+		# pred2 are the outputs of the second network (rgb + pred1 => pred2)
+		self.supportedDimensions = ("rgb", "depth", "hvn_gt_raw", "hvn_gt_p1", "hvn_gt_p2", "hvn_gt_p3", \
+			"hvn_pred1_raw", "hvn_pred1_p1", "hvn_pred1_p2", "hvn_pred1_p3", "hvn_pred2_raw")
 
 		# numData["train"] = N; numData["validation"] = M;
 		self.numData = { Type : len(self.dataset[Type]["rgb"]) for Type in ("train", "validation") }
 
-		hvnNumDims = 1
-		if "hvn" in self.dataDimensions:
-			assert "hvnTransform" in self.kwargs
-			self.hvnTransform = self.kwargs["hvnTransform"]
-
-			assert self.hvnTransform in ("none", "hvn_two_dims")
-			if self.hvnTransform == "none":
-				prepareHvn = lambda x : np.expand_dims(x, axis=-1)
-			elif self.hvnTransform == "hvn_two_dims":
-				hvnNumDims = 2
-				prepareHvn = self.hvnTwoDims
-			self.postDataProcessing["hvn"] = prepareHvn
-
-
-		self.minimums = {
-			"rgb" : [0, 0, 0],
-			"depth" : 0,
-			"hvn" : [0] * hvnNumDims if hvnNumDims > 1 else 0
-		}
-
-		self.maximums = {
-			"rgb" : [255, 255, 255],
-			"depth" : 38.837765,
-			"hvn" : [1] * hvnNumDims if hvnNumDims > 1 else 1
-		}
-
-		self.means = {
-			"rgb" : [121.64251106041375, 113.22833753162723, 110.21073242969062],
-			"depth" : 11.086505,
-			"hvn" : [0] * hvnNumDims if hvnNumDims > 1 else 0
-		}
-
-		self.stds = {
-			"rgb" : [55.31661791016009, 47.809744429727445, 45.23408344688476],
-			"depth" : 5.856089,
-			"hvn" : [1] * hvnNumDims if hvnNumDims > 1 else 1
-		}
-
-		self.numDimensions = {
-			"rgb" : 3,
-			"depth" : 1,
-			"hvn" : hvnNumDims
-		}
+		self.minimums = { "rgb" : [0, 0, 0], "depth" : 0 }
+		self.maximums = { "rgb" : [255, 255, 255] }
+		self.means = { }
+		self.stds = { }
+		self.numDimensions = { "rgb" : 3, "depth" : 1 }
+		self.setupMinMaxMeanStd()
 
 		self.postSetup()
-		print("[CitySim Reader] Setup complete. Num data: (Train: %d, Validation: %d)" % \
-			(self.numData["train"], self.numData["validation"]))
+		print("[CitySim Reader] Setup complete. Num data: (Train: %d, Validation: %d). Data dims: %s. Label dims: %s" \
+			% (self.numData["train"], self.numData["validation"], self.dataDimensions, self.labelDimensions))
 
 	def iterate_once(self, type, miniBatchSize):
 		assert type in ("train", "validation")
