@@ -114,5 +114,5 @@ class ModelUNetDilatedConv(NeuralNetworkPyTorch):
 		y_up1block = self.upBlock1(y_up1)
 
 		y_final = self.finalConv(y_up1block)
-		y_final = y_final.view(y_final.shape[0], y_final.shape[2], y_final.shape[3])
+		y_final = y_final.transpose(1, 3).transpose(1, 2)
 		return y_final
