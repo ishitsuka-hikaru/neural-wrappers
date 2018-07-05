@@ -8,7 +8,7 @@ class CitySimReader(DatasetReader):
 		normalization="min_max_normalization", dataDimensions=["rgb"], labelDimensions=["depth"], **kwargs):
 		super().__init__(datasetPath, imageShape, labelShape, dataDimensions, \
 			labelDimensions, transforms, normalization)
-		assert dataGroup in ("bragadiru_popesti", )
+		assert dataGroup in ("bragadiru_popesti", "london")
 		self.dataGroup = dataGroup
 		self.kwargs = kwargs
 		self.allHvns = ["hvn_gt_raw", "hvn_gt_p1", "hvn_gt_p2", "hvn_gt_p3", "hvn_pred1_raw", "hvn_pred1_p1", \
@@ -52,8 +52,14 @@ class CitySimReader(DatasetReader):
 			self.means["depth"] = 11.086505
 			self.stds["rgb"] = [55.31661791016009, 47.809744429727445, 45.23408344688476]
 			self.stds["depth"] = 5.856089
+		elif self.dataGroup == "london":
+			self.maximums["depth"] = 42.849
+			self.means["rgb"] = [63.442951067503756, 63.460518690976265, 59.57283834466831]
+			self.means["depth"] = 10.097478
+			self.stds["rgb"] = [54.64836721734635, 51.51253766053043, 51.889279148779956]
+			self.stds["depth"] = 5.6731715
 		else:
-			assert False, "TODO"
+			assert False
 
 		# HVN Setup - TODO update names
 		hvnTransform = "none"
