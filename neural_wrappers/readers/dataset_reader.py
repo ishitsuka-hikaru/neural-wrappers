@@ -33,7 +33,7 @@ class DatasetReader:
 			self.normalization = normalization[0]
 			self.normalizer = partial(normalization[1], obj=self)
 
-	# @brief Generic method that looks into a dataset dictionary, and takes each aasked dimension, concatenates it into
+	# @brief Generic method that looks into a dataset dictionary, and takes each asked dimension, concatenates it into
 	#  one array and returns it back to the caller.
 	# @param[in] normalizer A lambda function that supports (data, type) parameters and can apply a normalization
 	#  to the dimensions required for this data (as given by requiredDimensions channels). Default it is set to
@@ -57,7 +57,6 @@ class DatasetReader:
 	# @param[in] data The data on which the normalization is applied
 	# @param[in] type The type (data dimension) for which the field minimums and maximums are searched into
 	def minMaxNormalizer(self, data, type):
-		data = np.float32(data)
 		if self.numDimensions[type] == 1:
 			data = minMaxNormalizeData(data, self.minimums[type], self.maximums[type])
 		else:
@@ -69,7 +68,6 @@ class DatasetReader:
 	# @param[in] data The data on which the normalization is applied
 	# @param[in] type The type (data dimension) for which the field means and stsd are searched into
 	def standardizer(self, data, type):
-		data = np.float32(data)
 		if self.numDimensions[type] == 1:
 			data = standardizeData(data, self.means[type], self.stds[type])
 		else:

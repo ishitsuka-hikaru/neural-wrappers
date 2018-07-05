@@ -11,6 +11,8 @@ class CitySimReader(DatasetReader):
 		assert dataGroup in ("bragadiru_popesti", )
 		self.dataGroup = dataGroup
 		self.kwargs = kwargs
+		self.allHvns = ["hvn_gt_raw", "hvn_gt_p1", "hvn_gt_p2", "hvn_gt_p3", "hvn_pred1_raw", "hvn_pred1_p1", \
+			"hvn_pred1_p2", "hvn_pred1_p3", "hvn_pred2_raw"]
 		self.setup()
 
 	def __str__(self):
@@ -26,6 +28,21 @@ class CitySimReader(DatasetReader):
 		hvn = np.transpose(hvn, [1, 2, 3, 0])
 		return hvn
 
+	# This is a hack, the final solution involves in having a dictionary for normalizer as well, with default values
+	#  defaulting to self.normalization, but with the possibility to update it (for example to self.doNothing) or
+	#  any other more special normalizations.
+	def minMaxNormalizer(self, data, type):
+		if type in self.allHvns:
+			return data
+		else:
+			return super().minMaxNormalizer(data, type)
+
+	def standardizer(self, data, type):
+		if type in self.allHvns:
+			return data
+		else:
+			return super().standardizer(data, type)
+
 	# Updates missing values w.r.t the dataGroup
 	def setupMinMaxMeanStd(self):
 		# TODO, maybe update dynamically when iterate_once is called based on type: train (bragadiru) / val (popesti)
@@ -39,10 +56,8 @@ class CitySimReader(DatasetReader):
 			assert False, "TODO"
 
 		# HVN Setup - TODO update names
-		allHvns = ["hvn_gt_raw", "hvn_gt_p1", "hvn_gt_p2", "hvn_gt_p3", "hvn_pred1_raw", "hvn_pred1_p1", \
-			"hvn_pred1_p2", "hvn_pred1_p3", "hvn_pred2_raw"]
 		hvnTransform = "none"
-		for hvn in allHvns:
+		for hvn in self.allHvns:
 			if hvn in self.dataDimensions or hvn in self.labelDimensions:
 				assert "hvnTransform" in self.kwargs
 				hvnTransform = self.kwargs["hvnTransform"]
@@ -65,7 +80,7 @@ class CitySimReader(DatasetReader):
 		else:
 			assert False
 
-		for hvn in allHvns:
+		for hvn in self.allHvns:
 			self.numDimensions[hvn] = hvnNumDims
 			self.maximums[hvn] = hvnMax
 			self.minimums[hvn] = hvnMin
@@ -92,6 +107,9 @@ class CitySimReader(DatasetReader):
 		self.numDimensions = { "rgb" : 3, "depth" : 1 }
 		self.setupMinMaxMeanStd()
 
+		# Convert RGB from uint8 to float so we can normalize.
+		self.postDataProcessing["rgb"] = lambda x : np.float32(x)
+
 		self.postSetup()
 		print("[CitySim Reader] Setup complete. Num data: (Train: %d, Validation: %d). Data dims: %s. Label dims: %s" \
 			% (self.numData["train"], self.numData["validation"], self.dataDimensions, self.labelDimensions))
@@ -107,12 +125,12 @@ class CitySimReader(DatasetReader):
 			endIndex = min((i + 1) * miniBatchSize, self.numData[type])
 			assert startIndex < endIndex, "startIndex < endIndex. Got values: %d %d" % (startIndex, endIndex)
 
-			images = self.getData(dataset, startIndex, endIndex, self.dataDimensions)
-			images = np.concatenate(images, axis=-1)
-			depths = self.getData(dataset, startIndex, endIndex, self.labelDimensions)
-			depths = np.concatenate(depths, axis=-1)
+			data = self.getData(dataset, startIndex, endIndex, self.dataDimensions)
+			data = np.concatenate(data, axis=-1)
+			labels = self.getData(dataset, startIndex, endIndex, self.labelDimensions)
+			labels = np.concatenate(labels, axis=-1)
 
 			# Apply each transform
-			for augImages, augDepths in augmenter.applyTransforms(images, depths, interpolationType="bilinear"):
+			for augImages, augDepths in augmenter.applyTransforms(data, labels, interpolationType="bilinear"):
 				yield augImages, augDepths
 				del augImages, augDepths

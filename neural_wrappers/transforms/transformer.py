@@ -1,6 +1,7 @@
 # transformer.py Generic class for data augmentation. Definitely not Optimus Prime.
 from neural_wrappers.utilities import resize_batch
 from .transforms import Mirror, CropMiddle, CropTopLeft, CropTopRight, CropBottomLeft, CropBottomRight
+import numpy as np
 
 class Transformer:
 	# @param[in] applyOnDataShapeForLabels It is used for the case where I want to apply some transformation
@@ -83,7 +84,9 @@ class Transformer:
 		newData, newLabels = self.transforms[transformName](data, labels)
 
 		# Resize & Consistency checks
-		newData = resize_batch(newData, self.dataShape, interpolationType)
+		# Use nearest if labels are not float.
+		actualInterpolation = interpolationType if newData.dtype == np.floating else "nearest"
+		newData = resize_batch(newData, self.dataShape, actualInterpolation)
 		assert newData.shape == (numData, *self.dataShape), "Expected data shape %s, found %s." % \
 			((numData, *self.dataShape), newData.shape)
 		assert newData.dtype == data.dtype
@@ -94,7 +97,8 @@ class Transformer:
 			return newData, None
 
 		# Otherwise, do the same checks.
-		newLabels = resize_batch(newLabels, self.labelShape, interpolationType)
+		actualInterpolation = interpolationType if newLabels.dtype == np.floating else "nearest"
+		newLabels = resize_batch(newLabels, self.labelShape, actualInterpolation)
 		assert newLabels.shape == (numData, *self.labelShape), "Expected labels shape %s, found %s." % \
 			((numData, *self.labelShape), newLabels.shape)
 		assert newLabels.dtype == labels.dtype
