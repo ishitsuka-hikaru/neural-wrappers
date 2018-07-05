@@ -115,6 +115,7 @@ class CitySimReader(DatasetReader):
 
 		# Convert RGB from uint8 to float so we can normalize.
 		self.postDataProcessing["rgb"] = lambda x : np.float32(x)
+		self.postDataProcessing["depth"] = lambda x : np.expand_dims(x, axis=-1)
 
 		self.postSetup()
 		print("[CitySim Reader] Setup complete. Num data: (Train: %d, Validation: %d). Data dims: %s. Label dims: %s" \
