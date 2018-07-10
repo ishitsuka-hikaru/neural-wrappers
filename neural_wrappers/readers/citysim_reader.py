@@ -104,7 +104,9 @@ class CitySimReader(DatasetReader):
 			"hvn_pred1_raw", "hvn_pred1_p1", "hvn_pred1_p2", "hvn_pred1_p3", "hvn_pred2_raw")
 
 		# numData["train"] = N; numData["validation"] = M;
-		self.numData = { Type : len(self.dataset[Type]["rgb"]) for Type in ("train", "validation") }
+		self.numData = { "train": 0, "validation" : 0 }
+		for Type in self.dataset.keys():
+			self.numData[Type] = len(self.dataset[Type]["rgb"])
 
 		self.minimums = { "rgb" : [0, 0, 0], "depth" : 0 }
 		self.maximums = { "rgb" : [255, 255, 255] }
