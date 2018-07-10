@@ -37,6 +37,11 @@ class MNISTReader(ClassificationDatasetReader):
 			"images" : 255
 		}
 
+		# TODO: use getdata
+		# self.postDataProcessing = {
+		# 	"images" : lambda x : np.float32(x)
+		# }
+
 		print("[MNIST Reader] Setup complete")
 
 	def iterate_once(self, type, miniBatchSize):
@@ -51,7 +56,7 @@ class MNISTReader(ClassificationDatasetReader):
 			assert startIndex < endIndex, "startIndex < endIndex. Got values: %d %d" % (startIndex, endIndex)
 			numData = endIndex - startIndex
 
-			images = self.normalizer(data=data["images"][startIndex : endIndex], type="images")
+			images = self.normalizer(data=np.float32(data["images"][startIndex : endIndex]), type="images")
 			labels = toCategorical(data["labels"][startIndex : endIndex], numClasses=10)
 
 			for augImages, _ in augmenter.applyTransforms(images, labels=None):

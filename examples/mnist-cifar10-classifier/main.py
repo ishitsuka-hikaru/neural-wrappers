@@ -3,6 +3,7 @@ import sys
 import numpy as np
 import torch as tr
 import torch.optim as optim
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from neural_wrappers.readers import MNISTReader, Cifar10Reader
 from neural_wrappers.pytorch import maybeCuda
 from neural_wrappers.callbacks import SaveModels, ConfusionMatrix, Callback, SaveHistory
@@ -64,6 +65,17 @@ def getModel(modelType, inputShape, outputShape):
 		model = MobileNetV2()
 	return maybeCuda(model)
 
+class SchedulerCallback(Callback):
+	def __init__(self, optimizer):
+		self.scheduler = ReduceLROnPlateau(optimizer, "min", factor=0.1, patience=4, eps=1e-4)
+
+	def onEpochEnd(self, **kwargs):
+		if not kwargs["validationMetrics"]:
+			loss = kwargs["trainMetrics"]["Loss"]
+		else:
+			loss = kwargs["validationMetrics"]["Loss"]
+		self.scheduler.step(loss)
+
 def main():
 	assert len(sys.argv) >= 4, "Usage: python main.py <train/test/retrain> <model_fc/model_conv> " + \
 		"<mnist/cifar10> <path/to/dataset.h5> [model]"
@@ -91,7 +103,8 @@ def main():
 		trainGenerator = reader.iterate("train", miniBatchSize=20)
 		trainNumIterations = reader.getNumIterations("train", miniBatchSize=20)
 
-		callbacks = [SaveModels(type="best"), confusionMatrixCallback, PlotLossCallback(), SaveHistory("history.txt")]
+		callbacks = [SaveModels(type="best"), confusionMatrixCallback, PlotLossCallback(), \
+			SaveHistory("history.txt"), SchedulerCallback(model.optimizer) ]
 		model.train_generator(trainGenerator, stepsPerEpoch=trainNumIterations, numEpochs=10, callbacks=callbacks, \
 			validationGenerator=testGenerator, validationSteps=testNumIterations)
 	elif sys.argv[1] == "test":
