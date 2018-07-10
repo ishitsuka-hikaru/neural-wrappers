@@ -8,7 +8,7 @@ class CitySimReader(DatasetReader):
 		normalization="min_max_normalization", dataDimensions=["rgb"], labelDimensions=["depth"], **kwargs):
 		super().__init__(datasetPath, imageShape, labelShape, dataDimensions, \
 			labelDimensions, transforms, normalization)
-		assert dataGroup in ("bragadiru_popesti", "london")
+		assert dataGroup in ("bragadiru_popesti", "london", "bucharest")
 		self.dataGroup = dataGroup
 		self.kwargs = kwargs
 		self.allHvns = ["hvn_gt_raw", "hvn_gt_p1", "hvn_gt_p2", "hvn_gt_p3", "hvn_pred1_raw", "hvn_pred1_p1", \
@@ -52,12 +52,20 @@ class CitySimReader(DatasetReader):
 			self.means["depth"] = 11.086505
 			self.stds["rgb"] = [55.31661791016009, 47.809744429727445, 45.23408344688476]
 			self.stds["depth"] = 5.856089
+		# London / ??
 		elif self.dataGroup == "london":
 			self.maximums["depth"] = 42.849
 			self.means["rgb"] = [63.442951067503756, 63.460518690976265, 59.57283834466831]
 			self.means["depth"] = 10.097478
 			self.stds["rgb"] = [54.64836721734635, 51.51253766053043, 51.889279148779956]
 			self.stds["depth"] = 5.6731715
+		# Bucharest / ??
+		elif self.dataGroup == "bucharest":
+			self.maximums["depth"] = 39.4494
+			self.means["rgb"] = [111.62589558919271, 112.83656475653362, 122.01291739800105]
+			self.means["depth"] = 12.117755
+			self.stds["rgb"] = [62.94051625776808, 55.35131957869077, 52.90895978272871]
+			self.stds["depth"] = 5.330455
 		else:
 			assert False
 
