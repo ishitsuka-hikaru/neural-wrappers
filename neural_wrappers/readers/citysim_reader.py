@@ -4,7 +4,7 @@ from .dataset_reader import DatasetReader
 from neural_wrappers.transforms import Transformer
 
 class CitySimReader(DatasetReader):
-	allHvns = ["hvn_gt_p1", "tiny_hvn_it1_p1", "big_hvn_it1_p1"]
+	allHvns = ["hvn_gt_p1", "tiny_hvn_it1_p1", "big_hvn_it1_p1", "tiny_hvn_it2_p1", "big_hvn_it2_p1"]
 
 	def __init__(self, dataGroup, datasetPath, imageShape, labelShape, transforms=["none"], \
 		normalization="min_max_normalization", dataDimensions=["rgb"], labelDimensions=["depth"], **kwargs):
