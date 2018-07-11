@@ -138,7 +138,7 @@ class NeuralNetworkPyTorch(nn.Module):
 			callback.onIterationEnd(**kwargs)
 
 	def npForward(self, x):
-		trInput = maybeCuda(x)
+		trInput = maybeCuda(tr.from_numpy(x))
 		trResult = self.forward(trInput)
 		npResult = trResult.detach().cpu().numpy()
 		return npResult

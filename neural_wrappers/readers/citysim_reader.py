@@ -4,6 +4,8 @@ from .dataset_reader import DatasetReader
 from neural_wrappers.transforms import Transformer
 
 class CitySimReader(DatasetReader):
+	allHvns = ["hvn_gt_p1", "tiny_hvn_it1_p1", "big_hvn_it1_p1"]
+
 	def __init__(self, dataGroup, datasetPath, imageShape, labelShape, transforms=["none"], \
 		normalization="min_max_normalization", dataDimensions=["rgb"], labelDimensions=["depth"], **kwargs):
 		super().__init__(datasetPath, imageShape, labelShape, dataDimensions, \
@@ -11,8 +13,6 @@ class CitySimReader(DatasetReader):
 		assert dataGroup in ("bragadiru_popesti", "london", "bucharest", "all")
 		self.dataGroup = dataGroup
 		self.kwargs = kwargs
-		self.allHvns = ["hvn_gt_raw", "hvn_gt_p1", "hvn_gt_p2", "hvn_gt_p3", "hvn_pred1_raw", "hvn_pred1_p1", \
-			"hvn_pred1_p2", "hvn_pred1_p3", "hvn_pred2_raw"]
 		self.setup()
 
 	def __str__(self):
@@ -32,13 +32,13 @@ class CitySimReader(DatasetReader):
 	#  defaulting to self.normalization, but with the possibility to update it (for example to self.doNothing) or
 	#  any other more special normalizations.
 	def minMaxNormalizer(self, data, type):
-		if type in self.allHvns:
+		if type in CitySimReader.allHvns:
 			return data
 		else:
 			return super().minMaxNormalizer(data, type)
 
 	def standardizer(self, data, type):
-		if type in self.allHvns:
+		if type in CitySimReader.allHvns:
 			return data
 		else:
 			return super().standardizer(data, type)
@@ -73,7 +73,7 @@ class CitySimReader(DatasetReader):
 
 		# HVN Setup - TODO update names
 		hvnTransform = "none"
-		for hvn in self.allHvns:
+		for hvn in CitySimReader.allHvns:
 			if hvn in self.dataDimensions or hvn in self.labelDimensions:
 				assert "hvnTransform" in self.kwargs
 				hvnTransform = self.kwargs["hvnTransform"]
@@ -96,7 +96,7 @@ class CitySimReader(DatasetReader):
 		else:
 			assert False
 
-		for hvn in self.allHvns:
+		for hvn in CitySimReader.allHvns:
 			self.numDimensions[hvn] = hvnNumDims
 			self.maximums[hvn] = hvnMax
 			self.minimums[hvn] = hvnMin
@@ -106,12 +106,7 @@ class CitySimReader(DatasetReader):
 
 	def setup(self):
 		self.dataset = h5py.File(self.datasetPath, "r")
-		# TODO, update p1, p2, p3 with actual names when they are finished
-		# gt are ground truth values (from Blender)
-		# pred1 are the outputs of the first network (rgb + gt => pred1)
-		# pred2 are the outputs of the second network (rgb + pred1 => pred2)
-		self.supportedDimensions = ("rgb", "depth", "hvn_gt_raw", "hvn_gt_p1", "hvn_gt_p2", "hvn_gt_p3", \
-			"hvn_pred1_raw", "hvn_pred1_p1", "hvn_pred1_p2", "hvn_pred1_p3", "hvn_pred2_raw")
+		self.supportedDimensions = ["rgb", "depth", *CitySimReader.allHvns]
 
 		# numData["train"] = N; numData["validation"] = M;
 		self.numData = { "train": 0, "validation" : 0 }
