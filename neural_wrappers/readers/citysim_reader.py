@@ -5,6 +5,7 @@ from neural_wrappers.transforms import Transformer
 
 class CitySimReader(DatasetReader):
 	allHvns = ["hvn_gt_p1", "tiny_hvn_it1_p1", "big_hvn_it1_p1", "tiny_hvn_it2_p1", "big_hvn_it2_p1"]
+	otherDepths = ["tiny_depth_it1", "big_depth_it1"]
 
 	def __init__(self, dataGroup, datasetPath, imageShape, labelShape, transforms=["none"], \
 		normalization="min_max_normalization", dataDimensions=["rgb"], labelDimensions=["depth"], **kwargs):
@@ -104,9 +105,15 @@ class CitySimReader(DatasetReader):
 			self.stds[hvn] = hvnStd
 			self.postDataProcessing[hvn] = hvnTransformFn
 
+		for depth in CitySimReader.otherDepths:
+			self.maximums[depth] = 1
+			self.minimums[depth] = 0
+			self.numDimensions[depth] = 1
+			self.postDataProcessing[depth] = lambda x : np.expand_dims(x, axis=-1)
+
 	def setup(self):
 		self.dataset = h5py.File(self.datasetPath, "r")
-		self.supportedDimensions = ["rgb", "depth", *CitySimReader.allHvns]
+		self.supportedDimensions = ["rgb", "depth", *CitySimReader.allHvns, *CitySimReader.otherDepths]
 
 		# numData["train"] = N; numData["validation"] = M;
 		self.numData = { "train": 0, "validation" : 0 }
