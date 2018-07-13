@@ -20,7 +20,10 @@ class Mirror(Transform):
 		assert len(data.shape) in (3, 4)
 		if not labels is None: assert len(labels.shape) in (3, 4)
 
+		from Mihlib import npGetInfo
+		print("Mirror_data", npGetInfo(data))
 		newData = np.flip(data, 2)
+		print("Mirrored_data", npGetInfo(newData))
 		newLabels = np.flip(labels, 2) if not labels is None else None
 		return newData, newLabels
 

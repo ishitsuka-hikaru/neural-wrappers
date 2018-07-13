@@ -105,6 +105,7 @@ class CitySimReader(DatasetReader):
 			self.stds[hvn] = hvnStd
 			self.postDataProcessing[hvn] = hvnTransformFn
 
+		# Note: this depth is normalized in 0-1.
 		for depth in CitySimReader.otherDepths:
 			self.maximums[depth] = 1
 			self.minimums[depth] = 0

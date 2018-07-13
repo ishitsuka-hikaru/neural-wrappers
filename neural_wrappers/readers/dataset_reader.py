@@ -2,210 +2,135 @@ import numpy as np
 from prefetch_generator import BackgroundGenerator
 from neural_wrappers.transforms import Transformer
 from neural_wrappers.utilities import standardizeData, minMaxNormalizeData
-from functools import partial
 
+# Stubs for identity functions, first is used for 1 parameter f(x) = x, second is used for more than one parameter,
+#  such as f(x, y, z) = (x, y, z)
+def identity(x, **kwargs):
+	return x
+
+def identityVar(*args):
+	return args
+
+# Stub for making a list, used by various code parts, where the user may provide a single element for a use-case where
+#  he'd have to use a 1-element list. This handles that case, so the overall API uses lists, but user provides
+#  just an element. If None, just return None.
+def makeList(x):
+	return None if type(x) == type(None) else x if type(x) == list else [x]
+
+# @brief DatasetReader baseclass, that every reader must inherit. Provides basic interface for constructing
+#  a dataset reader, with path to the directory/h5py file, data and label dims, dimension transforms, normalizer and
+#  augmentation transforms for each dimension. Both data and labels cand be inexistent, by simply providing a None
+#  for the dataDims or labelDims variable.
+# Pipeline: raw -> dimTransforms -> normalizer -> augTransforms -> resizer
+# @param[in] datasetPath The path to the dataset (directory, h5py file etc.)
+# @param[in] dataDims A list representing the dimensions of the data ("rgb", "classes", "depth" etc.) or None
+# @param[in] labelDims A list representing the dimensions of the label ("depth", "segmentation", "label", etc.) or None
+# @param[in] dataDimTransform
+# @param[in] labelDimTransform
+# @param[in] dataNormalizer
+# @param[in] labelNormalizer
+# @param[in] dataAugTransform
+# @param[in] labelAugTransform
+# @param[in] dataShape
+# @param[in] labelShape
 class DatasetReader:
-	def __init__(self, datasetPath, dataShape, labelShape, dataDimensions, labelDimensions, \
-		transforms=["none"], normalization="standardization"):
+	def __init__(self, datasetPath, dataDims, labelDims, dataDimTransform={}, labelDimTransform={}, \
+		dataNormalizer={}, labelNormalizer={}, dataAugTransform={}, labelAugTransform={}, dataShape={}, \
+		labelShape={}):
 		self.datasetPath = datasetPath
-		self.dataShape = dataShape
-		self.labelShape = labelShape
-		self.dataDimensions = dataDimensions
-		self.labelDimensions = labelDimensions
-		self.transforms = transforms
-		self.normalization = normalization
+		self.dataDims = makeList(dataDims)
+		self.labelDims = makeList(labelDims)
 
-		self.dataAugmenter = Transformer(transforms, dataShape=dataShape, labelShape=labelShape)
-		self.validationAugmenter = Transformer(["none"], dataShape=dataShape, labelShape=labelShape)
-		self.doNothing = lambda x, *args : x
-		self.means, self.stds, self.maximums, self.minimums, self.postDataProcessing = {}, {}, {}, {}, {}
+		# Pipeline: Raw -> dimTransform -> normalizer -> augTransform -> resize -> finalTransform -> data
+		# Dimension transforms are unique to each dimension. If such a transformation is not defined, it is defaulted
+		#  to identity.
+		self.dataDimTransform = DatasetReader.populateDictByDims(self.dataDims, dataDimTransform, identity)
+		dataNormalizer = DatasetReader.dataNormalizerParams(dataNormalizer)
+		self.dataNormalizer = DatasetReader.populateDictByDims(self.dataDims, dataNormalizer, ("none", identity))
+		self.dataAugTransform = DatasetReader.populateDictByDims(self.dataDims, dataAugTransform, identity)
 
-		if normalization == "min_max_normalization":
-			self.normalizer = self.minMaxNormalizer
-		elif normalization == "standardization":
-			self.normalizer = self.standardizer
-		elif normalization == "none":
-			self.normalizer = lambda data, type: data
-		else:
-			assert hasattr(normalization[1], "__call__"), ("The user provided normalization \"%s\" must be a " + \
-				"tuple of type (Str, Callable) or must one of \"standardization\", \"min_max_normalization\", " + \
-				"\"none\"") % normalization[0]
-			self.normalization = normalization[0]
-			self.normalizer = partial(normalization[1], obj=self)
-
-	# @brief Generic method that looks into a dataset dictionary, and takes each asked dimension, concatenates it into
-	#  one array and returns it back to the caller.
-	# @param[in] normalizer A lambda function that supports (data, type) parameters and can apply a normalization
-	#  to the dimensions required for this data (as given by requiredDimensions channels). Default it is set to
-	#  self.normalizer, that is instantiated in the constructor.
-	# @return One list, where each element is one required dimension, extracted from the allData parameter at given
-	#  indexes startIndex and endIndex after all processing was done.
-	def getData(self, allData, startIndex, endIndex, requiredDimensions, normalizer=None):
-		if not normalizer:
-			normalizer = self.normalizer
-		dimList = []
-		for dim in requiredDimensions:
-			data = allData[dim][startIndex : endIndex]
-			data = self.postDataProcessing[dim](data)
-			data = normalizer(data, dim)
-			dimList.append(data)
-		return dimList
+		self.labelDimTransform = DatasetReader.populateDictByDims(self.labelDims, labelDimTransform, identity)
+		labelNormalizer = DatasetReader.dataNormalizerParams(labelNormalizer)
+		self.labelNormalizer = DatasetReader.populateDictByDims(self.labelDims, labelNormalizer, ("none", identity))
+		self.labelAugTransform = DatasetReader.populateDictByDims(self.labelDims, labelAugTransform, identity)
 
 	# @brief Basic min max normalizer, which receives a batches data (MB x shape) and applies the normalization for
 	#  each dimension independelty. Requires the class members minimums and maximums to be defined inside the class
 	#  for this normalization to work.
 	# @param[in] data The data on which the normalization is applied
 	# @param[in] type The type (data dimension) for which the field minimums and maximums are searched into
-	def minMaxNormalizer(self, data, type):
-		if self.numDimensions[type] == 1:
-			data = minMaxNormalizeData(data, self.minimums[type], self.maximums[type])
-		else:
-			for i in range(self.numDimensions[type]):
-				data[..., i] = minMaxNormalizeData(data[..., i], self.minimums[type][i], self.maximums[type][i])
+	def minMaxNormalizer(data, type):
+		for i in range(self.numDimensions[type]):
+			data[..., i] = minMaxNormalizeData(data[..., i], self.minimums[type][i], self.maximums[type][i])
 		return data
 
 	# @brief Basic standardization normalizer, using same convention as minMaxNormalizer.
 	# @param[in] data The data on which the normalization is applied
 	# @param[in] type The type (data dimension) for which the field means and stsd are searched into
-	def standardizer(self, data, type):
-		if self.numDimensions[type] == 1:
-			data = standardizeData(data, self.means[type], self.stds[type])
-		else:
-			for i in range(self.numDimensions[type]):
-				data[..., i] = standardizeData(data[..., i], self.means[type][i], self.stds[type][i])
+	def standardizer(data, type):
+		for i in range(self.numDimensions[type]):
+			data[..., i] = standardizeData(data[..., i], self.means[type][i], self.stds[type][i])
 		return data
 
-	# Handles all the initilization stuff of a specific dataset object.
-	def setup(self):
-		raise NotImplementedError("Should have implemented this")
+	# Update the normalization parameters so that in the end they're in the (Str, Callable) format. Also accounts for
+	#  built-in normalizations, such as min_max_normalization, standardization or none.
+	# Example: "standardizer" => [("standardizer", DatasetReader.standardizer)]
+	# Example: {"rgb":"standardizer", "classes":"none"} => 
+	#  { "rgb" : ("standardizer", datasetReader.standardizer), classes : ("none", Identity) }
+	def dataNormalizerParams(currentDict):
+		if type(currentDict) == str:
+			currentDict = makeList(currentDict)
 
-	# Generic generator function, which should iterate once the dataset and yield a minibatch subset every time
-	def iterate_once(self, type, miniBatchSize):
-		raise NotImplementedError("Should have implemented this")
+		def getActualNormalizationFunc(normalization):
+			if normalization == "min_max_normalization":
+				return (normalization, DatasetReader.minMaxNormalizer)
+			elif normalization == "standardization":
+				return (normalization, DatasetReader.standardizer)
+			elif normalization == "none":
+				return (normalization, identity)
+			else:
+				assert hasattr(normalization[1], "__call__"), ("The user provided normalization \"%s\" must be a " + \
+					"tuple of type (Str, Callable) or must one of \"standardization\", \"min_max_normalization\", " + \
+					"\"none\"") % normalization[0]
+				return normalization
 
-	# Handles all common code that must be done after the setup is complete, such as computing data indexes for
-	#  iteration, checks for errors in shapes etc.
-	def postSetup(self):
-		numDims = len(self.supportedDimensions)
-		assert numDims > 0 and len(self.numDimensions) == numDims
-		assert (len(self.numData[Type]) == numDims for Type in ("train", "test", "validation"))
-		# Validty checks for data dimensions.
-		for data in self.dataDimensions: assert data in self.supportedDimensions, "Got %s" % (data)
-		for data in self.labelDimensions: assert data in self.supportedDimensions, "Got %s" % (data)
+		assert type(currentDict) in (dict, list, tuple)
+		newDict = type(currentDict)()
+		if type(currentDict) == dict:
+			for key in currentDict:
+				newDict[key] = getActualNormalizationFunc(currentDict[key])
+		elif type(currentDict) in (list, tuple):
+			for i in range(len(currentDict)):
+				newDict.append(getActualNormalizationFunc(currentDict[i]))
+		return newDict
 
-		# If these values were not added manually, use the default values
-		for dim in self.supportedDimensions:
-			if not dim in self.means:
-				self.means[dim] = [0] * self.numDimensions[dim] if self.numDimensions[dim] > 0 else 0
+	# @param[in] dims Dimensions across which we wish to populate the dictionary
+	# @param[in] currentDict A partial dictionary (or 1 element, if dims is also of len 1,
+	# or n-element list if len(dims) == n), that defines the special cases for populating the output dictionary.
+	# All other dims are defaulted to defaultValue.
+	# @param[in] defaultValue The default value for all the dimensions that are in dims, but aren't in currentDict
+	# @param[out] A complete dictionary that has values for any element in the dims input parameter
+	# @example populateDictByDims("rgb", RGBToHSV, Identity)
+	# @example populateDictByDims(["rgb", "depth"], {"rgb" : RGBToHSV, "depth" : })
+	def populateDictByDims(dims, currentDict, defaultValue):
+		outputDict = {}
+		if type(currentDict) != dict:
+			currentDict = makeList(currentDict)
+			assert len(currentDict) == len(dims), ("When using special list, instead of providing a dictionary" + \
+				" with values for each dimension, all the dimensions must be specified. Dims(%d): %s, but given " + \
+				"%d items") % (len(dims), dims, len(currentDict))
+			currentDict = {dims[i] : currentDict[i] for i in range(len(dims))}
 
-			if not dim in self.stds:
-				self.stds[dim] = [1] * self.numDimensions[dim] if self.numDimensions[dim] > 0 else 1
+		for dim in dims:
+			if not dim in currentDict:
+				outputDict[dim] = defaultValue
+			else:
+				outputDict[dim] = currentDict[dim]
+				del currentDict[dim]
 
-			if not dim in self.maximums:
-				self.maximums[dim] = [255] * self.numDimensions[dim] if self.numDimensions[dim] > 0 else 255
-
-			if not dim in self.minimums:
-				self.minimums[dim] = [0] * self.numDimensions[dim] if self.numDimensions[dim] > 0 else 0
-
-			if not dim in self.postDataProcessing:
-				self.postDataProcessing[dim] = self.doNothing
-
-		assert len(self.means) == numDims and len(self.stds) == numDims and \
-			len(self.minimums) == numDims and len(self.maximums) == numDims
-
-		self.dimensionIndexes = {
-			"data" : { },
-			"label" : { }
-		}
-
-		# Check and compiute dimensionIndexes, required for iterating.
-		requiredDataDimensions = 0
-		for dim in self.dataDimensions:
-			endIndex = self.numDimensions[dim]
-			self.dimensionIndexes["data"][dim] = (requiredDataDimensions, endIndex)
-			requiredDataDimensions += endIndex
-
-		if requiredDataDimensions > 1:
-			assert requiredDataDimensions == self.dataShape[-1], \
-				"Expected: numDimensions: %s. Got dataShape: %s for: %s dimensions" % \
-				(requiredDataDimensions, self.dataShape, self.dataDimensions)
-
-		requiredLabelDimensions = 0
-		for dim in self.labelDimensions:
-			endIndex = self.numDimensions[dim]
-			self.dimensionIndexes["label"][dim] = (requiredLabelDimensions, endIndex)
-			requiredLabelDimensions += endIndex
-
-		if requiredLabelDimensions > 1:
-			assert requiredLabelDimensions == self.labelShape[-1], \
-				"Expected: numDimensions: %s. Got labelShape: %s for: %s dimensions" % \
-				(requiredLabelDimensions, self.labelShape, self.labelDimensions)
-
-	# Computes the class members indexes and numData, which represent the amount of data of each portion of the
-	#  datset (train/test/val) as well as the starting indexes
-	def computeIndexesSplit(self, numAllData):
-		# Check validity of the dataSplit (sums to 100 and positive)
-		assert len(self.dataSplit) == 3 and self.dataSplit[0] >= 0 and self.dataSplit[1] >= 0 \
-			and self.dataSplit[2] >= 0 and self.dataSplit[0] + self.dataSplit[1] + self.dataSplit[2] == 100
-
-		trainStartIndex = 0
-		testStartIndex = self.dataSplit[0] * numAllData // 100
-		validationStartIndex = testStartIndex + (self.dataSplit[1] * numAllData // 100)
-
-		indexes = {
-			"train" : (trainStartIndex, testStartIndex),
-			"test" : (testStartIndex, validationStartIndex),
-			"validation" : (validationStartIndex, numAllData)
-		}
-
-		numSplitData = {
-			"train" : testStartIndex,
-			"test" : validationStartIndex - testStartIndex,
-			"validation" : numAllData - validationStartIndex
-		}
-		return indexes, numSplitData
-
-	# Generic infinite generator, that simply does a while True over the iterate_once method, which only goes one epoch
-	# @param[in] type The type of processing that is generated by the generator (typicall train/test/validation)
-	# @param[in] miniBatchSize How many items are generated at each step
-	# @param[in] maxPrefetch How many items in advance to be generated and stored before they are consumed. If 0, the
-	#  thread API is not used at all. If 1, the thread API is used with a queue of length 1 (still works better than
-	#  normal in most cases, due to the multi-threaded nature. For length > 1, the queue size is just increased.
-	def iterate(self, type, miniBatchSize, maxPrefetch=0):
-		assert maxPrefetch >= 0
-		while True:
-			iterateGenerator = self.iterate_once(type, miniBatchSize)
-			if maxPrefetch > 0:
-				iterateGenerator = BackgroundGenerator(iterateGenerator, max_prefetch=maxPrefetch)
-			for items in iterateGenerator:
-				yield items
-				del items
-
-	# Finds the number of iterations needed for each type, given a miniBatchSize. Eachs transformations adds a new set
-	#  of parameters. If none are present then just one set of parameters
-	# @param[in] type The type of data from which this is computed (e.g "train", "test", "validation")
-	# @param[in] miniBatchSize How many data from all the data is taken at every iteration
-	# @param[in] accountTransforms Take into account transformations or not. True value is used in neural_network
-	#  wrappers, so if there are 4 transforms, the amount of required iterations for one epoch is numData * 4.
-	#  Meanwhile, in reader classes, all transforms are done in the same loop (see NYUDepthReader), so these all
-	#  represent same epoch. Defaults to True, so end-users when training networks aren't required to specify it.
-	def getNumIterations(self, type, miniBatchSize, accountTransforms=True):
-		N = self.numData[type] // miniBatchSize + (self.numData[type] % miniBatchSize != 0)
-		assert len(self.transforms), "No transforms used, perhaps set just \"none\""
-		return N if accountTransforms == False else N * len(self.transforms)
-
-	def __str__(self):
-		return "General dataset reader. Update __str__ in your dataset for more details when using summary."
-
-	def summary(self):
-		summaryStr = "[Dataset summary]\n"
-		summaryStr += self.__str__() + "\n"
-
-		summaryStr += "Data dimensions: %s. Label dimensions: %s\n" % (self.dataDimensions, self.labelDimensions)
-		summaryStr += "Num data: %s\n" % (self.numData)
-		summaryStr += "Normalization: %s\n" % (self.normalization)
-		summaryStr += "Transforms(%i): %s\n" % (len(self.transforms), self.transforms)
-		return summaryStr
+		assert len(currentDict) == 0, "Wrong keys were specified into currentDict. Dims: %s. Left keys: %s" % \
+			(dims, list(currentDict.keys()))
+		return outputDict
 
 class ClassificationDatasetReader(DatasetReader):
 	# Classification problems are split into N classes which varies from data to data.
