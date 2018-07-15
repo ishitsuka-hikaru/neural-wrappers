@@ -117,10 +117,13 @@ class Transformer:
 	#  done in same manner as they are done for the data (for example for random cropping, same random indexes are
 	#  chosen).
 	def applyTransforms(self, data):
-		yield data
+		return data
 		# assert (self.labelShape is None and labels is None) or (not self.labelShape is None), "When not providing " + \
 		# 	"a labelShape on transformer constructor, the labels argument must be None as well"
 		# for transform in self.transforms:
 		# 	newData, newLabels = self.applyTransform(transform, data, labels, interpolationType)
 		# 	yield newData, newLabels
 		# 	del newData, newLabels
+
+	def __call__(self, data):
+		yield self.applyTransforms(data)
