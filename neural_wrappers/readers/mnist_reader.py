@@ -1,15 +1,13 @@
 import h5py
 import numpy as np
 from .dataset_reader import ClassificationDatasetReader
-from neural_wrappers.transforms import Transformer
 from neural_wrappers.utilities import toCategorical
 
 class MNISTReader(ClassificationDatasetReader):
-	def __init__(self, datasetPath, dataShape, normalization):
-		super().__init__(datasetPath, allDims=["images", "labels"], dataDims="images", labelDims="labels", \
-			dimTransform={"images" : lambda x : np.float32(x)}, \
-			normalizer={"images" : normalization},
-			resizer={"images" : dataShape})
+	def __init__(self, datasetPath, dataDims, labelDims, dimTransform={}, normalizer={}, \
+		augTransform=[], resizer={}):
+		super().__init__(datasetPath, allDims=["images", "labels"], dataDims=dataDims, labelDims=labelDims, \
+			dimTransform=dimTransform, normalizer=normalizer, augTransform=augTransform, resizer=resizer)
 		self.dataset = h5py.File(self.datasetPath, "r")
 		self.numData = {
 			"train" : 60000,

@@ -1,22 +1,9 @@
 import numpy as np
 from prefetch_generator import BackgroundGenerator
 from neural_wrappers.transforms import Transformer
-from neural_wrappers.utilities import standardizeData, minMaxNormalizeData, resize_batch
+from neural_wrappers.utilities import standardizeData, minMaxNormalizeData, \
+	resize_batch, identity, makeList, isSubsetOf
 from functools import partial
-
-# Stubs for identity functions, first is used for 1 parameter f(x) = x, second is used for more than one parameter,
-#  such as f(x, y, z) = (x, y, z)
-def identity(x, **kwargs):
-	return x
-
-def identityVar(*args):
-	return args
-
-# Stub for making a list, used by various code parts, where the user may provide a single element for a use-case where
-#  he'd have to use a 1-element list. This handles that case, so the overall API uses lists, but user provides
-#  just an element. If None, just return None.
-def makeList(x):
-	return None if type(x) == type(None) else x if type(x) == list else [x]
 
 def minMaxNormalizer(data, dim, obj):
 	min = obj.minimums[dim]
@@ -27,12 +14,6 @@ def standardizer(data, dim, obj):
 	mean = obj.means[dim]
 	std = obj.stds[dim]
 	return standardizeData(data, mean, std)
-
-def isSubsetOf(subset, set):
-	for item in subset:
-		if not item in set:
-			return False
-	return True
 
 # @brief DatasetReader baseclass, that every reader must inherit. Provides basic interface for constructing
 #  a dataset reader, with path to the directory/h5py file, data and label dims, dimension transforms, normalizer and
@@ -58,7 +39,8 @@ class DatasetReader:
 	# 	self.dataDims = makeList(dataDims)
 	# 	self.labelDims = makeList(labelDims)
 	def __init__(self, datasetPath, allDims, dataDims, labelDims, dimTransform={}, normalizer={}, \
-		augTransform={}, resizer={}, finalTransform={}):
+		augTransform=[], resizer={}, dataFinalTransform=lambda x : np.concatenate(x, axis=-1), \
+		labelFinalTransform=lambda x : np.concatenate(x, axis=-1)):
 
 		# Define the dictionaries that must be updated by each dataset reader.
 		self.datasetPath = datasetPath
@@ -88,19 +70,16 @@ class DatasetReader:
 		normalizer = self.normalizeInputParameters(normalizer, self.normalizerParams)
 		self.normalizer = DatasetReader.populateDictByDims(self.allDims, normalizer, ("none", identity))
 		# Augmentation transforms are applied for each dimension after normalization. If nothing is defined, it is
-		 # defaulted to identity. Built-in strings are "none"/"indentity" (TODO: crops/rotates etc.)
-		augTransform = self.normalizeInputParameters(augTransform, DatasetReader.trasformerParams)
-		self.augTransform = DatasetReader.populateDictByDims(self.allDims, augTransform, identity)
-		self.transformer = Transformer(self.augTransform)
+		 # defaulted to identity. Built-in strings are "none"/"indentity". Everything is handled by Transformer.
+		self.transformer = Transformer(self.allDims, augTransform)
 		# Resizing is applied for each dimension independently, after performing augmentation. This is needed because
 		#  of the 240x320 data vs 50x70 label cropping problem.
 		resizer = self.normalizeInputParameters(resizer, DatasetReader.resizerParams)
 		self.resizer = DatasetReader.populateDictByDims(self.allDims, resizer, identity)
-		# # Final data transform is applied to the data after resizing. Such operation can merge all dimensions in one
-		# #  singular numpy array input, for example, or do any sort of post-processing to each dimension separately.
-		# finalTransform = self.normalizeInputParameters(finalTransform, DatasetReader.requireCallableParams)
-		# expandLambda = lambda x : np.expand_dims(x, axis = -1)
-		# self.finalTransform = DatasetReader.populateDictByDims(self.allDims, finalTransform, expandLambda)
+		# Final data transform is applied to the data after resizing. Such operation can merge all dimensions in one
+		#  singular numpy array input, for example, or do any sort of post-processing to each dimension separately.
+		self.dataFinalTransform = dataFinalTransform
+		self.labelFinalTransform = labelFinalTransform
 
 	### Stuff used for initialization and info about the data that is processed by this reader ###
 
@@ -118,22 +97,6 @@ class DatasetReader:
 		else:
 			assert hasattr(resize, "__call__"), "The user provided resizer %s must be callable" % (resize)
 			return resize
-
-	# Update the augmentation parameters, so that in the end they're simply in a (Str, Callable) format for each
-	#  dimension. Also accounts for built-in transformations such as "none"/"identity"
-	# (TODO: rest when working on TransformerV2)
-	# TODO: perhaps move this in the Transformer class when working at it
-	def trasformerParams(transform):
-		if transform in ("none", "identity"):
-			return (transform, identity)
-		# User provided transform
-		elif type(transform) == tuple:
-			assert type(transform[0]) == str and hasattr(transform[1], "__call__"), \
-				("The user provided transform \"%s\" must be a tuple of type (Str, Callable) or must one of the " + \
-				"default transforms") % transform[0]
-			return transform
-		else:
-			assert False
 
 	# Update the normalization parameters so that in the end they're in the (Str, Callable) format. Also accounts for
 	#  built-in normalizations, such as min_max_normalization, standardization or none.
@@ -161,7 +124,7 @@ class DatasetReader:
 	# Str => [Str]
 	# [A, B, C] => [A*, B*, C*]
 	# {d1:A, d2:B} => {d1:A*, d2:B*}
-	# A* is generated by the specificFunc callback, which handles each specific case: (normalizer, transformer, etc.)
+	# A* is generated by the specificFunc callback, which handles each specific case: (normalizer, resizer, etc.).
 	def normalizeInputParameters(self, currentDict, specificFunc):
 		# TODO: possible buggy, but the only way we can work with 1 element
 		if type(currentDict) not in (dict, list):
@@ -180,12 +143,12 @@ class DatasetReader:
 
 	# @param[in] dims Dimensions across which we wish to populate the dictionary
 	# @param[in] currentDict A partial dictionary (or 1 element, if dims is also of len 1,
-	# or n-element list if len(dims) == n), that defines the special cases for populating the output dictionary.
-	# All other dims are defaulted to defaultValue.
+	#  or n-element list if len(dims) == n), that defines the special cases for populating the output dictionary.
+	#  All other dims are defaulted to defaultValue.
 	# @param[in] defaultValue The default value for all the dimensions that are in dims, but aren't in currentDict
 	# @param[out] A complete dictionary that has values for any element in the dims input parameter
 	# @example populateDictByDims("rgb", RGBToHSV, identity)
-	# @example populateDictByDims(["rgb", "depth"], {"rgb" : RGBToHSV, "depth" : })
+	# @example populateDictByDims(["rgb", "depth"], {"rgb" : RGBToHSV, "depth" : identity})
 	def populateDictByDims(dims, currentDict, defaultValue):
 		outputDict = {}
 		if type(currentDict) != dict:
@@ -233,28 +196,9 @@ class DatasetReader:
 				if dim in self.labelDims:
 					finalLabels.append(item)
 			# TODO: finalTransform
-			finalData = np.concatenate(finalData, axis=-1)
-			finalLabels = np.concatenate(finalLabels, axis=-1)
+			finalData = self.dataFinalTransform(finalData)
+			finalLabels = self.labelFinalTransform(finalLabels)
 			yield finalData, finalLabels
-
-	def dataProcessingPipeline(self, data, label):
-		for i in range(len(self.dataDims)):
-			dim = self.dataDims[i]
-			data[i] = self.dataDimTransform[dim](data[i])
-			data[i] = self.dataNormalizer[dim](data[i])
-
-		for i in range(len(self.labelDims)):
-			dim = self.labelDims[i]
-			label[i] = self.labelDimTransform[dim](label[i])
-			label[i] = self.labelNormalizer[dim](label[i])
-
-		yield data, label
-
-		# data = dimTransform(data)
-		# data = normalizer(data)
-		# data = augTransform(data)
-		# data = resize(data)
-		# data = finalTransform(data)
 
 	# Generic infinite generator, that simply does a while True over the iterate_once method, which only goes one epoch
 	# @param[in] type The type of processing that is generated by the generator (typicall train/test/validation)
