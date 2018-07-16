@@ -1,169 +1,204 @@
 import numpy as np
 from prefetch_generator import BackgroundGenerator
 from neural_wrappers.transforms import Transformer
-from neural_wrappers.utilities import standardizeData, minMaxNormalizeData
+from neural_wrappers.utilities import standardizeData, minMaxNormalizeData, \
+	resize_batch, identity, makeList, isSubsetOf
 from functools import partial
 
+def minMaxNormalizer(data, dim, obj):
+	min = obj.minimums[dim]
+	max = obj.maximums[dim]
+	return minMaxNormalizeData(data, min, max)
+
+def standardizer(data, dim, obj):
+	mean = obj.means[dim]
+	std = obj.stds[dim]
+	return standardizeData(data, mean, std)
+
+# @brief DatasetReader baseclass, that every reader must inherit. Provides basic interface for constructing
+#  a dataset reader, with path to the directory/h5py file, data and label dims, dimension transforms, normalizer and
+#  augmentation transforms for each dimension. Both data and labels cand be inexistent, by simply providing a None
+#  for the dataDims or labelDims variable.
+# Pipeline: raw -> dimTransforms -> normalizer -> augTransforms -> resizer
+# @param[in] datasetPath The path to the dataset (directory, h5py file etc.)
+# @param[in] dataDims A list representing the dimensions of the data ("rgb", "classes", "depth" etc.) or None
+# @param[in] labelDims A list representing the dimensions of the label ("depth", "segmentation", "label", etc.) or None
+# @param[in] dataDimTransform
+# @param[in] labelDimTransform
+# @param[in] dataNormalizer
+# @param[in] labelNormalizer
+# @param[in] dataAugTransform
+# @param[in] labelAugTransform
+# @param[in] dataShape
+# @param[in] labelShape
 class DatasetReader:
-	def __init__(self, datasetPath, dataShape, labelShape, dataDimensions, labelDimensions, \
-		transforms=["none"], normalization="standardization"):
+	# def __init__(self, datasetPath, dataDims, labelDims, dataDimTransform={}, labelDimTransform={}, \
+	# 	dataNormalizer={}, labelNormalizer={}, dataAugTransform={}, labelAugTransform={}, dataResizer={}, \
+	# 	labelResizer={}, dataFinalTransform={}, labelFinalTransform={}):
+	# 	self.datasetPath = datasetPath
+	# 	self.dataDims = makeList(dataDims)
+	# 	self.labelDims = makeList(labelDims)
+	def __init__(self, datasetPath, allDims, dataDims, labelDims, dimTransform={}, normalizer={}, \
+		augTransform=[], resizer={}, dataFinalTransform=lambda x : np.concatenate(x, axis=-1), \
+		labelFinalTransform=lambda x : np.concatenate(x, axis=-1)):
+
+		# Define the dictionaries that must be updated by each dataset reader.
 		self.datasetPath = datasetPath
-		self.dataShape = dataShape
-		self.labelShape = labelShape
-		self.dataDimensions = dataDimensions
-		self.labelDimensions = labelDimensions
-		self.transforms = transforms
-		self.normalization = normalization
+		self.means, self.stds, self.maximums, self.minimums = {}, {}, {}, {}
+		self.numData = {"train" : 0, "validation" : 0, "test" : 0}
+		self.dataDims = makeList(dataDims)
+		self.labelDims = makeList(labelDims)
 
-		self.dataAugmenter = Transformer(transforms, dataShape=dataShape, labelShape=labelShape)
-		self.validationAugmenter = Transformer(["none"], dataShape=dataShape, labelShape=labelShape)
-		self.doNothing = lambda x, *args : x
-		self.means, self.stds, self.maximums, self.minimums, self.postDataProcessing = {}, {}, {}, {}, {}
+		# Sanity check
+		allDims = makeList(allDims)
+		assert isSubsetOf(self.dataDims, allDims) and isSubsetOf(self.labelDims, allDims), ("Exepcted dataDims " + \
+			"(%s) and labelDims (%s) to be a subset of allDims (%s)") % (self.dataDims, self.labelDims, allDims)
+		# Small efficiency trick, as we only care about the dims in dataDims and labelDims, so no nee to perofrm the
+		#  pipeline for other unused ones, just to drop them at the very end.
+		self.allDims = list(set(self.dataDims).union(self.labelDims))
 
+		# Pipeline: Raw -> dimTransform -> normalizer -> augTransform -> resize -> finalTransform -> data
+		# This pipe-line is applied for both dataDims and labelDims simultaneously, but they are separated at the very
+		#  end before providing the data to the user.
+
+		# Dimension transforms are unique to each dimension. If such a transformation is not defined, it is defaulted
+		#  to identity.
+		dimTransform = self.normalizeInputParameters(dimTransform, DatasetReader.requireCallableParams)
+		self.dimTransform = DatasetReader.populateDictByDims(self.allDims, dimTransform, identity)
+		# Normalization can also be defined partially, or using built-in strings, such as "min_max_normalizer",
+		#  "standardizer" or "none"/"identity"
+		normalizer = self.normalizeInputParameters(normalizer, self.normalizerParams)
+		self.normalizer = DatasetReader.populateDictByDims(self.allDims, normalizer, ("none", identity))
+		# Augmentation transforms are applied for each dimension after normalization. If nothing is defined, it is
+		 # defaulted to identity. Built-in strings are "none"/"indentity". Everything is handled by Transformer.
+		self.transformer = Transformer(self.allDims, augTransform)
+		# Resizing is applied for each dimension independently, after performing augmentation. This is needed because
+		#  of the 240x320 data vs 50x70 label cropping problem.
+		resizer = self.normalizeInputParameters(resizer, DatasetReader.resizerParams)
+		self.resizer = DatasetReader.populateDictByDims(self.allDims, resizer, identity)
+		# Final data transform is applied to the data after resizing. Such operation can merge all dimensions in one
+		#  singular numpy array input, for example, or do any sort of post-processing to each dimension separately.
+		self.dataFinalTransform = dataFinalTransform
+		self.labelFinalTransform = labelFinalTransform
+
+	### Stuff used for initialization and info about the data that is processed by this reader ###
+
+	# Some transforms (dataDim and dataFinal) must be user provided (or defaulted to identity). This method just checks
+	#  that they are callable.
+	def requireCallableParams(param):
+		assert hasattr(param, "__call__"), "The user provided callback %s must be callable" % (param)
+		return param
+
+	# Update the resizer parameters, so in the end they're a Callable function, that resized the input to some deisre
+	#  final size. It can be a tuple (H, W, D3...Dn) or a callable (identity, lycon.resize etc.)
+	def resizerParams(resize):
+		if type(resize) == tuple:
+			return partial(resize_batch, dataShape=resize, type="bilinear")
+		else:
+			assert hasattr(resize, "__call__"), "The user provided resizer %s must be callable" % (resize)
+			return resize
+
+	# Update the normalization parameters so that in the end they're in the (Str, Callable) format. Also accounts for
+	#  built-in normalizations, such as min_max_normalization, standardization or none.
+	# Example: "standardizer" => [("standardizer", DatasetReader.standardizer)]
+	# Example: {"rgb":"standardizer", "classes":"none"} => 
+	#  { "rgb" : ("standardizer", datasetReader.standardizer), classes : ("none", identity) }
+	def normalizerParams(self, normalization):
 		if normalization == "min_max_normalization":
-			self.normalizer = self.minMaxNormalizer
+			normalizer = partial(minMaxNormalizer, obj=self)
+			return (normalization, normalizer)
 		elif normalization == "standardization":
-			self.normalizer = self.standardizer
+			normalizer = partial(standardizer, obj=self)
+			return (normalization, normalizer)
 		elif normalization == "none":
-			self.normalizer = lambda data, type: data
+			return (normalization, identity)
 		else:
-			assert hasattr(normalization[1], "__call__"), ("The user provided normalization \"%s\" must be a " + \
-				"tuple of type (Str, Callable) or must one of \"standardization\", \"min_max_normalization\", " + \
-				"\"none\"") % normalization[0]
-			self.normalization = normalization[0]
-			self.normalizer = partial(normalization[1], obj=self)
+			assert type(normalization) == tuple, "Expected a normalization of type (Str, Callable), got %s" \
+				% (normalization)
+			assert type(normalization[0]) == str and hasattr(normalization[1], "__call__"), \
+				("The user provided normalization \"%s\" must be a tuple of type (Str, Callable) or must one " + \
+					"of \"standardization\", \"min_max_normalization\", \"none\"") % normalization[0]
+			return normalization
 
-	# @brief Generic method that looks into a dataset dictionary, and takes each asked dimension, concatenates it into
-	#  one array and returns it back to the caller.
-	# @param[in] normalizer A lambda function that supports (data, type) parameters and can apply a normalization
-	#  to the dimensions required for this data (as given by requiredDimensions channels). Default it is set to
-	#  self.normalizer, that is instantiated in the constructor.
-	# @return One list, where each element is one required dimension, extracted from the allData parameter at given
-	#  indexes startIndex and endIndex after all processing was done.
-	def getData(self, allData, startIndex, endIndex, requiredDimensions, normalizer=None):
-		if not normalizer:
-			normalizer = self.normalizer
-		dimList = []
-		for dim in requiredDimensions:
-			data = allData[dim][startIndex : endIndex]
-			data = self.postDataProcessing[dim](data)
-			data = normalizer(data, dim)
-			dimList.append(data)
-		return dimList
+	# Generic function that transforms an input string/list/dict into the necessary format for populatDictByDims.
+	# Str => [Str]
+	# [A, B, C] => [A*, B*, C*]
+	# {d1:A, d2:B} => {d1:A*, d2:B*}
+	# A* is generated by the specificFunc callback, which handles each specific case: (normalizer, resizer, etc.).
+	def normalizeInputParameters(self, currentDict, specificFunc):
+		# TODO: possible buggy, but the only way we can work with 1 element
+		if type(currentDict) not in (dict, list):
+			currentDict = makeList(currentDict)
 
-	# @brief Basic min max normalizer, which receives a batches data (MB x shape) and applies the normalization for
-	#  each dimension independelty. Requires the class members minimums and maximums to be defined inside the class
-	#  for this normalization to work.
-	# @param[in] data The data on which the normalization is applied
-	# @param[in] type The type (data dimension) for which the field minimums and maximums are searched into
-	def minMaxNormalizer(self, data, type):
-		if self.numDimensions[type] == 1:
-			data = minMaxNormalizeData(data, self.minimums[type], self.maximums[type])
+		assert type(currentDict) in (dict, list)
+		if type(currentDict) == dict:
+			newDict = {}
+			for key in currentDict:
+				newDict[key] = specificFunc(currentDict[key])
 		else:
-			for i in range(self.numDimensions[type]):
-				data[..., i] = minMaxNormalizeData(data[..., i], self.minimums[type][i], self.maximums[type][i])
-		return data
+			newDict = []
+			for i in range(len(currentDict)):
+				newDict.append(specificFunc(currentDict[i]))
+		return newDict
 
-	# @brief Basic standardization normalizer, using same convention as minMaxNormalizer.
-	# @param[in] data The data on which the normalization is applied
-	# @param[in] type The type (data dimension) for which the field means and stsd are searched into
-	def standardizer(self, data, type):
-		if self.numDimensions[type] == 1:
-			data = standardizeData(data, self.means[type], self.stds[type])
-		else:
-			for i in range(self.numDimensions[type]):
-				data[..., i] = standardizeData(data[..., i], self.means[type][i], self.stds[type][i])
-		return data
+	# @param[in] dims Dimensions across which we wish to populate the dictionary
+	# @param[in] currentDict A partial dictionary (or 1 element, if dims is also of len 1,
+	#  or n-element list if len(dims) == n), that defines the special cases for populating the output dictionary.
+	#  All other dims are defaulted to defaultValue.
+	# @param[in] defaultValue The default value for all the dimensions that are in dims, but aren't in currentDict
+	# @param[out] A complete dictionary that has values for any element in the dims input parameter
+	# @example populateDictByDims("rgb", RGBToHSV, identity)
+	# @example populateDictByDims(["rgb", "depth"], {"rgb" : RGBToHSV, "depth" : identity})
+	def populateDictByDims(dims, currentDict, defaultValue):
+		outputDict = {}
+		if type(currentDict) != dict:
+			currentDict = makeList(currentDict)
+			assert len(currentDict) == len(dims), ("When using special list, instead of providing a dictionary" + \
+				" with values for each dimension, all the dimensions must be specified. Dims(%d): %s, but given " + \
+				"%d item%s: %s") % (len(dims), dims, len(currentDict), \
+				"s" if len(currentDict) != 1 else "", currentDict)
+			currentDict = {dims[i] : currentDict[i] for i in range(len(dims))}
 
-	# Handles all the initilization stuff of a specific dataset object.
-	def setup(self):
-		raise NotImplementedError("Should have implemented this")
+		for dim in dims:
+			if not dim in currentDict:
+				outputDict[dim] = defaultValue
+			else:
+				outputDict[dim] = currentDict[dim]
+				del currentDict[dim]
 
-	# Generic generator function, which should iterate once the dataset and yield a minibatch subset every time
-	def iterate_once(self, type, miniBatchSize):
-		raise NotImplementedError("Should have implemented this")
+		assert len(currentDict) == 0, "Wrong keys were specified into currentDict. Dims: %s. Left keys: %s" % \
+			(dims, list(currentDict.keys()))
+		return outputDict
 
-	# Handles all common code that must be done after the setup is complete, such as computing data indexes for
-	#  iteration, checks for errors in shapes etc.
-	def postSetup(self):
-		numDims = len(self.supportedDimensions)
-		assert numDims > 0 and len(self.numDimensions) == numDims
-		assert (len(self.numData[Type]) == numDims for Type in ("train", "test", "validation"))
-		# Validty checks for data dimensions.
-		for data in self.dataDimensions: assert data in self.supportedDimensions, "Got %s" % (data)
-		for data in self.labelDimensions: assert data in self.supportedDimensions, "Got %s" % (data)
+	### Stuff used for iterating through the data provided by this reader ###
 
-		# If these values were not added manually, use the default values
-		for dim in self.supportedDimensions:
-			if not dim in self.means:
-				self.means[dim] = [0] * self.numDimensions[dim] if self.numDimensions[dim] > 0 else 0
+	# Pipeline: Raw -> dimTransform -> normalizer -> augTransform -> resize -> finalTransform -> data
+	def getData(self, dataset, startIndex, endIndex):
+		data = {}
+		# First 3 steps (acquire data, dimTransform and normalizer) can be applied at once
+		for dim in self.allDims:
+			item = dataset[dim][startIndex : endIndex]
+			item = self.dimTransform[dim](item)
+			item = self.normalizer[dim][1](item, dim=dim)
+			data[dim] = item
 
-			if not dim in self.stds:
-				self.stds[dim] = [1] * self.numDimensions[dim] if self.numDimensions[dim] > 0 else 1
-
-			if not dim in self.maximums:
-				self.maximums[dim] = [255] * self.numDimensions[dim] if self.numDimensions[dim] > 0 else 255
-
-			if not dim in self.minimums:
-				self.minimums[dim] = [0] * self.numDimensions[dim] if self.numDimensions[dim] > 0 else 0
-
-			if not dim in self.postDataProcessing:
-				self.postDataProcessing[dim] = self.doNothing
-
-		assert len(self.means) == numDims and len(self.stds) == numDims and \
-			len(self.minimums) == numDims and len(self.maximums) == numDims
-
-		self.dimensionIndexes = {
-			"data" : { },
-			"label" : { }
-		}
-
-		# Check and compiute dimensionIndexes, required for iterating.
-		requiredDataDimensions = 0
-		for dim in self.dataDimensions:
-			endIndex = self.numDimensions[dim]
-			self.dimensionIndexes["data"][dim] = (requiredDataDimensions, endIndex)
-			requiredDataDimensions += endIndex
-
-		if requiredDataDimensions > 1:
-			assert requiredDataDimensions == self.dataShape[-1], \
-				"Expected: numDimensions: %s. Got dataShape: %s for: %s dimensions" % \
-				(requiredDataDimensions, self.dataShape, self.dataDimensions)
-
-		requiredLabelDimensions = 0
-		for dim in self.labelDimensions:
-			endIndex = self.numDimensions[dim]
-			self.dimensionIndexes["label"][dim] = (requiredLabelDimensions, endIndex)
-			requiredLabelDimensions += endIndex
-
-		if requiredLabelDimensions > 1:
-			assert requiredLabelDimensions == self.labelShape[-1], \
-				"Expected: numDimensions: %s. Got labelShape: %s for: %s dimensions" % \
-				(requiredLabelDimensions, self.labelShape, self.labelDimensions)
-
-	# Computes the class members indexes and numData, which represent the amount of data of each portion of the
-	#  datset (train/test/val) as well as the starting indexes
-	def computeIndexesSplit(self, numAllData):
-		# Check validity of the dataSplit (sums to 100 and positive)
-		assert len(self.dataSplit) == 3 and self.dataSplit[0] >= 0 and self.dataSplit[1] >= 0 \
-			and self.dataSplit[2] >= 0 and self.dataSplit[0] + self.dataSplit[1] + self.dataSplit[2] == 100
-
-		trainStartIndex = 0
-		testStartIndex = self.dataSplit[0] * numAllData // 100
-		validationStartIndex = testStartIndex + (self.dataSplit[1] * numAllData // 100)
-
-		indexes = {
-			"train" : (trainStartIndex, testStartIndex),
-			"test" : (testStartIndex, validationStartIndex),
-			"validation" : (validationStartIndex, numAllData)
-		}
-
-		numSplitData = {
-			"train" : testStartIndex,
-			"test" : validationStartIndex - testStartIndex,
-			"validation" : numAllData - validationStartIndex
-		}
-		return indexes, numSplitData
+		# Next steps are independent, because augmentation is also a generator (for efficiency) which provides
+		#  new (copies of) items at every step. We also need to take dataDims and labelDims from the data dictionary
+		#  before providing them to the user.
+		for augData in self.transformer(data):
+			finalData, finalLabels = [], []
+			for dim in self.allDims:
+				item = augData[dim]
+				item = self.resizer[dim](item)
+				# TODO: perhaps callbackable
+				if dim in self.dataDims:
+					finalData.append(item)
+				if dim in self.labelDims:
+					finalLabels.append(item)
+			# TODO: finalTransform
+			finalData = self.dataFinalTransform(finalData)
+			finalLabels = self.labelFinalTransform(finalLabels)
+			yield finalData, finalLabels
 
 	# Generic infinite generator, that simply does a while True over the iterate_once method, which only goes one epoch
 	# @param[in] type The type of processing that is generated by the generator (typicall train/test/validation)
@@ -191,21 +226,14 @@ class DatasetReader:
 	#  represent same epoch. Defaults to True, so end-users when training networks aren't required to specify it.
 	def getNumIterations(self, type, miniBatchSize, accountTransforms=True):
 		N = self.numData[type] // miniBatchSize + (self.numData[type] % miniBatchSize != 0)
-		assert len(self.transforms), "No transforms used, perhaps set just \"none\""
-		return N if accountTransforms == False else N * len(self.transforms)
+		assert len(self.transformer.transforms), "No transforms used, perhaps set just \"none\""
+		return N if accountTransforms == False else N * len(self.transformer.transforms)
 
 	def __str__(self):
 		return "General dataset reader. Update __str__ in your dataset for more details when using summary."
 
-	def summary(self):
-		summaryStr = "[Dataset summary]\n"
-		summaryStr += self.__str__() + "\n"
-
-		summaryStr += "Data dimensions: %s. Label dimensions: %s\n" % (self.dataDimensions, self.labelDimensions)
-		summaryStr += "Num data: %s\n" % (self.numData)
-		summaryStr += "Normalization: %s\n" % (self.normalization)
-		summaryStr += "Transforms(%i): %s\n" % (len(self.transforms), self.transforms)
-		return summaryStr
+	def iterate_once(self, type, miniBatchSize):
+		raise NotImplementedError("Should have implemented this")
 
 class ClassificationDatasetReader(DatasetReader):
 	# Classification problems are split into N classes which varies from data to data.

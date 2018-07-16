@@ -1,119 +1,69 @@
 # transformer.py Generic class for data augmentation. Definitely not Optimus Prime.
-from neural_wrappers.utilities import resize_batch
-from .transforms import Mirror, CropMiddle, CropTopLeft, CropTopRight, CropBottomLeft, CropBottomRight
+from neural_wrappers.utilities import resize_batch, identity, isSubsetOf
+from .transforms import Mirror
 import numpy as np
 
 class Transformer:
-	# @param[in] applyOnDataShapeForLabels It is used for the case where I want to apply some transformation
-	#  for example a top-left crop, but the labelShape (at the end) is smaller than the dataShape. If we were to apply
-	#  the crop on the labelShape, we'd get a bad and different crop.
-	#  Concrete case: image:(480x640x3), label:(480x640), dataShape:(240x320x3), desiredLabelShape:(50x70). The crop
-	#  must be applied for values in [0 : 240, 0 : 320] on the (400x640) label, not for [0 : 50, 0 :70]. The reshape is
-	#  done at end. There may also be cases where the crop must be done on [0 : 50, 0 : 70], so leave it as an option.
-	def __init__(self, transforms, dataShape, labelShape=None, applyOnDataShapeForLabels=True):
-		# assert labelsPresent == False or (labelsPresent == True and labelShape != None)
-		self.dataShape = dataShape
-		self.labelShape = labelShape
-		self.applyOnDataShapeForLabels = applyOnDataShapeForLabels
+	# @param[in] allDims A list of dimensions that are required for this transformer. The transformations done to each
+	#  of them (even if it's just identity).
+	# @param[in] transforms A list of transformations, that must be applied, when calling the applyTransforms method.
+	#  Each element of the list must be a dictionary, with keys from the allDims parameter (or otherwise defaulted to
+	#  identity).
+	def __init__(self, allDims, transforms):
+		assert type(transforms) == list
+		self.allDims = allDims
+		self.transforms = []
+		self.builtInTransforms = self.getBuiltInTransforms()
 
-		# This parameter controls if the transformation for the labels is done on the shape of the data or the label
-		self.transforms = self.handleTransforms(transforms)
+		for i in range(len(transforms)):
+			assert type(transforms[i]) == dict
+			assert isSubsetOf(list(transforms[i].keys()), allDims)
+			updatedTransforms = self.updateTransforms(transforms[i])
+			self.transforms.append(updatedTransforms)
 
-	def getNumTransforms(self):
-		return 
-
-	def handleTransforms(self, transforms):
-		sentLabelShape = self.dataShape if self.applyOnDataShapeForLabels else self.labelShape
-		dictTransforms = {}
-		dataShape = self.dataShape
-
-		# Built-in transforms
-		mirror = Mirror(dataShape, sentLabelShape)
-		cropMiddle = CropMiddle(dataShape, sentLabelShape)
-		cropTopLeft = CropTopLeft(dataShape, sentLabelShape)
-		cropTopRight = CropTopRight(dataShape, sentLabelShape)
-		cropBottomLeft = CropBottomLeft(dataShape, sentLabelShape)
-		cropBottomRight = CropBottomRight(dataShape, sentLabelShape)
+	def getBuiltInTransforms(self):
+		mirror = Mirror()
 		builtInTransforms = {
-			"none" : lambda data, labels: (data, labels),
-			"mirror" : mirror,
-			"crop_middle" : cropMiddle,
-			"crop_top_left" : cropTopLeft,
-			"crop_top_right" : cropTopRight,
-			"crop_bottom_left" : cropBottomLeft,
-			"crop_bottom_right" : cropBottomRight,
-			"crop_middle_mirror" : lambda data, labels: mirror(*cropMiddle(data, labels)),
-			"crop_top_left_mirror" : lambda data, labels: mirror(*cropTopLeft(data, labels)),
-			"crop_top_right_mirror" : lambda data, labels: mirror(*cropTopRight(data, labels)),
-			"crop_bottom_left_mirror" : lambda data, labels: mirror(*cropBottomLeft(data, labels)),
-			"crop_bottom_right_mirror" : lambda data, labels: mirror(*cropBottomRight(data, labels))
+			"none" : identity,
+			"identity" : identity,
+			"mirror" : Mirror(),
 		}
 
-		if type(transforms) == list:
-			# There are some built-in transforms that can be sent as strings. For more complex ones, a lambda functon
-			#  or a class that implements the __call__ function must be used as well as a name, sent in a tuple/list.
-			#  See class Transform for parameters for __call__. Example: ("cool_transform", lambda x, y : (x+1, y+1)).
-			for i, transform in enumerate(transforms):
-				if type(transform) == str:
-					assert transform in builtInTransforms, "If only name is given, expect one of the built-in " + \
-						"transforms to be given: %s" % (builtInTransforms.keys())
-					dictTransforms[transform] = builtInTransforms[transform]
-				elif type(transform) in (tuple, list):
-					assert len(transform) == 2
-					name, transformFunc = transform
-					assert hasattr(transformFunc, "__call__"), "The user provided transformation %s must be " + \
-						"callable" % (name)
-					assert not name in builtInTransforms, "Cannot overwrite a built-in transform name: %s" % (name)
-					assert not name in dictTransforms, "Cannot give the same name to two transforms: %s" % (name)
-					dictTransforms[name] = transformFunc
-				else:
-					assert False, "Expected either a str for built-in or a (str, func) pair for user transform"
-		elif type(transforms) == dict:
-			dictTransforms = transforms
-		else:
-			raise Exception("Expected transforms to be a list or dict, got: " + type(transforms))
-		return dictTransforms
+		return builtInTransforms
 
-	# Note: The data must be just one np.array instance, so if more data or labels must be used at the same time, they
-	#  must first be concatenated beforehand. Example: random crop on both depth and semantic segmentation image, but
-	#  we want to have an identical random crop for all 3 images (rgb, depth and segmentation). Therefore, before
-	#  calling, we can use data=np.concatenate([rgb, depth, segmentation], axis=-1).
-	def applyTransform(self, transformName, data, labels, interpolationType):
-		# print("Applying '%s' transform" % (transformName))
-		numData = len(data)
-		newData, newLabels = self.transforms[transformName](data, labels)
+	def updateTransforms(self, transforms):
+		updateTransforms = {}
+		for key in self.allDims:
+			# If the user didn't specify one or more dimensions, these are defaulted to identity
+			if not key in transforms:
+				updateTransforms[key] = ("identity", identity)
+				continue
 
-		# Resize & Consistency checks
-		# Use nearest if labels are not float.
-		actualInterpolation = interpolationType if newData.dtype == np.floating else "nearest"
-		newData = resize_batch(newData, self.dataShape, actualInterpolation)
-		assert newData.shape == (numData, *self.dataShape), "Expected data shape %s, found %s." % \
-			((numData, *self.dataShape), newData.shape)
-		assert newData.dtype == data.dtype
+			transform = transforms[key]
+			if transform in self.builtInTransforms:
+				updateTransforms[key] = (transform, self.builtInTransforms[transform])
+			else:
+				assert type(transform) == tuple
+				assert type(transform[0]) == str and hasattr(transform[1], "__call__"), \
+				("The user provided transform \"%s\" must be a tuple of type (Str, Callable) or must one of the " + \
+				"default transforms") % transform[0]
+				updateTransforms[key] = transform
+		return updateTransforms
 
-		# For labels, do consistency checks only if labels are provided, otherwise expect transformer to return None
-		if labels is None:
-			assert newLabels is None, "Expected newLabels to be None, since no labels were provided."
-			return newData, None
-
-		# Otherwise, do the same checks.
-		actualInterpolation = interpolationType if newLabels.dtype == np.floating else "nearest"
-		newLabels = resize_batch(newLabels, self.labelShape, actualInterpolation)
-		assert newLabels.shape == (numData, *self.labelShape), "Expected labels shape %s, found %s." % \
-			((numData, *self.labelShape), newLabels.shape)
-		assert newLabels.dtype == labels.dtype
-		return newData, newLabels
-
-	# Main function, that loops throught all transforms and through all data (and labels) and yields each transformed
+	# Main function, that loops through all transforms and through all data (and labels) and yields each transformed
 	#  version for the main caller.
 	# @param[in] data The original data, unaltered in any way, on which the transforms (and potential resizes) are done
 	# @param[in] labels (optional) The original labels (or list of labels) on which the transforms are done, which are
 	#  done in same manner as they are done for the data (for example for random cropping, same random indexes are
 	#  chosen).
-	def applyTransforms(self, data, labels=None, interpolationType="bilinear"):
-		assert (self.labelShape is None and labels is None) or (not self.labelShape is None), "When not providing " + \
-			"a labelShape on transformer constructor, the labels argument must be None as well"
+	def applyTransforms(self, data):
 		for transform in self.transforms:
-			newData, newLabels = self.applyTransform(transform, data, labels, interpolationType)
-			yield newData, newLabels
-			del newData, newLabels
+			newData = {}
+			for dim in data:
+				transformName, transformFunc = transform[dim]
+				# print("Applying %s for %s" % (transformName, dim))
+				newData[dim] = transformFunc(np.copy(data[dim]))
+			yield newData
+
+	def __call__(self, data):
+		return self.applyTransforms(data)

@@ -122,3 +122,25 @@ def isBaseOf(whatType, baseType):
 	if type(baseType) != type:
 		baseType = type(baseType)
 	return baseType in type(object).mro(whatType)
+
+# Stubs for identity functions, first is used for 1 parameter f(x) = x, second is used for more than one parameter,
+#  such as f(x, y, z) = (x, y, z)
+def identity(x, **kwargs):
+	return x
+
+def identityVar(*args):
+	return args
+
+# Stub for making a list, used by various code parts, where the user may provide a single element for a use-case where
+#  he'd have to use a 1-element list. This handles that case, so the overall API uses lists, but user provides
+#  just an element. If None, just return None.
+def makeList(x):
+	return None if type(x) == type(None) else x if type(x) == list else [x]
+
+# ["test"] and ["blah", "blah2"] => False
+# ["blah2"] and ["blah", "blah2"] => True
+def isSubsetOf(subset, set):
+	for item in subset:
+		if not item in set:
+			return False
+	return True

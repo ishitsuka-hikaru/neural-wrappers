@@ -17,9 +17,9 @@ def main():
 	data_group = file.create_group("train")
 	data_group = file.create_group("test")
 
-	file["train"]["images"] = np.uint8(np.array(trainData).reshape((-1, 28, 28)))
+	file["train"]["images"] = np.uint8(np.array(trainData).reshape((-1, 28, 28, 1)))
 	file["train"]["labels"] = np.uint8(np.array(trainLabels))
-	file["test"]["images"] = np.uint8(np.array(testData).reshape((-1, 28, 28)))
+	file["test"]["images"] = np.uint8(np.array(testData).reshape((-1, 28, 28, 1)))
 	file["test"]["labels"] = np.uint8(np.array(testLabels))
 
 	print("Done.")
