@@ -226,9 +226,8 @@ class DatasetReader:
 	#  represent same epoch. Defaults to True, so end-users when training networks aren't required to specify it.
 	def getNumIterations(self, type, miniBatchSize, accountTransforms=True):
 		N = self.numData[type] // miniBatchSize + (self.numData[type] % miniBatchSize != 0)
-		# assert len(self.transforms), "No transforms used, perhaps set just \"none\""
-		# return N if accountTransforms == False else N * len(self.transforms)
-		return N
+		assert len(self.transformer.transforms), "No transforms used, perhaps set just \"none\""
+		return N if accountTransforms == False else N * len(self.transformer.transforms)
 
 	def __str__(self):
 		return "General dataset reader. Update __str__ in your dataset for more details when using summary."

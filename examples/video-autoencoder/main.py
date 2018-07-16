@@ -80,7 +80,8 @@ def make_frame(t, model, video):
 	trResult, hiddenState = model.forward(trFrame, hiddenState)
 	npResult = trResult.detach().cpu().numpy()[0]
 	npResult = minMaxNormalizeFrame(npResult)
-	print(npGetInfo(npResult))
+	hiddenState.detach_()
+	# print(npGetInfo(npResult))
 	plot_image(npResult)
 	show_plots()
 	return npResult
@@ -92,7 +93,7 @@ def main():
 	label = pims.Video(sys.argv[3])
 	assert len(video) == len(label)
 	numFrames = len(video) // 2
-	sequenceSize = 5
+	sequenceSize = 15
 	model = maybeCuda(RecurrentCNN(inputSize=video.frame_shape, hiddenSize=10, outputSize=label.frame_shape))
 	model.setCriterion(lambda x, y : tr.sum((x - y)**2))
 
@@ -112,7 +113,8 @@ def main():
 		model.load_weights(sys.argv[4])
 
 		frameCallback = partial(make_frame, model=model, video=video)
-		clip = mpy.VideoClip(frameCallback, duration=numFrames)
+
+		clip = mpy.VideoClip(frameCallback, duration=numFrames//30)
 		clip.write_videofile("test_output.mp4", fps=30, verbose=False, progress_bar=True)
 
 	# 	saveVideo(npData=storeFrames.result, fileName="video_result.mp4", fps=30)
