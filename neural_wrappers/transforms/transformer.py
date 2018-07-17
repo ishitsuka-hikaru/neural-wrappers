@@ -16,6 +16,9 @@ class Transformer:
 		self.transformNames = []
 		self.builtInTransforms = self.getBuiltInTransforms()
 
+		if len(transforms) == 0:
+			transforms = [{dim : "identity" for dim in self.allDims}]
+
 		for i in range(len(transforms)):
 			assert type(transforms[i]) == dict
 			assert isSubsetOf(list(transforms[i].keys()), allDims)

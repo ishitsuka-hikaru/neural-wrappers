@@ -81,10 +81,10 @@ class SaveModelsSelfSupervised(SaveModels):
 		kwargs["model"] = model
 		super().onEpochEnd(**kwargs)
 
-# TODO: add parameters if values are not one-hot encoded (for now it's assumed for both results and labels)
 class ConfusionMatrix(Callback):
-	def __init__(self, numClasses):
+	def __init__(self, numClasses, categoricalLabels):
 		self.numClasses = numClasses
+		self.categoricalLabels = categoricalLabels
 		self.confusionMatrix = np.zeros((numClasses, numClasses), dtype=np.int32)
 
 	def onEpochStart(self, **kwargs):
@@ -98,6 +98,9 @@ class ConfusionMatrix(Callback):
 
 	def onIterationEnd(self, **kwargs):
 		results = np.argmax(kwargs["results"], axis=1)
-		labels = np.where(kwargs["labels"] == 1)[1]
+		if self.categoricalLabels:
+			labels = np.where(kwargs["labels"] == 1)[1]
+		else:
+			labels = kwargs["labels"]
 		for i in range(len(labels)):
 			self.confusionMatrix[labels[i], results[i]] += 1
