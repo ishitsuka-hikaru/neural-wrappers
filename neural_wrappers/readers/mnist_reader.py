@@ -4,8 +4,8 @@ from .dataset_reader import ClassificationDatasetReader
 from neural_wrappers.utilities import toCategorical
 
 class MNISTReader(ClassificationDatasetReader):
-	def __init__(self, datasetPath, dataDims, labelDims, dimTransform={}, normalizer={}, \
-		augTransform=[], resizer={}):
+	def __init__(self, datasetPath, dataDims, labelDims, dimTransform={"images" : lambda x : np.float32(x)}, \
+		normalizer={}, augTransform=[], resizer={}):
 		super().__init__(datasetPath, allDims=["images", "labels"], dataDims=dataDims, labelDims=labelDims, \
 			dimTransform=dimTransform, normalizer=normalizer, augTransform=augTransform, resizer=resizer)
 		self.dataset = h5py.File(self.datasetPath, "r")

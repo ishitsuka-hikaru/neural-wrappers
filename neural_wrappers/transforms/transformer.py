@@ -13,13 +13,22 @@ class Transformer:
 		assert type(transforms) == list
 		self.allDims = allDims
 		self.transforms = []
+		self.transformNames = []
 		self.builtInTransforms = self.getBuiltInTransforms()
 
 		for i in range(len(transforms)):
 			assert type(transforms[i]) == dict
 			assert isSubsetOf(list(transforms[i].keys()), allDims)
+
+			# Update the functions (if using built-in) and store the transform
 			updatedTransforms = self.updateTransforms(transforms[i])
 			self.transforms.append(updatedTransforms)
+
+			# Check for duplicates as well (all transforms must be unique, even the names)
+			transformName = {dim : updatedTransforms[dim][0] for dim in self.allDims}
+			assert not transformName in self.transformNames, \
+				"%s already exist for this transformer (same names)" % (transformName)
+			self.transformNames.append(transformName)
 
 	def getBuiltInTransforms(self):
 		mirror = Mirror()
@@ -67,3 +76,10 @@ class Transformer:
 
 	def __call__(self, data):
 		return self.applyTransforms(data)
+
+	def __str__(self):
+		Str = "[Transformer]\n"
+		for transform in self.transforms:
+			transformName = {dim : transform[dim][0] for dim in self.allDims}
+			Str += "  - %s\n" % (transformName)
+		return Str

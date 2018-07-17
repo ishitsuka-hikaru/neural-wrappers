@@ -23,21 +23,7 @@ def standardizer(data, dim, obj):
 # @param[in] datasetPath The path to the dataset (directory, h5py file etc.)
 # @param[in] dataDims A list representing the dimensions of the data ("rgb", "classes", "depth" etc.) or None
 # @param[in] labelDims A list representing the dimensions of the label ("depth", "segmentation", "label", etc.) or None
-# @param[in] dataDimTransform
-# @param[in] labelDimTransform
-# @param[in] dataNormalizer
-# @param[in] labelNormalizer
-# @param[in] dataAugTransform
-# @param[in] labelAugTransform
-# @param[in] dataShape
-# @param[in] labelShape
 class DatasetReader:
-	# def __init__(self, datasetPath, dataDims, labelDims, dataDimTransform={}, labelDimTransform={}, \
-	# 	dataNormalizer={}, labelNormalizer={}, dataAugTransform={}, labelAugTransform={}, dataResizer={}, \
-	# 	labelResizer={}, dataFinalTransform={}, labelFinalTransform={}):
-	# 	self.datasetPath = datasetPath
-	# 	self.dataDims = makeList(dataDims)
-	# 	self.labelDims = makeList(labelDims)
 	def __init__(self, datasetPath, allDims, dataDims, labelDims, dimTransform={}, normalizer={}, \
 		augTransform=[], resizer={}, dataFinalTransform=lambda x : np.concatenate(x, axis=-1), \
 		labelFinalTransform=lambda x : np.concatenate(x, axis=-1)):
@@ -229,11 +215,23 @@ class DatasetReader:
 		assert len(self.transformer.transforms), "No transforms used, perhaps set just \"none\""
 		return N if accountTransforms == False else N * len(self.transformer.transforms)
 
-	def __str__(self):
-		return "General dataset reader. Update __str__ in your dataset for more details when using summary."
-
 	def iterate_once(self, type, miniBatchSize):
 		raise NotImplementedError("Should have implemented this")
+
+	def summary(self):
+		summaryStr = "[Dataset summary]\n"
+		summaryStr += self.__str__() + "\n"
+
+		summaryStr += "All dims: %s. Data dims: %s. Label dims: %s\n" % (self.allDims, self.dataDims, self.labelDims)
+		summaryStr += "Dim transforms: %s\n" % (self.dimTransform)
+		normalizersStr = {dim : self.normalizer[dim][0] for dim in self.normalizer}
+		summaryStr += "Normalizers: %s\n" % (normalizersStr)
+		summaryStr += "Aug Transforms(%d):\n%s" % (len(self.transformer.transforms), self.transformer)
+
+		return summaryStr
+
+	def __str__(self):
+		return "General dataset reader. Update __str__ in your dataset for more details when using summary."
 
 class ClassificationDatasetReader(DatasetReader):
 	# Classification problems are split into N classes which varies from data to data.
