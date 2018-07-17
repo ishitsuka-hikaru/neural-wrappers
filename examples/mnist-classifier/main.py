@@ -4,7 +4,7 @@ import torch as tr
 import torch.optim as optim
 import torch.nn as nn
 import torch.nn.functional as F
-from models import ModelFC
+from models import ModelFC, ModelConv
 from neural_wrappers.readers import MNISTReader
 from neural_wrappers.pytorch import maybeCuda
 from neural_wrappers.callbacks import SaveModels, SaveHistory, ConfusionMatrix
@@ -17,16 +17,21 @@ def lossFn(y, t):
 	return tr.mean(-tr.log(y[t] + 1e-5))
 
 def main():
+	assert len(sys.argv) >= 4, "Usage: python main.py <train/test/retrain> <model_fc/model_conv> " + \
+		"<path/to/mnist.h5> [model]"
 	assert sys.argv[1] in ("train", "test", "retrain")
 
-	reader = MNISTReader(sys.argv[2], normalizer={"images" : "standardization"})
+	reader = MNISTReader(sys.argv[3], normalizer={"images" : "standardization"})
 	print(reader.summary())
 	trainGenerator = reader.iterate("train", miniBatchSize=20)
 	trainSteps = reader.getNumIterations("train", miniBatchSize=20)
 	valGenerator = reader.iterate("test", miniBatchSize=5)
 	valSteps = reader.getNumIterations("test", miniBatchSize=5)
 
-	model = maybeCuda(ModelFC(inputShape=(28, 28, 1), outputNumClasses=10))
+	if sys.argv[2] == "model_fc":
+		model = maybeCuda(ModelFC(inputShape=(28, 28, 1), outputNumClasses=10))
+	elif sys.argv[2] == "model_conv":
+		model = maybeCuda(ModelConv(inputShape=(28, 28, 1), outputNumClasses=10))
 	print(model.summary())
 
 	if sys.argv[1] == "train":

@@ -1,5 +1,6 @@
 from neural_wrappers.pytorch import NeuralNetworkPyTorch
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 
 class ModelFC(NeuralNetworkPyTorch):
@@ -14,33 +15,31 @@ class ModelFC(NeuralNetworkPyTorch):
 
 	def forward(self, x):
 		x = x.view(-1, self.inputShapeProd)
-		y1 = self.fc1(x)
-		y2 = self.fc2(y1)
+		y1 = F.relu(self.fc1(x))
+		y2 = F.relu(self.fc2(y1))
 		y3 = self.fc3(y2)
-		# y4 = nn.functional.softmax(y3, dim=1)
 		return y3
 
-# class ModelConv(NeuralNetworkPyTorch):
-# 	def __init__(self, inputShape=(28, 28, 1), outputShape=10):
-# 		super().__init__()
+class ModelConv(NeuralNetworkPyTorch):
+	def __init__(self, inputShape, outputNumClasses):
+		super().__init__()
 
-# 		if len(inputShape) == 2:
-# 			inputShape = (*inputShape, 1)
+		if len(inputShape) == 2:
+			inputShape = (*inputShape, 1)
 
-# 		self.outputShape = outputShape
-# 		self.inputShape = inputShape
+		self.inputShape = inputShape
+		self.fc1InputShape = (inputShape[0] - 4) * (inputShape[1] - 4) * 10
 
-# 		self.conv1 = nn.Conv2d(in_channels=inputShape[2], out_channels=100, kernel_size=3, stride=1)
-# 		self.conv2 = nn.Conv2d(in_channels=100, out_channels=100, kernel_size=3, stride=1)
-# 		self.fc1 = nn.Linear((inputShape[0] - 4) * (inputShape[1] - 4) * 100, 100)
-# 		self.fc2 = nn.Linear(100, outputShape)
+		self.conv1 = nn.Conv2d(in_channels=inputShape[2], out_channels=50, kernel_size=3, stride=1)
+		self.conv2 = nn.Conv2d(in_channels=50, out_channels=10, kernel_size=3, stride=1)
+		self.fc1 = nn.Linear(self.fc1InputShape, 100)
+		self.fc2 = nn.Linear(100, outputNumClasses)
 
-# 	def forward(self, x):
-# 		x = x.view(-1, self.inputShape[2], self.inputShape[0], self.inputShape[1])
-# 		y1 = self.conv1(x)
-# 		y2 = self.conv2(y1)
-# 		y2 = y2.view(-1, (self.inputShape[0] - 4) * (self.inputShape[1] - 4) * 100)
-# 		y3 = self.fc1(y2)
-# 		y4 = self.fc2(y3)
-# 		y5 = nn.functional.softmax(y4, dim=1)
-# 		return y5
+	def forward(self, x):
+		x = x.view(-1, self.inputShape[2], self.inputShape[0], self.inputShape[1])
+		y1 = F.relu(self.conv1(x))
+		y2 = F.relu(self.conv2(y1))
+		y2 = y2.view(-1, self.fc1InputShape)
+		y3 = F.relu(self.fc1(y2))
+		y4 = self.fc2(y3)
+		return y4
