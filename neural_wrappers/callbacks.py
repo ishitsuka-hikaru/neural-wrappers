@@ -21,11 +21,15 @@ class Callback:
 
 	# Some callbacks requires some special/additional tinkering when loading a neural network model from a pickle
 	#  binary file (i.e scheduler callbacks must update the optimizer using the new model, rather than the old one).
-	def onCallbackLoad(self, **kwargs):
+	#  @param[in] additional Usually is the same as returned by onCallbackSave (default: None)
+	def onCallbackLoad(self, additional, **kwargs):
 		pass
 
-	# TODO: see if i need a onCallbackStore, such that "savable" item is stored, that may be passed at onCallbackLoad
-	#  alongside with the kwargs paramter. For now, I see no use.
+	# Some callbacks require some special/additional tinkering when saving (such as closing files). It shoul be noted
+	#  that it's safe to close files (or any other side-effect action) because callbacks are deepcopied before this
+	#  method is called (is save_model)
+	def onCallbackSave(self, **kwargs):
+		pass
 
 	def __str__(self):
 		return "Generic neural network callback"
@@ -43,6 +47,14 @@ class SaveHistory(Callback):
 			self.file.write(kwargs["model"].summary() + "\n")
 		message = kwargs["model"].computePrintMessage(**kwargs)
 		self.file.write(message + "\n")
+
+	def onCallbackSave(self, **kwargs):
+		self.file.close()
+		self.file = None
+
+	def onCallbackLoad(self, additional, **kwargs):
+		# Make sure we're appending to the file now that we're using a loaded model (to not overwrite previous info).
+		self.file = open(self.fileName, mode="a", buffering=1)
 
 # TODO: add format to saving files
 class SaveModels(Callback):

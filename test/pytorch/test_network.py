@@ -1,5 +1,5 @@
 from neural_wrappers.pytorch import NeuralNetworkPyTorch, maybeCuda, maybeCpu
-from neural_wrappers.callbacks import Callback
+from neural_wrappers.callbacks import Callback, SaveHistory
 import numpy as np
 import torch as tr
 
@@ -31,7 +31,7 @@ class SchedulerCallback(Callback):
 			loss = kwargs["validationMetrics"]["Loss"]
 		self.scheduler.step(loss)
 
-	def onCallbackLoad(self, **kwargs):
+	def onCallbackLoad(self, additional, **kwargs):
 		self.scheduler.optimizer = kwargs["model"].optimizer
 
 class TestNetwork:
@@ -50,9 +50,9 @@ class TestNetwork:
 				param.data -= 0.001 * param.grad.data
 				param.grad *= 0
 
-		model.save_weights("test_weights.pkl")
+		model.saveWeights("test_weights.pkl")
 		model_new = maybeCuda(Model(I, H, O))
-		model_new.load_weights("test_weights.pkl")
+		model_new.loadWeights("test_weights.pkl")
 
 		outputs = model.forward(inputs)
 		error = maybeCpu(tr.sum((outputs - targets)**2)).data.numpy()
@@ -70,10 +70,10 @@ class TestNetwork:
 		model.setCriterion(lambda y, t : tr.sum((y - t)**2))
 
 		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=5, printMessage=False)
-		model.save_model("test_model.pkl")
+		model.saveModel("test_model.pkl")
 		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=5, printMessage=False)
 		model_new = maybeCuda(Model(I, H, O))
-		model_new.load_model("test_model.pkl")
+		model_new.loadModel("test_model.pkl")
 		model_new.setCriterion(lambda y, t : tr.sum((y - t)**2))
 		model_new.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=5, printMessage=False)
 
@@ -96,18 +96,18 @@ class TestNetwork:
 		model.setOptimizer(SGD, lr=0.005)
 		model.setCriterion(lambda y, t : tr.sum((y - t)**2))
 
-		callbacks = [SchedulerCallback(model.optimizer)]
+		callbacks = [SchedulerCallback(model.optimizer), SaveHistory("history.txt")]
 		model.train_model(data=inputs, labels=targets, batchSize=10, \
 			numEpochs=10, callbacks=callbacks, printMessage=False)
 		# print(model.callbacks[0].scheduler.num_bad_epochs)
-		model.save_model("test_model.pkl")
+		model.saveModel("test_model.pkl")
 		model.train_model(data=inputs, labels=targets, batchSize=10, \
 			numEpochs=20, callbacks=callbacks, printMessage=False)
 		# print(model.callbacks[0].scheduler.num_bad_epochs)
 		assert model.callbacks[0].scheduler.optimizer == model.optimizer
 
 		model_new = maybeCuda(Model(I, H, O))
-		model_new.load_model("test_model.pkl")
+		model_new.loadModel("test_model.pkl")
 		model_new.setCriterion(lambda y, t : tr.sum((y - t)**2))
 		# print(model_new.callbacks[0].scheduler.num_bad_epochs)
 		assert model_new.callbacks[0].scheduler.optimizer == model_new.optimizer

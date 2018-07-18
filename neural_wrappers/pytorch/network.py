@@ -10,6 +10,7 @@ from neural_wrappers.transforms import *
 from neural_wrappers.metrics import Accuracy, Loss
 from neural_wrappers.utilities import makeGenerator, LinePrinter, isBaseOf
 from neural_wrappers.callbacks import Callback
+from .network_serializer import NetworkSerializer
 from .utils import maybeCuda, maybeCpu, getNumParams, getOptimizerStr
 
 # Wrapper on top of the PyTorch model. Added methods for saving and loading a state. To completly implement a PyTorch
@@ -29,6 +30,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		#  can add more items to this (like confusion matrix or accuracy, see mnist example).
 		self.trainHistory = []
 		self.linePrinter = LinePrinter()
+		self.serializer = NetworkSerializer(self)
 		super(NeuralNetworkPyTorch, self).__init__()
 
 	### Various setters for the network ###
@@ -355,92 +357,14 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.train_generator(dataGenerator, stepsPerEpoch=numIterations, numEpochs=numEpochs, callbacks=callbacks, \
 			validationGenerator=validationGenerator, validationSteps=valNumIterations, printMessage=printMessage)
 
-	def save_weights(self, path):
-		modelParams = list(map(lambda x : x.cpu(), self.parameters()))
-		tr.save(modelParams, path)
+	def saveWeights(self, path):
+		return self.serializer.saveModel(path, stateKeys=["weights"])
 
-	def load_weights(self, path):
-		try:
-			params = tr.load(path)
-		except Exception:
-			print("Exception raised while loading weights with tr.load(). Forcing CPU load.")
-			params = tr.load(path, map_location=lambda storage, loc: storage)
+	def loadWeights(self, path):
+		self.serializer.loadModel(path, stateKeys=["weights"])
 
-		# The file can be a weights file (just weights then) or a state file (so file["weights"] are the weights)
-		if type(params) == dict:
-			if not "weights" in params and "params" in params:
-				print("Warning: Depcrecated model, using \"params\" key instead of \"weights\".")
-				params["weights"] = params["params"]
-			self._load_weights(params["weights"])
-		else:
-			self._load_weights(params)
-		print("Succesfully loaded weights")
+	def saveModel(self, path):
+		return self.serializer.saveModel(path, stateKeys=["weights", "optimizer", "history_dict", "callbacks"])
 
-	# actual function that loads the params and checks consistency
-	def _load_weights(self, params):
-		loadedParams, _ = getNumParams(params)
-		thisParams, _ = getNumParams(self.parameters())
-		if loadedParams != thisParams:
-			raise Exception("Inconsistent parameters: %d vs %d." % (loadedParams, thisParams))
-
-		for i, item in enumerate(self.parameters()):
-			if item.shape != params[i].shape:
-				raise Exception("Inconsistent parameters: %d vs %d." % (item.shape, params[i].shape))
-			with tr.no_grad():
-				item[:] = maybeCuda(params[i][:])
-			item.requires_grad_(True)
-
-	def save_model(self, path):
-		assert self.optimizer != None, "No optimizer was set for this model. Cannot save."
-		state = {
-			"weights" : list(map(lambda x : x.cpu(), self.parameters())),
-			"optimizer_type" : type(self.optimizer),
-			"optimizer_state" : self.optimizer.state_dict(),
-			"history_dict" : self.trainHistory,
-			"callbacks" : deepcopy(self.callbacks)
-		}
-		tr.save(state, path)
-
-	def load_history(self, trainHistory):
-		self.trainHistory = deepcopy(trainHistory)
-		self.currentEpoch = len(self.trainHistory) + 1
-
-	def _load_model(self, loaded_model):
-		## Weights ##
-		if not "weights" in loaded_model and "params" in loaded_model:
-			print("Warning: Depcrecated model, using \"params\" key instead of \"weights\".")
-			loaded_model["weights"] = loaded_model["params"]
-		self._load_weights(loaded_model["weights"])
-
-		## Optimizer ##
-		# Create a new instance of the optimizer. Some optimizers require a lr to be set as well
-		self.setOptimizer(loaded_model["optimizer_type"], lr=0.01)
-		self.optimizer.load_state_dict(loaded_model["optimizer_state"])
-
-		# Optimizer consistency checks
-		# l1 = list(self.optimizer.state_dict()["state"].keys()) # Not sure if/how we can use this (not always ordered)
-		l2 = self.optimizer.state_dict()["param_groups"][0]["params"]
-		l3 = list(map(lambda x : id(x), self.parameters()))
-		assert l2 == l3, "Something was wrong with loading optimizer"
-
-		## History dict ##
-		self.load_history(loaded_model["history_dict"])
-
-		## Callbacks
-		self.callbacks = loaded_model["callbacks"]
-		for callback in self.callbacks:
-			callback.onCallbackLoad(model=self)
-
-	def load_model(self, path):
-		try:
-			loaded_model = tr.load(path)
-		except Exception:
-			print("Exception raised while loading model with tr.load(). Forcing CPU load")
-			loaded_model = tr.load(path, map_location=lambda storage, loc: storage)
-
-		self._load_model(loaded_model)
-
-		if "history_dict" in loaded_model:
-			print("Succesfully loaded model (with history, epoch %d)" % (self.currentEpoch))
-		else:
-			print("Succesfully loaded model (no history)")
+	def loadModel(self, path):
+		self.serializer.loadModel(path, stateKeys=["weights", "optimizer", "history_dict", "callbacks"])

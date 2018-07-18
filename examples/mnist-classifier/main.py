@@ -33,15 +33,17 @@ def main():
 	elif sys.argv[2] == "model_conv":
 		model = maybeCuda(ModelConv(inputShape=(28, 28, 1), outputNumClasses=10))
 	print(model.summary())
+	model.setCriterion(lossFn)
 
 	if sys.argv[1] == "train":
 		model.setOptimizer(optim.SGD, momentum=0.5, lr=0.01)
-		model.setCriterion(lossFn)
 		model.setMetrics({"Accuracy" : Accuracy(categoricalLabels=True)})
 		callbacks = [SaveModels("best"), SaveHistory("history.txt"), PlotLossCallback(), \
 			SchedulerCallback(model.optimizer), ConfusionMatrix(numClasses=10, categoricalLabels=True)]
 		model.train_generator(trainGenerator, trainSteps, numEpochs=10, callbacks=callbacks, \
 			validationGenerator=valGenerator, validationSteps=valSteps)
+	elif sys.argv[1] == "retrain":
+		pass
 	else:
 		assert False
 

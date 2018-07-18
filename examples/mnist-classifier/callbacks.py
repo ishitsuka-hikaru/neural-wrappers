@@ -48,3 +48,6 @@ class SchedulerCallback(Callback):
 		else:
 			loss = kwargs["validationMetrics"]["Loss"]
 		self.scheduler.step(loss)
+
+	def onCallbackLoad(self, additional, **kwargs):
+		self.scheduler.optimizer = kwargs["model"].optimizer
