@@ -27,7 +27,7 @@ class Callback:
 
 	# Some callbacks require some special/additional tinkering when saving (such as closing files). It shoul be noted
 	#  that it's safe to close files (or any other side-effect action) because callbacks are deepcopied before this
-	#  method is called (is save_model)
+	#  method is called (is saveModel)
 	def onCallbackSave(self, **kwargs):
 		pass
 
@@ -72,21 +72,21 @@ class SaveModels(Callback):
 		if self.type == "improvements":
 			# nan != nan is True
 			if self.best != self.best or loss < self.best:
-				kwargs["model"].save_model(fileName)
+				kwargs["model"].saveModel(fileName)
 				sys.stdout.write("Epoch %d. Improvement from %2.2f to %2.2f\n" % (kwargs["epoch"], self.best, loss))
 				self.best = loss
 			else:
 				sys.stdout.write("Epoch %d did not improve best loss (%2.2f)\n" % (kwargs["epoch"], self.best))
 			sys.stdout.flush()
 		elif self.type == "all":
-			kwargs["model"].save_model(fileName)
+			kwargs["model"].saveModel(fileName)
 		elif self.type == "last":
 			if kwargs["epoch"] == kwargs["numEpochs"]:
-				kwargs["model"].save_model(fileName)
+				kwargs["model"].saveModel(fileName)
 		elif self.type == "best":
 			# nan != nan is True
 			if self.best != self.best or loss < self.best:
-				kwargs["model"].save_model("model_best.pkl")
+				kwargs["model"].saveModel("model_best.pkl")
 				sys.stdout.write("Epoch %d. Improvement from %2.2f to %2.2f\n" % (kwargs["epoch"], self.best, loss))
 				self.best = loss
 

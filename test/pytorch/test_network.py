@@ -1,5 +1,5 @@
 from neural_wrappers.pytorch import NeuralNetworkPyTorch, maybeCuda, maybeCpu
-from neural_wrappers.callbacks import Callback, SaveHistory
+from neural_wrappers.callbacks import Callback
 import numpy as np
 import torch as tr
 
@@ -96,7 +96,7 @@ class TestNetwork:
 		model.setOptimizer(SGD, lr=0.005)
 		model.setCriterion(lambda y, t : tr.sum((y - t)**2))
 
-		callbacks = [SchedulerCallback(model.optimizer), SaveHistory("history.txt")]
+		callbacks = [SchedulerCallback(model.optimizer)]
 		model.train_model(data=inputs, labels=targets, batchSize=10, \
 			numEpochs=10, callbacks=callbacks, printMessage=False)
 		# print(model.callbacks[0].scheduler.num_bad_epochs)
