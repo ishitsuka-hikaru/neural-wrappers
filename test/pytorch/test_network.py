@@ -1,10 +1,11 @@
 from neural_wrappers.pytorch import NeuralNetworkPyTorch, maybeCuda, maybeCpu
+from neural_wrappers.callbacks import Callback
 import numpy as np
 import torch as tr
 
 import torch.nn as nn
-from torch.autograd import Variable
-from torch.optim import Adam
+from torch.optim import Adam, SGD
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 class Model(NeuralNetworkPyTorch):
 	def __init__(self, inputSize, hiddenSize, outputSize):
@@ -19,12 +20,26 @@ class Model(NeuralNetworkPyTorch):
 		y3 = self.fc3(y2)
 		return y3
 
+class SchedulerCallback(Callback):
+	def __init__(self, optimizer):
+		self.scheduler = ReduceLROnPlateau(optimizer, "min", factor=0.1, patience=10, eps=1e-4)
+
+	def onEpochEnd(self, **kwargs):
+		if not kwargs["validationMetrics"]:
+			loss = kwargs["trainMetrics"]["Loss"]
+		else:
+			loss = kwargs["validationMetrics"]["Loss"]
+		self.scheduler.step(loss)
+
+	def onCallbackLoad(self, **kwargs):
+		self.scheduler.optimizer = kwargs["model"].optimizer
+
 class TestNetwork:
 	def test_save_weights_1(self):
 		N, I, H, O = 500, 100, 50, 30
-		inputs = maybeCuda(Variable(tr.from_numpy(np.float32(np.random.randn(N, I)))))
-		targets = maybeCuda(Variable(tr.from_numpy(np.float32(np.random.randn(N, O)))))
 
+		inputs = maybeCuda(tr.randn(N, I))
+		targets = maybeCuda(tr.randn(N, O))
 		model = maybeCuda(Model(I, H, O))
 		for i in range(5):
 			outputs = model.forward(inputs)
@@ -65,6 +80,44 @@ class TestNetwork:
 		weights_model = list(model.parameters())
 		weights_model_new = list(model_new.parameters())
 
+		assert len(weights_model) == len(weights_model_new)
+		for j in range(len(weights_model)):
+			weight = weights_model[j]
+			weight_new = weights_model_new[j]
+			diff = maybeCpu(tr.sum(tr.abs(weight - weight_new))).data.numpy()
+			assert diff < 1e-5, "%d: Diff: %2.5f.\n %s %s" % (j, diff, weight, weight_new)
+
+	def test_save_model_2(self):
+		N, I, H, O = 500, 100, 50, 30
+		inputs = np.float32(np.random.randn(N, I))
+		targets = np.float32(np.random.randn(N, O))
+
+		model = maybeCuda(Model(I, H, O))
+		model.setOptimizer(SGD, lr=0.005)
+		model.setCriterion(lambda y, t : tr.sum((y - t)**2))
+
+		callbacks = [SchedulerCallback(model.optimizer)]
+		model.train_model(data=inputs, labels=targets, batchSize=10, \
+			numEpochs=10, callbacks=callbacks, printMessage=False)
+		# print(model.callbacks[0].scheduler.num_bad_epochs)
+		model.save_model("test_model.pkl")
+		model.train_model(data=inputs, labels=targets, batchSize=10, \
+			numEpochs=20, callbacks=callbacks, printMessage=False)
+		# print(model.callbacks[0].scheduler.num_bad_epochs)
+		assert model.callbacks[0].scheduler.optimizer == model.optimizer
+
+		model_new = maybeCuda(Model(I, H, O))
+		model_new.load_model("test_model.pkl")
+		model_new.setCriterion(lambda y, t : tr.sum((y - t)**2))
+		# print(model_new.callbacks[0].scheduler.num_bad_epochs)
+		assert model_new.callbacks[0].scheduler.optimizer == model_new.optimizer
+		model_new.train_model(data=inputs, labels=targets, batchSize=10, \
+			numEpochs=20, callbacks=model_new.callbacks, printMessage=False)
+		# print(model_new.callbacks[0].scheduler.num_bad_epochs)
+		assert model.callbacks[0].scheduler.num_bad_epochs == model_new.callbacks[0].scheduler.num_bad_epochs
+
+		weights_model = list(model.parameters())
+		weights_model_new = list(model_new.parameters())
 		assert len(weights_model) == len(weights_model_new)
 		for j in range(len(weights_model)):
 			weight = weights_model[j]

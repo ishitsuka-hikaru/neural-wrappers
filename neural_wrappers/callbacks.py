@@ -19,6 +19,14 @@ class Callback:
 	def onIterationEnd(self, **kwargs):
 		pass
 
+	# Some callbacks requires some special/additional tinkering when loading a neural network model from a pickle
+	#  binary file (i.e scheduler callbacks must update the optimizer using the new model, rather than the old one).
+	def onCallbackLoad(self, **kwargs):
+		pass
+
+	# TODO: see if i need a onCallbackStore, such that "savable" item is stored, that may be passed at onCallbackLoad
+	#  alongside with the kwargs paramter. For now, I see no use.
+
 	def __str__(self):
 		return "Generic neural network callback"
 

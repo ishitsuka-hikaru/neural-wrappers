@@ -21,6 +21,9 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.criterion = None
 		self.metrics = {"Loss" : Loss()}
 		self.currentEpoch = 1
+		# Every time train_generator is called, this property is updated. Upon calling save_model, the value that is
+		#  present here will be stored
+		self.callbacks = []
 		# A list that stores various information about the model at each epoch. The index in the list represents the
 		#  epoch value. Each value of the list is a dictionary that holds by default only loss value, but callbacks
 		#  can add more items to this (like confusion matrix or accuracy, see mnist example).
@@ -275,12 +278,18 @@ class NeuralNetworkPyTorch(nn.Module):
 	# @param[in] stepsPerEpoch How many steps each epoch takes (assumed constant). The generator must generate this
 	#  amount of items every epoch.
 	# @param[in] numEpochs The number of epochs the network is trained for
-	# @param[in] callback A list of callbacks, which must be of types either IterationCallback or EpochCallback. The
-	#  first ones are sent to run_one_epoch method, and are called at each iteration (the method onIterationEnd). Both
-	#  of the types are called at the en of epoch (method onEpochEnd).
-	def train_generator(self, generator, stepsPerEpoch, numEpochs, callbacks=[], validationGenerator=None, \
+	# @param[in] callbacks A list of callbacks (which must be of type Callback), that implement one of the
+	#  oneIterationStart, onIterationEnd, onEpochStart or onEpochEnd methods. Moreover, whenever this method is called
+	#  the list is stored in this object, such that the state of each callback is stored . Moreover, if None is given,
+	#  then the already stored member is used (helpful for load_models, so we don't do callbacks=model.callbacks).
+	def train_generator(self, generator, stepsPerEpoch, numEpochs, callbacks=None, validationGenerator=None, \
 		validationSteps=0, printMessage=True, **kwargs):
+
+		# Callbacks validation and storing (for save_model)
+		if callbacks == None:
+			callbacks = self.callbacks
 		self.checkCallbacks(callbacks)
+		self.callbacks = callbacks
 
 		if printMessage:
 			sys.stdout.write("Training for %d epochs...\n" % (numEpochs))
@@ -330,7 +339,7 @@ class NeuralNetworkPyTorch(nn.Module):
 
 			self.currentEpoch += 1
 
-	def train_model(self, data, labels, batchSize, numEpochs, callbacks=[], validationData=None, \
+	def train_model(self, data, labels, batchSize, numEpochs, callbacks=None, validationData=None, \
 		validationLabels=None, printMessage=True):
 		assert self.optimizer != None and self.criterion != None, "Set optimizer and criterion before training"
 		dataGenerator = makeGenerator(data, labels, batchSize)
@@ -381,15 +390,14 @@ class NeuralNetworkPyTorch(nn.Module):
 				item[:] = maybeCuda(params[i][:])
 			item.requires_grad_(True)
 
-	# TODO: store the state of the callbacks as well!!! (needed for: lr scheduler, save model (best), etc. )
-	# Saves a complete model, consisting of weights, state and optimizer params
 	def save_model(self, path):
 		assert self.optimizer != None, "No optimizer was set for this model. Cannot save."
 		state = {
 			"weights" : list(map(lambda x : x.cpu(), self.parameters())),
 			"optimizer_type" : type(self.optimizer),
 			"optimizer_state" : self.optimizer.state_dict(),
-			"history_dict" : self.trainHistory
+			"history_dict" : self.trainHistory,
+			"callbacks" : deepcopy(self.callbacks)
 		}
 		tr.save(state, path)
 
@@ -398,11 +406,13 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.currentEpoch = len(self.trainHistory) + 1
 
 	def _load_model(self, loaded_model):
+		## Weights ##
 		if not "weights" in loaded_model and "params" in loaded_model:
 			print("Warning: Depcrecated model, using \"params\" key instead of \"weights\".")
 			loaded_model["weights"] = loaded_model["params"]
 		self._load_weights(loaded_model["weights"])
 
+		## Optimizer ##
 		# Create a new instance of the optimizer. Some optimizers require a lr to be set as well
 		self.setOptimizer(loaded_model["optimizer_type"], lr=0.01)
 		self.optimizer.load_state_dict(loaded_model["optimizer_state"])
@@ -412,6 +422,14 @@ class NeuralNetworkPyTorch(nn.Module):
 		l2 = self.optimizer.state_dict()["param_groups"][0]["params"]
 		l3 = list(map(lambda x : id(x), self.parameters()))
 		assert l2 == l3, "Something was wrong with loading optimizer"
+
+		## History dict ##
+		self.load_history(loaded_model["history_dict"])
+
+		## Callbacks
+		self.callbacks = loaded_model["callbacks"]
+		for callback in self.callbacks:
+			callback.onCallbackLoad(model=self)
 
 	def load_model(self, path):
 		try:
@@ -423,7 +441,6 @@ class NeuralNetworkPyTorch(nn.Module):
 		self._load_model(loaded_model)
 
 		if "history_dict" in loaded_model:
-			self.load_history(loaded_model["history_dict"])
 			print("Succesfully loaded model (with history, epoch %d)" % (self.currentEpoch))
 		else:
 			print("Succesfully loaded model (no history)")
