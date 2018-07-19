@@ -1,7 +1,7 @@
 # network_serializer.py Script that handles saving/loading a NeuralNetworkPyTorch class (weights, state etc.)
 import torch as tr
 from copy import deepcopy
-from .utils import maybeCuda, getNumParams
+from .utils import maybeCuda, getNumParams, getOptimizerStr
 
 class NetworkSerializer:
 	# @param[in] The model upon which this serializer works.
@@ -13,6 +13,7 @@ class NetworkSerializer:
 	# @brief Stores a model (with all its caveats: weights, optimizer, history and callbacks)
 	# @param[in] path The path where the serialized object is stored
 	def saveModel(self, path, stateKeys):
+		assert len(stateKeys) > 0
 		state = {}
 		for key in stateKeys:
 			if key == "weights":
@@ -61,12 +62,14 @@ class NetworkSerializer:
 
 	# Loads a stored binary model
 	def loadModel(self, path, stateKeys):
+		assert len(stateKeys) > 0
 		try:
 			loadedState = tr.load(path)
 		except Exception:
 			print("Exception raised while loading model with tr.load(). Forcing CPU load")
 			loadedState = tr.load(path, map_location=lambda storage, loc: storage)
 
+		print("Loading model from %s" % (path))
 		for key in stateKeys:
 			if key == "weights":
 				self.doLoadWeights(loadedState)
@@ -78,11 +81,7 @@ class NetworkSerializer:
 				self.doLoadCallbacks(loadedState)
 			else:
 				assert False, "Got unknown key %s" % (key)
-
-		# if "history_dict" in loaded_model:
-			# print("Succesfully loaded model (with history, epoch %d)" % (self.model.currentEpoch))
-		# else:
-			# print("Succesfully loaded model (no history)")
+		print("Finished loading model")
 
 	# Handles loading weights from a model.
 	def doLoadWeights(self, loadedState):
@@ -103,6 +102,7 @@ class NetworkSerializer:
 			with tr.no_grad():
 				item[:] = maybeCuda(params[i][:])
 			item.requires_grad_(True)
+		print("Succesfully loaded weights (%d parameters) " % (loadedParams))
 
 	def doLoadOptimizer(self, loadedState):
 		if not "optimizer" in loadedState and ("optimizer_type" in loadedState and "optimizer_state" in loadedState):
@@ -123,12 +123,14 @@ class NetworkSerializer:
 		l2 = self.model.optimizer.state_dict()["param_groups"][0]["params"]
 		l3 = list(map(lambda x : id(x), self.model.parameters()))
 		assert l2 == l3, "Something was wrong with loading optimizer"
+		print("Succesfully loaded optimizer: %s" % (getOptimizerStr(self.model.optimizer)))
 
 	def doLoadHistoryDict(self, loadedState):
 		assert "history_dict" in loadedState
 		trainHistory = loadedState["history_dict"]
 		self.model.trainHistory = deepcopy(trainHistory)
 		self.model.currentEpoch = len(trainHistory) + 1
+		print("Succesfully loaded model history (epoch %d)" % (self.model.currentEpoch))
 
 	def doLoadCallbacks(self, loadedState):
 		assert "callbacks" in loadedState
@@ -139,3 +141,4 @@ class NetworkSerializer:
 			callback = self.model.callbacks[i]
 			additional = additionals[i]
 			callback.onCallbackLoad(additional, model=self.model)
+		print("Succesfully loaded %d callbacks" % (len(callbacks)))
