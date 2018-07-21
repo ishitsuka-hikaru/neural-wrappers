@@ -4,23 +4,22 @@ from .dataset_reader import ClassificationDatasetReader
 from neural_wrappers.transforms import Transformer
 from neural_wrappers.utilities import toCategorical
 
-class Cifar10Reader(ClassificationDatasetReader):
-	def __init__(self, datasetPath, imagesShape=(32, 32, 3), transforms=["none"], normalization="standardization"):
-		assert len(imagesShape) == 3
-		super().__init__(datasetPath, imagesShape, None, transforms, normalization)
-		self.dataAugmenter = Transformer(transforms, dataShape=imagesShape)
-		self.testAugmenter = Transformer(["none"], dataShape=imagesShape)
-		self.setup()
+import h5py
+import numpy as np
+from .dataset_reader import ClassificationDatasetReader
+from neural_wrappers.utilities import toCategorical
+from neural_wrappers.transforms import Transformer
 
-	def setup(self):
+class Cifar10Reader(ClassificationDatasetReader):
+	def __init__(self, datasetPath, dataDims=["images"], labelDims=["labels"], \
+		dimTransform={"images" : np.float32, "labels" : lambda x : toCategorical(x, numClasses=10)}, \
+		normalizer={}, augTransform=[], resizer={}):
+		super().__init__(datasetPath, allDims=["images", "labels"], dataDims=dataDims, labelDims=labelDims, \
+			dimTransform=dimTransform, normalizer=normalizer, augTransform=augTransform, resizer=resizer)
 		self.dataset = h5py.File(self.datasetPath, "r")
 		self.numData = {
 			"train" : 50000,
 			"test" : 10000
-		}
-
-		self.numDimensions = {
-			"images" : 3
 		}
 
 		self.means = {
@@ -32,19 +31,26 @@ class Cifar10Reader(ClassificationDatasetReader):
 		}
 
 		self.minimums = {
-			"images" : [0, 0, 0]
+			"images" : np.array([0, 0, 0])
 		}
 
 		self.maximums = {
-			"images" : [255, 255, 255]
+			"images" : np.array([255, 255, 255])
 		}
 
-		print("[Cifar10 Reader] Setup complete")
+		self.trainTransformer = self.transformer
+		self.valTransformer = Transformer(self.allDims, [])
+
+		print("[MNIST Reader] Setup complete")
 
 	def iterate_once(self, type, miniBatchSize):
 		assert type in ("train", "test")
-		augmenter = self.dataAugmenter if type == "train" else self.testAugmenter
-		data = self.dataset[type]
+		if type == "train":
+			self.transformer = self.trainTransformer
+		else:
+			self.transformer = self.valTransformer
+
+		dataset = self.dataset[type]
 		numIterations = self.getNumIterations(type, miniBatchSize, accountTransforms=False)
 
 		for i in range(numIterations):
@@ -53,11 +59,9 @@ class Cifar10Reader(ClassificationDatasetReader):
 			assert startIndex < endIndex, "startIndex < endIndex. Got values: %d %d" % (startIndex, endIndex)
 			numData = endIndex - startIndex
 
-			images = self.normalizer(data=data["images"][startIndex : endIndex], type="images")
-			labels = toCategorical(data["labels"][startIndex : endIndex], numClasses=10)
-
-			for augImages, _ in augmenter.applyTransforms(images, labels=None):
-				yield augImages, labels
+			for items in self.getData(dataset, startIndex, endIndex):
+				data, labels = items
+				yield items
 
 	def getNumberOfClasses(self):
 		return 10
