@@ -7,8 +7,7 @@ import torch.nn.functional as F
 from models import ModelFC, ModelConv
 from neural_wrappers.readers import MNISTReader
 from neural_wrappers.pytorch import maybeCuda
-from neural_wrappers.callbacks import SaveModels, SaveHistory, ConfusionMatrix
-from callbacks import PlotLossCallback, SchedulerCallback
+from neural_wrappers.callbacks import SaveModels, SaveHistory, ConfusionMatrix, PlotMetricsCallback
 from neural_wrappers.metrics import Accuracy
 from argparse import ArgumentParser
 
@@ -55,7 +54,7 @@ def main():
 
 	if args.type == "train":
 		model.setOptimizer(optim.SGD, momentum=0.5, lr=0.01)
-		callbacks = [SaveHistory("history.txt"), PlotLossCallback(), SchedulerCallback(model.optimizer), \
+		callbacks = [SaveHistory("history.txt"), PlotMetricsCallback(["Loss", "Accuracy"], ["min", "max"]), \
 			ConfusionMatrix(numClasses=10, categoricalLabels=True), SaveModels("best")]
 		model.train_generator(trainGenerator, trainSteps, numEpochs=args.num_epochs, callbacks=callbacks, \
 			validationGenerator=valGenerator, validationSteps=valSteps)

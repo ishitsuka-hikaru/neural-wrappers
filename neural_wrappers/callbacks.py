@@ -124,3 +124,59 @@ class ConfusionMatrix(Callback):
 			labels = kwargs["labels"]
 		for i in range(len(labels)):
 			self.confusionMatrix[labels[i], results[i]] += 1
+
+class PlotMetricsCallback(Callback):
+	def __init__(self, metrics, plotBestBullet=None, dpi=120):
+		assert len(metrics) > 0, "Expected a list of at least one metric which will be plotted."
+		self.metrics = metrics
+		self.dpi = dpi
+		self.plotBestBullet = plotBestBullet
+		if self.plotBestBullet == None:
+			self.plotBestBullet = ["none"] * len(self.metrics)
+
+	def doPlot(trainHistory, metric, plotBestBullet, dpi):
+		import matplotlib.pyplot as plt
+		assert metric in trainHistory[0]["trainMetrics"], "Metric %s not found in trainHistory, " + \
+			"use setMetrics accordingly"
+
+		# Aggregate all the values from trainHistory into a list and plot them
+		trainValues, valValues = [], []
+		for epoch in range(len(trainHistory)):
+			trainValues.append(trainHistory[epoch]["trainMetrics"][metric])
+			if "validationMetrics" in trainHistory[epoch] and trainHistory[epoch]["validationMetrics"]:
+				valValues.append(trainHistory[epoch]["validationMetrics"][metric])
+		x = np.arange(len(trainValues)) + 1
+		plt.figure()
+		plt.plot(x, trainValues, label="Train %s" % (metric))
+
+		# If we don't have a validation results, further analysis will be done on training results
+		if "validationMetrics" in trainHistory[0] and trainHistory[0]["validationMetrics"]:
+			plt.plot(x, valValues, label="Val %s" % (metric))
+			usedValues = valValues
+		else:
+			usedValues = trainValues
+		plt.legend()
+
+		# Here, we put a bullet on the best epoch (which can be min for loss, max for accuracy or none for neither)
+		if plotBestBullet == "none":
+			pass
+		elif plotBestBullet == "min":
+			minX, minValue = np.argmin(usedValues), np.min(usedValues)
+			offset = minValue // 2
+			plt.annotate("Epoch %d\nMin %2.2f" % (minX + 1, minValue), xy=(minX + 1, minValue))
+			plt.plot([minX + 1], [minValue], "o")
+		elif plotBestBullet == "max":
+			maxX, maxValue = np.argmax(usedValues), np.max(usedValues)
+			offset = maxValue // 2
+			plt.annotate("Epoch %d\nMax %2.2f" % (maxX + 1, maxValue), xy=(maxX + 1, maxValue))
+			plt.plot([maxX + 1], [maxValue], "o")
+		else:
+			assert False, "Expected: \"min\", \"max\" or \"none\""
+
+		# Finally, save the figure with the name of the metric
+		plt.savefig("%s.png" % (metric), dpi=dpi)
+
+	def onEpochEnd(self, **kwargs):
+		trainHistory = kwargs["model"].trainHistory
+		for i in range(len(self.metrics)):
+			PlotMetricsCallback.doPlot(trainHistory, self.metrics[i], self.plotBestBullet[i], self.dpi)
