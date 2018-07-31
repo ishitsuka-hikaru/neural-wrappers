@@ -39,9 +39,17 @@ class DatasetReader:
 		allDims = makeList(allDims)
 		assert isSubsetOf(self.dataDims, allDims) and isSubsetOf(self.labelDims, allDims), ("Exepcted dataDims " + \
 			"(%s) and labelDims (%s) to be a subset of allDims (%s)") % (self.dataDims, self.labelDims, allDims)
-		# Small efficiency trick, as we only care about the dims in dataDims and labelDims, so no nee to perofrm the
+		# Small efficiency trick, as we only care about the dims in dataDims and labelDims, so no need to perofrm the
 		#  pipeline for other unused ones, just to drop them at the very end.
-		self.allDims = list(set(self.dataDims).union(self.labelDims))
+		self.allDims = list(self.dataDims) + list(self.labelDims)
+		assert len(self.allDims) == len(set(self.allDims))
+		# Also, if in any level of processing this dimension is given, remove it, as it is unused.
+		for dim in allDims:
+			if dim in self.allDims:
+				continue
+			for Dict in [dimTransform, normalizer, augTransform, resizer]:
+				if dim in Dict:
+					del Dict[dim]
 
 		# Pipeline: Raw -> dimTransform -> normalizer -> augTransform -> resize -> finalTransform -> data
 		# This pipe-line is applied for both dataDims and labelDims simultaneously, but they are separated at the very

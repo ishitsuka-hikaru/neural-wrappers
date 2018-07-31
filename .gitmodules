@@ -1,0 +1,3 @@
+[submodule "examples/Depth-HVN-Estimation-Aerial"]
+	path = examples/Depth-HVN-Estimation-Aerial
+	url = git@gitlab.com:mihaicristianpirvu/Depth-HVN-Estimation-Aerial.git

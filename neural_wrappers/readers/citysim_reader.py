@@ -4,22 +4,7 @@ from .dataset_reader import DatasetReader
 from neural_wrappers.transforms import Transformer
 
 class CitySimReader(DatasetReader):
-	allHvns = ["hvn_gt_p1", "tiny_hvn_it1_p1", "big_hvn_it1_p1", "tiny_hvn_it2_p1", "big_hvn_it2_p1"]
-	otherDepths = ["tiny_depth_it1", "big_depth_it1"]
-
-	def __init__(self, dataGroup, datasetPath, imageShape, labelShape, transforms=["none"], \
-		normalization="min_max_normalization", dataDimensions=["rgb"], labelDimensions=["depth"], **kwargs):
-		super().__init__(datasetPath, imageShape, labelShape, dataDimensions, \
-			labelDimensions, transforms, normalization)
-		assert dataGroup in ("bragadiru_popesti", "london", "bucharest", "all")
-		self.dataGroup = dataGroup
-		self.kwargs = kwargs
-		self.setup()
-
-	def __str__(self):
-		return "CitySim Reader"
-
-	def hvnTwoDims(self, images):
+	def hvnTwoDimsTransform(images):
 		hvn = np.zeros((2, *images.shape), dtype=np.float32)
 		whereH = np.where(images == 0)
 		whereV = np.where(images == 1)
@@ -29,130 +14,71 @@ class CitySimReader(DatasetReader):
 		hvn = np.transpose(hvn, [1, 2, 3, 0])
 		return hvn
 
-	# This is a hack, the final solution involves in having a dictionary for normalizer as well, with default values
-	#  defaulting to self.normalization, but with the possibility to update it (for example to self.doNothing) or
-	#  any other more special normalizations.
-	def minMaxNormalizer(self, data, type):
-		if type in CitySimReader.allHvns:
-			return data
-		else:
-			return super().minMaxNormalizer(data, type)
+	def __init__(self, datasetPath, dataDims, labelDims, augTransform=[], resizer={}, hvnTransform="identity", \
+		dataGroup="all"):
+		assert hvnTransform in ("identity", "identity_long", "hvn_two_dims")
+		assert dataGroup in ("bragadiru", "popesti", "london", "bucharest", "all")
+		self.hvnTransform = hvnTransform
 
-	def standardizer(self, data, type):
-		if type in CitySimReader.allHvns:
-			return data
-		else:
-			return super().standardizer(data, type)
-
-	# Updates missing values w.r.t the dataGroup
-	def setupMinMaxMeanStd(self):
-		# TODO, maybe update dynamically when iterate_once is called based on type: train (bragadiru) / val (popesti)
-		if self.dataGroup == "bragadiru_popesti":
-			self.maximums["depth"] = 38.837765
-			self.means["rgb"] = [121.64251106041375, 113.22833753162723, 110.21073242969062]
-			self.means["depth"] = 11.086505
-			self.stds["rgb"] = [55.31661791016009, 47.809744429727445, 45.23408344688476]
-			self.stds["depth"] = 5.856089
-		# London / ??
-		elif self.dataGroup == "london":
-			self.maximums["depth"] = 42.849
-			self.means["rgb"] = [63.442951067503756, 63.460518690976265, 59.57283834466831]
-			self.means["depth"] = 10.097478
-			self.stds["rgb"] = [54.64836721734635, 51.51253766053043, 51.889279148779956]
-			self.stds["depth"] = 5.6731715
-		# Bucharest / ??
-		elif self.dataGroup == "bucharest":
-			self.maximums["depth"] = 39.4494
-			self.means["rgb"] = [111.62589558919271, 112.83656475653362, 122.01291739800105]
-			self.means["depth"] = 12.117755
-			self.stds["rgb"] = [62.94051625776808, 55.35131957869077, 52.90895978272871]
-			self.stds["depth"] = 5.330455
-		elif self.dataGroup == "all":
-			self.maximums["depth"] = 42.849
-		else:
-			assert False
-
-		# HVN Setup - TODO update names
-		hvnTransform = "none"
-		for hvn in CitySimReader.allHvns:
-			if hvn in self.dataDimensions or hvn in self.labelDimensions:
-				assert "hvnTransform" in self.kwargs
-				hvnTransform = self.kwargs["hvnTransform"]
-				break
-
-		if hvnTransform == "none":
-			hvnNumDims = 1
-			hvnMax = 1
-			hvnMin = 0
-			hvnMean = 0
-			hvnStd = 1
-			hvnTransformFn = lambda x : np.expand_dims(x, axis=-1)
+		if hvnTransform == "identity":
+			hvnDimTransform = lambda x : np.expand_dims(x, axis=-1)
+		elif hvnTransform == "identity_long":
+			hvnDimTransform = lambda x : np.int64(np.expand_dims(x, axis=-1))
 		elif hvnTransform == "hvn_two_dims":
-			hvnNumDims = 2
-			hvnMax = [1, 1]
-			hvnMin = [0, 0]
-			hvnMean = [0, 0]
-			hvnStd = [1, 1]
-			hvnTransformFn = self.hvnTwoDims
-		else:
-			assert False
+			hvnDimTransform = CitySimReader.hvnTwoDimsTransform
 
-		for hvn in CitySimReader.allHvns:
-			self.numDimensions[hvn] = hvnNumDims
-			self.maximums[hvn] = hvnMax
-			self.minimums[hvn] = hvnMin
-			self.means[hvn] = hvnMean
-			self.stds[hvn] = hvnStd
-			self.postDataProcessing[hvn] = hvnTransformFn
+		super().__init__(datasetPath, allDims=["rgb", "depth", "hvn_gt_p1"], dataDims=dataDims, labelDims=labelDims, \
+			dimTransform = {
+				"rgb" : lambda x : np.float32(x),
+				"hvn_gt_p1" : hvnDimTransform,
+				"depth" : lambda x : np.expand_dims(x, axis=-1)
+			}, \
+			normalizer = {
+				"rgb" : "min_max_normalization",
+				"depth" : "min_max_normalization",
+				"hvn_gt_p1" : "identity"
+			}, \
+			augTransform=augTransform, resizer=resizer)
 
-		# Note: this depth is normalized in 0-1.
-		for depth in CitySimReader.otherDepths:
-			self.maximums[depth] = 1
-			self.minimums[depth] = 0
-			self.numDimensions[depth] = 1
-			self.postDataProcessing[depth] = lambda x : np.expand_dims(x, axis=-1)
-
-	def setup(self):
 		self.dataset = h5py.File(self.datasetPath, "r")
-		self.supportedDimensions = ["rgb", "depth", *CitySimReader.allHvns, *CitySimReader.otherDepths]
+		self.numData = {item : len(self.dataset[item]["rgb"]) for item in self.dataset}
 
-		# numData["train"] = N; numData["validation"] = M;
-		self.numData = { "train": 0, "validation" : 0 }
-		for Type in self.dataset.keys():
-			self.numData[Type] = len(self.dataset[Type]["rgb"])
+		self.minimums = {
+			"rgb" : np.array([0, 0, 0]),
+			"depth" : np.array([0])
+		}
 
-		self.minimums = { "rgb" : [0, 0, 0], "depth" : 0 }
-		self.maximums = { "rgb" : [255, 255, 255] }
-		self.means = { }
-		self.stds = { }
-		self.numDimensions = { "rgb" : 3, "depth" : 1 }
-		self.setupMinMaxMeanStd()
+		depthMaxDataGroup = {
+			"bragadiru" : 318.469,
+			"popesti" : 312.083,
+			"london" : 278.518,
+			"bucharest" : 323.485,
+			"all" : 323.485
+		}
 
-		# Convert RGB from uint8 to float so we can normalize.
-		self.postDataProcessing["rgb"] = lambda x : np.float32(x)
-		self.postDataProcessing["depth"] = lambda x : np.expand_dims(x, axis=-1)
+		self.maximums = {
+			"rgb" : np.array([255, 255, 255]),
+			"depth" : np.array([depthMaxDataGroup[dataGroup]])
+		}
 
-		self.postSetup()
-		print("[CitySim Reader] Setup complete. Num data: (Train: %d, Validation: %d). Data dims: %s. Label dims: %s" \
-			% (self.numData["train"], self.numData["validation"], self.dataDimensions, self.labelDimensions))
+		self.trainTransformer = self.transformer
+		self.valTransformer = Transformer(self.allDims, [])
 
 	def iterate_once(self, type, miniBatchSize):
-		assert type in ("train", "validation")
-		augmenter = self.dataAugmenter if type == "train" else self.validationAugmenter
-		dataset = self.dataset[type]
+		assert type in ("train", "test")
+		if type == "train":
+			self.transformer = self.trainTransformer
+		else:
+			self.transformer = self.valTransformer
 
-		# One iteration in this method accounts for all transforms at once
-		for i in range(self.getNumIterations(type, miniBatchSize, accountTransforms=False)):
+		dataset = self.dataset[type]
+		numIterations = self.getNumIterations(type, miniBatchSize, accountTransforms=False)
+
+		for i in range(numIterations):
 			startIndex = i * miniBatchSize
 			endIndex = min((i + 1) * miniBatchSize, self.numData[type])
 			assert startIndex < endIndex, "startIndex < endIndex. Got values: %d %d" % (startIndex, endIndex)
+			numData = endIndex - startIndex
 
-			data = self.getData(dataset, startIndex, endIndex, self.dataDimensions)
-			data = np.concatenate(data, axis=-1)
-			labels = self.getData(dataset, startIndex, endIndex, self.labelDimensions)
-			labels = np.concatenate(labels, axis=-1)
-
-			# Apply each transform
-			for augImages, augDepths in augmenter.applyTransforms(data, labels, interpolationType="bilinear"):
-				yield augImages, augDepths
-				del augImages, augDepths
+			for items in self.getData(dataset, startIndex, endIndex):
+				yield items
