@@ -43,7 +43,8 @@ class DatasetReader:
 		#  pipeline for other unused ones, just to drop them at the very end.
 		self.allDims = list(self.dataDims) + list(self.labelDims)
 		assert len(self.allDims) == len(set(self.allDims))
-		# Also, if in any level of processing this dimension is given, remove it, as it is unused.
+		# Also, if in any level of processing a dimension is given, that was not specified in dataDims or labelDims,
+		#  remove it, as it is unused.
 		for dim in allDims:
 			if dim in self.allDims:
 				continue
@@ -95,7 +96,7 @@ class DatasetReader:
 	# Update the normalization parameters so that in the end they're in the (Str, Callable) format. Also accounts for
 	#  built-in normalizations, such as min_max_normalization, standardization or none.
 	# Example: "standardizer" => [("standardizer", DatasetReader.standardizer)]
-	# Example: {"rgb":"standardizer", "classes":"none"} => 
+	# Example: {"rgb":"standardizer", "classes":"none"} =>
 	#  { "rgb" : ("standardizer", datasetReader.standardizer), classes : ("none", identity) }
 	def normalizerParams(self, normalization):
 		if normalization == "min_max_normalization":
@@ -178,7 +179,7 @@ class DatasetReader:
 					finalData.append(item)
 				if dim in self.labelDims:
 					finalLabels.append(item)
-			# TODO: finalTransform
+
 			finalData = self.dataFinalTransform(finalData)
 			finalLabels = self.labelFinalTransform(finalLabels)
 			yield finalData, finalLabels

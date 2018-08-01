@@ -27,7 +27,8 @@ class CitySimReader(DatasetReader):
 		elif hvnTransform == "hvn_two_dims":
 			hvnDimTransform = CitySimReader.hvnTwoDimsTransform
 
-		super().__init__(datasetPath, allDims=["rgb", "depth", "hvn_gt_p1"], dataDims=dataDims, labelDims=labelDims, \
+		super().__init__(datasetPath, \
+			allDims=["rgb", "depth", "hvn_gt_p1"], dataDims=dataDims, labelDims=labelDims, \
 			dimTransform = {
 				"rgb" : lambda x : np.float32(x),
 				"hvn_gt_p1" : hvnDimTransform,
@@ -64,8 +65,28 @@ class CitySimReader(DatasetReader):
 		self.trainTransformer = self.transformer
 		self.valTransformer = Transformer(self.allDims, [])
 
+	# Given a list of dimensions, return the number of actual dimensions (eg: for "rgb", it's 3, for "depth" it's 1)
+	def getNumDimensions(self, dims):
+		numDims = 0
+		for dim in dims:
+			assert dim in self.allDims
+			if dim == "rgb":
+				numDims += 3
+			elif dim == "depth":
+				numDims += 1
+			elif dim == "hvn_gt_p1":
+				if self.hvnTransform in ("identity", "identity_long"):
+					numDims += 1
+				elif self.hvnTransform == "hvn_two_dims":
+					numDims += 2
+				else:
+					assert False, "Unknown hvn transform: %s" % self.hvnTransform
+			else:
+				assert False, "Unknown dim: %s" % dim
+		return numDims
+
 	def iterate_once(self, type, miniBatchSize):
-		assert type in ("train", "test")
+		assert type in ("train", "validation")
 		if type == "train":
 			self.transformer = self.trainTransformer
 		else:
