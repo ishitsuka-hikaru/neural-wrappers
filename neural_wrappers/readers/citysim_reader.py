@@ -27,6 +27,17 @@ class CitySimReader(DatasetReader):
 		elif hvnTransform == "hvn_two_dims":
 			hvnDimTransform = CitySimReader.hvnTwoDimsTransform
 
+		# Instead of giving a full dictionary, we can just resize all the dimensions to one desired value
+		assert type(resizer) in (tuple, dict)
+		if type(resizer) == tuple:
+			assert len(resizer) == 2
+			desiredShape = resizer
+			resizer = {
+				"rgb" : (*resizer, 3),
+				"depth" : (*resizer, 1),
+				"hvn_gt_p1" : (*resizer, self.getHvnNumDims())
+			}
+
 		super().__init__(datasetPath, \
 			allDims=["rgb", "depth", "hvn_gt_p1"], dataDims=dataDims, labelDims=labelDims, \
 			dimTransform = {
@@ -65,6 +76,14 @@ class CitySimReader(DatasetReader):
 		self.trainTransformer = self.transformer
 		self.valTransformer = Transformer(self.allDims, [])
 
+	def getHvnNumDims(self):
+		if self.hvnTransform in ("identity", "identity_long"):
+			return 1
+		elif self.hvnTransform == "hvn_two_dims":
+			return 2
+		else:
+			assert False, "Unknown hvn transform: %s" % self.hvnTransform
+
 	# Given a list of dimensions, return the number of actual dimensions (eg: for "rgb", it's 3, for "depth" it's 1)
 	def getNumDimensions(self, dims):
 		numDims = 0
@@ -75,12 +94,7 @@ class CitySimReader(DatasetReader):
 			elif dim == "depth":
 				numDims += 1
 			elif dim == "hvn_gt_p1":
-				if self.hvnTransform in ("identity", "identity_long"):
-					numDims += 1
-				elif self.hvnTransform == "hvn_two_dims":
-					numDims += 2
-				else:
-					assert False, "Unknown hvn transform: %s" % self.hvnTransform
+				numDims += self.getHvnNumDims()
 			else:
 				assert False, "Unknown dim: %s" % dim
 		return numDims
