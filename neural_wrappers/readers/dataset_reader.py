@@ -19,12 +19,12 @@ def standardizer(data, dim, obj):
 #  a dataset reader, with path to the directory/h5py file, data and label dims, dimension transforms, normalizer and
 #  augmentation transforms for each dimension. Both data and labels cand be inexistent, by simply providing a None
 #  for the dataDims or labelDims variable.
-# Pipeline: raw -> dimTransforms -> normalizer -> augTransforms -> resizer
+# Pipeline: dimGetter (raw) -> dimTransforms -> normalizer -> augTransforms -> resizer
 # @param[in] datasetPath The path to the dataset (directory, h5py file etc.)
 # @param[in] dataDims A list representing the dimensions of the data ("rgb", "classes", "depth" etc.) or None
 # @param[in] labelDims A list representing the dimensions of the label ("depth", "segmentation", "label", etc.) or None
 class DatasetReader:
-	def __init__(self, datasetPath, allDims, dataDims, labelDims, dimTransform={}, normalizer={}, \
+	def __init__(self, datasetPath, allDims, dataDims, labelDims, dimGetter={}, dimTransform={}, normalizer={}, \
 		augTransform=[], resizer={}, dataFinalTransform=lambda x : np.concatenate(x, axis=-1), \
 		labelFinalTransform=lambda x : np.concatenate(x, axis=-1)):
 
@@ -52,10 +52,13 @@ class DatasetReader:
 				if dim in Dict:
 					del Dict[dim]
 
-		# Pipeline: Raw -> dimTransform -> normalizer -> augTransform -> resize -> finalTransform -> data
+		# Pipeline: dimGetter -> dimTransform -> normalizer -> augTransform -> resize -> finalTransform -> data
 		# This pipe-line is applied for both dataDims and labelDims simultaneously, but they are separated at the very
 		#  end before providing the data to the user.
 
+		dimGetter = self.normalizeInputParameters(dimGetter, DatasetReader.requireCallableParams)
+		dimGetterDefault = lambda dataset, dim, startIndex, endIndex : dataset[dim][startIndex : endIndex]
+		self.dimGetter = DatasetReader.populateDictByDims(self.allDims, dimGetter, dimGetterDefault)
 		# Dimension transforms are unique to each dimension. If such a transformation is not defined, it is defaulted
 		#  to identity.
 		dimTransform = self.normalizeInputParameters(dimTransform, DatasetReader.requireCallableParams)
@@ -161,7 +164,7 @@ class DatasetReader:
 		data = {}
 		# First 3 steps (acquire data, dimTransform and normalizer) can be applied at once
 		for dim in self.allDims:
-			item = dataset[dim][startIndex : endIndex]
+			item = self.dimGetter[dim](dataset, dim, startIndex, endIndex)
 			item = self.dimTransform[dim](item)
 			item = self.normalizer[dim][1](item, dim=dim)
 			data[dim] = item
