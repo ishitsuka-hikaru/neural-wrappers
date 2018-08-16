@@ -5,6 +5,7 @@ import torch.optim as optim
 import numpy as np
 from datetime import datetime
 from copy import deepcopy
+from collections import OrderedDict
 
 from neural_wrappers.transforms import *
 from neural_wrappers.metrics import Accuracy, Loss
@@ -50,7 +51,7 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	def setMetrics(self, metrics):
 		assert not "Loss" in metrics, "Cannot overwrite Loss metric. This is added by default for all networks."
-		assert type(metrics) == dict, "Metrics must be provided as Str=>Callback dictionary"
+		assert type(metrics) in (dict, OrderedDict), "Metrics must be provided as Str=>Callback dictionary"
 
 		for key in metrics:
 			assert type(key) == str, "The key of the metric must be a string"
@@ -264,11 +265,11 @@ class NeuralNetworkPyTorch(nn.Module):
 
 		done = currentEpoch / numEpochs * 100
 		message = "Epoch %d/%d. Done: %2.2f%%." % (currentEpoch, numEpochs, done)
-		for metric in trainMetrics:
+		for metric in sorted(trainMetrics):
 			message += " %s: %2.2f." % (metric, trainMetrics[metric])
 
 		if not validationMetrics is None:
-			for metric in validationMetrics:
+			for metric in sorted(validationMetrics):
 				message += " %s: %2.2f." % ("Val " + metric, validationMetrics[metric])
 		message += " LR: %2.5f." % (self.optimizer.state_dict()["param_groups"][0]["lr"])
 

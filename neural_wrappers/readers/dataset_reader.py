@@ -56,6 +56,10 @@ class DatasetReader:
 		# This pipe-line is applied for both dataDims and labelDims simultaneously, but they are separated at the very
 		#  end before providing the data to the user.
 
+		# Dimension getter are used to acquire data for each dimension. Traditionally an indexable dataset is used,
+		#  which, using the start/end indexes, the current dimension and the dictoanry, we get the data. However,
+		#  more complicated use-cases can be found, such as generating the data in real time.
+		#  TODO: see if i can use functools/partial to stop using the dim twice (lambda and dict)
 		dimGetter = self.normalizeInputParameters(dimGetter, DatasetReader.requireCallableParams)
 		dimGetterDefault = lambda dataset, dim, startIndex, endIndex : dataset[dim][startIndex : endIndex]
 		self.dimGetter = DatasetReader.populateDictByDims(self.allDims, dimGetter, dimGetterDefault)
