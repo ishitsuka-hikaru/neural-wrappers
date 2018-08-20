@@ -78,7 +78,7 @@ class UpSampleLayer(NeuralNetworkPyTorch):
 		super(UpSampleLayer, self).__init__()
 		assert Type in ("unpool", "bilinear", "nearest", "conv_transposed")
 
-		if "noSmoothing" in kwargs:
+		if "noSmoothing" in kwargs and kwargs["noSmoothing"] == True:
 			assert Type == "conv_transposed", "Only supported by conv_transposed method."
 			assert not "smoothKernelSize" in kwargs
 			noSmoothing = kwargs["noSmoothing"]

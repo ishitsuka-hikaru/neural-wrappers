@@ -20,10 +20,15 @@ class UNetBlock(NeuralNetworkPyTorch):
 class UNetConcatenateBlock(NeuralNetworkPyTorch):
 	def __init__(self, dIn, dOut, upSampleType):
 		super(UNetConcatenateBlock, self).__init__()
-		assert upSampleType in ("conv_transposed", "conv_transposed_simple", "nearest", "bilinear", "unpool")
-		# The last ones also have a 5x5 convolution after the upsample to smooth out artefacts, but have more params.
-		if upSampleType == "conv_transposed_simple":
-			self.upsample = nn.ConvTranspose2d(in_channels=dIn, out_channels=dIn//2, kernel_size=2, stride=2)
+		assert upSampleType in ("conv_transposed_smooth", "conv_transposed", "nearest", "bilinear", "unpool")
+		# if upSampleType in ("conv_transposed", "conv_transposed_smooth"):
+		if upSampleType == "conv_transposed":
+			self.upsample = UpSampleLayer(inShape=None, dIn=dIn, dOut=dIn//2, Type="conv_transposed", \
+				convTransposedKernelSize=2, convTransposedStride=2, noSmoothing=True)
+		elif upSampleType == "conv_transposed_smooth":
+			# This one applies a secondary convolutional smoothing, which sometimes fixes checkerboard arterfacts
+			self.upsample = UpSampleLayer(inShape=None, dIn=dIn, dOut=dIn//2, Type="conv_transposed", \
+				convTransposedKernelSize=2, convTransposedStride=2, smoothKernelSize=5, noSmoothing=False)
 		else:
 			self.upsample = UpSampleLayer(inShape=None, dIn=dIn, dOut=dIn//2, Type=upSampleType)
 
@@ -40,13 +45,16 @@ class UNetConcatenateBlock(NeuralNetworkPyTorch):
 
 # Implementation of the UNet model from https://arxiv.org/abs/1505.04597
 class ModelUNet(NeuralNetworkPyTorch):
-	def __init__(self, upSampleType):
+	def __init__(self, dIn, dOut, upSampleType):
 		super(ModelUNet, self).__init__()
-		assert upSampleType in ("bilinear", "nearest", "conv_transposed", "conv_transposed_simple")
+		assert upSampleType in ("bilinear", "nearest", "conv_transposed", "conv_transposed_smooth")
+
+		self.dIn = dIn
+		self.dOut = dOut
 
 		self.pool22 = nn.MaxPool2d(kernel_size=2)
 		# Downsample part
-		self.block1 = UNetBlock(dIn=3, dOut=64)
+		self.block1 = UNetBlock(dIn=dIn, dOut=64)
 		self.block2 = UNetBlock(dIn=64, dOut=128)
 		self.block3 = UNetBlock(dIn=128, dOut=256)
 		self.block4 = UNetBlock(dIn=256, dOut=512)
@@ -61,7 +69,7 @@ class ModelUNet(NeuralNetworkPyTorch):
 		self.block8 = UNetBlock(dIn=256, dOut=128)
 		self.upconcat9 = UNetConcatenateBlock(dIn=128, dOut=128, upSampleType=upSampleType)
 		self.block9 = UNetBlock(dIn=128, dOut=64)
-		self.conv10 = nn.Conv2d(in_channels=64, out_channels=1, kernel_size=1)
+		self.conv10 = nn.Conv2d(in_channels=64, out_channels=dOut, kernel_size=1)
 
 	def forward(self, x):
 		# Move depth first (MB, H, W, 3) => (MB, 3, H, W)
