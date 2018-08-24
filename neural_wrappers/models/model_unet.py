@@ -92,5 +92,6 @@ class ModelUNet(NeuralNetworkPyTorch):
 		out9 = self.block9(in9)
 
 		out10 = self.conv10(out9)
-		out10 = out10.view(out10.shape[0], out10.shape[2], out10.shape[3])
+		# (MB, D, H, W) => (MB, H, W, D)
+		out10 = tr.transpose(tr.transpose(out10, 1, 3), 1, 2)
 		return out10
