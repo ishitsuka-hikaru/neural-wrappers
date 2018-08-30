@@ -35,15 +35,21 @@ class CitySimReader(DatasetReader):
 			resizer = {
 				"rgb" : (*resizer, 3),
 				"depth" : (*resizer, 1),
-				"hvn_gt_p1" : (*resizer, self.getHvnNumDims())
+				"hvn_gt_p1" : (*resizer, CitySimReader.getHvnNumDims(hvnTransform))
 			}
 
 		super().__init__(datasetPath, \
-			allDims=["rgb", "depth", "hvn_gt_p1"], dataDims=dataDims, labelDims=labelDims, \
+			allDims=["rgb", "depth", "hvn_gt_p1", "depth_tiny_it1", "depth_big_it1", \
+				"hvn_big_it1_p1", "hvn_tiny_it1_p1"], \
+			dataDims=dataDims, labelDims=labelDims, \
 			dimTransform = {
 				"rgb" : lambda x : np.float32(x),
 				"hvn_gt_p1" : hvnDimTransform,
-				"depth" : lambda x : np.expand_dims(x, axis=-1)
+				"hvn_big_it1_p1" : hvnDimTransform,
+				"hvn_tiny_it1_p1" : hvnDimTransform,
+				"depth" : lambda x : np.expand_dims(x, axis=-1),
+				"depth_big_it1" : lambda x : np.expand_dims(x, axis=-1),
+				"depth_tiny_it1" : lambda x : np.expand_dims(x, axis=-1)
 			}, \
 			normalizer = {
 				"rgb" : "min_max_normalization",
@@ -76,25 +82,24 @@ class CitySimReader(DatasetReader):
 		self.trainTransformer = self.transformer
 		self.valTransformer = Transformer(self.allDims, [])
 
-	def getHvnNumDims(self):
-		if self.hvnTransform in ("identity", "identity_long"):
+	def getHvnNumDims(hvnTransform):
+		if hvnTransform in ("identity", "identity_long"):
 			return 1
-		elif self.hvnTransform == "hvn_two_dims":
+		elif hvnTransform == "hvn_two_dims":
 			return 2
 		else:
-			assert False, "Unknown hvn transform: %s" % self.hvnTransform
+			assert False, "Unknown hvn transform: %s" % hvnTransform
 
 	# Given a list of dimensions, return the number of actual dimensions (eg: for "rgb", it's 3, for "depth" it's 1)
-	def getNumDimensions(self, dims):
+	def getNumDimensions(dims, hvnTransform):
 		numDims = 0
 		for dim in dims:
-			assert dim in self.allDims
 			if dim == "rgb":
 				numDims += 3
-			elif dim == "depth":
+			elif dim in ("depth", "depth_big_it1", "depth_tiny_it1"):
 				numDims += 1
-			elif dim == "hvn_gt_p1":
-				numDims += self.getHvnNumDims()
+			elif dim in ("hvn_gt_p1", "hvn_tiny_it1_p1", "hvn_big_it1_p1"):
+				numDims += CitySimReader.getHvnNumDims(hvnTransform)
 			else:
 				assert False, "Unknown dim: %s" % dim
 		return numDims

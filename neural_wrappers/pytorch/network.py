@@ -243,7 +243,7 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	def computeIterPrintMessage(self, i, stepsPerEpoch, metricResults, iterFinishTime):
 		message = "Iteration: %d/%d." % (i + 1, stepsPerEpoch)
-		for metric in metricResults:
+		for metric in sorted(metricResults):
 			message += " %s: %2.2f." % (metric, metricResults[metric] / (i + 1))
 		# iterFinishTime / (i + 1) is the current estimate per iteration. That value times stepsPerEpoch is
 		#  the current estimation per epoch. That value minus current time is the current estimation for
