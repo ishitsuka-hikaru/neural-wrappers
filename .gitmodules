@@ -4,3 +4,6 @@
 [submodule "examples/examples/Depth-Estimation-Supervised"]
 	path = examples/examples/Depth-Estimation-Supervised
 	url = https://gitlab.com/mihaicristianpirvu/Depth-Estimation
+[submodule "examples/examples/Depth-HVN-Estimation-Aerial"]
+	path = examples/examples/Depth-HVN-Estimation-Aerial
+	url = https://gitlab.com/mihaicristianpirvu/Depth-HVN-Estimation-Aerial
