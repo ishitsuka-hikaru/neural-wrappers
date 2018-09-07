@@ -2,6 +2,8 @@ import h5py
 import numpy as np
 from .dataset_reader import DatasetReader
 from neural_wrappers.transforms import Transformer
+from neural_wrappers.utilities import resize_batch
+from functools import partial
 
 class CitySimReader(DatasetReader):
 	def hvnTwoDimsTransform(images):
@@ -35,7 +37,8 @@ class CitySimReader(DatasetReader):
 			resizer = {
 				"rgb" : (*resizer, 3),
 				"depth" : (*resizer, 1),
-				"hvn_gt_p1" : (*resizer, CitySimReader.getHvnNumDims(hvnTransform))
+				"hvn_gt_p1" : partial(resize_batch, \
+					dataShape=(*resizer, CitySimReader.getHvnNumDims(hvnTransform)), type="nearest")
 			}
 
 		super().__init__(datasetPath, \

@@ -20,7 +20,7 @@ def resize_batch(data, dataShape, type="bilinear"):
 	newData = np.zeros((numData, *dataShape), dtype=data.dtype)
 
 	for i in range(len(data)):
-		result = resize(data[i], height=dataShape[0], width=dataShape[1], interpolation=Interpolation.NEAREST)
+		result = resize(data[i], height=dataShape[0], width=dataShape[1], interpolation=interpolationType)
 		newData[i] = result.reshape(newData[i].shape)
 	return newData
 

@@ -175,6 +175,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		#  inputs, they can be packed together (stacked) or put into a list, in which case the ntwork will receive the
 		#  same list, but every element in the list is tranasformed in torch format.
 		startTime = datetime.now()
+		iterationMetrics = {}
 		for i, items in enumerate(generator):
 			self.callbacksOnIterationStart(callbacks)
 			npInputs, npLabels = items
@@ -189,13 +190,14 @@ class NeuralNetworkPyTorch(nn.Module):
 			optimizeCallback(self.optimizer, loss)
 			iterFinishTime = (datetime.now() - startTime)
 
-			# Iteration callbacks are called here (i.e. for plotting results!)
-			self.callbacksOnIterationEnd(callbacks, data=npInputs, labels=npLabels, results=npResults, loss=npLoss, \
-				iteration=i, numIterations=stepsPerEpoch)
-
 			# Compute the metrics
 			for metric in self.metrics:
-				metricResults[metric] += self.metrics[metric](npResults, npLabels, loss=npLoss)
+				iterationMetrics[metric] = self.metrics[metric](npResults, npLabels, loss=npLoss)
+				metricResults[metric] += iterationMetrics[metric]
+
+			# Iteration callbacks are called here (i.e. for plotting results!)
+			self.callbacksOnIterationEnd(callbacks, data=npInputs, labels=npLabels, results=npResults, iteration=i, \
+				numIterations=stepsPerEpoch, metrics=iterationMetrics)
 
 			# Print the message, after the metrics are updated.
 			if printMessage:
