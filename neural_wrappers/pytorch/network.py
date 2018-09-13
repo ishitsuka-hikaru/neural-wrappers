@@ -111,7 +111,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		elif type(data) in (list, tuple):
 			trData = []
 			for item in data:
-				trItem = self.getTrData(item, optimize)
+				trItem = self.getTrData(item)
 				trData.append(trItem)
 		elif type(data) is np.ndarray:
 			trData = maybeCuda(tr.from_numpy(data))

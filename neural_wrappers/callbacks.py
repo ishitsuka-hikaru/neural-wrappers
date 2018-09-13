@@ -81,8 +81,7 @@ class SaveModels(Callback):
 		elif self.type == "all":
 			kwargs["model"].saveModel(fileName)
 		elif self.type == "last":
-			if kwargs["epoch"] == kwargs["numEpochs"]:
-				kwargs["model"].saveModel(fileName)
+			kwargs["model"].saveModel("model_last.pkl")
 		elif self.type == "best":
 			# nan != nan is True
 			if self.best != self.best or loss < self.best:
