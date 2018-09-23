@@ -207,6 +207,22 @@ class DatasetReader:
 				yield items
 				del items
 
+	def computeSplitIndexesNumData(numAllData, dataSplit):
+		# Check validity of the dataSplit (sums to 100 and positive)
+		assert sum([dataSplit[key] for key in dataSplit]) == 100
+
+		currentStartIndex = 0
+		numData = {}
+		splitIndexes = {}
+		for key in dataSplit:
+			currentNumItems = numAllData * dataSplit[key] // 100
+			currentEndIndex = currentStartIndex + currentNumItems
+			numData[key] = currentNumItems
+			splitIndexes[key] = (currentStartIndex, currentEndIndex)
+			currentStartIndex = currentEndIndex
+
+		return splitIndexes, numData
+
 	# Finds the number of iterations needed for each type, given a miniBatchSize. Eachs transformations adds a new set
 	#  of parameters. If none are present then just one set of parameters
 	# @param[in] type The type of data from which this is computed (e.g "train", "test", "validation")
