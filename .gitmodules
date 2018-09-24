@@ -10,3 +10,6 @@
 [submodule "examples/3D-bounding-box-estimation"]
 	path = examples/3D-bounding-box-estimation
 	url = git@gitlab.com:mihaicristianpirvu/3d-bounding-box-estimation.git
+[submodule "examples/Depth-Estimation-Supervised"]
+	path = examples/Depth-Estimation-Supervised
+	url = git@gitlab.com:mihaicristianpirvu/Depth-Estimation.git
