@@ -146,7 +146,7 @@ class NeuralNetworkPyTorch(nn.Module):
 	def npForward(self, x):
 		trInput = maybeCuda(tr.from_numpy(x))
 		trResult = self.forward(trInput)
-		npResult = trResult.detach().cpu().numpy()
+		npResult = self.getNpData(trResult)
 		return npResult
 
 	# Basic method that does a forward phase for one epoch given a generator. It can apply a step of optimizer or not.

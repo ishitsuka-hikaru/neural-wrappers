@@ -60,7 +60,6 @@ class CityScapesReader(DatasetReader):
 			startIndex = i * miniBatchSize
 			endIndex = min((i + 1) * miniBatchSize, self.numData[type])
 			assert startIndex < endIndex, "startIndex < endIndex. Got values: %d %d" % (startIndex, endIndex)
-			numData = endIndex - startIndex
 
 			for items in self.getData(dataset, startIndex, endIndex):
 				yield items

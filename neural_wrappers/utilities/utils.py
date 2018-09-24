@@ -24,11 +24,9 @@ def resize_batch(data, dataShape, type="bilinear"):
 		newData[i] = result.reshape(newData[i].shape)
 	return newData
 
-# Resizes a batch of HxW images, to a desired dHxdW, but keeps the same aspect ration, and adds black bars on the
-#  dimension that does not fit (instead of streching as with regular resize).
-def resize_batch_black_bars(data, desiredShape, type="bilinear"):
+def resize_black_bars(data, desiredShape, type="bilinear"):
 	# No need to do anything if shapes are identical.
-	if data.shape[1 : ] == desiredShape:
+	if data.shape == desiredShape:
 		return np.copy(data)
 
 	assert type in ("bilinear", "nearest", "cubic")
@@ -39,10 +37,9 @@ def resize_batch_black_bars(data, desiredShape, type="bilinear"):
 	else:
 		interpolationType = Interpolation.CUBIC
 
-	numData = len(data)
-	newData = np.zeros((numData, *desiredShape), dtype=data.dtype)
+	newData = np.zeros(desiredShape, dtype=data.dtype)
 	# newImage = np.zeros((240, 320, 3), np.uint8)
-	h, w = data.shape[1 : 3]
+	h, w = data.shape[0 : 2]
 	desiredH, desiredW = desiredShape[0 : 2]
 
 	# Find the rapports between the h/desiredH and w/desiredW
@@ -58,10 +55,20 @@ def resize_batch_black_bars(data, desiredShape, type="bilinear"):
 	# Also, find the half, so we can inser the other dimension from the half
 	halfH, halfW = int((desiredH - newRh) // 2), int((desiredW - newRw) // 2)
 
-	# Finally, do the resizes on the batch
+	resizedData = resize(data, height=newRh, width=newRw, interpolation=interpolationType)
+	newData[halfH : halfH + newRh, halfW : halfW + newRw] = resizedData
+	return newData
+
+# Resizes a batch of HxW images, to a desired dHxdW, but keeps the same aspect ration, and adds black bars on the
+#  dimension that does not fit (instead of streching as with regular resize).
+def resize_batch_black_bars(data, desiredShape, type="bilinear"):
+	# No need to do anything if shapes are identical.
+	if data.shape[1 : ] == desiredShape:
+		return np.copy(data)
+
+	newData = np.zeros((numData, *desiredShape), dtype=data.dtype)
 	for i in range(len(data)):
-		resizedData = resize(data[i], height=newRh, width=newRw, interpolation=interpolationType)
-		newData[i, halfH : halfH + newRh, halfW : halfW + newRw] = resizedData
+		newData[i] = resize_black_bars(data[i], desiredShape, type)
 
 	return newData
 

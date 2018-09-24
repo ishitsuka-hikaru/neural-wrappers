@@ -35,16 +35,29 @@ def getPaths(basePath, labelData):
 	paths["rgb"] = list(map(lambda x : basePath + os.sep + "image_2" + os.sep + x, rgbFiles))
 	return paths
 
+def whileReadImage(path):
+	i = 0
+	while True:
+		try:
+			bgr_image = cv2.imread(path)
+			b, g, r = cv2.split(bgr_image)
+			image = cv2.merge([r, g, b]).astype(np.float32)
+			return image
+		except Exception as e:
+			print(str(e))
+			i += 1
+
+			if i == 5:
+				raise Exception
+
 def doPng(pngPath):
 	# image = np.uint8(Image.open(pngPath))
-	bgr_image = cv2.imread(pngPath)
+	# bgr_image = cv2.imread(pngPath)
 	try:
-		b, g, r = cv2.split(bgr_image)
-		image = cv2.merge([r, g, b]).astype(np.float32)
+		image = whileReadImage(pngPath)
 		return resize(image, height=375, width=1224, interpolation=Interpolation.LANCZOS)
 	except Exception:
 		sys.stdout.write("Error at %s\n" % (pngPath))
-		sys.flush()
 
 def doLabel(labelPath):
 	classes = ["Pedestrian", "Truck", "Car", "Cyclist", "Misc", "Van", "Tram", "Person_sitting"]
@@ -86,6 +99,8 @@ def doH5pyStuff(file, groupName, labelData, dataShape):
 	numData = dataShape[0]
 	if not "camera_2" in group:
 		group = group.create_group("camera_2")
+	else:
+		group = group["camera_2"]
 	if not "rgb" in group:
 		group.create_dataset("rgb", shape=dataShape, dtype=np.uint8)
 	if labelData:
@@ -101,7 +116,8 @@ def doDataset(file, basePath, groupName, labelData, startIndex):
 	dataShape = (numData, 375, 1224, 3)
 	group = doH5pyStuff(file, groupName, labelData, dataShape)
 
-	endIndex = min(startIndex + 100, numData)
+	# endIndex = min(startIndex + 100, numData)
+	endIndex = numData
 	if startIndex > endIndex:
 		return
 
@@ -117,12 +133,12 @@ def doDataset(file, basePath, groupName, labelData, startIndex):
 			group["labels"][i] = label
 
 def main():
-	assert len(sys.argv) == 3
+	assert len(sys.argv) == 4
 	file = h5py.File("kitti_obj.h5", "a")
 
 	baseDir = os.path.abspath(sys.argv[1])
 	doDataset(file, baseDir + os.sep + "training", "train", labelData=True, startIndex=int(sys.argv[2]))
-	doDataset(file, baseDir + os.sep + "testing", "test", labelData=False, startIndex=int(sys.argv[2]))
+	doDataset(file, baseDir + os.sep + "testing", "test", labelData=False, startIndex=int(sys.argv[3]))
 
 if __name__ == "__main__":
 	main()

@@ -7,3 +7,6 @@
 [submodule "examples/examples/Depth-HVN-Estimation-Aerial"]
 	path = examples/examples/Depth-HVN-Estimation-Aerial
 	url = https://gitlab.com/mihaicristianpirvu/Depth-HVN-Estimation-Aerial
+[submodule "examples/3D-bounding-box-estimation"]
+	path = examples/3D-bounding-box-estimation
+	url = git@gitlab.com:mihaicristianpirvu/3d-bounding-box-estimation.git
