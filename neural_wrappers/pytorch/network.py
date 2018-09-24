@@ -361,13 +361,20 @@ class NeuralNetworkPyTorch(nn.Module):
 			validationGenerator=validationGenerator, validationSteps=valNumIterations, printMessage=printMessage)
 
 	def saveWeights(self, path):
-		return self.serializer.saveModel(path, stateKeys=["weights"])
+		return self.serializer.saveModel(path, stateKeys=["weights", "model_state"])
 
 	def loadWeights(self, path):
-		self.serializer.loadModel(path, stateKeys=["weights"])
+		self.serializer.loadModel(path, stateKeys=["weights", "model_state"])
 
 	def saveModel(self, path):
-		return self.serializer.saveModel(path, stateKeys=["weights", "optimizer", "history_dict", "callbacks"])
+		return self.serializer.saveModel(path, stateKeys=["weights", "optimizer", \
+			"history_dict", "callbacks", "model_state"])
 
 	def loadModel(self, path):
-		self.serializer.loadModel(path, stateKeys=["weights", "optimizer", "history_dict", "callbacks"])
+		self.serializer.loadModel(path, stateKeys=["weights", "optimizer", "history_dict", "callbacks", "model_state"])
+
+	def onModelSave(self):
+		return None
+
+	def onModelLoad(self, state):
+		return True

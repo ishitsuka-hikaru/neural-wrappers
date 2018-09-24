@@ -24,6 +24,8 @@ class NetworkSerializer:
 				state[key] = self.doSaveHistoryDict()
 			elif key == "callbacks":
 				state[key] = self.doSaveCallbacks()
+			elif key == "model_state":
+				state[key] = self.model.onModelSave()
 			else:
 				assert False, "Got unknown key %s" % (key)
 		tr.save(state, path)
@@ -70,6 +72,11 @@ class NetworkSerializer:
 			loadedState = tr.load(path, map_location=lambda storage, loc: storage)
 
 		print("Loading model from %s" % (path))
+		if not "model_state" in loadedState:
+			print("Warning, no model state dictionary for this model (obsolete behaviour). Ignoring.")
+			loadedState["model_state"] = None
+		assert self.model.onModelLoad(loadedState["model_state"]) == True
+
 		for key in stateKeys:
 			if key == "weights":
 				self.doLoadWeights(loadedState)
@@ -79,6 +86,8 @@ class NetworkSerializer:
 				self.doLoadHistoryDict(loadedState)
 			elif key == "callbacks":
 				self.doLoadCallbacks(loadedState)
+			elif key == "model_state":
+				pass
 			else:
 				assert False, "Got unknown key %s" % (key)
 		print("Finished loading model")

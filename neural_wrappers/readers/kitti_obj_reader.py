@@ -46,7 +46,8 @@ class KITTIObjReader(DatasetReader):
 		else:
 			self.transformer = self.valTransformer
 
-		dataset = self.dataset[type][self.baseDataGroup]
+		# both train and validation are on "train" key (different indexes). Test (TODO) is separately.
+		dataset = self.dataset["train"][self.baseDataGroup]
 		numIterations = self.getNumIterations(type, miniBatchSize, accountTransforms=False)
 
 		typeStartIndex = self.indexes[type][0]
