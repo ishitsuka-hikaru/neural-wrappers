@@ -33,7 +33,8 @@ class NetworkSerializer:
 	# @brief Handles saving the weights of the model
 	# @return A list of all the parameters (converted to CPU) so they are pickle-able
 	def doSaveWeights(self):
-		return list(map(lambda x : x.cpu(), self.model.parameters()))
+		trainableParams = list(filter(lambda p : p.requires_grad, self.model.parameters()))
+		return list(map(lambda x : x.cpu(), trainableParams))
 
 	# @brief Handles saving the optimizer of the model
 	def doSaveOptimizer(self):
@@ -101,11 +102,12 @@ class NetworkSerializer:
 		assert "weights" in loadedState
 		params = loadedState["weights"]
 		loadedParams, _ = getNumParams(params)
-		thisParams, _ = getNumParams(self.model.parameters())
+		trainableParams = filter(lambda p : p.requires_grad, self.model.parameters())
+		thisParams, _ = getNumParams(trainableParams)
 		if loadedParams != thisParams:
 			raise Exception("Inconsistent parameters: %d vs %d." % (loadedParams, thisParams))
 
-		for i, item in enumerate(self.model.parameters()):
+		for i, item in enumerate(trainableParams):
 			if item.shape != params[i].shape:
 				raise Exception("Inconsistent parameters: %d vs %d." % (item.shape, params[i].shape))
 			with tr.no_grad():
@@ -129,8 +131,9 @@ class NetworkSerializer:
 		# Optimizer consistency checks
 		# Not sure if/how we can use this (not always ordered)
 		# l1 = list(model.optimizer.state_dict()["state"].keys())
+		trainableParams = filter(lambda p : p.requires_grad, self.model.parameters())
 		l2 = self.model.optimizer.state_dict()["param_groups"][0]["params"]
-		l3 = list(map(lambda x : id(x), self.model.parameters()))
+		l3 = list(map(lambda x : id(x), trainableParams))
 		assert l2 == l3, "Something was wrong with loading optimizer"
 		print("Succesfully loaded optimizer: %s" % (getOptimizerStr(self.model.optimizer)))
 

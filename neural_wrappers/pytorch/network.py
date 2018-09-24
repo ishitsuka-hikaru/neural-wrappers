@@ -43,7 +43,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		if isinstance(optimizer, optim.Optimizer):
 			self.optimizer = optimizer
 		else:
-			trainableParams = filter(lambda p : p.requires_grad, self.parameters())
+			trainableParams = list(filter(lambda p : p.requires_grad, self.parameters()))
 			self.optimizer = optimizer(trainableParams, **kwargs)
 
 	def setCriterion(self, criterion):
