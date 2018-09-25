@@ -60,10 +60,6 @@ class NeuralNetworkPyTorch(nn.Module):
 		# Set Loss metric, which should always be there.
 		self.metrics["Loss"] = Loss()
 
-	def setTrainable(self, mode):
-		for param in self.parameters():
-			param.requires_grad_(mode)
-
 	def summary(self):
 		summaryStr = "[Model summary]\n"
 		summaryStr += self.__str__() + "\n"
@@ -88,6 +84,9 @@ class NeuralNetworkPyTorch(nn.Module):
 		trainHistory["trainMetrics"] = deepcopy(kwargs["trainMetrics"])
 		trainHistory["validationMetrics"] = deepcopy(kwargs["validationMetrics"])
 		trainHistory["message"] = message
+
+	def getTrainableParameters(self):
+		return list(filter(lambda p : p.requires_grad, self.parameters()))
 
 	# Results come in torch format, but callbacks require numpy, so convert the results back to numpy format
 	def getNpData(self, results):
@@ -165,7 +164,6 @@ class NeuralNetworkPyTorch(nn.Module):
 		metricResults = {metric : 0 for metric in self.metrics.keys()}
 		i = 0
 
-		self.setTrainable(tr.is_grad_enabled())
 		if tr.is_grad_enabled():
 			optimizeCallback = (lambda optim, loss : (optim.zero_grad(), loss.backward(), optim.step()))
 		else:
