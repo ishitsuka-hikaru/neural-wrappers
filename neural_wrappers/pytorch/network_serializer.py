@@ -77,7 +77,11 @@ class NetworkSerializer:
 		if not "model_state" in loadedState:
 			print("Warning, no model state dictionary for this model (obsolete behaviour). Ignoring.")
 			loadedState["model_state"] = None
-		assert self.model.onModelLoad(loadedState["model_state"]) == True
+
+		if not self.model.onModelLoad(loadedState["model_state"]):
+			loaded = loadedState["model_state"]
+			current = self.model.onModelSave()
+			raise Exception("Could not correclty load the model state loaded: %s vs. current: %s" % (loaded, current))
 
 		for key in stateKeys:
 			if key == "weights":
