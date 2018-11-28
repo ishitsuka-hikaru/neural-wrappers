@@ -48,12 +48,17 @@ def resize_black_bars(data, desiredShape, type="bilinear"):
 
 	# Find which one is the highest, that one will be used
 	minRapp, maxRapp = min(rH, rW), max(rH, rW)
+	if maxRapp == 0:
+		return newData
 	# print(minRapp, maxRapp)
 
 	# Compute the new dimensions, based on th highest rapport
 	newRh, newRw = int(h // maxRapp), int(w // maxRapp)
 	# Also, find the half, so we can inser the other dimension from the half
 	halfH, halfW = int((desiredH - newRh) // 2), int((desiredW - newRw) // 2)
+
+	if newRw == 0 or newRh == 0:
+		return newData
 
 	resizedData = resize(data, height=newRh, width=newRw, interpolation=interpolationType)
 	newData[halfH : halfH + newRh, halfW : halfW + newRw] = resizedData
