@@ -70,7 +70,7 @@ class SaveModels(Callback):
 	#  epoch there is a validation loss and the next one there isn't, so we need formats to avoid this and error out
 	#  nicely if the format asks for validation loss and there's not validation metric reported.
 	def onEpochEnd(self, **kwargs):
-		metricFunc = lambda x, y : x < y if self.metricDirection == "min" else lambda x, y : x > y
+		metricFunc = (lambda x, y : x < y) if self.metricDirection == "min" else (lambda x, y : x > y)
 		metrics = (kwargs["validationMetrics"] if kwargs["validationMetrics"] != None else kwargs["trainMetrics"])
 		score = metrics[self.metric]
 
