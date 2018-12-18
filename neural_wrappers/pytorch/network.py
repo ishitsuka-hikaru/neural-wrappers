@@ -91,6 +91,8 @@ class NeuralNetworkPyTorch(nn.Module):
 	# Results come in torch format, but callbacks require numpy, so convert the results back to numpy format
 	def getNpData(self, results):
 		npResults = None
+		if results is None:
+			return results
 		if type(results) in (list, tuple):
 			npResults = []
 			for result in results:
