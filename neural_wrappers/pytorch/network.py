@@ -18,7 +18,8 @@ from .utils import maybeCuda, maybeCpu, getNumParams, getOptimizerStr
 #  model, one must define layers in the object's constructor, call setOptimizer, setCriterion and implement the
 #  forward method identically like a normal PyTorch model.
 class NeuralNetworkPyTorch(nn.Module):
-	def __init__(self):
+	def __init__(self, hyperParameters={}):
+		assert type(hyperParameters) == dict
 		self.optimizer = None
 		self.criterion = None
 		self.metrics = {"Loss" : Loss()}
@@ -32,6 +33,12 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.trainHistory = []
 		self.linePrinter = LinePrinter()
 		self.serializer = NetworkSerializer(self)
+		# A dictionary that holds values used to instantaite this module that should not change during training. This
+		#  will be used to compare loaded models which technically hold same weights, but are different in important
+		#  hyperparameters/training procedure etc. A model is identical to a saved one both if weights and important
+		#  hyperparameters match exactly (i.e. SfmLearner using 1 warping image vs using 2 warping images vs using
+		#  explainability mask).
+		self.hyperParameters = hyperParameters
 		super(NeuralNetworkPyTorch, self).__init__()
 
 	### Various setters for the network ###
@@ -374,7 +381,17 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.serializer.loadModel(path, stateKeys=["weights", "optimizer", "history_dict", "callbacks", "model_state"])
 
 	def onModelSave(self):
-		return None
+		return self.hyperParameters
 
 	def onModelLoad(self, state):
+		return True
+		if len(self.hyperParameters.keys()) != len(state.keys()):
+			return False
+
+		for key in state:
+			if not key in self.hyperParameters:
+				return False
+
+			if not state[key] == self.hyperParameters[key]:
+				return False
 		return True
