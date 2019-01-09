@@ -123,6 +123,8 @@ class NeuralNetworkPyTorch(nn.Module):
 				trData.append(trItem)
 		elif type(data) is np.ndarray:
 			trData = maybeCuda(tr.from_numpy(data))
+		elif type(data) is tr.Tensor:
+			trData = maybeCuda(data)
 		return trData
 
 	# Checks that callbacks are indeed a subclass of the ABC Callback.
