@@ -12,7 +12,7 @@ from neural_wrappers.metrics import Accuracy, Loss
 from neural_wrappers.utilities import makeGenerator, LinePrinter, isBaseOf
 from neural_wrappers.callbacks import Callback
 from .network_serializer import NetworkSerializer
-from .utils import maybeCuda, maybeCpu, getNumParams, getOptimizerStr
+from .utils import maybeCuda, maybeCpu, getNumParams, getOptimizerStr, getNpData, getTrData
 
 # Wrapper on top of the PyTorch model. Added methods for saving and loading a state. To completly implement a PyTorch
 #  model, one must define layers in the object's constructor, call setOptimizer, setCriterion and implement the
@@ -95,38 +95,6 @@ class NeuralNetworkPyTorch(nn.Module):
 	def getTrainableParameters(self):
 		return list(filter(lambda p : p.requires_grad, self.parameters()))
 
-	# Results come in torch format, but callbacks require numpy, so convert the results back to numpy format
-	def getNpData(self, results):
-		npResults = None
-		if results is None:
-			return results
-		if type(results) in (list, tuple):
-			npResults = []
-			for result in results:
-				npResult = self.getNpData(result)
-				npResults.append(npResult)
-		elif type(results) == tr.Tensor:
-			 npResults = maybeCpu(results.detach()).numpy()
-		else:
-			assert False, "Got type %s" % (type(results))
-		return npResults
-
-	# Equivalent of the function above, but using the data from generator (which comes in numpy format)
-	def getTrData(self, data):
-		trData = None
-		if data is None:
-			return data
-		elif type(data) in (list, tuple):
-			trData = []
-			for item in data:
-				trItem = self.getTrData(item)
-				trData.append(trItem)
-		elif type(data) is np.ndarray:
-			trData = maybeCuda(tr.from_numpy(data))
-		elif type(data) is tr.Tensor:
-			trData = maybeCuda(data)
-		return trData
-
 	# Checks that callbacks are indeed a subclass of the ABC Callback.
 	def checkCallbacks(self, callbacks):
 		for callback in callbacks:
@@ -156,7 +124,7 @@ class NeuralNetworkPyTorch(nn.Module):
 	def npForward(self, x):
 		trInput = maybeCuda(tr.from_numpy(x))
 		trResult = self.forward(trInput)
-		npResult = self.getNpData(trResult)
+		npResult = getNpData(trResult)
 		return npResult
 
 	# Basic method that does a forward phase for one epoch given a generator. It can apply a step of optimizer or not.
@@ -188,11 +156,11 @@ class NeuralNetworkPyTorch(nn.Module):
 		for i, items in enumerate(generator):
 			self.callbacksOnIterationStart(callbacks)
 			npInputs, npLabels = items
-			trInputs = self.getTrData(npInputs)
-			trLabels = self.getTrData(npLabels)
+			trInputs = getTrData(npInputs)
+			trLabels = getTrData(npLabels)
 
 			trResults = self.forward(trInputs)
-			npResults = self.getNpData(trResults)
+			npResults = getNpData(trResults)
 
 			loss = self.criterion(trResults, trLabels)
 			npLoss = maybeCpu(loss.detach()).numpy()

@@ -33,3 +33,35 @@ def getOptimizerStr(optimizer):
 	else:
 		raise NotImplementedError("Not yet implemneted optimizer str for %s" % (type(optimizer)))
 	return "%s. %s" % (optimizerType, params)
+
+# Results come in torch format, but callbacks require numpy, so convert the results back to numpy format
+def getNpData(results):
+	npResults = None
+	if results is None:
+		return results
+	if type(results) in (list, tuple):
+		npResults = []
+		for result in results:
+			npResult = getNpData(result)
+			npResults.append(npResult)
+	elif type(results) == tr.Tensor:
+		 npResults = maybeCpu(results.detach()).numpy()
+	else:
+		assert False, "Got type %s" % (type(results))
+	return npResults
+
+# Equivalent of the function above, but using the data from generator (which comes in numpy format)
+def getTrData(data):
+	trData = None
+	if data is None:
+		return data
+	elif type(data) in (list, tuple):
+		trData = []
+		for item in data:
+			trItem = getTrData(item)
+			trData.append(trItem)
+	elif type(data) is np.ndarray:
+		trData = maybeCuda(tr.from_numpy(data))
+	elif type(data) is tr.Tensor:
+		trData = maybeCuda(data)
+	return trData
