@@ -89,11 +89,11 @@ class SaveModels(Callback):
 		elif self.type == "all":
 			kwargs["model"].saveModel(fileName)
 		elif self.type == "last":
-			kwargs["model"].saveModel("model_last.pkl")
+			kwargs["model"].saveModel("model_last_%s.pkl" % (self.metric))
 		elif self.type == "best":
 			# nan != nan is True
 			if self.best != self.best or metricFunc(score, self.best):
-				kwargs["model"].saveModel("model_best.pkl")
+				kwargs["model"].saveModel("model_best_%s.pkl" % (self.metric))
 				sys.stdout.write("Epoch %d. Improvement (%s) from %2.2f to %2.2f\n" % \
 					(kwargs["epoch"], self.metric, self.best, score))
 				self.best = score

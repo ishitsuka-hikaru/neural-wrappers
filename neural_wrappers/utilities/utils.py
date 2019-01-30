@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import sys
 from lycon import resize, Interpolation
 from scipy.ndimage import gaussian_filter
@@ -156,3 +157,10 @@ def isSubsetOf(subset, set):
 		if not item in set:
 			return False
 	return True
+
+def changeDirectory(Dir, expectExist):
+	assert os.path.exists(Dir) == expectExist
+	print("Changing to working directory:", Dir)
+	if expectExist == False:
+		os.makedirs(Dir)
+	os.chdir(Dir)

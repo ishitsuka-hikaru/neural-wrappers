@@ -38,12 +38,17 @@ def getOptimizerStr(optimizer):
 def getNpData(results):
 	npResults = None
 	if results is None:
-		return results
+		return None
+
 	if type(results) in (list, tuple):
 		npResults = []
 		for result in results:
 			npResult = getNpData(result)
 			npResults.append(npResult)
+	elif type(results) == dict:
+		npResults = {}
+		for key in results:
+			npResults[key] == getNpData(results[key])
 	elif type(results) == tr.Tensor:
 		 npResults = maybeCpu(results.detach()).numpy()
 	else:
@@ -54,12 +59,17 @@ def getNpData(results):
 def getTrData(data):
 	trData = None
 	if data is None:
-		return data
+		return None
+
 	elif type(data) in (list, tuple):
 		trData = []
 		for item in data:
 			trItem = getTrData(item)
 			trData.append(trItem)
+	elif type(data) == dict:
+		trData = {}
+		for key in data:
+			trData[key] = getTrData(data[key])
 	elif type(data) is np.ndarray:
 		trData = maybeCuda(tr.from_numpy(data))
 	elif type(data) is tr.Tensor:
