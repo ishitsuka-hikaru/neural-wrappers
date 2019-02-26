@@ -122,10 +122,20 @@ class NeuralNetworkPyTorch(nn.Module):
 			callback.onIterationEnd(**kwargs)
 
 	def npForward(self, x):
-		trInput = maybeCuda(tr.from_numpy(x))
+		trInput = getTrData(x)
 		trResult = self.forward(trInput)
 		npResult = getNpData(trResult)
 		return npResult
+
+	# The network algorithm. This must be updated for specific networks, so the whole metric/callbacks system works
+	#  just as before.
+	# @param[in] trInputs The inputs of the network
+	# @param[in] trLabels The labels of the network
+	# @return The results of the network and the loss as given by the criterion function
+	def networkAlgorithm(self, trInputs, trLabels):
+		trResults = self.forward(trInputs)
+		trLoss = self.criterion(trResults, trLabels)
+		return trResults, trLoss
 
 	# Basic method that does a forward phase for one epoch given a generator. It can apply a step of optimizer or not.
 	# @param[in] generator Object used to get a batch of data and labels at each step
@@ -159,12 +169,13 @@ class NeuralNetworkPyTorch(nn.Module):
 			trInputs = getTrData(npInputs)
 			trLabels = getTrData(npLabels)
 
-			trResults = self.forward(trInputs)
-			npResults = getNpData(trResults)
+			# Call the network algorithm. By default this is just results = self.forward(inputs);
+			#  loss = criterion(results). But this can be updated for specific network architectures (i.e. GANs)
+			trResults, trLoss = self.networkAlgorithm(trInputs, trLabels)
 
-			loss = self.criterion(trResults, trLabels)
-			npLoss = maybeCpu(loss.detach()).numpy()
-			optimizeCallback(self.optimizer, loss)
+			npResults = getNpData(trResults)
+			npLoss = maybeCpu(trLoss.detach()).numpy()
+			optimizeCallback(self.optimizer, trLoss)
 			iterFinishTime = (datetime.now() - startTime)
 
 			# Compute the metrics
@@ -354,7 +365,6 @@ class NeuralNetworkPyTorch(nn.Module):
 		return self.hyperParameters
 
 	def onModelLoad(self, state):
-		return True
 		if len(self.hyperParameters.keys()) != len(state.keys()):
 			return False
 
@@ -364,4 +374,3 @@ class NeuralNetworkPyTorch(nn.Module):
 
 			if not state[key] == self.hyperParameters[key]:
 				return False
-		return True

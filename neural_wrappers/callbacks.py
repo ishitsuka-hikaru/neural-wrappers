@@ -123,6 +123,7 @@ class ConfusionMatrix(Callback):
 		# Add to history dictionary
 		if not kwargs["trainHistory"] is None:
 			kwargs["trainHistory"]["confusionMatrix"] = np.copy(self.confusionMatrix)
+		print("\nMatrix:", self.confusionMatrix)
 
 	def onIterationEnd(self, **kwargs):
 		results = np.argmax(kwargs["results"], axis=1)
