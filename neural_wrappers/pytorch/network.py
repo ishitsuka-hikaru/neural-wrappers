@@ -143,6 +143,7 @@ class NeuralNetworkPyTorch(nn.Module):
 	# @param[in] metrics A dictionary containing the metrics over which the epoch is run
 	# @return The mean metrics over all the steps.
 	def run_one_epoch(self, generator, stepsPerEpoch, callbacks=[], printMessage=False):
+		assert stepsPerEpoch > 0
 		if tr.is_grad_enabled():
 			assert not self.optimizer is None, "Set optimizer before training"
 		assert not self.criterion is None, "Set criterion before training or testing"
@@ -202,10 +203,13 @@ class NeuralNetworkPyTorch(nn.Module):
 		return metricResults
 
 	def test_generator(self, generator, stepsPerEpoch, callbacks=[], printMessage=False):
+		assert stepsPerEpoch > 0
 		now = datetime.now()
+		self.eval()
 		with tr.no_grad():
 			resultMetrics = self.run_one_epoch(generator, stepsPerEpoch, callbacks=callbacks, \
 				printMessage=printMessage)
+		self.train()
 		duration = datetime.now() - now
 
 		# Do the callbacks for the end of epoch.
@@ -277,6 +281,7 @@ class NeuralNetworkPyTorch(nn.Module):
 	#  then the already stored member is used (helpful for load_models, so we don't do callbacks=model.callbacks).
 	def train_generator(self, generator, stepsPerEpoch, numEpochs, callbacks=None, validationGenerator=None, \
 		validationSteps=0, printMessage=True, **kwargs):
+		assert stepsPerEpoch > 0
 
 		# Callbacks validation and storing (for save_model)
 		if callbacks == None:
@@ -303,9 +308,11 @@ class NeuralNetworkPyTorch(nn.Module):
 
 			# Run for validation data and append the results
 			if validationGenerator != None:
+				self.eval()
 				with tr.no_grad():
 					validationMetrics = self.run_one_epoch(validationGenerator, validationSteps, callbacks=callbacks, \
 						printMessage=False, **kwargs)
+				self.train()
 			duration = datetime.now() - now
 
 			# Do the callbacks for the end of epoch.
@@ -374,3 +381,5 @@ class NeuralNetworkPyTorch(nn.Module):
 
 			if not state[key] == self.hyperParameters[key]:
 				return False
+
+		return True
