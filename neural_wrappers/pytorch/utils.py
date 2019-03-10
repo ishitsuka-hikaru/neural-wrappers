@@ -2,6 +2,16 @@ import torch as tr
 import numpy as np
 import sys
 
+class StorePrevState:
+	def __init__(self, moduleObj):
+		self.moduleObj = moduleObj
+
+	def __enter__(self):
+		self.prevState = self.moduleObj.train if self.moduleObj.training else self.moduleObj.eval
+
+	def __exit__(self, type, value, traceback):
+		self.prevState()
+
 def maybeCuda(x):
 	return x.cuda() if tr.cuda.is_available() and hasattr(x, "cuda") else x
 

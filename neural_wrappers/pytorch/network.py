@@ -12,7 +12,7 @@ from neural_wrappers.metrics import Accuracy, Loss
 from neural_wrappers.utilities import makeGenerator, LinePrinter, isBaseOf
 from neural_wrappers.callbacks import Callback
 from .network_serializer import NetworkSerializer
-from .utils import maybeCuda, maybeCpu, getNumParams, getOptimizerStr, getNpData, getTrData
+from .utils import maybeCuda, maybeCpu, getNumParams, getOptimizerStr, getNpData, getTrData, StorePrevState
 
 # Wrapper on top of the PyTorch model. Added methods for saving and loading a state. To completly implement a PyTorch
 #  model, one must define layers in the object's constructor, call setOptimizer, setCriterion and implement the
@@ -205,11 +205,12 @@ class NeuralNetworkPyTorch(nn.Module):
 	def test_generator(self, generator, stepsPerEpoch, callbacks=[], printMessage=False):
 		assert stepsPerEpoch > 0
 		now = datetime.now()
-		self.eval()
-		with tr.no_grad():
-			resultMetrics = self.run_one_epoch(generator, stepsPerEpoch, callbacks=callbacks, \
-				printMessage=printMessage)
-		self.train()
+		# Store previous state and restore it after running epoch in eval mode.
+		with StorePrevState(self):
+			self.eval()
+			with tr.no_grad():
+				resultMetrics = self.run_one_epoch(generator, stepsPerEpoch, callbacks=callbacks, \
+					printMessage=printMessage)
 		duration = datetime.now() - now
 
 		# Do the callbacks for the end of epoch.
@@ -303,16 +304,18 @@ class NeuralNetworkPyTorch(nn.Module):
 			# No iteration callbacks are used if there is a validation set (so iteration callbacks are only
 			#  done on validation set). If no validation set is used, the iteration callbacks are used on train set.
 			trainCallbacks = [] if validationGenerator != None else callbacks
-			trainMetrics = self.run_one_epoch(generator, stepsPerEpoch, callbacks=trainCallbacks, \
-				printMessage=printMessage, **kwargs)
+			with StorePrevState(self):
+				self.train()
+				trainMetrics = self.run_one_epoch(generator, stepsPerEpoch, callbacks=trainCallbacks, \
+					printMessage=printMessage, **kwargs)
 
 			# Run for validation data and append the results
 			if validationGenerator != None:
-				self.eval()
-				with tr.no_grad():
-					validationMetrics = self.run_one_epoch(validationGenerator, validationSteps, callbacks=callbacks, \
-						printMessage=False, **kwargs)
-				self.train()
+				with StorePrevState(self):
+					self.eval()
+					with tr.no_grad():
+						validationMetrics = self.run_one_epoch(validationGenerator, validationSteps, \
+							callbacks=callbacks, printMessage=False, **kwargs)
 			duration = datetime.now() - now
 
 			# Do the callbacks for the end of epoch.
