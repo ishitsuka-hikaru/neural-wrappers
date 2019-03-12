@@ -58,7 +58,7 @@ def getNpData(results):
 	elif type(results) == dict:
 		npResults = {}
 		for key in results:
-			npResults[key] == getNpData(results[key])
+			npResults[key] = getNpData(results[key])
 	elif type(results) == tr.Tensor:
 		 npResults = maybeCpu(results.detach()).numpy()
 	else:
