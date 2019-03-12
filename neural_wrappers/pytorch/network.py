@@ -74,6 +74,10 @@ class NeuralNetworkPyTorch(nn.Module):
 		numParams, numTrainable = getNumParams(self.parameters())
 		summaryStr += "Parameters count: %d. Trainable parameters: %d.\n" % (numParams, numTrainable)
 
+		strHyperParameters = " | ".join(["%s => %s" % (x, y) for x, y in \
+			zip(self.hyperParameters.keys(), self.hyperParameters.values())])
+		summaryStr += "Hyperparameters: %s\n" % (strHyperParameters)
+
 		strMetrics = str(list(self.metrics.keys()))[1 : -1]
 		summaryStr += "Metrics: %s\n" % (strMetrics)
 
