@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import torch as tr
 import numpy as np
 import sys
@@ -85,3 +86,44 @@ def getTrData(data):
 	elif type(data) is tr.Tensor:
 		trData = maybeCuda(data)
 	return trData
+
+def plotModelHistory(trainHistory, metric, plotBestBullet, dpi):
+	assert metric in trainHistory[0]["trainMetrics"], "Metric %s not found in trainHistory, " + \
+		"use setMetrics accordingly"
+
+	# Aggregate all the values from trainHistory into a list and plot them
+	trainValues, valValues = [], []
+	for epoch in range(len(trainHistory)):
+		trainValues.append(trainHistory[epoch]["trainMetrics"][metric])
+		if "validationMetrics" in trainHistory[epoch] and trainHistory[epoch]["validationMetrics"]:
+			valValues.append(trainHistory[epoch]["validationMetrics"][metric])
+	x = np.arange(len(trainValues)) + 1
+	plt.figure()
+	plt.plot(x, trainValues, label="Train %s" % (metric))
+
+	# If we don't have a validation results, further analysis will be done on training results
+	if "validationMetrics" in trainHistory[0] and trainHistory[0]["validationMetrics"]:
+		plt.plot(x, valValues, label="Val %s" % (metric))
+		usedValues = valValues
+	else:
+		usedValues = trainValues
+	plt.legend()
+
+	# Here, we put a bullet on the best epoch (which can be min for loss, max for accuracy or none for neither)
+	if plotBestBullet == "none":
+		pass
+	elif plotBestBullet == "min":
+		minX, minValue = np.argmin(usedValues), np.min(usedValues)
+		offset = minValue // 2
+		plt.annotate("Epoch %d\nMin %2.2f" % (minX + 1, minValue), xy=(minX + 1, minValue))
+		plt.plot([minX + 1], [minValue], "o")
+	elif plotBestBullet == "max":
+		maxX, maxValue = np.argmax(usedValues), np.max(usedValues)
+		offset = maxValue // 2
+		plt.annotate("Epoch %d\nMax %2.2f" % (maxX + 1, maxValue), xy=(maxX + 1, maxValue))
+		plt.plot([maxX + 1], [maxValue], "o")
+	else:
+		assert False, "Expected: \"min\", \"max\" or \"none\""
+
+	# Finally, save the figure with the name of the metric
+	plt.savefig("%s.png" % (metric), dpi=dpi)
