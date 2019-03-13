@@ -98,7 +98,8 @@ def plotModelHistory(trainHistory, metric, plotBestBullet, dpi):
 		if "validationMetrics" in trainHistory[epoch] and trainHistory[epoch]["validationMetrics"]:
 			valValues.append(trainHistory[epoch]["validationMetrics"][metric])
 	x = np.arange(len(trainValues)) + 1
-	plt.figure()
+	plt.gcf().clf()
+	plt.gca().cla()
 	plt.plot(x, trainValues, label="Train %s" % (metric))
 
 	# If we don't have a validation results, further analysis will be done on training results
@@ -124,6 +125,12 @@ def plotModelHistory(trainHistory, metric, plotBestBullet, dpi):
 		plt.plot([maxX + 1], [maxValue], "o")
 	else:
 		assert False, "Expected: \"min\", \"max\" or \"none\""
+
+	# Set the y axis to have some space above and below the plot min/max values so it looks prettier.
+	minValue = min(np.min(usedValues), np.min(trainValues))
+	maxValue = max(np.max(usedValues), np.max(trainValues))
+	diff = maxValue - minValue
+	plt.gca().set_ylim(minValue - diff / 10, maxValue + diff / 10)
 
 	# Finally, save the figure with the name of the metric
 	plt.savefig("%s.png" % (metric), dpi=dpi)
