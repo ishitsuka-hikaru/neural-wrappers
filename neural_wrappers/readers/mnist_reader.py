@@ -7,9 +7,9 @@ from neural_wrappers.transforms import Transformer
 class MNISTReader(ClassificationDatasetReader):
 	def __init__(self, datasetPath, dataDims=["images"], labelDims=["labels"], \
 		dimTransform={"images" : np.float32, "labels" : lambda x : toCategorical(x, numClasses=10)}, \
-		normalizer={}, augTransform=[], resizer={}):
+		normalizer={}, augTransform=[], resizer={}, **kwargs):
 		super().__init__(datasetPath, allDims=["images", "labels"], dataDims=dataDims, labelDims=labelDims, \
-			dimTransform=dimTransform, normalizer=normalizer, augTransform=augTransform, resizer=resizer)
+			dimTransform=dimTransform, normalizer=normalizer, augTransform=augTransform, resizer=resizer, **kwargs)
 		self.dataset = h5py.File(self.datasetPath, "r")
 		self.numData = {
 			"train" : 60000,

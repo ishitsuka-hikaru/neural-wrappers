@@ -1,7 +1,7 @@
 # network_serializer.py Script that handles saving/loading a NeuralNetworkPyTorch class (weights, state etc.)
 import torch as tr
 from copy import deepcopy
-from .utils import maybeCuda, getNumParams, getOptimizerStr
+from .pytorch_utils import maybeCuda, getNumParams, getOptimizerStr
 
 class NetworkSerializer:
 	# @param[in] The model upon which this serializer works.
@@ -147,7 +147,7 @@ class NetworkSerializer:
 		trainHistory = loadedState["history_dict"]
 		self.model.trainHistory = deepcopy(trainHistory)
 		self.model.currentEpoch = len(trainHistory) + 1
-		print("Succesfully loaded model history (epoch %d)" % (self.model.currentEpoch))
+		print("Succesfully loaded model history (epoch %d)" % (len(trainHistory)))
 
 	def doLoadCallbacks(self, loadedState):
 		assert "callbacks" in loadedState

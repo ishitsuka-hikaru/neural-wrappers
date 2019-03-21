@@ -14,7 +14,7 @@ from neural_wrappers.utilities import makeGenerator, LinePrinter, isBaseOf
 from neural_wrappers.callbacks import Callback
 
 from .network_serializer import NetworkSerializer
-from .utils import maybeCuda, maybeCpu, getNumParams, getOptimizerStr, getNpData, getTrData, StorePrevState
+from .pytorch_utils import maybeCuda, maybeCpu, getNumParams, getOptimizerStr, getNpData, getTrData, StorePrevState
 
 # Wrapper on top of the PyTorch model. Added methods for saving and loading a state. To completly implement a PyTorch
 #  model, one must define layers in the object's constructor, call setOptimizer, setCriterion and implement the
@@ -296,11 +296,16 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.checkCallbacks(callbacks)
 		self.callbacks = callbacks
 
-		if printMessage:
-			sys.stdout.write("Training for %d epochs...\n" % (numEpochs))
+		if self.currentEpoch > numEpochs:
+			sys.stdout.write("Warning. Current epoch (%d) <= requested epochs (%d). Doing nothing.\n" \
+				% (self.currentEpoch, numEpochs))
+			return
 
-		# for epoch in range(self.startEpoch, numEpochs + 1):
-		while self.currentEpoch < numEpochs + 1:
+		if printMessage:
+			sys.stdout.write("Training for %d epochs starting from epoch %d\n" % (numEpochs - self.currentEpoch + 1, \
+				self.currentEpoch - 1))
+
+		while self.currentEpoch <= numEpochs:
 			# Add this epoch to the trainHistory list, which is used to track history
 			self.trainHistory.append({})
 			assert len(self.trainHistory) == self.currentEpoch

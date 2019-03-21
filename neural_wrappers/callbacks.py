@@ -3,7 +3,7 @@ import sys
 import numpy as np
 from copy import deepcopy
 sys.path.append(os.path.dirname(os.path.realpath(__file__)) + "/pytorch")
-from utils import plotModelHistory
+from pytorch_utils import plotModelHistory
 
 class Callback:
 	def __init__(self):

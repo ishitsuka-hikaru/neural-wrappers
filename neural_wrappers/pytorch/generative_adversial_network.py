@@ -3,7 +3,7 @@ from datetime import datetime
 import torch.nn as nn
 import torch as tr
 
-from .utils import maybeCuda, maybeCpu
+from .pytorch_utils import maybeCuda, maybeCpu
 from .network import NeuralNetworkPyTorch, getNumParams, getOptimizerStr
 from neural_wrappers.utilities import LinePrinter
 
