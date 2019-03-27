@@ -59,11 +59,11 @@ def main():
 		model.train_generator(trainGenerator, trainSteps, numEpochs=args.num_epochs, callbacks=callbacks, \
 			validationGenerator=valGenerator, validationSteps=valSteps)
 	elif args.type == "retrain":
-		model.loadModel("model_best.pkl")
+		model.loadModel(args.weights_file)
 		model.train_generator(trainGenerator, trainSteps, numEpochs=args.num_epochs, \
 			validationGenerator=valGenerator, validationSteps=valSteps)
-	else:
-		model.loadModel("model_best.pkl")
+	elif args.type == "test":
+		model.loadModel(args.weights_file)
 		callbacks = [ConfusionMatrix(numClasses=10, categoricalLabels=True)]
 		metrics = model.test_generator(valGenerator, valSteps, callbacks=callbacks)
 		print("Metrics: %s" % (metrics))
