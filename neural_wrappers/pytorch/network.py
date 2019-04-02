@@ -68,6 +68,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.metrics = metrics
 		# Set Loss metric, which should always be there.
 		self.metrics["Loss"] = Loss()
+		self.setMetricsIterPrintMessage(self.metrics.keys())
 
 	def summary(self):
 		summaryStr = "[Model summary]\n"
@@ -242,9 +243,16 @@ class NeuralNetworkPyTorch(nn.Module):
 		return self.test_generator(dataGenerator, stepsPerEpoch=numIterations, callbacks=callbacks, \
 			printMessage=printMessage)
 
+	def setMetricsIterPrintMessage(self, metricKeys):
+		for metricKey in metricKeys:
+			assert metricKey in self.metrics, "%s not in metrics: %s" % (metricKeys, list(self.metrics.keys()))
+		self.metricsIterPrintMessage = metricKeys
+
 	def computeIterPrintMessage(self, i, stepsPerEpoch, metricResults, iterFinishTime):
 		message = "Iteration: %d/%d." % (i + 1, stepsPerEpoch)
 		for metric in sorted(metricResults):
+			if not metric in self.metricsIterPrintMessage:
+				continue
 			message += " %s: %2.2f." % (metric, metricResults[metric] / (i + 1))
 		# iterFinishTime / (i + 1) is the current estimate per iteration. That value times stepsPerEpoch is
 		#  the current estimation per epoch. That value minus current time is the current estimation for
