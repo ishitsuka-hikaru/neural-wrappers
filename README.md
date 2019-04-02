@@ -1,6 +1,6 @@
 How to install:
-- Add the path to the src directory of this project in PYTHONPATH environment variable.
-    - Example .bashrc: `export PYTHONPATH="$PYTHONPATH:/path/to/neural-wrappers/src"`
+- Add the path to the root directory of this project in PYTHONPATH environment variable.
+    - Example .bashrc: `export PYTHONPATH="$PYTHONPATH:/path/to/neural-wrappers/"`
 
 Structure of this project:
 - examples/
