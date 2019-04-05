@@ -47,7 +47,8 @@ class SaveHistory(Callback):
 	def onEpochEnd(self, **kwargs):
 		if kwargs["epoch"] == 1:
 			self.file.write(kwargs["model"].summary() + "\n")
-		message = kwargs["model"].computePrintMessage(**kwargs)
+		# This works because we call populateHistoryDict before (hence why we have access to trainHistory as well)
+		message = kwargs["trainHistory"]["message"]
 		self.file.write(message + "\n")
 
 	def onCallbackSave(self, **kwargs):
@@ -147,4 +148,4 @@ class PlotMetricsCallback(Callback):
 
 	def onEpochEnd(self, **kwargs):
 		for i in range(len(self.metrics)):
-			plotModelHistory(self, self.metrics[i], self.plotBestBullet[i], self.dpi)
+			plotModelHistory(kwargs["model"], self.metrics[i], self.plotBestBullet[i], self.dpi)
