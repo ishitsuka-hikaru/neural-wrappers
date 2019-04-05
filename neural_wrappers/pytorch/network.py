@@ -393,6 +393,9 @@ class NeuralNetworkPyTorch(nn.Module):
 	def onModelSave(self):
 		return self.hyperParameters
 
+	def dataParallel(self):
+		return DataParallelNeuralNetowrkPyTorch(self)
+
 	def onModelLoad(self, state):
 		if len(self.hyperParameters.keys()) != len(state.keys()):
 			return False
@@ -405,3 +408,17 @@ class NeuralNetworkPyTorch(nn.Module):
 				return False
 
 		return True
+
+# Hackish solution so we can use NeuralNetworkPyTorch's methods (run_one_epoch, train_generator etc.) while still
+#  using pytorch's DataParallel module, which scatters and gathers data in multiple devices automagically.
+class DataParallelNeuralNetowrkPyTorch(NeuralNetworkPyTorch):
+	def __init__(self, model):
+		super().__init__()
+		self.baseModel = nn.DataParallel(model)
+
+	def forward(self, x):
+		return self.baseModel.forward(x)
+
+	def __str__(self):
+		return "General parallel neural network architecture. Update __str__ in your model for more details when " + \
+			"using summary."

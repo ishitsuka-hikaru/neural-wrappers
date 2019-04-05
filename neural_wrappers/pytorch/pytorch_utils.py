@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import torch as tr
 import numpy as np
 import sys
+from collections import OrderedDict
 
 class StorePrevState:
 	def __init__(self, moduleObj):
@@ -56,10 +57,11 @@ def getNpData(results):
 		for result in results:
 			npResult = getNpData(result)
 			npResults.append(npResult)
-	elif type(results) == dict:
+	elif type(results) in (dict, OrderedDict):
 		npResults = {}
 		for key in results:
 			npResults[key] = getNpData(results[key])
+
 	elif type(results) == tr.Tensor:
 		 npResults = maybeCpu(results.detach()).numpy()
 	else:
@@ -77,7 +79,7 @@ def getTrData(data):
 		for item in data:
 			trItem = getTrData(item)
 			trData.append(trItem)
-	elif type(data) == dict:
+	elif type(data) in (dict, OrderedDict):
 		trData = {}
 		for key in data:
 			trData[key] = getTrData(data[key])

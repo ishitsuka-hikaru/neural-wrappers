@@ -4,6 +4,7 @@ from neural_wrappers.transforms import Transformer
 from neural_wrappers.utilities import standardizeData, minMaxNormalizeData, \
 	resize_batch, identity, makeList, isSubsetOf
 from functools import partial
+from collections import OrderedDict
 
 def minMaxNormalizer(data, dim, obj):
 	min = obj.minimums[dim]
@@ -25,8 +26,7 @@ def standardizer(data, dim, obj):
 # @param[in] labelDims A list representing the dimensions of the label ("depth", "segmentation", "label", etc.) or None
 class DatasetReader:
 	def __init__(self, datasetPath, allDims, dataDims, labelDims, dimGetter={}, dimTransform={}, normalizer={}, \
-		augTransform=[], resizer={}, dataFinalTransform=lambda x : np.concatenate(x, axis=-1), \
-		labelFinalTransform=lambda x : np.concatenate(x, axis=-1)):
+		augTransform=[], resizer={}, dataFinalTransform=lambda x : x, labelFinalTransform=lambda x : x):
 
 		# Define the dictionaries that must be updated by each dataset reader.
 		self.datasetPath = datasetPath
@@ -41,8 +41,9 @@ class DatasetReader:
 			"(%s) and labelDims (%s) to be a subset of allDims (%s)") % (self.dataDims, self.labelDims, allDims)
 		# Small efficiency trick, as we only care about the dims in dataDims and labelDims, so no need to perofrm the
 		#  pipeline for other unused ones, just to drop them at the very end.
-		self.allDims = list(self.dataDims) + list(self.labelDims)
-		assert len(self.allDims) == len(set(self.allDims))
+		self.allDims = set(list(self.dataDims) + list(self.labelDims))
+		# print(self.allDims, set(self.allDims))
+		# assert len(self.allDims) == len(set(self.allDims))
 		# Also, if in any level of processing a dimension is given, that was not specified in dataDims or labelDims,
 		#  remove it, as it is unused.
 		for dim in allDims:
@@ -176,16 +177,19 @@ class DatasetReader:
 		# Next steps are independent, because augmentation is also a generator (for efficiency) which provides
 		#  new (copies of) items at every step. We also need to take dataDims and labelDims from the data dictionary
 		#  before providing them to the user.
+		finalData = OrderedDict(zip(self.dataDims, len(self.dataDims) * [None]))
+		finalLabels = OrderedDict(zip(self.labelDims, len(self.labelDims) * [None]))
+		# finalData is an ordered (in the given dataDims order) with Nones at beginning that get constantly updated by
+		#  the augmenter.
 		for augData in self.transformer(data):
-			finalData, finalLabels = [], []
 			for dim in self.allDims:
 				item = augData[dim]
 				item = self.resizer[dim](item)
-				# TODO: perhaps callbackable
+
 				if dim in self.dataDims:
-					finalData.append(item)
+					finalData[dim] = item
 				if dim in self.labelDims:
-					finalLabels.append(item)
+					finalLabels[dim] = item
 
 			finalData = self.dataFinalTransform(finalData)
 			finalLabels = self.labelFinalTransform(finalLabels)
