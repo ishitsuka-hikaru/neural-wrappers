@@ -41,6 +41,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		#  hyperparameters match exactly (i.e. SfmLearner using 1 warping image vs using 2 warping images vs using
 		#  explainability mask).
 		self.hyperParameters = hyperParameters
+		self.metricsIterPrintMessage = ""
 		super(NeuralNetworkPyTorch, self).__init__()
 
 	### Various setters for the network ###
@@ -408,17 +409,3 @@ class NeuralNetworkPyTorch(nn.Module):
 				return False
 
 		return True
-
-# Hackish solution so we can use NeuralNetworkPyTorch's methods (run_one_epoch, train_generator etc.) while still
-#  using pytorch's DataParallel module, which scatters and gathers data in multiple devices automagically.
-class DataParallelNeuralNetowrkPyTorch(NeuralNetworkPyTorch):
-	def __init__(self, model):
-		super().__init__()
-		self.baseModel = nn.DataParallel(model)
-
-	def forward(self, x):
-		return self.baseModel.forward(x)
-
-	def __str__(self):
-		return "General parallel neural network architecture. Update __str__ in your model for more details when " + \
-			"using summary."
