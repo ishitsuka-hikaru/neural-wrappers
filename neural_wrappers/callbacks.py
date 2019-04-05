@@ -146,6 +146,5 @@ class PlotMetricsCallback(Callback):
 			self.plotBestBullet = ["none"] * len(self.metrics)
 
 	def onEpochEnd(self, **kwargs):
-		trainHistory = kwargs["model"].trainHistory
 		for i in range(len(self.metrics)):
-			plotModelHistory(trainHistory, self.metrics[i], self.plotBestBullet[i], self.dpi)
+			plotModelHistory(self, self.metrics[i], self.plotBestBullet[i], self.dpi)

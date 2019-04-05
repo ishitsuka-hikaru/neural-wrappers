@@ -87,7 +87,8 @@ def getTrData(data):
 		trData = maybeCuda(data)
 	return trData
 
-def plotModelHistory(trainHistory, metric, plotBestBullet, dpi):
+def plotModelHistory(model, metric, plotBestBullet, dpi):
+	trainHistory = model.trainHistory
 	assert metric in trainHistory[0]["trainMetrics"], "Metric %s not found in trainHistory, " + \
 		"use setMetrics accordingly"
 
@@ -134,3 +135,10 @@ def plotModelHistory(trainHistory, metric, plotBestBullet, dpi):
 
 	# Finally, save the figure with the name of the metric
 	plt.savefig("%s.png" % (metric), dpi=dpi)
+
+def getModelHistoryMessage(model):
+		Str = model.summary() + "\n"
+		trainHistory = model.trainHistory
+		for i in range(len(trainHistory)):
+			Str += trainHistory[i]["message"] + "\n"
+		return Str
