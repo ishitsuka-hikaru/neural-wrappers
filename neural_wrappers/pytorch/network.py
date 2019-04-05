@@ -394,9 +394,6 @@ class NeuralNetworkPyTorch(nn.Module):
 	def onModelSave(self):
 		return self.hyperParameters
 
-	def dataParallel(self):
-		return DataParallelNeuralNetowrkPyTorch(self)
-
 	def onModelLoad(self, state):
 		if len(self.hyperParameters.keys()) != len(state.keys()):
 			return False
