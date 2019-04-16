@@ -5,7 +5,7 @@ import torch.nn as nn
 #  using pytorch's DataParallel module, which scatters and gathers data in multiple devices automagically.
 class DataParallelNetwork(NeuralNetworkPyTorch):
 	def __init__(self, model):
-		super().__init__()
+		super().__init__(hyperParameters=model.hyperParameters)
 		self.baseModel = nn.DataParallel(model)
 
 	def forward(self, *args, **kwargs):

@@ -187,6 +187,9 @@ class NeuralNetworkPyTorch(nn.Module):
 			optimizeCallback(self.optimizer, trLoss)
 			iterFinishTime = (datetime.now() - startTime)
 
+			# TODO: metrics and callbacks should be merged. Each callback/metric can have one or more "parents" which
+			#  forms an ayclical graph. They must be called in such an order that all the parents are satisfied before
+			#  all children (topological sort).
 			# Compute the metrics
 			for metric in self.metrics:
 				iterationMetrics[metric] = self.metrics[metric](npResults, npLabels, loss=npLoss)
