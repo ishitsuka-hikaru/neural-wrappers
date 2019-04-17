@@ -41,7 +41,8 @@ class NeuralNetworkPyTorch(nn.Module):
 		#  hyperparameters match exactly (i.e. SfmLearner using 1 warping image vs using 2 warping images vs using
 		#  explainability mask).
 		self.hyperParameters = hyperParameters
-		self.metricsIterPrintMessage = ""
+		# A list of all the metrics that are used to compute the iteration print message during training/testing
+		self.metricsIterPrintMessage = ["Loss"]
 		super(NeuralNetworkPyTorch, self).__init__()
 
 	### Various setters for the network ###
