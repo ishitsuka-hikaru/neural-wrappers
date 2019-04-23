@@ -125,6 +125,57 @@ class TestNetwork:
 			diff = maybeCpu(tr.sum(tr.abs(weight - weight_new))).data.numpy()
 			assert diff < 1e-5, "%d: Diff: %2.5f.\n %s %s" % (j, diff, weight, weight_new)
 
+	# Adding metrics normally should be fine.
+	def test_set_metrics_1(self):
+		I, H, O = 100, 50, 30
+		model = maybeCuda(Model(I, H, O))
+		try:
+			model.setMetrics({"Test" : lambda x, y, **k : 0.5})
+		except Exception:
+			assert False
+
+		try:
+			model.setMetrics({"Test2" : lambda x, y, **k : 0.5})
+		except Exception as e:
+			assert False
+
+	# Adding two metrics with same name should clash it
+	def test_set_metrics_2(self):
+		I, H, O = 100, 50, 30
+		model = maybeCuda(Model(I, H, O))
+		try:
+			model.setMetrics({"Test" : lambda x, y, **k : 0.5})
+		except Exception:
+			assert False
+
+		try:
+			model.setMetrics({"Test" : lambda x, y, **k : 0.5})
+		except Exception as e:
+			return True
+		assert False
+
+	# Adding one metric and one callback with same name should clash it
+	def test_set_metrics_3(self):
+		class TestCallback(Callback):
+			def __init__(self):
+				super().__init__("Test")
+
+		I, H, O = 100, 50, 30
+		model = maybeCuda(Model(I, H, O))
+		try:
+			model.setMetrics({"Test" : lambda x, y, **k : 0.5})
+		except Exception:
+			assert False
+
+		try:
+			model.setCallbacks([TestCallback()])
+		except Exception:
+			return True
+		assert False
+
 if __name__ == "__main__":
 	TestNetwork().test_save_weights_1()
 	TestNetwork().test_save_model_1()
+	TestNetwork().test_set_metrics_1()
+	TestNetwork().test_set_metrics_2()
+	TestNetwork().test_set_metrics_3()

@@ -2,6 +2,11 @@
 import torch as tr
 from copy import deepcopy
 from .pytorch_utils import maybeCuda, getNumParams, getOptimizerStr
+import sys, os
+dir_path = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(dir_path + "/../utilities")
+from utils import isBaseOf
+import neural_wrappers.callbacks
 
 class NetworkSerializer:
 	# @param[in] The model upon which this serializer works.
@@ -50,7 +55,12 @@ class NetworkSerializer:
 	def doSaveCallbacks(self):
 		callbacksAdditional = []
 		callbacks = []
-		for callback in self.model.callbacks:
+		for key in self.model.callbacks:
+			# Store only callbacks, not MetricAsCallbacks (As they are lambdas which cannot be pickle'd).
+			# Metrics must be reloaded anyway, as they do not hold any (global) state, like full Callbacks do.
+			callback = self.model.callbacks[key]
+			if isBaseOf(callback, neural_wrappers.callbacks.MetricAsCallback):
+				continue
 			additional = callback.onCallbackSave(model=self.model)
 			callbacksAdditional.append(deepcopy(additional))
 			callbacks.append(deepcopy(callback))

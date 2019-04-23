@@ -69,7 +69,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		for key in metrics:
 			assert type(key) == str, "The key of the metric must be a string"
 			assert hasattr(metrics[key], "__call__"), "The user provided transformation %s must be callable" % (key)
-			assert key not in self.callbacks, "Metric %s alread in callbacks list." % (key)
+			assert key not in self.callbacks, "Metric %s already in callbacks list." % (key)
 			# If this is a Metric object, then store it as is, because in this way, we can call it by __call__, but
 			#  also this means that we can store it's fields of the object which can be meaningful, such in the case
 			#  of Accuracy class.
@@ -83,16 +83,17 @@ class NeuralNetworkPyTorch(nn.Module):
 					metric=lambda results, labels, **kwargs : metrics[key](results, labels, **kwargs))
 			# Either way, store the resulting Callback object in the list of callbacks
 			self.callbacks[key] = metricAsCallback
-			# Store the resulting Callback object in the list of callbacks
-			self.callbacks[key] = metricAsCallback
 
 	# Adds the user provided list of callbacks to the model's list of callbacks (and metrics)
 	def setCallbacks(self, callbacks):
 		for callback in callbacks:
 			assert isBaseOf(callback, Callback), \
 				"Expected only subclass of types Callback, got type %s" % (type(callback))
-			assert callback.name not in self.callbacks, "Callback %s alread in callbacks list." % (callback.name)
+			assert callback.name not in self.callbacks, "Callback %s already in callbacks list." % (callback.name)
 			self.callbacks[callback.name] = callback
+
+	def getTrainableParameters(self):
+		return list(filter(lambda p : p.requires_grad, self.parameters()))
 
 	def summary(self):
 		summaryStr = "[Model summary]\n"

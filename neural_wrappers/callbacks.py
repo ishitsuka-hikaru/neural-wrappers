@@ -4,6 +4,7 @@ import numpy as np
 from copy import deepcopy, copy
 sys.path.append(os.path.dirname(os.path.realpath(__file__)) + "/pytorch")
 from pytorch_utils import plotModelHistory
+import inspect
 
 class Callback:
 	def __init__(self, name=None):
@@ -39,14 +40,14 @@ class MetricAsCallback(Callback):
 	def __init__(self, metricName, metric):
 		super().__init__(metricName)
 		self.metric = metric
+		self.spec = inspect.getfullargspec(self.metric)[0]
 
 	def onIterationEnd(self, **kwargs):
+		# TODO: this requires shallow copying at EACH STEP the kwargs
 		thisKw = copy(kwargs)
-		results = thisKw["results"]
-		labels = thisKw["labels"]
-		del thisKw["results"]
-		del thisKw["labels"]
-		return self.metric(results, labels, **thisKw)
+		thisKw[self.spec[0]] = thisKw["results"]
+		thisKw[self.spec[1]] = thisKw["labels"]
+		res = self.metric(**thisKw)
 
 # TODO: add format to saving files
 class SaveHistory(Callback):
