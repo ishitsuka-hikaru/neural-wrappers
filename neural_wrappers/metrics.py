@@ -1,19 +1,8 @@
 import numpy as np
 
-# Generic metric class
 class Metric:
-	def __init__(self):
-		pass
-
 	def __call__(self, results, labels, **kwargs):
 		raise NotImplementedError("Should have implemented this")
-
-	def __str__(self):
-		return "Generic neural network metric"
-
-class Loss(Metric):
-	def __call__(self, results, labels, **kwargs):
-		return kwargs["loss"]
 
 class Accuracy(Metric):
 	def __init__(self, categoricalLabels):

@@ -6,12 +6,11 @@ import torch.optim as optim
 import numpy as np
 from datetime import datetime
 from copy import deepcopy
-from collections import OrderedDict
 
 from transforms import *
-from metrics import Accuracy, Loss
 from neural_wrappers.utilities import makeGenerator, LinePrinter, isBaseOf
-from neural_wrappers.callbacks import Callback
+from neural_wrappers.callbacks import Callback, MetricAsCallback
+from metrics import Metric
 
 from .network_serializer import NetworkSerializer
 from .pytorch_utils import maybeCuda, maybeCpu, getNumParams, getOptimizerStr, getNpData, getTrData, StorePrevState
@@ -24,11 +23,15 @@ class NeuralNetworkPyTorch(nn.Module):
 		assert type(hyperParameters) == dict
 		self.optimizer = None
 		self.criterion = None
-		self.metrics = {"Loss" : Loss()}
 		self.currentEpoch = 1
-		# Every time train_generator is called, this property is updated. Upon calling save_model, the value that is
-		#  present here will be stored
-		self.callbacks = []
+
+		# Variable that holds both callbacks and metrics (which are also callbacks with just onIterationEnd method
+		#   implemented). By default Loss will always be a callback
+		self.callbacks = {"Loss" : MetricAsCallback("Loss", lambda y, t, **k : k["loss"])}
+		# A list of all the metrics/callbacks that are used to compute the iteration print
+		#  message during training/testing
+		self.metricsIterPrintMessage = ["Loss"]
+
 		# A list that stores various information about the model at each epoch. The index in the list represents the
 		#  epoch value. Each value of the list is a dictionary that holds by default only loss value, but callbacks
 		#  can add more items to this (like confusion matrix or accuracy, see mnist example).
@@ -41,8 +44,6 @@ class NeuralNetworkPyTorch(nn.Module):
 		#  hyperparameters match exactly (i.e. SfmLearner using 1 warping image vs using 2 warping images vs using
 		#  explainability mask).
 		self.hyperParameters = hyperParameters
-		# A list of all the metrics that are used to compute the iteration print message during training/testing
-		self.metricsIterPrintMessage = ["Loss"]
 		super(NeuralNetworkPyTorch, self).__init__()
 
 	### Various setters for the network ###
@@ -60,17 +61,38 @@ class NeuralNetworkPyTorch(nn.Module):
 	def setCriterion(self, criterion):
 		self.criterion = criterion
 
+	# Sets the user provided list of metrics as callbacks and adds them to the callbacks list.
 	def setMetrics(self, metrics):
 		assert not "Loss" in metrics, "Cannot overwrite Loss metric. This is added by default for all networks."
-		assert type(metrics) in (dict, OrderedDict), "Metrics must be provided as Str=>Callback dictionary"
+		assert isBaseOf(metrics, dict), "Metrics must be provided as Str=>Callback dictionary"
 
 		for key in metrics:
 			assert type(key) == str, "The key of the metric must be a string"
 			assert hasattr(metrics[key], "__call__"), "The user provided transformation %s must be callable" % (key)
-		self.metrics = metrics
-		# Set Loss metric, which should always be there.
-		self.metrics["Loss"] = Loss()
-		self.setMetricsIterPrintMessage(self.metrics.keys())
+			assert key not in self.callbacks, "Metric %s alread in callbacks list." % (key)
+			# If this is a Metric object, then store it as is, because in this way, we can call it by __call__, but
+			#  also this means that we can store it's fields of the object which can be meaningful, such in the case
+			#  of Accuracy class.
+			if isBaseOf(metrics[key], Metric):
+				metricAsCallback = MetricAsCallback(metricName=key, metric=metrics[key])
+			# Otherwise, this is a lambda callback, so we send the call itself to the constructor. Very important that
+			#  we need to rewrite the name of the arguments as results, labels, kwargs, because the constructor of
+			#  MetricAsCallback needs to call them with that notation so metrics and callbacks can be unified.
+			else:
+				metricAsCallback = MetricAsCallback(metricName=key, \
+					metric=lambda results, labels, **kwargs : metrics[key](results, labels, **kwargs))
+			# Either way, store the resulting Callback object in the list of callbacks
+			self.callbacks[key] = metricAsCallback
+			# Store the resulting Callback object in the list of callbacks
+			self.callbacks[key] = metricAsCallback
+
+	# Adds the user provided list of callbacks to the model's list of callbacks (and metrics)
+	def setCallbacks(self, callbacks):
+		for callback in callbacks:
+			assert isBaseOf(callback, Callback), \
+				"Expected only subclass of types Callback, got type %s" % (type(callback))
+			assert callback.name not in self.callbacks, "Callback %s alread in callbacks list." % (callback.name)
+			self.callbacks[callback.name] = callback
 
 	def summary(self):
 		summaryStr = "[Model summary]\n"
@@ -83,8 +105,8 @@ class NeuralNetworkPyTorch(nn.Module):
 			zip(self.hyperParameters.keys(), self.hyperParameters.values())])
 		summaryStr += "Hyperparameters: %s\n" % (strHyperParameters)
 
-		strMetrics = str(list(self.metrics.keys()))[1 : -1]
-		summaryStr += "Metrics: %s\n" % (strMetrics)
+		# strMetrics = str(list(self.metrics.keys()))[1 : -1]
+		summaryStr += "Metrics: TODO\n"
 
 		summaryStr += "Optimizer: %s\n" % getOptimizerStr(self.optimizer)
 
@@ -101,17 +123,8 @@ class NeuralNetworkPyTorch(nn.Module):
 		trainHistory["validationMetrics"] = deepcopy(kwargs["validationMetrics"])
 		trainHistory["message"] = message
 
-	def getTrainableParameters(self):
-		return list(filter(lambda p : p.requires_grad, self.parameters()))
-
-	# Checks that callbacks are indeed a subclass of the ABC Callback.
-	def checkCallbacks(self, callbacks):
-		for callback in callbacks:
-			assert isBaseOf(callback, Callback), \
-				"Expected only subclass of types Callback, got type %s" % (type(callback))
-
 	# Other neural network architectures can update these
-	def callbacksOnEpochStart(self, callbacks):
+	def callbacksOnEpochStart(self):
 		# Call onEpochStart here, using only basic args
 
 		if self.trainHistory != [] and len(self.trainHistory) >= self.currentEpoch:
@@ -119,16 +132,19 @@ class NeuralNetworkPyTorch(nn.Module):
 		else:
 			trainHistory = None
 
-		for callback in callbacks:
-			callback.onEpochStart(model=self, epoch=self.currentEpoch, trainHistory=trainHistory)
+		for key in self.callbacks:
+			self.callbacks[key].onEpochStart(model=self, epoch=self.currentEpoch, trainHistory=trainHistory)
 
-	def callbacksOnIterationStart(self, callbacks, **kwargs):
-		for callback in callbacks:
-			callback.onIterationStart(**kwargs)
+	def callbacksOnIterationStart(self, **kwargs):
+		for key in self.callbacks:
+			self.callbacks[key].onIterationStart(**kwargs)
 
-	def callbacksOnIterationEnd(self, callbacks, **kwargs):
-		for callback in callbacks:
-			callback.onIterationEnd(**kwargs)
+	def callbacksOnIterationEnd(self, **kwargs):
+		#self.callbacksOnIterationEnd(data=npInputs, labels=npLabels, results=npResults, loss=npLoss, iteration=i, \
+		#	numIterations=stepsPerEpoch, metrics=iterationMetrics)
+		# sys.exit(0)
+		for key in self.callbacks:
+			self.callbacks[key].onIterationEnd(**kwargs)
 
 	def npForward(self, x):
 		trInput = getTrData(x)
@@ -156,11 +172,11 @@ class NeuralNetworkPyTorch(nn.Module):
 		if tr.is_grad_enabled():
 			assert not self.optimizer is None, "Set optimizer before training"
 		assert not self.criterion is None, "Set criterion before training or testing"
-		assert "Loss" in self.metrics.keys(), "Loss metric was not found in metrics."
-		self.checkCallbacks(callbacks)
-		self.callbacksOnEpochStart(callbacks)
+		# assert "Loss" in self.metrics.keys(), "Loss metric was not found in metrics."
+		# self.checkCallbacks(callbacks)
+		self.callbacksOnEpochStart()
 
-		metricResults = {metric : 0 for metric in self.metrics.keys()}
+		metricResults = {metric : 0 for metric in self.callbacks.keys()}
 		i = 0
 
 		if tr.is_grad_enabled():
@@ -174,7 +190,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		startTime = datetime.now()
 		iterationMetrics = {}
 		for i, items in enumerate(generator):
-			self.callbacksOnIterationStart(callbacks)
+			self.callbacksOnIterationStart()
 			npInputs, npLabels = items
 			trInputs = getTrData(npInputs)
 			trLabels = getTrData(npLabels)
@@ -192,12 +208,13 @@ class NeuralNetworkPyTorch(nn.Module):
 			#  forms an ayclical graph. They must be called in such an order that all the parents are satisfied before
 			#  all children (topological sort).
 			# Compute the metrics
-			for metric in self.metrics:
-				iterationMetrics[metric] = self.metrics[metric](npResults, npLabels, loss=npLoss)
-				metricResults[metric] += iterationMetrics[metric]
+			# for metric in self.metrics:
+			# 	iterationMetrics[metric] = self.metrics[metric](npResults, npLabels, loss=npLoss)
+			# 	metricResults[metric] += iterationMetrics[metric]
 
-			# Iteration callbacks are called here (i.e. for plotting results!)
-			self.callbacksOnIterationEnd(callbacks, data=npInputs, labels=npLabels, results=npResults, iteration=i, \
+			# Iteration callbacks are called here. These include metrics or random callbacks such as plotting results
+			#  in testing mode.
+			self.callbacksOnIterationEnd(data=npInputs, labels=npLabels, results=npResults, loss=npLoss, iteration=i, \
 				numIterations=stepsPerEpoch, metrics=iterationMetrics)
 
 			# Print the message, after the metrics are updated.
@@ -210,9 +227,9 @@ class NeuralNetworkPyTorch(nn.Module):
 		if i != stepsPerEpoch - 1:
 			sys.stderr.write("Warning! Number of iterations (%d) does not match expected iterations in reader (%d)" % \
 				(i, stepsPerEpoch - 1))
-		for metric in metricResults:
-			metricResults[metric] /= stepsPerEpoch
-		return metricResults
+		# for metric in metricResults:
+		# 	metricResults[metric] /= stepsPerEpoch
+		return []
 
 	def test_generator(self, generator, stepsPerEpoch, callbacks=[], printMessage=False):
 		assert stepsPerEpoch > 0
@@ -248,13 +265,15 @@ class NeuralNetworkPyTorch(nn.Module):
 		return self.test_generator(dataGenerator, stepsPerEpoch=numIterations, callbacks=callbacks, \
 			printMessage=printMessage)
 
-	def setMetricsIterPrintMessage(self, metricKeys):
-		for metricKey in metricKeys:
-			assert metricKey in self.metrics, "%s not in metrics: %s" % (metricKeys, list(self.metrics.keys()))
-		self.metricsIterPrintMessage = metricKeys
+	# def setMetricsIterPrintMessage(self, metricKeys):
+	# 	for metricKey in metricKeys:
+	# 		assert metricKey in self.metrics, "%s not in metrics: %s" % (metricKeys, list(self.metrics.keys()))
+	# 	self.metricsIterPrintMessage = metricKeys
 
 	def computeIterPrintMessage(self, i, stepsPerEpoch, metricResults, iterFinishTime):
 		message = "Iteration: %d/%d." % (i + 1, stepsPerEpoch)
+		# TODO
+		return message
 		for metric in sorted(metricResults):
 			if not metric in self.metricsIterPrintMessage:
 				continue
@@ -271,6 +290,7 @@ class NeuralNetworkPyTorch(nn.Module):
 	# @param[in] kwargs The arguments sent to any regular callback.
 	# @return A string that contains the one-line message that is printed at each end of epoch.
 	def computePrintMessage(self, **kwargs):
+		return "TODO"
 		currentEpoch = kwargs["epoch"]
 		numEpochs = kwargs["numEpochs"]
 		trainMetrics = kwargs["trainMetrics"]
@@ -285,6 +305,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		if not validationMetrics is None:
 			for metric in sorted(validationMetrics):
 				message += " %s: %2.2f." % ("Val " + metric, validationMetrics[metric])
+		# TODO: optimizer needn't be set for testing, yet calling this fails.
 		message += " LR: %2.5f." % (self.optimizer.state_dict()["param_groups"][0]["lr"])
 
 		message += " Took: %s." % (duration)
@@ -299,15 +320,15 @@ class NeuralNetworkPyTorch(nn.Module):
 	#  oneIterationStart, onIterationEnd, onEpochStart or onEpochEnd methods. Moreover, whenever this method is called
 	#  the list is stored in this object, such that the state of each callback is stored . Moreover, if None is given,
 	#  then the already stored member is used (helpful for load_models, so we don't do callbacks=model.callbacks).
-	def train_generator(self, generator, stepsPerEpoch, numEpochs, callbacks=None, validationGenerator=None, \
+	def train_generator(self, generator, stepsPerEpoch, numEpochs, validationGenerator=None, \
 		validationSteps=0, printMessage=True, **kwargs):
 		assert stepsPerEpoch > 0
 
 		# Callbacks validation and storing (for save_model)
-		if callbacks == None:
-			callbacks = self.callbacks
-		self.checkCallbacks(callbacks)
-		self.callbacks = callbacks
+		# if callbacks == None:
+			# callbacks = self.callbacks
+		# self.checkCallbacks(callbacks)
+		# self.callbacks = callbacks
 
 		if self.currentEpoch > numEpochs:
 			sys.stdout.write("Warning. Current epoch (%d) <= requested epochs (%d). Doing nothing.\n" \
@@ -327,11 +348,10 @@ class NeuralNetworkPyTorch(nn.Module):
 			now = datetime.now()
 			# No iteration callbacks are used if there is a validation set (so iteration callbacks are only
 			#  done on validation set). If no validation set is used, the iteration callbacks are used on train set.
-			trainCallbacks = [] if validationGenerator != None else callbacks
+			# trainCallbacks = [] if validationGenerator != None else callbacks
 			with StorePrevState(self):
 				# self.train()
-				trainMetrics = self.run_one_epoch(generator, stepsPerEpoch, callbacks=trainCallbacks, \
-					printMessage=printMessage, **kwargs)
+				trainMetrics = self.run_one_epoch(generator, stepsPerEpoch,	printMessage=printMessage, **kwargs)
 
 			# Run for validation data and append the results
 			if validationGenerator != None:
@@ -339,7 +359,7 @@ class NeuralNetworkPyTorch(nn.Module):
 					# self.eval()
 					with tr.no_grad():
 						validationMetrics = self.run_one_epoch(validationGenerator, validationSteps, \
-							callbacks=callbacks, printMessage=False, **kwargs)
+							printMessage=False, **kwargs)
 			duration = datetime.now() - now
 
 			# Do the callbacks for the end of epoch.
@@ -354,15 +374,15 @@ class NeuralNetworkPyTorch(nn.Module):
 			}
 
 			# Print message is also computed in similar fashion using callback arguments
-			message = self.computePrintMessage(**callbackArgs)
-			if printMessage:
-				sys.stdout.write(message + "\n")
-				sys.stdout.flush()
+			# message = self.computePrintMessage(**callbackArgs)
+			# if printMessage:
+			# 	sys.stdout.write(message + "\n")
+			# 	sys.stdout.flush()
 
-			# Add basic value to the history dictionary (just loss and time)
-			self.populateHistoryDict(message, **callbackArgs)
-			for callback in callbacks:
-				callback.onEpochEnd(**callbackArgs)
+			# # Add basic value to the history dictionary (just loss and time)
+			# self.populateHistoryDict(message, **callbackArgs)
+			# for callback in callbacks:
+			# 	callback.onEpochEnd(**callbackArgs)
 
 			self.currentEpoch += 1
 

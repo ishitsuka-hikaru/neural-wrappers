@@ -1,13 +1,13 @@
 import os
 import sys
 import numpy as np
-from copy import deepcopy
+from copy import deepcopy, copy
 sys.path.append(os.path.dirname(os.path.realpath(__file__)) + "/pytorch")
 from pytorch_utils import plotModelHistory
 
 class Callback:
-	def __init__(self):
-		pass
+	def __init__(self, name=None):
+		self.name = name
 
 	def onEpochStart(self, **kwargs):
 		pass
@@ -33,12 +33,25 @@ class Callback:
 	def onCallbackSave(self, **kwargs):
 		pass
 
-	def __str__(self):
-		return "Generic neural network callback"
+# This class is used to convert metrics to callbacks which are called at each iteration. This is done so we unify
+#  metrics and callbacks in one way. Stats and iteration messages can be computed for both cases thanks to this.
+class MetricAsCallback(Callback):
+	def __init__(self, metricName, metric):
+		super().__init__(metricName)
+		self.metric = metric
+
+	def onIterationEnd(self, **kwargs):
+		thisKw = copy(kwargs)
+		results = thisKw["results"]
+		labels = thisKw["labels"]
+		del thisKw["results"]
+		del thisKw["labels"]
+		return self.metric(results, labels, **thisKw)
 
 # TODO: add format to saving files
 class SaveHistory(Callback):
 	def __init__(self, fileName, mode="write"):
+		super().__init__(str(self))
 		assert mode in ("write", "append")
 		mode = "w" if mode == "write" else "a"
 		self.fileName = fileName
@@ -62,6 +75,7 @@ class SaveHistory(Callback):
 # TODO: add format to saving files
 class SaveModels(Callback):
 	def __init__(self, type="all", metric="Loss", metricDirection="min"):
+		super().__init__(str(self))
 		assert type in ("all", "improvements", "last", "best")
 		self.type = type
 		self.best = float("nan")
@@ -104,7 +118,8 @@ class SaveModels(Callback):
 # Used to save self-supervised models.
 class SaveModelsSelfSupervised(SaveModels):
 	def __init__(self, type="all"):
-		super().__init__(type)
+		super().__init__(str(self))
+		self.name = "SaveModelsSelfSupervised"
 
 	def onEpochEnd(self, **kwargs):
 		model = deepcopy(kwargs["model"]).cpu()
@@ -114,6 +129,7 @@ class SaveModelsSelfSupervised(SaveModels):
 
 class ConfusionMatrix(Callback):
 	def __init__(self, numClasses, categoricalLabels):
+		super().__init__("ConfusionMatrix")
 		self.numClasses = numClasses
 		self.categoricalLabels = categoricalLabels
 		self.confusionMatrix = np.zeros((numClasses, numClasses), dtype=np.int32)
@@ -139,6 +155,7 @@ class ConfusionMatrix(Callback):
 
 class PlotMetricsCallback(Callback):
 	def __init__(self, metrics, plotBestBullet=None, dpi=120):
+		super().__init__(str(self))
 		assert len(metrics) > 0, "Expected a list of at least one metric which will be plotted."
 		self.metrics = metrics
 		self.dpi = dpi
