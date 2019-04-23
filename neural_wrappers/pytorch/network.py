@@ -15,6 +15,26 @@ from metrics import Metric
 from .network_serializer import NetworkSerializer
 from .pytorch_utils import maybeCuda, maybeCpu, getNumParams, getOptimizerStr, getNpData, getTrData, StorePrevState
 
+class RunningMean:
+	def __init__(self):
+		self.value = 0
+		self.count = 0
+
+	def update(self, value, count):
+		if value != None:
+			assert count > 0
+			self.value += value
+			self.count += count
+
+	def get(self):
+		return float(self.value / (self.count + 1e-5))
+
+	def __repr__(self):
+		return self.get()
+
+	def __str__(self):
+		return self.get()
+
 # Wrapper on top of the PyTorch model. Added methods for saving and loading a state. To completly implement a PyTorch
 #  model, one must define layers in the object's constructor, call setOptimizer, setCriterion and implement the
 #  forward method identically like a normal PyTorch model.
@@ -30,7 +50,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.callbacks = {"Loss" : MetricAsCallback("Loss", lambda y, t, **k : k["loss"])}
 		# A list of all the metrics/callbacks that are used to compute the iteration print
 		#  message during training/testing
-		self.metricsIterPrintMessage = ["Loss"]
+		self.iterPrintMessageKeys = ["Loss"]
 
 		# A list that stores various information about the model at each epoch. The index in the list represents the
 		#  epoch value. Each value of the list is a dictionary that holds by default only loss value, but callbacks
@@ -83,6 +103,7 @@ class NeuralNetworkPyTorch(nn.Module):
 					metric=lambda results, labels, **kwargs : metrics[key](results, labels, **kwargs))
 			# Either way, store the resulting Callback object in the list of callbacks
 			self.callbacks[key] = metricAsCallback
+			self.iterPrintMessageKeys.append(key)
 
 	# Adds the user provided list of callbacks to the model's list of callbacks (and metrics)
 	def setCallbacks(self, callbacks):
@@ -140,12 +161,14 @@ class NeuralNetworkPyTorch(nn.Module):
 		for key in self.callbacks:
 			self.callbacks[key].onIterationStart(**kwargs)
 
-	def callbacksOnIterationEnd(self, **kwargs):
-		#self.callbacksOnIterationEnd(data=npInputs, labels=npLabels, results=npResults, loss=npLoss, iteration=i, \
-		#	numIterations=stepsPerEpoch, metrics=iterationMetrics)
-		# sys.exit(0)
+	def callbacksOnIterationEnd(self, data, labels, results, loss, iteration, numIterations, metricResults):
+		iterResults = {}
+		# TODO: topological sort
 		for key in self.callbacks:
-			self.callbacks[key].onIterationEnd(**kwargs)
+			# iterResults is updated at each step in the order of topological sort
+			iterResults[key] = self.callbacks[key].onIterationEnd(results, labels, data=data, loss=loss, \
+				iteration=iteration, numIterations=numIterations, iterResults=iterResults, metricResults=metricResults)
+			metricResults[key].update(iterResults[key], 1)
 
 	def npForward(self, x):
 		trInput = getTrData(x)
@@ -177,7 +200,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		# self.checkCallbacks(callbacks)
 		self.callbacksOnEpochStart()
 
-		metricResults = {metric : 0 for metric in self.callbacks.keys()}
+		metricResults = {metric : RunningMean() for metric in self.callbacks.keys()}
 		i = 0
 
 		if tr.is_grad_enabled():
@@ -189,7 +212,6 @@ class NeuralNetworkPyTorch(nn.Module):
 		#  inputs, they can be packed together (stacked) or put into a list, in which case the ntwork will receive the
 		#  same list, but every element in the list is tranasformed in torch format.
 		startTime = datetime.now()
-		iterationMetrics = {}
 		for i, items in enumerate(generator):
 			self.callbacksOnIterationStart()
 			npInputs, npLabels = items
@@ -208,15 +230,10 @@ class NeuralNetworkPyTorch(nn.Module):
 			# TODO: metrics and callbacks should be merged. Each callback/metric can have one or more "parents" which
 			#  forms an ayclical graph. They must be called in such an order that all the parents are satisfied before
 			#  all children (topological sort).
-			# Compute the metrics
-			# for metric in self.metrics:
-			# 	iterationMetrics[metric] = self.metrics[metric](npResults, npLabels, loss=npLoss)
-			# 	metricResults[metric] += iterationMetrics[metric]
-
 			# Iteration callbacks are called here. These include metrics or random callbacks such as plotting results
 			#  in testing mode.
 			self.callbacksOnIterationEnd(data=npInputs, labels=npLabels, results=npResults, loss=npLoss, iteration=i, \
-				numIterations=stepsPerEpoch, metrics=iterationMetrics)
+				numIterations=stepsPerEpoch, metricResults=metricResults)
 
 			# Print the message, after the metrics are updated.
 			if printMessage:
@@ -228,8 +245,8 @@ class NeuralNetworkPyTorch(nn.Module):
 		if i != stepsPerEpoch - 1:
 			sys.stderr.write("Warning! Number of iterations (%d) does not match expected iterations in reader (%d)" % \
 				(i, stepsPerEpoch - 1))
-		# for metric in metricResults:
-		# 	metricResults[metric] /= stepsPerEpoch
+		for metric in metricResults:
+			metricResults[metric] = metricResults[metric]
 		return []
 
 	def test_generator(self, generator, stepsPerEpoch, callbacks=[], printMessage=False):
@@ -266,24 +283,25 @@ class NeuralNetworkPyTorch(nn.Module):
 		return self.test_generator(dataGenerator, stepsPerEpoch=numIterations, callbacks=callbacks, \
 			printMessage=printMessage)
 
-	# def setMetricsIterPrintMessage(self, metricKeys):
-	# 	for metricKey in metricKeys:
-	# 		assert metricKey in self.metrics, "%s not in metrics: %s" % (metricKeys, list(self.metrics.keys()))
-	# 	self.metricsIterPrintMessage = metricKeys
+	def setIterPrintMessageKeys(self, Keys):
+		for key in Keys:
+			assert key in self.callback, "%s not in callbacks: %s" % (key, list(self.callbacks.keys()))
+		self.iterPrintMessageKeys = iterPrintMessageKeys
 
 	def computeIterPrintMessage(self, i, stepsPerEpoch, metricResults, iterFinishTime):
 		message = "Iteration: %d/%d." % (i + 1, stepsPerEpoch)
-		# TODO
-		return message
-		for metric in sorted(metricResults):
-			if not metric in self.metricsIterPrintMessage:
+		for key in sorted(metricResults):
+			if not key in self.iterPrintMessageKeys:
 				continue
-			message += " %s: %2.2f." % (metric, metricResults[metric] / (i + 1))
+			message += " %s: %2.2f." % (key, metricResults[key].get())
+
+		if self.optimizer:
+			message += " LR: %2.5f." % (self.optimizer.state_dict()["param_groups"][0]["lr"])
+
 		# iterFinishTime / (i + 1) is the current estimate per iteration. That value times stepsPerEpoch is
 		#  the current estimation per epoch. That value minus current time is the current estimation for
 		#  time remaining for this epoch. It can also go negative near end of epoch, so use abs.
 		ETA = abs(iterFinishTime / (i + 1) * stepsPerEpoch - iterFinishTime)
-		message += " LR: %2.5f." % (self.optimizer.state_dict()["param_groups"][0]["lr"])
 		message += " ETA: %s" % (ETA)
 		return message
 

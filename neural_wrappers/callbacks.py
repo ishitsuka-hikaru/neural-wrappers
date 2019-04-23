@@ -19,7 +19,7 @@ class Callback:
 	def onIterationStart(self, **kwargs):
 		pass
 
-	def onIterationEnd(self, **kwargs):
+	def onIterationEnd(self, results, labels, **kwargs):
 		pass
 
 	# Some callbacks requires some special/additional tinkering when loading a neural network model from a pickle
@@ -42,12 +42,8 @@ class MetricAsCallback(Callback):
 		self.metric = metric
 		self.spec = inspect.getfullargspec(self.metric)[0]
 
-	def onIterationEnd(self, **kwargs):
-		# TODO: this requires shallow copying at EACH STEP the kwargs
-		thisKw = copy(kwargs)
-		thisKw[self.spec[0]] = thisKw["results"]
-		thisKw[self.spec[1]] = thisKw["labels"]
-		res = self.metric(**thisKw)
+	def onIterationEnd(self, results, labels, **kwargs):
+		return self.metric(results, labels, **kwargs)
 
 # TODO: add format to saving files
 class SaveHistory(Callback):
