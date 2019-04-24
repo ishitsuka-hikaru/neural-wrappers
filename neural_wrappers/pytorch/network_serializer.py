@@ -7,6 +7,7 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(dir_path + "/../utilities")
 from utils import isBaseOf
 import neural_wrappers.callbacks
+from collections import OrderedDict
 
 class NetworkSerializer:
 	# @param[in] The model upon which this serializer works.
@@ -55,22 +56,26 @@ class NetworkSerializer:
 	def doSaveCallbacks(self):
 		callbacksAdditional = []
 		callbacks = []
-		for key in self.model.callbacks:
+		callbacksOriginalPositions = []
+		for i, key in enumerate(self.model.callbacks):
 			# Store only callbacks, not MetricAsCallbacks (As they are lambdas which cannot be pickle'd).
 			# Metrics must be reloaded anyway, as they do not hold any (global) state, like full Callbacks do.
 			callback = self.model.callbacks[key]
 			if isBaseOf(callback, neural_wrappers.callbacks.MetricAsCallback):
-				continue
-			additional = callback.onCallbackSave(model=self.model)
-			callbacksAdditional.append(deepcopy(additional))
-			callbacks.append(deepcopy(callback))
+				callbacksOriginalPositions.append(callback.name)
+			else:
+				additional = callback.onCallbackSave(model=self.model)
+				callbacksAdditional.append(deepcopy(additional))
+				callbacks.append(deepcopy(callback))
+				callbacksOriginalPositions.append(None)
 			# Pretty awkward, but we need to restore the state of this callback (not the one that stored). Calling
 			#  onCallbackSave must make the object deep-copyable and pickle-able, but it may leave it in a bad state
 			#  (closed files etc.). But we may need to continue using that callback as well (such as storing models
 			#  every epoch, but also continuing training), thus we need to "repair" this callback as if we'd load it
 			#  from state.
-			callback.onCallbackLoad(additional, model=self.model)
-		return {"state" : callbacks, "additional" : callbacksAdditional}
+				callback.onCallbackLoad(additional, model=self.model)
+		return {"state" : callbacks, "additional" : callbacksAdditional, \
+			"callbacks_positions" : callbacksOriginalPositions}
 
 	## Loading ##
 
@@ -163,9 +168,35 @@ class NetworkSerializer:
 		assert "callbacks" in loadedState
 		callbacks = loadedState["callbacks"]["state"]
 		additionals = loadedState["callbacks"]["additional"]
-		self.model.callbacks = callbacks
-		for i in range(len(self.model.callbacks)):
-			callback = self.model.callbacks[i]
-			additional = additionals[i]
-			callback.onCallbackLoad(additional, model=self.model)
+		originalPositions = loadedState["callbacks"]["callbacks_positions"]
+		print(originalPositions)
+		print(type(self.model.callbacks), len(self.model.callbacks))
+		print(type(callbacks), len(callbacks))
+
+		filteredPositions = list(filter(lambda x : type(x) is str, originalPositions))
+		assert len(filteredPositions) == len(self.model.callbacks), \
+			"Some metrics were saved: %s, but the list of loaded callbacks is different %s" \
+			% (filteredPositions, list(self.model.callbacks.keys()))
+
+		# Create a new OrederedDict, with the correct order (local metrics + stored callbacks), so we can load the
+		#  topological sort correctly.
+		newCallbacks = OrderedDict()
+		j = 0
+		# TODO: might have to reimplement this perhaps because of changing callback names before/after loading
+		#  which might mess up topological sort.
+		for i in range(len(originalPositions)):
+			# Loading stored callbacks with state
+			if originalPositions[i] == None:
+				key = callbacks[j].name
+				value = callbacks[j]
+				additional = additionals[j]
+				value.onCallbackLoad(additional, model=self.model)
+				j += 1
+			# Loading stored metrics without state (assumed setMetrics is called identically as it was before storing)
+			# This includes setCriterion as well.
+			else:
+				key = originalPositions[i]
+				value = self.model.callbacks[key]
+			newCallbacks[key] = value
+		self.model.callbacks = newCallbacks
 		print("Succesfully loaded %d callbacks" % (len(callbacks)))

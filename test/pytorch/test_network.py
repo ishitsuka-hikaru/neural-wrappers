@@ -22,6 +22,7 @@ class Model(NeuralNetworkPyTorch):
 
 class SchedulerCallback(Callback):
 	def __init__(self, optimizer):
+		super().__init__("SchedulerCallback")
 		self.scheduler = ReduceLROnPlateau(optimizer, "min", factor=0.1, patience=10, eps=1e-4)
 
 	def onEpochEnd(self, **kwargs):
@@ -97,24 +98,24 @@ class TestNetwork:
 		model.setCriterion(lambda y, t : tr.sum((y - t)**2))
 
 		callbacks = [SchedulerCallback(model.optimizer)]
-		model.train_model(data=inputs, labels=targets, batchSize=10, \
-			numEpochs=10, callbacks=callbacks, printMessage=False)
+		model.setCallbacks(callbacks)
+		print("HERE ORIGINAL:", model.callbacks)
+		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=10, printMessage=False)
 		# print(model.callbacks[0].scheduler.num_bad_epochs)
 		model.saveModel("test_model.pkl")
-		model.train_model(data=inputs, labels=targets, batchSize=10, \
-			numEpochs=20, callbacks=callbacks, printMessage=False)
+		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=20, printMessage=False)
 		# print(model.callbacks[0].scheduler.num_bad_epochs)
-		assert model.callbacks[0].scheduler.optimizer == model.optimizer
+		assert model.callbacks["SchedulerCallback"].scheduler.optimizer == model.optimizer
 
 		model_new = maybeCuda(Model(I, H, O))
-		model_new.loadModel("test_model.pkl")
 		model_new.setCriterion(lambda y, t : tr.sum((y - t)**2))
+		model_new.loadModel("test_model.pkl")
 		# print(model_new.callbacks[0].scheduler.num_bad_epochs)
-		assert model_new.callbacks[0].scheduler.optimizer == model_new.optimizer
-		model_new.train_model(data=inputs, labels=targets, batchSize=10, \
-			numEpochs=20, callbacks=model_new.callbacks, printMessage=False)
+		assert model_new.callbacks["SchedulerCallback"].scheduler.optimizer == model_new.optimizer
+		model_new.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=20, printMessage=False)
 		# print(model_new.callbacks[0].scheduler.num_bad_epochs)
-		assert model.callbacks[0].scheduler.num_bad_epochs == model_new.callbacks[0].scheduler.num_bad_epochs
+		assert model.callbacks["SchedulerCallback"].scheduler.num_bad_epochs \
+			== model_new.callbacks["SchedulerCallback"].scheduler.num_bad_epochs
 
 		weights_model = list(model.parameters())
 		weights_model_new = list(model_new.parameters())

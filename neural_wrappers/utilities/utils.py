@@ -164,3 +164,23 @@ def changeDirectory(Dir, expectExist):
 	if expectExist == False:
 		os.makedirs(Dir)
 	os.chdir(Dir)
+
+class RunningMean:
+	def __init__(self):
+		self.value = 0
+		self.count = 0
+
+	def update(self, value, count):
+		if value != None:
+			assert count > 0
+			self.value += value
+			self.count += count
+
+	def get(self):
+		return float(self.value / (self.count + 1e-5))
+
+	def __repr__(self):
+		return self.get()
+
+	def __str__(self):
+		return self.get()
