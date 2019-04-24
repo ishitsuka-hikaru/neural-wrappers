@@ -25,10 +25,10 @@ class TestDatasetReader:
 		reader = BasicReader(dataDims=["rgb"], labelDims=["classes"], dimTransform={"rgb" : double}, \
 			normalizer={"rgb" : "min_max_normalization"})
 		assert len(reader.normalizer) == 2
-		# assert reader.normalizer["rgb"][0] == "min_max_normalization"
+		assert reader.normalizer["rgb"][0] == "min_max_normalization"
 
-		# reader = BasicReader(dataDims=["rgb", "depth"], labelDims=["classes"], dimTransform={"rgb" : double}, \
-		# 	normalizer={"rgb": "min_max_normalization"})
-		# assert len(reader.normalizer) == 2
-		# assert reader.normalizer["rgb"][0] == "min_max_normalization"
-		# assert reader.normalizer["depth"][0] == "none"
+		reader = BasicReader(dataDims=["rgb", "depth"], labelDims=["classes"], dimTransform={"rgb" : double}, \
+			normalizer={"rgb": "min_max_normalization"})
+		assert len(reader.normalizer) == 3
+		assert reader.normalizer["rgb"][0] == "min_max_normalization"
+		assert reader.normalizer["depth"][0] == "identity"

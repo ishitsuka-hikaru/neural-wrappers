@@ -99,7 +99,6 @@ class TestNetwork:
 
 		callbacks = [SchedulerCallback(model.optimizer)]
 		model.setCallbacks(callbacks)
-		print("HERE ORIGINAL:", model.callbacks)
 		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=10, printMessage=False)
 		# print(model.callbacks[0].scheduler.num_bad_epochs)
 		model.saveModel("test_model.pkl")
