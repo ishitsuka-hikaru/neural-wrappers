@@ -1,5 +1,6 @@
 # network_serializer.py Script that handles saving/loading a NeuralNetworkPyTorch class (weights, state etc.)
 import torch as tr
+import numpy as np
 from copy import deepcopy
 from .pytorch_utils import maybeCuda, getNumParams, getOptimizerStr
 import sys, os
@@ -75,7 +76,7 @@ class NetworkSerializer:
 			#  from state.
 				callback.onCallbackLoad(additional, model=self.model)
 		return {"state" : callbacks, "additional" : callbacksAdditional, \
-			"callbacks_positions" : callbacksOriginalPositions}
+			"callbacks_positions" : callbacksOriginalPositions, "topological_sort" : self.model.topologicalSort}
 
 	## Loading ##
 
@@ -169,6 +170,7 @@ class NetworkSerializer:
 		callbacks = loadedState["callbacks"]["state"]
 		additionals = loadedState["callbacks"]["additional"]
 		originalPositions = loadedState["callbacks"]["callbacks_positions"]
+		topologicalSort = loadedState["callbacks"]["topological_sort"]
 
 		filteredPositions = list(filter(lambda x : type(x) is str, originalPositions))
 		# This filtering is needed if we're doing save/load on the same model (such as loading and storing very often
@@ -199,4 +201,9 @@ class NetworkSerializer:
 				value = metricCallbacks[key]
 			newCallbacks[key] = value
 		self.model.callbacks = newCallbacks
-		print("Succesfully loaded %d callbacks" % (len(callbacks)))
+		self.model.topologicalSort = topologicalSort
+		self.model.topologicalKeys = np.array(list(self.model.callbacks.keys()))[topologicalSort]
+
+		numMetrics = len(self.model.getMetrics())
+		numAll = len(self.model.callbacks)
+		print("Succesfully loaded %d callbacks (%d metrics)" % (numAll, numMetrics))

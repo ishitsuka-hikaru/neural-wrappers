@@ -184,3 +184,35 @@ class RunningMean:
 
 	def __str__(self):
 		return self.get()
+
+# Given a graph as a dict {Node : [Dependencies]}, returns a list [Node] ordered with a correct topological sort order
+# Applies Kahn's algorithm: https://ocw.cs.pub.ro/courses/pa/laboratoare/laborator-07
+def topologicalSort(depGraph):
+	print(depGraph)
+	L, S = [], []
+
+	# First step si to create a regular graph of {Node : [Children]}
+	graph = {k : [] for k in depGraph.keys()}
+	for key in depGraph:
+		for parent in depGraph[key]:
+			graph[parent].append(key)
+
+	# Add nodes with no dependencies and start BFS from them
+	depGraph = {k : len(depGraph[k]) for k in depGraph.keys()}
+	for key in depGraph:
+		if depGraph[key] == 0:
+			S.append(key)
+
+	while len(S) > 0:
+		u = S.pop()
+		L.append(u)
+
+		for v in graph[u]:
+			depGraph[v] -= 1
+			if depGraph[v] == 0:
+				S.append(v)
+
+	for key in depGraph:
+		if depGraph[key] != 0:
+			raise Exception("Graph is not acyclical")
+	return L

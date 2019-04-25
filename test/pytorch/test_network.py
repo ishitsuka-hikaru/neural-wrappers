@@ -21,8 +21,8 @@ class Model(NeuralNetworkPyTorch):
 		return y3
 
 class SchedulerCallback(Callback):
-	def __init__(self, optimizer):
-		super().__init__("SchedulerCallback")
+	def __init__(self, optimizer, **kwargs):
+		super().__init__(**kwargs)
 		self.scheduler = ReduceLROnPlateau(optimizer, "min", factor=0.1, patience=10, eps=1e-4)
 
 	def onEpochEnd(self, **kwargs):
@@ -34,6 +34,10 @@ class SchedulerCallback(Callback):
 
 	def onCallbackLoad(self, additional, **kwargs):
 		self.scheduler.optimizer = kwargs["model"].optimizer
+
+class MyTestCallback(Callback):
+	def __init__(self, **kwargs):
+		super().__init__(**kwargs)
 
 class TestNetwork:
 	def test_save_weights_1(self):
@@ -97,8 +101,8 @@ class TestNetwork:
 		model.setOptimizer(SGD, lr=0.005)
 		model.setCriterion(lambda y, t : tr.sum((y - t)**2))
 
-		callbacks = [SchedulerCallback(model.optimizer)]
-		model.setCallbacks(callbacks)
+		callbacks = [SchedulerCallback(model.optimizer, name="SchedulerCallback")]
+		model.addCallbacks(callbacks)
 		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=10, printMessage=False)
 		# print(model.callbacks[0].scheduler.num_bad_epochs)
 		model.saveModel("test_model.pkl")
@@ -135,8 +139,8 @@ class TestNetwork:
 		model.setCriterion(lambda y, t: y.mean())
 
 		callbacks = [SaveModels("best", "Loss", "min"), SaveModels("last"), SaveHistory("history.txt")]
-		model.setCallbacks(callbacks)
-		model.setMetrics({"Test" : lambda x, y, **k : 0.5})
+		model.addCallbacks(callbacks)
+		model.addMetrics({"Test" : lambda x, y, **k : 0.5})
 		beforeKeys = list(model.callbacks.keys())
 		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=10, printMessage=False)
 		model.saveModel("test_model.pkl")
@@ -148,58 +152,168 @@ class TestNetwork:
 			assert beforeKeys[i] == afterKeys[i]
 
 	# Adding metrics normally should be fine.
-	def test_set_metrics_1(self):
+	def test_add_merics_1(self):
 		I, H, O = 100, 50, 30
 		model = maybeCuda(Model(I, H, O))
 		try:
-			model.setMetrics({"Test" : lambda x, y, **k : 0.5})
+			model.addMetrics({"Test" : lambda x, y, **k : 0.5})
 		except Exception:
 			assert False
 
 		try:
-			model.setMetrics({"Test2" : lambda x, y, **k : 0.5})
+			model.addMetrics({"Test2" : lambda x, y, **k : 0.5})
 		except Exception as e:
 			assert False
 
 	# Adding two metrics with same name should clash it
-	def test_set_metrics_2(self):
+	def test_add_merics_2(self):
 		I, H, O = 100, 50, 30
 		model = maybeCuda(Model(I, H, O))
 		try:
-			model.setMetrics({"Test" : lambda x, y, **k : 0.5})
+			model.addMetrics({"Test" : lambda x, y, **k : 0.5})
 		except Exception:
 			assert False
 
 		try:
-			model.setMetrics({"Test" : lambda x, y, **k : 0.5})
+			model.addMetrics({"Test" : lambda x, y, **k : 0.5})
 		except Exception as e:
 			return True
 		assert False
 
 	# Adding one metric and one callback with same name should clash it
-	def test_set_metrics_3(self):
-		class TestCallback(Callback):
-			def __init__(self):
-				super().__init__("Test")
-
+	def test_add_merics_3(self):
 		I, H, O = 100, 50, 30
 		model = maybeCuda(Model(I, H, O))
 		try:
-			model.setMetrics({"Test" : lambda x, y, **k : 0.5})
+			model.addMetrics({"Test" : lambda x, y, **k : 0.5})
 		except Exception:
 			assert False
 
 		try:
-			model.setCallbacks([TestCallback()])
+			model.addCallbacks([MyTestCallback(name="Test")])
 		except Exception:
 			return True
 		assert False
+
+	def test_add_callbacks_1(self):
+		I, H, O = 100, 50, 30
+		model = maybeCuda(Model(I, H, O))
+		try:
+			callbacks = [SaveModels("best", "Loss", "min", name="SaveModelsBest"), \
+				SaveModels("last", name="SaveModelsLast"), SaveHistory("history.txt")]
+			model.addCallbacks([MyTestCallback(name="TestCallback")])
+			model.addCallbacks(callbacks)
+			model.addMetrics({"Test" : lambda x, y, **k : 0.5})
+		except Exception:
+			assert False
+
+	def test_setCallbacksDependencies_1(self):
+		I, H, O = 100, 50, 30
+		model = maybeCuda(Model(I, H, O))
+		try:
+			callbacks = [SaveModels("best", "Loss", "min", name="SaveModelsBest"), \
+				SaveModels("last", name="SaveModelsLast"), SaveHistory("history.txt")]
+			model.addCallbacks([MyTestCallback(name="TestCallback")])
+			model.addCallbacks(callbacks)
+			model.addMetrics({"Test" : lambda x, y, **k : 0.5})
+			model.setCallbacksDependencies({"TestCallback" : ["Test"], "SaveModelsLast" : ["SaveModelsBest"]})
+		except Exception:
+			assert False
+
+	def test_setCallbacksDependencies_2(self):
+		I, H, O = 100, 50, 30
+		model = maybeCuda(Model(I, H, O))
+		try:
+			callbacks = [SaveModels("best", "Loss", "min", name="SaveModelsBest"), \
+				SaveModels("last", name="SaveModelsLast"), SaveHistory("history.txt")]
+			model.addCallbacks([MyTestCallback(name="TestCallback")])
+			model.addCallbacks(callbacks)
+			model.addMetrics({"Test" : lambda x, y, **k : 0.5})
+		except Exception:
+			assert False
+
+		try:
+			model.setCallbacksDependencies({"NonExistant" : ["Test"], "SaveModelsLast" : ["SaveModelsBest"]})
+		except Exception:
+			pass
+
+		try:
+			model.setCallbacksDependencies({"Test" : ["NonExistant"], "SaveModelsLast" : ["SaveModelsBest"]})
+		except Exception:
+			pass
+
+	def test_setCallbacksDependencies_3(self):
+		I, H, O = 100, 50, 30
+		model = maybeCuda(Model(I, H, O))
+		try:
+			callbacks = [SaveModels("best", "Loss", "min", name="SaveModelsBest"), \
+				SaveModels("last", name="SaveModelsLast"), SaveHistory("history.txt")]
+			model.addCallbacks([MyTestCallback(name="TestCallback")])
+			model.addCallbacks(callbacks)
+			model.addMetrics({"Test" : lambda x, y, **k : 0.5})
+		except Exception:
+			assert False
+		
+		try:
+			model.setCallbacksDependencies({"TestCallback" : ["Test"], "SaveModelsLast" : ["SaveModelsLast"]})
+		except Exception:
+			pass
+
+		try:
+			model.setCallbacksDependencies({"TestCallback" : ["Test"], "Test" : ["TestCallback"]})
+		except Exception:
+			pass
+
+		try:
+			model.setCallbacksDependencies({"TestCallback" : ["Test"], "Test" : ["SaveModelsBest"], \
+				"SaveModelsBest" : ["TestCallback"], "SaveModelsLast" : ["SaveModelsBest"]})
+		except Exception:
+			pass
+
+		try:
+			model.setCallbacksDependencies({"TestCallback" : ["Test"], "Test" : ["SaveModelsLast", "Loss"], \
+				"SaveModelsLast" : ["SaveModelsBest"]})
+		except Exception:
+			assert False
+
+	def test_setCallbacksDependencies_4(self):
+		I, H, O = 100, 50, 30
+		model = maybeCuda(Model(I, H, O))
+		model_new = maybeCuda(Model(I, H, O))
+		try:
+			callbacks = [SaveModels("best", "Loss", "min", name="SaveModelsBest"), \
+				SaveModels("last", name="SaveModelsLast"), SaveHistory("history.txt")]
+			model.addCallbacks([MyTestCallback(name="TestCallback")])
+			model.addCallbacks(callbacks)
+			model.addMetrics({"Test" : lambda x, y, **k : 0.5})
+			model.setCallbacksDependencies({"TestCallback" : ["Test"], "Test" : ["SaveModelsLast", "Loss"], \
+				"SaveModelsLast" : ["SaveModelsBest"]})
+			model_new.addMetrics({"Test" : lambda x, y, **k : 0.5})
+		except Exception:
+			assert False
+		model.setOptimizer(SGD, lr=0.005)
+		model.saveModel("test_model.pkl")
+		model_new.loadModel("test_model.pkl")
+
+		callbackKeys = list(model.callbacks.keys())
+		callbackKeysNew = list(model_new.callbacks.keys())
+		assert len(callbackKeys) == len(callbackKeysNew)
+		assert len(model.topologicalSort) == len(model_new.topologicalSort)
+		for i in range(len(callbackKeys)):
+			assert callbackKeys[i] == callbackKeysNew[i]
+			assert model.topologicalSort[i] == model_new.topologicalSort[i]
+			assert model.topologicalKeys[i] == model_new.topologicalKeys[i]
 
 if __name__ == "__main__":
 	TestNetwork().test_save_weights_1()
 	TestNetwork().test_save_model_1()
 	TestNetwork().test_save_model_2()
 	TestNetwork().test_save_model_3()
-	TestNetwork().test_set_metrics_1()
-	TestNetwork().test_set_metrics_2()
-	TestNetwork().test_set_metrics_3()
+	TestNetwork().test_add_merics_1()
+	TestNetwork().test_add_merics_2()
+	TestNetwork().test_add_merics_3()
+	TestNetwork().test_add_callbacks_1()
+	TestNetwork().test_setCallbacksDependencies_1()
+	TestNetwork().test_setCallbacksDependencies_2()
+	TestNetwork().test_setCallbacksDependencies_3()
+	TestNetwork().test_setCallbacksDependencies_4()

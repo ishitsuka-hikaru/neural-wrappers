@@ -10,7 +10,7 @@ from collections import OrderedDict
 
 from transforms import *
 import neural_wrappers.callbacks
-from neural_wrappers.utilities import makeGenerator, LinePrinter, isBaseOf, RunningMean
+from neural_wrappers.utilities import makeGenerator, LinePrinter, isBaseOf, RunningMean, topologicalSort
 from neural_wrappers.callbacks import Callback, MetricAsCallback
 from metrics import Metric
 
@@ -30,6 +30,8 @@ class NeuralNetworkPyTorch(nn.Module):
 		# Variable that holds both callbacks and metrics (which are also callbacks with just onIterationEnd method
 		#   implemented). By default Loss will always be a callback
 		self.callbacks = OrderedDict({"Loss" : MetricAsCallback("Loss", lambda y, t, **k : k["loss"])})
+		self.topologicalSort = np.array([0], dtype=np.uint8)
+		self.topologicalKeys = np.array(["Loss"], dtype=str)
 		# A list of all the metrics/callbacks that are used to compute the iteration print
 		#  message during training/testing
 		self.iterPrintMessageKeys = ["Loss"]
@@ -87,6 +89,11 @@ class NeuralNetworkPyTorch(nn.Module):
 			self.callbacks[key] = metricAsCallback
 			self.iterPrintMessageKeys.append(key)
 
+		# Warning, calling addMetrics might invalidat topological sort as we reset the indexes here. If there are
+		#  dependencies already set using setCallbacksDependeices, it must be called again.
+		self.topologicalSort = np.arange(len(self.callbacks))
+		self.topologicalKeys = np.array(list(self.callbacks.keys()))[self.topologicalSort]
+
 	# Adds the user provided list of callbacks to the model's list of callbacks (and metrics)
 	def addCallbacks(self, callbacks):
 		for callback in callbacks:
@@ -94,6 +101,10 @@ class NeuralNetworkPyTorch(nn.Module):
 				"Expected only subclass of types Callback, got type %s" % (type(callback))
 			assert callback.name not in self.callbacks, "Callback %s already in callbacks list." % (callback.name)
 			self.callbacks[callback.name] = callback
+
+		# See warning for add Metrics
+		self.topologicalSort = np.arange(len(self.callbacks))
+		self.topologicalKeys = np.array(list(self.callbacks.keys()))[self.topologicalSort]
 
 	# Returns only the callbacks that are of subclass Callback (not metrics)
 	def getCallbacks(self):
@@ -106,10 +117,26 @@ class NeuralNetworkPyTorch(nn.Module):
 			if isBaseOf(v, neural_wrappers.callbacks.MetricAsCallback)}
 		return callbacks
 
+	# Does a topological sort on the given list of callback dependencies. This MUST be called after all addMetrics and
+	#  addCallbacks are called, as these functions invalidate the topological sort.
 	def setCallbacksDependencies(self, dependencies):
-		# print(dependencies)
-		# sys.exit(0)
-		pass
+		for key in dependencies:
+			if not key in self.callbacks:
+				assert False, "Key %s is not in callbacks (%s)" % (key, list(self.callbacks.keys()))
+			for depKey in dependencies[key]:
+				if not depKey in self.callbacks:
+					assert False, "Key %s of dependency %s is not in callbacks (%s)" \
+						% (depKey, key, list(self.callbacks.keys()))
+
+		for key in self.callbacks:
+			if not key in dependencies:
+				dependencies[key] = []
+
+		order = topologicalSort(dependencies)
+		callbacksKeys = list(self.callbacks.keys())
+		self.topologicalSort = np.array([callbacksKeys.index(x) for x in order])
+		self.topologicalKeys = np.array(list(self.callbacks.keys()))[self.topologicalSort]
+		print("Successfully done topological sort!")
 
 	def getTrainableParameters(self):
 		return list(filter(lambda p : p.requires_grad, self.parameters()))
@@ -125,8 +152,11 @@ class NeuralNetworkPyTorch(nn.Module):
 			zip(self.hyperParameters.keys(), self.hyperParameters.values())])
 		summaryStr += "Hyperparameters: %s\n" % (strHyperParameters)
 
-		# strMetrics = str(list(self.metrics.keys()))[1 : -1]
-		summaryStr += "Metrics: TODO\n"
+		strMetrics = str(list(self.getMetrics().keys()))[1 : -1]
+		summaryStr += "Metrics: %s\n" % (strMetrics)
+
+		strCallbacks = str(list(self.getCallbacks().keys()))[1 : -1]
+		summaryStr += "Callbacks: %s\n" % (strCallbacks)
 
 		summaryStr += "Optimizer: %s\n" % getOptimizerStr(self.optimizer)
 
@@ -161,10 +191,7 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	def callbacksOnIterationEnd(self, data, labels, results, loss, iteration, numIterations, metricResults):
 		iterResults = {}
-		# TODO: topological sort
-		topologicalSort = np.arange(len(self.callbacks))
-		topologicalKeys = np.array(list(self.callbacks.keys()))[topologicalSort]
-		for key in self.callbacks:
+		for i, key in enumerate(self.topologicalKeys):
 			# iterResults is updated at each step in the order of topological sort
 			iterResults[key] = self.callbacks[key].onIterationEnd(results, labels, data=data, loss=loss, \
 				iteration=iteration, numIterations=numIterations, iterResults=iterResults, metricResults=metricResults)
