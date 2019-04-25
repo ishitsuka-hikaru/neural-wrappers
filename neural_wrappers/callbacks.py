@@ -8,6 +8,8 @@ import inspect
 
 class Callback:
 	def __init__(self, name=None):
+		if name is None:
+			name = str(self)
 		self.name = name
 
 	def onEpochStart(self, **kwargs):
@@ -47,8 +49,8 @@ class MetricAsCallback(Callback):
 
 # TODO: add format to saving files
 class SaveHistory(Callback):
-	def __init__(self, fileName, mode="write"):
-		super().__init__(str(self))
+	def __init__(self, fileName, mode="write", **kwargs):
+		super().__init__(**kwargs)
 		assert mode in ("write", "append")
 		mode = "w" if mode == "write" else "a"
 		self.fileName = fileName
@@ -71,8 +73,8 @@ class SaveHistory(Callback):
 
 # TODO: add format to saving files
 class SaveModels(Callback):
-	def __init__(self, type="all", metric="Loss", metricDirection="min"):
-		super().__init__(str(self))
+	def __init__(self, type="all", metric="Loss", metricDirection="min", **kwargs):
+		super().__init__(**kwargs)
 		assert type in ("all", "improvements", "last", "best")
 		self.type = type
 		self.best = float("nan")
@@ -114,8 +116,8 @@ class SaveModels(Callback):
 
 # Used to save self-supervised models.
 class SaveModelsSelfSupervised(SaveModels):
-	def __init__(self, type="all"):
-		super().__init__(str(self))
+	def __init__(self, type="all", **kwargs):
+		super().__init__(**kwargs)
 		self.name = "SaveModelsSelfSupervised"
 
 	def onEpochEnd(self, **kwargs):
@@ -125,8 +127,9 @@ class SaveModelsSelfSupervised(SaveModels):
 		super().onEpochEnd(**kwargs)
 
 class ConfusionMatrix(Callback):
-	def __init__(self, numClasses, categoricalLabels):
-		super().__init__("ConfusionMatrix")
+	def __init__(self, numClasses, categoricalLabels, **kwargs):
+		name = "ConfusionMatrix" if not "name" in kwargs else kwargs["name"]
+		super().__init__(name=name)
 		self.numClasses = numClasses
 		self.categoricalLabels = categoricalLabels
 		self.confusionMatrix = np.zeros((numClasses, numClasses), dtype=np.int32)
@@ -151,8 +154,8 @@ class ConfusionMatrix(Callback):
 			self.confusionMatrix[labels[i], results[i]] += 1
 
 class PlotMetricsCallback(Callback):
-	def __init__(self, metrics, plotBestBullet=None, dpi=120):
-		super().__init__(str(self))
+	def __init__(self, metrics, plotBestBullet=None, dpi=120, **kwargs):
+		super().__init__(**kwargs)
 		assert len(metrics) > 0, "Expected a list of at least one metric which will be plotted."
 		self.metrics = metrics
 		self.dpi = dpi

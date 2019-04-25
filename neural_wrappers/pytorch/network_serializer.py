@@ -173,8 +173,7 @@ class NetworkSerializer:
 		filteredPositions = list(filter(lambda x : type(x) is str, originalPositions))
 		# This filtering is needed if we're doing save/load on the same model (such as loading and storing very often
 		#  so there are some callbacks that need to be reloaded.
-		metricCallbacks = {k : v for k, v in self.model.callbacks.items() \
-			if isBaseOf(v, neural_wrappers.callbacks.MetricAsCallback) }
+		metricCallbacks = self.model.getMetrics()
 		assert len(filteredPositions) == len(metricCallbacks), \
 			"Some metrics were saved: %s, but the list of loaded callbacks is different %s" \
 			% (filteredPositions, list(metricCallbacks.keys()))

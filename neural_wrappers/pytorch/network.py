@@ -64,7 +64,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.criterion = criterion
 
 	# Sets the user provided list of metrics as callbacks and adds them to the callbacks list.
-	def setMetrics(self, metrics):
+	def addMetrics(self, metrics):
 		assert not "Loss" in metrics, "Cannot overwrite Loss metric. This is added by default for all networks."
 		assert isBaseOf(metrics, dict), "Metrics must be provided as Str=>Callback dictionary"
 
@@ -88,7 +88,7 @@ class NeuralNetworkPyTorch(nn.Module):
 			self.iterPrintMessageKeys.append(key)
 
 	# Adds the user provided list of callbacks to the model's list of callbacks (and metrics)
-	def setCallbacks(self, callbacks):
+	def addCallbacks(self, callbacks):
 		for callback in callbacks:
 			assert isBaseOf(callback, Callback), \
 				"Expected only subclass of types Callback, got type %s" % (type(callback))
@@ -97,8 +97,19 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	# Returns only the callbacks that are of subclass Callback (not metrics)
 	def getCallbacks(self):
-		callbacks = [v for v in self.callbacks.values() if not isBaseOf(v, neural_wrappers.callbacks.MetricAsCallback)]
+		callbacks = {k : v for k, v in self.callbacks.items() \
+			if not isBaseOf(v, neural_wrappers.callbacks.MetricAsCallback)}
 		return callbacks
+
+	def getMetrics(self):
+		callbacks = {k : v for k, v in self.callbacks.items() \
+			if isBaseOf(v, neural_wrappers.callbacks.MetricAsCallback)}
+		return callbacks
+
+	def setCallbacksDependencies(self, dependencies):
+		# print(dependencies)
+		# sys.exit(0)
+		pass
 
 	def getTrainableParameters(self):
 		return list(filter(lambda p : p.requires_grad, self.parameters()))
@@ -151,6 +162,8 @@ class NeuralNetworkPyTorch(nn.Module):
 	def callbacksOnIterationEnd(self, data, labels, results, loss, iteration, numIterations, metricResults):
 		iterResults = {}
 		# TODO: topological sort
+		topologicalSort = np.arange(len(self.callbacks))
+		topologicalKeys = np.array(list(self.callbacks.keys()))[topologicalSort]
 		for key in self.callbacks:
 			# iterResults is updated at each step in the order of topological sort
 			iterResults[key] = self.callbacks[key].onIterationEnd(results, labels, data=data, loss=loss, \
@@ -214,7 +227,7 @@ class NeuralNetworkPyTorch(nn.Module):
 			optimizeCallback(self.optimizer, trLoss)
 			iterFinishTime = (datetime.now() - startTime)
 
-			# TODO: metrics and callbacks should be merged. Each callback/metric can have one or more "parents" which
+			# metrics and callbacks are merged. Each callback/metric can have one or more "parents" which
 			#  forms an ayclical graph. They must be called in such an order that all the parents are satisfied before
 			#  all children (topological sort).
 			# Iteration callbacks are called here. These include metrics or random callbacks such as plotting results
@@ -232,9 +245,10 @@ class NeuralNetworkPyTorch(nn.Module):
 		if i != stepsPerEpoch - 1:
 			sys.stderr.write("Warning! Number of iterations (%d) does not match expected iterations in reader (%d)" % \
 				(i, stepsPerEpoch - 1))
+
 		for metric in metricResults:
-			metricResults[metric] = metricResults[metric]
-		return []
+			metricResults[metric] = metricResults[metric].get()
+		return metricResults
 
 	def test_generator(self, generator, stepsPerEpoch, printMessage=False):
 		assert stepsPerEpoch > 0
@@ -294,7 +308,6 @@ class NeuralNetworkPyTorch(nn.Module):
 	# @param[in] kwargs The arguments sent to any regular callback.
 	# @return A string that contains the one-line message that is printed at each end of epoch.
 	def computePrintMessage(self, **kwargs):
-		return "TODO"
 		currentEpoch = kwargs["epoch"]
 		numEpochs = kwargs["numEpochs"]
 		trainMetrics = kwargs["trainMetrics"]
@@ -310,7 +323,8 @@ class NeuralNetworkPyTorch(nn.Module):
 			for metric in sorted(validationMetrics):
 				message += " %s: %2.2f." % ("Val " + metric, validationMetrics[metric])
 		# TODO: optimizer needn't be set for testing, yet calling this fails.
-		message += " LR: %2.5f." % (self.optimizer.state_dict()["param_groups"][0]["lr"])
+		if self.optimizer:
+			message += " LR: %2.5f." % (self.optimizer.state_dict()["param_groups"][0]["lr"])
 
 		message += " Took: %s." % (duration)
 
@@ -378,15 +392,15 @@ class NeuralNetworkPyTorch(nn.Module):
 			}
 
 			# Print message is also computed in similar fashion using callback arguments
-			# message = self.computePrintMessage(**callbackArgs)
-			# if printMessage:
-			# 	sys.stdout.write(message + "\n")
-			# 	sys.stdout.flush()
+			message = self.computePrintMessage(**callbackArgs)
+			if printMessage:
+				sys.stdout.write(message + "\n")
+				sys.stdout.flush()
 
 			# # Add basic value to the history dictionary (just loss and time)
-			# self.populateHistoryDict(message, **callbackArgs)
-			# for callback in callbacks:
-			# 	callback.onEpochEnd(**callbackArgs)
+			self.populateHistoryDict(message, **callbackArgs)
+			for key in self.callbacks:
+				self.callbacks[key].onEpochEnd(**callbackArgs)
 
 			self.currentEpoch += 1
 
