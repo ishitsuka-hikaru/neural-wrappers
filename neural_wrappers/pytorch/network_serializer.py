@@ -169,14 +169,15 @@ class NetworkSerializer:
 		callbacks = loadedState["callbacks"]["state"]
 		additionals = loadedState["callbacks"]["additional"]
 		originalPositions = loadedState["callbacks"]["callbacks_positions"]
-		print(originalPositions)
-		print(type(self.model.callbacks), len(self.model.callbacks))
-		print(type(callbacks), len(callbacks))
 
 		filteredPositions = list(filter(lambda x : type(x) is str, originalPositions))
-		assert len(filteredPositions) == len(self.model.callbacks), \
+		# This filtering is needed if we're doing save/load on the same model (such as loading and storing very often
+		#  so there are some callbacks that need to be reloaded.
+		metricCallbacks = {k : v for k, v in self.model.callbacks.items() \
+			if isBaseOf(v, neural_wrappers.callbacks.MetricAsCallback) }
+		assert len(filteredPositions) == len(metricCallbacks), \
 			"Some metrics were saved: %s, but the list of loaded callbacks is different %s" \
-			% (filteredPositions, list(self.model.callbacks.keys()))
+			% (filteredPositions, list(metricCallbacks.keys()))
 
 		# Create a new OrederedDict, with the correct order (local metrics + stored callbacks), so we can load the
 		#  topological sort correctly.
@@ -196,7 +197,7 @@ class NetworkSerializer:
 			# This includes setCriterion as well.
 			else:
 				key = originalPositions[i]
-				value = self.model.callbacks[key]
+				value = metricCallbacks[key]
 			newCallbacks[key] = value
 		self.model.callbacks = newCallbacks
 		print("Succesfully loaded %d callbacks" % (len(callbacks)))

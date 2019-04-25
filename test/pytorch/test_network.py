@@ -1,5 +1,5 @@
 from neural_wrappers.pytorch import NeuralNetworkPyTorch, maybeCuda, maybeCpu
-from neural_wrappers.callbacks import Callback
+from neural_wrappers.callbacks import Callback, SaveModels, SaveHistory
 import numpy as np
 import torch as tr
 
@@ -125,6 +125,28 @@ class TestNetwork:
 			diff = maybeCpu(tr.sum(tr.abs(weight - weight_new))).data.numpy()
 			assert diff < 1e-5, "%d: Diff: %2.5f.\n %s %s" % (j, diff, weight, weight_new)
 
+	def test_save_model_3(self):
+		N, I, H, O = 500, 100, 50, 30
+		inputs = np.float32(np.random.randn(N, I))
+		targets = np.float32(np.random.randn(N, O))
+
+		model = maybeCuda(Model(I, H, O))
+		model.setOptimizer(Adam, lr=0.01)
+		model.setCriterion(lambda y, t: y.mean())
+
+		callbacks = [SaveModels("best", "Loss", "min"), SaveModels("last"), SaveHistory("history.txt")]
+		model.setCallbacks(callbacks)
+		model.setMetrics({"Test" : lambda x, y, **k : 0.5})
+		beforeKeys = list(model.callbacks.keys())
+		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=10, printMessage=False)
+		model.saveModel("test_model.pkl")
+		model.loadModel("test_model.pkl")
+		afterKeys = list(model.callbacks.keys())
+
+		assert len(beforeKeys) == len(afterKeys)
+		for i in range(len(beforeKeys)):
+			assert beforeKeys[i] == afterKeys[i]
+
 	# Adding metrics normally should be fine.
 	def test_set_metrics_1(self):
 		I, H, O = 100, 50, 30
@@ -176,6 +198,8 @@ class TestNetwork:
 if __name__ == "__main__":
 	TestNetwork().test_save_weights_1()
 	TestNetwork().test_save_model_1()
+	TestNetwork().test_save_model_2()
+	TestNetwork().test_save_model_3()
 	TestNetwork().test_set_metrics_1()
 	TestNetwork().test_set_metrics_2()
 	TestNetwork().test_set_metrics_3()
