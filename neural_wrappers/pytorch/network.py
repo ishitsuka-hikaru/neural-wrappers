@@ -311,8 +311,8 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	def setIterPrintMessageKeys(self, Keys):
 		for key in Keys:
-			assert key in self.callback, "%s not in callbacks: %s" % (key, list(self.callbacks.keys()))
-		self.iterPrintMessageKeys = iterPrintMessageKeys
+			assert key in self.callbacks, "%s not in callbacks: %s" % (key, list(self.callbacks.keys()))
+		self.iterPrintMessageKeys = Keys
 
 	def computeIterPrintMessage(self, i, stepsPerEpoch, metricResults, iterFinishTime):
 		message = "Iteration: %d/%d." % (i + 1, stepsPerEpoch)
@@ -344,12 +344,16 @@ class NeuralNetworkPyTorch(nn.Module):
 		done = currentEpoch / numEpochs * 100
 		message = "Epoch %d/%d. Done: %2.2f%%." % (currentEpoch, numEpochs, done)
 		for metric in sorted(trainMetrics):
+			if not metric in self.iterPrintMessageKeys:
+				continue
 			message += " %s: %2.2f." % (metric, trainMetrics[metric])
 
 		if not validationMetrics is None:
 			for metric in sorted(validationMetrics):
+				if not metric in self.iterPrintMessageKeys:
+					continue
 				message += " %s: %2.2f." % ("Val " + metric, validationMetrics[metric])
-		# TODO: optimizer needn't be set for testing, yet calling this fails.
+
 		if self.optimizer:
 			message += " LR: %2.5f." % (self.optimizer.state_dict()["param_groups"][0]["lr"])
 

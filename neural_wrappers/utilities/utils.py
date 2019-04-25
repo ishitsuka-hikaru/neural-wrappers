@@ -188,18 +188,16 @@ class RunningMean:
 # Given a graph as a dict {Node : [Dependencies]}, returns a list [Node] ordered with a correct topological sort order
 # Applies Kahn's algorithm: https://ocw.cs.pub.ro/courses/pa/laboratoare/laborator-07
 def topologicalSort(depGraph):
-	print(depGraph)
 	L, S = [], []
 
-	# First step si to create a regular graph of {Node : [Children]}
+	# First step is to create a regular graph of {Node : [Children]}
 	graph = {k : [] for k in depGraph.keys()}
 	for key in depGraph:
 		for parent in depGraph[key]:
 			graph[parent].append(key)
-
-	# Add nodes with no dependencies and start BFS from them
-	depGraph = {k : len(depGraph[k]) for k in depGraph.keys()}
-	for key in depGraph:
+		# Transform the depGraph into a list of number of in-nodes
+		depGraph[key] = len(depGraph[key])
+		# Add nodes with no dependencies and start BFS from them
 		if depGraph[key] == 0:
 			S.append(key)
 
