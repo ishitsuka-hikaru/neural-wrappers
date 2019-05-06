@@ -4,7 +4,6 @@ import numpy as np
 from copy import deepcopy, copy
 sys.path.append(os.path.dirname(os.path.realpath(__file__)) + "/pytorch")
 from pytorch_utils import plotModelHistory
-import inspect
 
 class Callback:
 	def __init__(self, name=None):
@@ -42,7 +41,6 @@ class MetricAsCallback(Callback):
 	def __init__(self, metricName, metric):
 		super().__init__(metricName)
 		self.metric = metric
-		self.spec = inspect.getfullargspec(self.metric)[0]
 
 	def onIterationEnd(self, results, labels, **kwargs):
 		return self.metric(results, labels, **kwargs)

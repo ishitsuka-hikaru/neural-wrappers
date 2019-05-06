@@ -195,7 +195,12 @@ class NeuralNetworkPyTorch(nn.Module):
 			# iterResults is updated at each step in the order of topological sort
 			iterResults[key] = self.callbacks[key].onIterationEnd(results, labels, data=data, loss=loss, \
 				iteration=iteration, numIterations=numIterations, iterResults=iterResults, metricResults=metricResults)
-			metricResults[key].update(iterResults[key], 1)
+
+			# Add it to running mean only if it's numeric
+			try:
+				metricResults[key].update(iterResults[key], 1)
+			except Exception:
+				continue
 
 	def npForward(self, x):
 		trInput = getTrData(x)
