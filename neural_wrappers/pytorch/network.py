@@ -10,6 +10,7 @@ from collections import OrderedDict
 
 from transforms import *
 import neural_wrappers.callbacks
+import neural_wrappers.metrics
 from neural_wrappers.utilities import makeGenerator, LinePrinter, isBaseOf, RunningMean, topologicalSort
 from neural_wrappers.callbacks import Callback, MetricAsCallback
 from metrics import Metric
@@ -76,8 +77,8 @@ class NeuralNetworkPyTorch(nn.Module):
 			assert key not in self.callbacks, "Metric %s already in callbacks list." % (key)
 			# If this is a Metric object, then store it as is, because in this way, we can call it by __call__, but
 			#  also this means that we can store it's fields of the object which can be meaningful, such in the case
-			#  of Accuracy class.
-			if isBaseOf(metrics[key], Metric):
+			#  of Accuracy class. Some WTF here with Metric type "path".
+			if isBaseOf(metrics[key], Metric) or isBaseOf(metrics[key], neural_wrappers.metrics.Metric):
 				metricAsCallback = MetricAsCallback(metricName=key, metric=metrics[key])
 			# Otherwise, this is a lambda callback, so we send the call itself to the constructor. Very important that
 			#  we need to rewrite the name of the arguments as results, labels, kwargs, because the constructor of
@@ -120,6 +121,7 @@ class NeuralNetworkPyTorch(nn.Module):
 	# Does a topological sort on the given list of callback dependencies. This MUST be called after all addMetrics and
 	#  addCallbacks are called, as these functions invalidate the topological sort.
 	def setCallbacksDependencies(self, dependencies):
+		dependencies = deepcopy(dependencies)
 		for key in dependencies:
 			if not key in self.callbacks:
 				assert False, "Key %s is not in callbacks (%s)" % (key, list(self.callbacks.keys()))
@@ -300,12 +302,14 @@ class NeuralNetworkPyTorch(nn.Module):
 			"trainMetrics" : None,
 			"validationMetrics" : resultMetrics,
 			"duration" : duration,
-			"trainHistory" : None # TODO, see what to do for case where I load a model with existing history
+			"trainHistory" : None, # TODO, see what to do for case where I load a model with existing history
+			"epochResults" : {}
 		}
 
-		# Add basic value to the history dictionary (just loss and time)
-		for callback in callbacks:
-			callback.onEpochEnd(**callbackArgs)
+		epochResults = {}
+		for i, key in enumerate(self.topologicalKeys):
+			# iterResults is updated at each step in the order of topological sort
+			callbackArgs["epochResults"][key] = self.callbacks[key].onEpochEnd(**callbackArgs)
 
 		return resultMetrics
 
@@ -424,7 +428,8 @@ class NeuralNetworkPyTorch(nn.Module):
 				"trainMetrics" : trainMetrics,
 				"validationMetrics" : validationMetrics if validationGenerator != None else None,
 				"duration" : duration,
-				"trainHistory" : self.trainHistory[self.currentEpoch - 1]
+				"trainHistory" : self.trainHistory[self.currentEpoch - 1],
+				"epochResults" : {}
 			}
 
 			# Print message is also computed in similar fashion using callback arguments
@@ -435,8 +440,9 @@ class NeuralNetworkPyTorch(nn.Module):
 
 			# # Add basic value to the history dictionary (just loss and time)
 			self.populateHistoryDict(message, **callbackArgs)
-			for key in self.callbacks:
-				self.callbacks[key].onEpochEnd(**callbackArgs)
+			for i, key in enumerate(self.topologicalKeys):
+				# epochResults is updated at each step in the order of topological sort
+				callbackArgs["epochResults"][key] = self.callbacks[key].onEpochEnd(**callbackArgs)
 
 			self.currentEpoch += 1
 
