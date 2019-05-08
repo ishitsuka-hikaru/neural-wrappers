@@ -113,6 +113,12 @@ class NeuralNetworkPyTorch(nn.Module):
 			if not isBaseOf(v, neural_wrappers.callbacks.MetricAsCallback)}
 		return callbacks
 
+	def clearCallbacks(self):
+		self.callbacks = OrderedDict({"Loss" : MetricAsCallback("Loss", lambda y, t, **k : k["loss"])})
+		self.topologicalSort = np.array([0], dtype=np.uint8)
+		self.topologicalKeys = np.array(["Loss"], dtype=str)
+		self.iterPrintMessageKeys = ["Loss"]
+
 	def getMetrics(self):
 		callbacks = {k : v for k, v in self.callbacks.items() \
 			if isBaseOf(v, neural_wrappers.callbacks.MetricAsCallback)}
