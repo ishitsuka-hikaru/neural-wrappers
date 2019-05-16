@@ -17,7 +17,7 @@ def getArgs():
 	parser.add_argument("model_type")
 	parser.add_argument("dataset_path")
 	parser.add_argument("--weights_file")
-	parser.add_argument("--num_epochs", type=int)
+	parser.add_argument("--num_epochs", type=int, default=100)
 
 	args = parser.parse_args()
 
@@ -50,13 +50,14 @@ def main():
 		model = maybeCuda(ModelConv(inputShape=(28, 28, 1), outputNumClasses=10))
 	print(model.summary())
 	model.setCriterion(lossFn)
-	model.setMetrics({"Accuracy" : Accuracy(categoricalLabels=True)})
+	model.addMetrics({"Accuracy" : Accuracy(categoricalLabels=True)})
 
 	if args.type == "train":
 		model.setOptimizer(optim.SGD, momentum=0.5, lr=0.01)
 		callbacks = [SaveHistory("history.txt"), PlotMetricsCallback(["Loss", "Accuracy"], ["min", "max"]), \
 			ConfusionMatrix(numClasses=10, categoricalLabels=True), SaveModels("best")]
-		model.train_generator(trainGenerator, trainSteps, numEpochs=args.num_epochs, callbacks=callbacks, \
+		model.addCallbacks(callbacks)
+		model.train_generator(trainGenerator, trainSteps, numEpochs=args.num_epochs, \
 			validationGenerator=valGenerator, validationSteps=valSteps)
 	elif args.type == "retrain":
 		model.loadModel(args.weights_file)
@@ -64,11 +65,8 @@ def main():
 			validationGenerator=valGenerator, validationSteps=valSteps)
 	elif args.type == "test":
 		model.loadModel(args.weights_file)
-		callbacks = [ConfusionMatrix(numClasses=10, categoricalLabels=True)]
-		metrics = model.test_generator(valGenerator, valSteps, callbacks=callbacks)
+		metrics = model.test_generator(valGenerator, valSteps)
 		print("Metrics: %s" % (metrics))
-		confusionMatrix = model.trainHistory[-1]["confusionMatrix"]
-		print("Confusion matrix:\n%s" % (confusionMatrix))
 
 if __name__ == "__main__":
 	main()

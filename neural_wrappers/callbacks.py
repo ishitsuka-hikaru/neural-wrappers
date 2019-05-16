@@ -1,6 +1,7 @@
 import os
 import sys
 import numpy as np
+import torch as tr
 from copy import deepcopy, copy
 sys.path.append(os.path.dirname(os.path.realpath(__file__)) + "/pytorch")
 from pytorch_utils import plotModelHistory
@@ -55,6 +56,11 @@ class SaveHistory(Callback):
 		self.file = open(fileName, mode=mode, buffering=1)
 
 	def onEpochEnd(self, **kwargs):
+		# SaveHistory should be just in training mode.
+		if not kwargs["trainHistory"]:
+			print("Warning! Using SaveHistory callback with no history (probably testing mode).")
+			return
+
 		if kwargs["epoch"] == 1:
 			self.file.write(kwargs["model"].summary() + "\n")
 		# This works because we call populateHistoryDict before (hence why we have access to trainHistory as well)
@@ -84,6 +90,10 @@ class SaveModels(Callback):
 	#  epoch there is a validation loss and the next one there isn't, so we need formats to avoid this and error out
 	#  nicely if the format asks for validation loss and there's not validation metric reported.
 	def onEpochEnd(self, **kwargs):
+		if not kwargs["trainHistory"]:
+			print("Warning! Using SaveModels callback with no history (probably testing mode).")
+			return
+
 		metricFunc = (lambda x, y : x < y) if self.metricDirection == "min" else (lambda x, y : x > y)
 		metrics = (kwargs["validationMetrics"] if kwargs["validationMetrics"] != None else kwargs["trainMetrics"])
 		score = metrics[self.metric]
@@ -142,12 +152,10 @@ class ConfusionMatrix(Callback):
 			kwargs["trainHistory"]["confusionMatrix"] = np.copy(self.confusionMatrix)
 		print("\nMatrix:", self.confusionMatrix)
 
-	def onIterationEnd(self, **kwargs):
-		results = np.argmax(kwargs["results"], axis=1)
+	def onIterationEnd(self, results, labels, **kwargs):
+		results = np.argmax(results, axis=1)
 		if self.categoricalLabels:
-			labels = np.where(kwargs["labels"] == 1)[1]
-		else:
-			labels = kwargs["labels"]
+			labels = np.where(labels == 1)[1]
 		for i in range(len(labels)):
 			self.confusionMatrix[labels[i], results[i]] += 1
 

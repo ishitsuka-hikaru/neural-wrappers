@@ -9,7 +9,8 @@ class MNISTReader(ClassificationDatasetReader):
 		dimTransform={"images" : np.float32, "labels" : lambda x : toCategorical(x, numClasses=10)}, \
 		normalizer={}, augTransform=[], resizer={}, **kwargs):
 		super().__init__(datasetPath, allDims=["images", "labels"], dataDims=dataDims, labelDims=labelDims, \
-			dimTransform=dimTransform, normalizer=normalizer, augTransform=augTransform, resizer=resizer, **kwargs)
+			dimTransform=dimTransform, normalizer=normalizer, augTransform=augTransform, resizer=resizer, \
+			dataFinalTransform=lambda x : x["images"], labelFinalTransform=lambda x : x["labels"], **kwargs)
 		self.dataset = h5py.File(self.datasetPath, "r")
 		self.numData = {
 			"train" : 60000,

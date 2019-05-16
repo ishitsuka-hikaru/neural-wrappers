@@ -415,7 +415,7 @@ class NeuralNetworkPyTorch(nn.Module):
 			# trainCallbacks = [] if validationGenerator != None else callbacks
 			with StorePrevState(self):
 				# self.train()
-				trainMetrics = self.run_one_epoch(generator, stepsPerEpoch,	printMessage=printMessage, **kwargs)
+				trainMetrics = self.run_one_epoch(generator, stepsPerEpoch, printMessage=printMessage, **kwargs)
 
 			# Run for validation data and append the results
 			if validationGenerator != None:
@@ -444,7 +444,7 @@ class NeuralNetworkPyTorch(nn.Module):
 				sys.stdout.write(message + "\n")
 				sys.stdout.flush()
 
-			# # Add basic value to the history dictionary (just loss and time)
+			# Add basic value to the history dictionary (just loss and time)
 			self.populateHistoryDict(message, **callbackArgs)
 			for i, key in enumerate(self.topologicalKeys):
 				# epochResults is updated at each step in the order of topological sort
