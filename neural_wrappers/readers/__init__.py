@@ -9,7 +9,8 @@ from .corrupter_reader import CorrupterReader
 from .combined_dataset_reader import CombinedDatasetReader
 from .kitti_obj_reader import KITTIObjReader
 from .indoor_cvpr09_reader import IndoorCVPR09Reader
+from .word2vec_reader import Word2VecReader
 
 __all__ = ["DatasetReader", "ClassificationDatasetReader", "NYUDepthReader", "CitySimReader", "MNISTReader", \
 	"CityScapesReader", "Cifar10Reader", "KITTIReader", "CorrupterReader", "CombinedDatasetReader", \
-	"KITTIObjReader", "IndoorCVPR09Reader"]
+	"KITTIObjReader", "IndoorCVPR09Reader", "Word2VecReader"]
