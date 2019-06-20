@@ -16,7 +16,7 @@ from neural_wrappers.callbacks import Callback, MetricAsCallback
 from metrics import Metric
 
 from .network_serializer import NetworkSerializer
-from .pytorch_utils import maybeCuda, maybeCpu, getNumParams, getOptimizerStr, getNpData, getTrData, StorePrevState
+from .pytorch_utils import getNumParams, getOptimizerStr, getNpData, getTrData, StorePrevState
 
 # Wrapper on top of the PyTorch model. Added methods for saving and loading a state. To completly implement a PyTorch
 #  model, one must define layers in the object's constructor, call setOptimizer, setCriterion and implement the
@@ -75,18 +75,8 @@ class NeuralNetworkPyTorch(nn.Module):
 			assert type(key) == str, "The key of the metric must be a string"
 			assert hasattr(metrics[key], "__call__"), "The user provided transformation %s must be callable" % (key)
 			assert key not in self.callbacks, "Metric %s already in callbacks list." % (key)
-			# If this is a Metric object, then store it as is, because in this way, we can call it by __call__, but
-			#  also this means that we can store it's fields of the object which can be meaningful, such in the case
-			#  of Accuracy class. Some WTF here with Metric type "path".
-			if isBaseOf(metrics[key], Metric) or isBaseOf(metrics[key], neural_wrappers.metrics.Metric):
-				metricAsCallback = MetricAsCallback(metricName=key, metric=metrics[key])
-			# Otherwise, this is a lambda callback, so we send the call itself to the constructor. Very important that
-			#  we need to rewrite the name of the arguments as results, labels, kwargs, because the constructor of
-			#  MetricAsCallback needs to call them with that notation so metrics and callbacks can be unified.
-			else:
-				metricAsCallback = MetricAsCallback(metricName=key, \
-					metric=lambda results, labels, **kwargs : metrics[key](results, labels, **kwargs))
-			# Either way, store the resulting Callback object in the list of callbacks
+
+			metricAsCallback = MetricAsCallback(metricName=key, metric=metrics[key])
 			self.callbacks[key] = metricAsCallback
 			self.iterPrintMessageKeys.append(key)
 
@@ -263,7 +253,7 @@ class NeuralNetworkPyTorch(nn.Module):
 			trResults, trLoss = self.networkAlgorithm(trInputs, trLabels)
 
 			npResults = getNpData(trResults)
-			npLoss = maybeCpu(trLoss.detach()).numpy()
+			npLoss = trLoss.to("cpu").detach().numpy()
 			optimizeCallback(self.optimizer, trLoss)
 			iterFinishTime = (datetime.now() - startTime)
 
@@ -286,6 +276,7 @@ class NeuralNetworkPyTorch(nn.Module):
 			sys.stderr.write("Warning! Number of iterations (%d) does not match expected iterations in reader (%d)" % \
 				(i, stepsPerEpoch - 1))
 
+		# Get the values at end of epoch.
 		for metric in metricResults:
 			metricResults[metric] = metricResults[metric].get()
 		return metricResults
