@@ -283,30 +283,30 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	def test_generator(self, generator, stepsPerEpoch, printMessage=False):
 		assert stepsPerEpoch > 0
-		now = datetime.now()
-		# Store previous state and restore it after running epoch in eval mode.
 		with StorePrevState(self):
 			# self.eval()
 			with tr.no_grad():
+				now = datetime.now()
+				# Store previous state and restore it after running epoch in eval mode.
 				resultMetrics = self.run_one_epoch(generator, stepsPerEpoch, printMessage=printMessage)
-		duration = datetime.now() - now
+				duration = datetime.now() - now
 
-		# Do the callbacks for the end of epoch.
-		callbackArgs = {
-			"model" : self,
-			"epoch" : 1,
-			"numEpochs" : 1,
-			"trainMetrics" : None,
-			"validationMetrics" : resultMetrics,
-			"duration" : duration,
-			"trainHistory" : None, # TODO, see what to do for case where I load a model with existing history
-			"epochResults" : {}
-		}
+				# Do the callbacks for the end of epoch.
+				callbackArgs = {
+					"model" : self,
+					"epoch" : 1,
+					"numEpochs" : 1,
+					"trainMetrics" : None,
+					"validationMetrics" : resultMetrics,
+					"duration" : duration,
+					"trainHistory" : None, # TODO, see what to do for case where I load a model with existing history
+					"epochResults" : {}
+				}
 
-		epochResults = {}
-		for i, key in enumerate(self.topologicalKeys):
-			# iterResults is updated at each step in the order of topological sort
-			callbackArgs["epochResults"][key] = self.callbacks[key].onEpochEnd(**callbackArgs)
+				epochResults = {}
+				for i, key in enumerate(self.topologicalKeys):
+					# iterResults is updated at each step in the order of topological sort
+					callbackArgs["epochResults"][key] = self.callbacks[key].onEpochEnd(**callbackArgs)
 
 		return resultMetrics
 

@@ -237,8 +237,10 @@ class DatasetReader:
 	#  represent same epoch. Defaults to True, so end-users when training networks aren't required to specify it.
 	def getNumIterations(self, type, miniBatchSize, accountTransforms=True):
 		N = self.numData[type] // miniBatchSize + (self.numData[type] % miniBatchSize != 0)
-		assert len(self.transformer.transforms), "No transforms used, perhaps set just \"none\""
-		return N if accountTransforms == False else N * len(self.transformer.transforms)
+		if accountTransforms:
+			assert len(self.transformer.transforms), "No transforms used, perhaps set just \"none\""
+			N *= len(self.transformer.transforms)
+		return N
 
 	def iterate_once(self, type, miniBatchSize):
 		raise NotImplementedError("Should have implemented this")
