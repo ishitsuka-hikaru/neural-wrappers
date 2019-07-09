@@ -1,4 +1,3 @@
-import os
 import sys
 import torch as tr
 import torch.nn as nn
@@ -10,10 +9,8 @@ from collections import OrderedDict
 
 from transforms import *
 import neural_wrappers.callbacks
-import neural_wrappers.metrics
 from neural_wrappers.utilities import makeGenerator, LinePrinter, isBaseOf, RunningMean, topologicalSort
 from neural_wrappers.callbacks import Callback, MetricAsCallback
-from metrics import Metric
 
 from .network_serializer import NetworkSerializer
 from .pytorch_utils import getNumParams, getOptimizerStr, getNpData, getTrData, StorePrevState
@@ -51,20 +48,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.hyperParameters = hyperParameters
 		super(NeuralNetworkPyTorch, self).__init__()
 
-	### Various setters for the network ###
-	# Optimizer can be either a class or an object. If it's a class, it will be instantiated on all the trainable
-	#  parameters, and using the arguments in the variable kwargs. If it's an object, we will just use that object,
-	#  and assume it's correct (for example if we want only some parameters to be trained this has to be used)
-	# Examples of usage: model.setOptimizer(nn.Adam, lr=0.01), model.setOptimizer(nn.Adam(model.parameters(), lr=0.01))
-	def setOptimizer(self, optimizer, **kwargs):
-		if isinstance(optimizer, optim.Optimizer):
-			self.optimizer = optimizer
-		else:
-			trainableParams = list(filter(lambda p : p.requires_grad, self.parameters()))
-			self.optimizer = optimizer(trainableParams, **kwargs)
-
-	def setCriterion(self, criterion):
-		self.criterion = criterion
+	##### Metrics and callbacks #####
 
 	# Sets the user provided list of metrics as callbacks and adds them to the callbacks list.
 	def addMetrics(self, metrics):
@@ -136,63 +120,38 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.topologicalKeys = np.array(list(self.callbacks.keys()))[self.topologicalSort]
 		print("Successfully done topological sort!")
 
-	def getTrainableParameters(self):
-		return list(filter(lambda p : p.requires_grad, self.parameters()))
-
-	def summary(self):
-		summaryStr = "[Model summary]\n"
-		summaryStr += self.__str__() + "\n"
-
-		numParams, numTrainable = getNumParams(self.parameters())
-		summaryStr += "Parameters count: %d. Trainable parameters: %d.\n" % (numParams, numTrainable)
-
-		strHyperParameters = " | ".join(["%s => %s" % (x, y) for x, y in \
-			zip(self.hyperParameters.keys(), self.hyperParameters.values())])
-		summaryStr += "Hyperparameters: %s\n" % (strHyperParameters)
-
-		strMetrics = str(list(self.getMetrics().keys()))[1 : -1]
-		summaryStr += "Metrics: %s\n" % (strMetrics)
-
-		strCallbacks = str(list(self.getCallbacks().keys()))[1 : -1]
-		summaryStr += "Callbacks: %s\n" % (strCallbacks)
-
-		summaryStr += "Optimizer: %s\n" % getOptimizerStr(self.optimizer)
-
-		return summaryStr
-
-	def __str__(self):
-		return "General neural network architecture. Update __str__ in your model for more details when using summary."
-
-	def populateHistoryDict(self, message, **kwargs):
-		assert not kwargs["trainHistory"] is None
-		trainHistory = kwargs["trainHistory"]
-		trainHistory["duration"] = kwargs["duration"]
-		trainHistory["trainMetrics"] = deepcopy(kwargs["trainMetrics"])
-		trainHistory["validationMetrics"] = deepcopy(kwargs["validationMetrics"])
-		trainHistory["message"] = message
-
 	# Other neural network architectures can update these
-	def callbacksOnEpochStart(self):
+	def callbacksOnEpochStart(self, isTraining):
 		# Call onEpochStart here, using only basic args
-
 		if self.trainHistory != [] and len(self.trainHistory) >= self.currentEpoch:
 			trainHistory = self.trainHistory[self.currentEpoch - 1]
 		else:
 			trainHistory = None
 
 		for key in self.callbacks:
-			self.callbacks[key].onEpochStart(model=self, epoch=self.currentEpoch, trainHistory=trainHistory)
+			self.callbacks[key].onEpochStart(model=self, epoch=self.currentEpoch, \
+				trainHistory=trainHistory, isTraining=isTraining)
 
-	def callbacksOnIterationStart(self, **kwargs):
+	def callbacksOnEpochEnd(self, isTraining):
+		# epochResults is updated at each step in the order of topological sort
+		epochResults = {}
+		for key in self.topologicalKeys:
+			epochResults[key] = self.callbacks[key].onEpochEnd(model=self, epoch=self.currentEpoch, \
+				trainHistory=self.trainHistory, epochResults=epochResults, \
+				isTraining=isTraining)
+
+	def callbacksOnIterationStart(self, isTraining, isOptimizing):
 		for key in self.callbacks:
-			self.callbacks[key].onIterationStart(**kwargs)
+			self.callbacks[key].onIterationStart(isTraining=isTraining, isOptimizing=isOptimizing)
 
-	def callbacksOnIterationEnd(self, data, labels, results, loss, iteration, numIterations, metricResults):
+	def callbacksOnIterationEnd(self, data, labels, results, loss, iteration, numIterations, \
+		metricResults, isTraining, isOptimizing):
 		iterResults = {}
 		for i, key in enumerate(self.topologicalKeys):
 			# iterResults is updated at each step in the order of topological sort
 			iterResults[key] = self.callbacks[key].onIterationEnd(results, labels, data=data, loss=loss, \
-				iteration=iteration, numIterations=numIterations, iterResults=iterResults, metricResults=metricResults)
+				iteration=iteration, numIterations=numIterations, iterResults=iterResults, \
+				metricResults=metricResults, isTraining=isTraining, isOptimizing=isOptimizing)
 
 			# Add it to running mean only if it's numeric
 			try:
@@ -200,40 +159,25 @@ class NeuralNetworkPyTorch(nn.Module):
 			except Exception:
 				continue
 
-	def npForward(self, x):
-		trInput = getTrData(x)
-		trResult = self.forward(trInput)
-		npResult = getNpData(trResult)
-		return npResult
-
-	# The network algorithm. This must be updated for specific networks, so the whole metric/callbacks system works
-	#  just as before.
-	# @param[in] trInputs The inputs of the network
-	# @param[in] trLabels The labels of the network
-	# @return The results of the network and the loss as given by the criterion function
-	def networkAlgorithm(self, trInputs, trLabels):
-		trResults = self.forward(trInputs)
-		trLoss = self.criterion(trResults, trLabels)
-		return trResults, trLoss
+	##### Traiming / testing functions
 
 	# Basic method that does a forward phase for one epoch given a generator. It can apply a step of optimizer or not.
 	# @param[in] generator Object used to get a batch of data and labels at each step
 	# @param[in] stepsPerEpoch How many items to be generated by the generator
 	# @param[in] metrics A dictionary containing the metrics over which the epoch is run
 	# @return The mean metrics over all the steps.
-	def run_one_epoch(self, generator, stepsPerEpoch, printMessage=False):
+	def run_one_epoch(self, generator, stepsPerEpoch, isTraining, isOptimizing, printMessage=False):
 		assert stepsPerEpoch > 0
-		if tr.is_grad_enabled():
+		if isOptimizing == False and tr.is_grad_enabled():
+			print("Warning! Not optimizing, but grad is enabled.")
+		if isTraining and isOptimizing:
 			assert not self.optimizer is None, "Set optimizer before training"
 		assert not self.criterion is None, "Set criterion before training or testing"
-		# assert "Loss" in self.metrics.keys(), "Loss metric was not found in metrics."
-		# self.checkCallbacks(callbacks)
-		self.callbacksOnEpochStart()
 
 		metricResults = {metric : RunningMean() for metric in self.callbacks.keys()}
 		i = 0
 
-		if tr.is_grad_enabled():
+		if isTraining and isOptimizing:
 			optimizeCallback = (lambda optim, loss : (optim.zero_grad(), loss.backward(), optim.step()))
 		else:
 			optimizeCallback = (lambda optim, loss : loss.detach_())
@@ -243,7 +187,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		#  same list, but every element in the list is tranasformed in torch format.
 		startTime = datetime.now()
 		for i, items in enumerate(generator):
-			self.callbacksOnIterationStart()
+			self.callbacksOnIterationStart(isTraining=isTraining, isOptimizing=isOptimizing)
 			npInputs, npLabels = items
 			trInputs = getTrData(npInputs)
 			trLabels = getTrData(npLabels)
@@ -262,8 +206,9 @@ class NeuralNetworkPyTorch(nn.Module):
 			#  all children (topological sort).
 			# Iteration callbacks are called here. These include metrics or random callbacks such as plotting results
 			#  in testing mode.
-			self.callbacksOnIterationEnd(data=npInputs, labels=npLabels, results=npResults, loss=npLoss, iteration=i, \
-				numIterations=stepsPerEpoch, metricResults=metricResults)
+			self.callbacksOnIterationEnd(data=npInputs, labels=npLabels, results=npResults, \
+				loss=npLoss, iteration=i, numIterations=stepsPerEpoch, metricResults=metricResults, \
+				isTraining=isTraining, isOptimizing=isOptimizing)
 
 			# Print the message, after the metrics are updated.
 			if printMessage:
@@ -283,37 +228,97 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	def test_generator(self, generator, stepsPerEpoch, printMessage=False):
 		assert stepsPerEpoch > 0
+		self.callbacksOnEpochStart(isTraining=False)
 		with StorePrevState(self):
 			# self.eval()
 			with tr.no_grad():
 				now = datetime.now()
 				# Store previous state and restore it after running epoch in eval mode.
-				resultMetrics = self.run_one_epoch(generator, stepsPerEpoch, printMessage=printMessage)
+				resultMetrics = self.run_one_epoch(generator, stepsPerEpoch, isTraining=False, \
+					isOptimizing=False, printMessage=printMessage)
 				duration = datetime.now() - now
-
-				# Do the callbacks for the end of epoch.
-				callbackArgs = {
-					"model" : self,
-					"epoch" : 1,
-					"numEpochs" : 1,
-					"trainMetrics" : None,
-					"validationMetrics" : resultMetrics,
-					"duration" : duration,
-					"trainHistory" : None, # TODO, see what to do for case where I load a model with existing history
-					"epochResults" : {}
-				}
-
-				epochResults = {}
-				for i, key in enumerate(self.topologicalKeys):
-					# iterResults is updated at each step in the order of topological sort
-					callbackArgs["epochResults"][key] = self.callbacks[key].onEpochEnd(**callbackArgs)
-
+		self.callbacksOnIterationEnd(isTraining=False)
 		return resultMetrics
 
 	def test_model(self, data, labels, batchSize, printMessage=False):
 		dataGenerator = makeGenerator(data, labels, batchSize)
 		numIterations = data.shape[0] // batchSize + (data.shape[0] % batchSize != 0)
 		return self.test_generator(dataGenerator, stepsPerEpoch=numIterations, printMessage=printMessage)
+
+	# @param[in] generator Generator which is used to get items for numEpochs epochs, each taking stepsPerEpoch steps
+	# @param[in] stepsPerEpoch How many steps each epoch takes (assumed constant). The generator must generate this
+	#  amount of items every epoch.
+	# @param[in] numEpochs The number of epochs the network is trained for
+	# @param[in] callbacks A list of callbacks (which must be of type Callback), that implement one of the
+	#  oneIterationStart, onIterationEnd, onEpochStart or onEpochEnd methods. Moreover, whenever this method is called
+	#  the list is stored in this object, such that the state of each callback is stored . Moreover, if None is given,
+	#  then the already stored member is used (helpful for load_models, so we don't do callbacks=model.callbacks).
+	def train_generator(self, generator, stepsPerEpoch, numEpochs, validationGenerator=None, \
+		validationSteps=0, printMessage=True, **kwargs):
+		assert stepsPerEpoch > 0
+
+		if self.currentEpoch > numEpochs:
+			sys.stdout.write("Warning. Current epoch (%d) <= requested epochs (%d). Doing nothing.\n" \
+				% (self.currentEpoch, numEpochs))
+			return
+
+		if printMessage:
+			sys.stdout.write("Training for %d epochs starting from epoch %d\n" % (numEpochs - self.currentEpoch + 1, \
+				self.currentEpoch - 1))
+
+		while self.currentEpoch <= numEpochs:
+			# Add this epoch to the trainHistory list, which is used to track history
+			# self.trainHistory.append({})
+			assert len(self.trainHistory) == self.currentEpoch - 1
+			epochMetrics = {}
+			self.callbacksOnEpochStart(isTraining=True)
+
+			# Run for training data and append the results
+			now = datetime.now()
+			# No iteration callbacks are used if there is a validation set (so iteration callbacks are only
+			#  done on validation set). If no validation set is used, the iteration callbacks are used on train set.
+			# trainCallbacks = [] if validationGenerator != None else callbacks
+			with StorePrevState(self):
+				# self.train()
+				epochMetrics["Train"] = self.run_one_epoch(generator, stepsPerEpoch, isTraining=True, \
+					isOptimizing=True, printMessage=printMessage)
+
+			# Run for validation data and append the results
+			if validationGenerator != None:
+				with StorePrevState(self):
+					# self.eval()
+					with tr.no_grad():
+						epochMetrics["Validation"] = self.run_one_epoch(validationGenerator, \
+							validationSteps, isTraining=True, isOptimizing=False, printMessage=False)
+			duration = datetime.now() - now
+
+			self.trainHistory.append(epochMetrics)
+
+			# Print message is also computed in similar fashion using callback arguments
+			message = self.computePrintMessage(numEpochs, duration)
+			if printMessage:
+				sys.stdout.write(message + "\n")
+				sys.stdout.flush()
+			self.callbacksOnEpochEnd(isTraining=True)
+
+			self.currentEpoch += 1
+
+	def train_model(self, data, labels, batchSize, numEpochs, validationData=None, \
+		validationLabels=None, printMessage=True):
+		dataGenerator = makeGenerator(data, labels, batchSize)
+		numIterations = data.shape[0] // batchSize + (data.shape[0] % batchSize != 0)
+
+		if not validationData is None:
+			valNumIterations = validationData.shape[0] // batchSize + (validationData.shape[0] % batchSize != 0)
+			validationGenerator = makeGenerator(validationData, validationLabels, batchSize)
+		else:
+			valNumIterations = 1
+			validationGenerator = None
+
+		self.train_generator(dataGenerator, stepsPerEpoch=numIterations, numEpochs=numEpochs, \
+			validationGenerator=validationGenerator, validationSteps=valNumIterations, printMessage=printMessage)
+
+	##### Printing functions #####
 
 	def setIterPrintMessageKeys(self, Keys):
 		for key in Keys:
@@ -340,15 +345,12 @@ class NeuralNetworkPyTorch(nn.Module):
 	# Computes the message that is printed to the stdout. This method is also called by SaveHistory callback.
 	# @param[in] kwargs The arguments sent to any regular callback.
 	# @return A string that contains the one-line message that is printed at each end of epoch.
-	def computePrintMessage(self, **kwargs):
-		currentEpoch = kwargs["epoch"]
-		numEpochs = kwargs["numEpochs"]
-		trainMetrics = kwargs["trainMetrics"]
-		validationMetrics = kwargs["validationMetrics"]
-		duration = kwargs["duration"]
+	def computePrintMessage(self, numEpochs, duration):
+		trainMetrics = self.trainHistory[-1]["Train"]
+		validationMetrics = self.trainHistory[-1]["Validation"]
 
-		done = currentEpoch / numEpochs * 100
-		message = "Epoch %d/%d. Done: %2.2f%%." % (currentEpoch, numEpochs, done)
+		done = self.currentEpoch / numEpochs * 100
+		message = "Epoch %d/%d. Done: %2.2f%%." % (self.currentEpoch, numEpochs, done)
 		for metric in sorted(trainMetrics):
 			if not metric in self.iterPrintMessageKeys:
 				continue
@@ -364,100 +366,74 @@ class NeuralNetworkPyTorch(nn.Module):
 			message += " LR: %2.5f." % (self.optimizer.state_dict()["param_groups"][0]["lr"])
 
 		message += " Took: %s." % (duration)
-
 		return message
 
-	# @param[in] generator Generator which is used to get items for numEpochs epochs, each taking stepsPerEpoch steps
-	# @param[in] stepsPerEpoch How many steps each epoch takes (assumed constant). The generator must generate this
-	#  amount of items every epoch.
-	# @param[in] numEpochs The number of epochs the network is trained for
-	# @param[in] callbacks A list of callbacks (which must be of type Callback), that implement one of the
-	#  oneIterationStart, onIterationEnd, onEpochStart or onEpochEnd methods. Moreover, whenever this method is called
-	#  the list is stored in this object, such that the state of each callback is stored . Moreover, if None is given,
-	#  then the already stored member is used (helpful for load_models, so we don't do callbacks=model.callbacks).
-	def train_generator(self, generator, stepsPerEpoch, numEpochs, validationGenerator=None, \
-		validationSteps=0, printMessage=True, **kwargs):
-		assert stepsPerEpoch > 0
+	def summary(self):
+		summaryStr = "[Model summary]\n"
+		summaryStr += self.__str__() + "\n"
 
-		# Callbacks validation and storing (for save_model)
-		# if callbacks == None:
-			# callbacks = self.callbacks
-		# self.checkCallbacks(callbacks)
-		# self.callbacks = callbacks
+		numParams, numTrainable = getNumParams(self.parameters())
+		summaryStr += "Parameters count: %d. Trainable parameters: %d.\n" % (numParams, numTrainable)
 
-		if self.currentEpoch > numEpochs:
-			sys.stdout.write("Warning. Current epoch (%d) <= requested epochs (%d). Doing nothing.\n" \
-				% (self.currentEpoch, numEpochs))
-			return
+		strHyperParameters = " | ".join(["%s => %s" % (x, y) for x, y in \
+			zip(self.hyperParameters.keys(), self.hyperParameters.values())])
+		summaryStr += "Hyperparameters: %s\n" % (strHyperParameters)
 
-		if printMessage:
-			sys.stdout.write("Training for %d epochs starting from epoch %d\n" % (numEpochs - self.currentEpoch + 1, \
-				self.currentEpoch - 1))
+		strMetrics = str(list(self.getMetrics().keys()))[1 : -1]
+		summaryStr += "Metrics: %s\n" % (strMetrics)
 
-		while self.currentEpoch <= numEpochs:
-			# Add this epoch to the trainHistory list, which is used to track history
-			self.trainHistory.append({})
-			assert len(self.trainHistory) == self.currentEpoch
+		strCallbacks = str(list(self.getCallbacks().keys()))[1 : -1]
+		summaryStr += "Callbacks: %s\n" % (strCallbacks)
 
-			# Run for training data and append the results
-			now = datetime.now()
-			# No iteration callbacks are used if there is a validation set (so iteration callbacks are only
-			#  done on validation set). If no validation set is used, the iteration callbacks are used on train set.
-			# trainCallbacks = [] if validationGenerator != None else callbacks
-			with StorePrevState(self):
-				# self.train()
-				trainMetrics = self.run_one_epoch(generator, stepsPerEpoch, printMessage=printMessage, **kwargs)
+		summaryStr += "Optimizer: %s\n" % getOptimizerStr(self.optimizer)
 
-			# Run for validation data and append the results
-			if validationGenerator != None:
-				with StorePrevState(self):
-					# self.eval()
-					with tr.no_grad():
-						validationMetrics = self.run_one_epoch(validationGenerator, validationSteps, \
-							printMessage=False, **kwargs)
-			duration = datetime.now() - now
+		return summaryStr
 
-			# Do the callbacks for the end of epoch.
-			callbackArgs = {
-				"model" : self,
-				"epoch" : self.currentEpoch,
-				"numEpochs" : numEpochs,
-				"trainMetrics" : trainMetrics,
-				"validationMetrics" : validationMetrics if validationGenerator != None else None,
-				"duration" : duration,
-				"trainHistory" : self.trainHistory[self.currentEpoch - 1],
-				"epochResults" : {}
-			}
+	def __str__(self):
+		return "General neural network architecture. Update __str__ in your model for more details when using summary."
 
-			# Print message is also computed in similar fashion using callback arguments
-			message = self.computePrintMessage(**callbackArgs)
-			if printMessage:
-				sys.stdout.write(message + "\n")
-				sys.stdout.flush()
+	##### Misc functions #####
 
-			# Add basic value to the history dictionary (just loss and time)
-			self.populateHistoryDict(message, **callbackArgs)
-			for i, key in enumerate(self.topologicalKeys):
-				# epochResults is updated at each step in the order of topological sort
-				callbackArgs["epochResults"][key] = self.callbacks[key].onEpochEnd(**callbackArgs)
-
-			self.currentEpoch += 1
-
-	def train_model(self, data, labels, batchSize, numEpochs, validationData=None, \
-		validationLabels=None, printMessage=True):
-		assert self.optimizer != None and self.criterion != None, "Set optimizer and criterion before training"
-		dataGenerator = makeGenerator(data, labels, batchSize)
-		numIterations = data.shape[0] // batchSize + (data.shape[0] % batchSize != 0)
-
-		if not validationData is None:
-			valNumIterations = validationData.shape[0] // batchSize + (validationData.shape[0] % batchSize != 0)
-			validationGenerator = makeGenerator(validationData, validationLabels, batchSize)
+	# Optimizer can be either a class or an object. If it's a class, it will be instantiated on all the trainable
+	#  parameters, and using the arguments in the variable kwargs. If it's an object, we will just use that object,
+	#  and assume it's correct (for example if we want only some parameters to be trained this has to be used)
+	# Examples of usage: model.setOptimizer(nn.Adam, lr=0.01), model.setOptimizer(nn.Adam(model.parameters(), lr=0.01))
+	def setOptimizer(self, optimizer, **kwargs):
+		if isinstance(optimizer, optim.Optimizer):
+			self.optimizer = optimizer
 		else:
-			valNumIterations = 1
-			validationGenerator = None
+			trainableParams = list(filter(lambda p : p.requires_grad, self.parameters()))
+			self.optimizer = optimizer(trainableParams, **kwargs)
 
-		self.train_generator(dataGenerator, stepsPerEpoch=numIterations, numEpochs=numEpochs, \
-			validationGenerator=validationGenerator, validationSteps=valNumIterations, printMessage=printMessage)
+	def setCriterion(self, criterion):
+		self.criterion = criterion
+
+	# Wrapper for passing numpy arrays, converting them to torch arrays, forward network and convert back to numpy
+	# @param[in] x The input, which can be a numpy array, or a list/tuple/dict of numpy arrays
+	# @return y The output of the network as numpy array
+	def npForward(self, x):
+		trInput = getTrData(x)
+		trResult = self.forward(trInput)
+		npResult = getNpData(trResult)
+		return npResult
+
+	# The network algorithm. This must be updated for specific networks, so the whole metric/callbacks system works
+	#  just as before.
+	# @param[in] trInputs The inputs of the network
+	# @param[in] trLabels The labels of the network
+	# @return The results of the network and the loss as given by the criterion function
+	def networkAlgorithm(self, trInputs, trLabels):
+		trResults = self.forward(trInputs)
+		trLoss = self.criterion(trResults, trLabels)
+		return trResults, trLoss
+
+	def populateHistoryDict(self, message, **kwargs):
+		assert not kwargs["trainHistory"] is None
+		trainHistory = kwargs["trainHistory"]
+		trainHistory["duration"] = kwargs["duration"]
+		trainHistory["trainMetrics"] = deepcopy(kwargs["trainMetrics"])
+		trainHistory["validationMetrics"] = deepcopy(kwargs["validationMetrics"])
+		trainHistory["message"] = message
 
 	def saveWeights(self, path):
 		return self.serializer.saveModel(path, stateKeys=["weights", "model_state"])

@@ -4,7 +4,7 @@ import numpy as np
 import torch as tr
 from copy import deepcopy, copy
 sys.path.append(os.path.dirname(os.path.realpath(__file__)) + "/pytorch")
-from pytorch_utils import plotModelHistory
+from pytorch_utils import plotModelMetricHistory
 
 class Callback:
 	def __init__(self, name=None):
@@ -64,8 +64,8 @@ class SaveHistory(Callback):
 		if kwargs["epoch"] == 1:
 			self.file.write(kwargs["model"].summary() + "\n")
 		# This works because we call populateHistoryDict before (hence why we have access to trainHistory as well)
-		message = kwargs["trainHistory"]["message"]
-		self.file.write(message + "\n")
+		# message = kwargs["trainHistory"]["message"]
+		# self.file.write(message + "\n")
 
 	def onCallbackSave(self, **kwargs):
 		self.file.close()
@@ -90,13 +90,13 @@ class SaveModels(Callback):
 	#  epoch there is a validation loss and the next one there isn't, so we need formats to avoid this and error out
 	#  nicely if the format asks for validation loss and there's not validation metric reported.
 	def onEpochEnd(self, **kwargs):
-		if not kwargs["trainHistory"]:
-			print("Warning! Using SaveModels callback with no history (probably testing mode).")
+		if not kwargs["isTraining"]:
 			return
 
+		trainHistory = kwargs["trainHistory"][-1]
 		metricFunc = (lambda x, y : x < y) if self.metricDirection == "min" else (lambda x, y : x > y)
-		metrics = (kwargs["validationMetrics"] if kwargs["validationMetrics"] != None else kwargs["trainMetrics"])
-		score = metrics[self.metric]
+		Key = "Validation" if self.metric in trainHistory["Validation"] else Train
+		score = trainHistory[Key][self.metric]
 
 		fileName = "model_weights_%d_%s_%2.2f.pkl" % (kwargs["epoch"], self.metric, score)
 		if self.type == "improvements":
@@ -135,29 +135,46 @@ class SaveModelsSelfSupervised(SaveModels):
 		super().onEpochEnd(**kwargs)
 
 class ConfusionMatrix(Callback):
-	def __init__(self, numClasses, categoricalLabels, **kwargs):
+	def __init__(self, numClasses, categoricalLabels, printMatrix=False, **kwargs):
 		name = "ConfusionMatrix" if not "name" in kwargs else kwargs["name"]
 		super().__init__(name=name)
 		self.numClasses = numClasses
 		self.categoricalLabels = categoricalLabels
-		self.confusionMatrix = np.zeros((numClasses, numClasses), dtype=np.int32)
+		self.confusionMatrix = {
+			"Train" : np.zeros((numClasses, numClasses), dtype=np.int32),
+			"Validation" : np.zeros((numClasses, numClasses), dtype=np.int32),
+			"Test" : np.zeros((numClasses, numClasses), dtype=np.int32)
+		}
+		self.printMatrix = printMatrix
 
 	def onEpochStart(self, **kwargs):
 		# Reset the confusion matrix for the next epoch
-		self.confusionMatrix *= 0
+		for Key in self.confusionMatrix:
+			self.confusionMatrix[Key] *= 0
 
 	def onEpochEnd(self, **kwargs):
 		# Add to history dictionary
-		if not kwargs["trainHistory"] is None:
-			kwargs["trainHistory"]["confusionMatrix"] = np.copy(self.confusionMatrix)
-		print("\nMatrix:", self.confusionMatrix)
+		if kwargs["isTraining"]:
+			kwargs["trainHistory"][-1]["Train"]["ConfusionMatrix"] = np.copy(self.confusionMatrix["Train"])
+			kwargs["trainHistory"][-1]["Validation"]["ConfusionMatrix"] = np.copy(self.confusionMatrix["Validation"])
+
+		if self.printMatrix:
+			if kwargs["isTraining"]:
+				Key = "Train" if self.confusionMatrix["Validation"].sum() == 0 else "Validation"
+			else:
+				Key = "Test"
+			print("\nConfusion matrix (%s):\n %s\n" % (Key, self.confusionMatrix[Key]))
 
 	def onIterationEnd(self, results, labels, **kwargs):
+		if kwargs["isTraining"]:
+			Key = "Train" if kwargs["isOptimizing"] else "Validation"
+		else:
+			Key = "Test"
 		results = np.argmax(results, axis=1)
 		if self.categoricalLabels:
 			labels = np.where(labels == 1)[1]
 		for i in range(len(labels)):
-			self.confusionMatrix[labels[i], results[i]] += 1
+			self.confusionMatrix[Key][labels[i], results[i]] += 1
 
 class PlotMetricsCallback(Callback):
 	def __init__(self, metrics, plotBestBullet=None, dpi=120, **kwargs):
@@ -170,5 +187,10 @@ class PlotMetricsCallback(Callback):
 			self.plotBestBullet = ["none"] * len(self.metrics)
 
 	def onEpochEnd(self, **kwargs):
-		for i in range(len(self.metrics)):
-			plotModelHistory(kwargs["model"], self.metrics[i], self.plotBestBullet[i], self.dpi)
+		trainHistory = kwargs["trainHistory"]
+		if not kwargs["isTraining"] or len(trainHistory) == 1:
+			return
+
+		for i, metric in enumerate(self.metrics):
+			bullet = self.plotBestBullet[i]
+			plotModelMetricHistory(metric, trainHistory, bullet)

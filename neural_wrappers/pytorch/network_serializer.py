@@ -2,7 +2,7 @@
 import torch as tr
 import numpy as np
 from copy import deepcopy
-from .pytorch_utils import maybeCuda, getNumParams, getOptimizerStr
+from .pytorch_utils import maybeCuda, getNumParams, getOptimizerStr, getTrainableParameters
 import sys, os
 dir_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(dir_path + "/../utilities")
@@ -40,7 +40,7 @@ class NetworkSerializer:
 	# @brief Handles saving the weights of the model
 	# @return A list of all the parameters (converted to CPU) so they are pickle-able
 	def doSaveWeights(self):
-		trainableParams = self.model.getTrainableParameters()
+		trainableParams = getTrainableParameters(self.model)
 		cpuTrainableParams = list(map(lambda x : x.cpu(), trainableParams))
 		return cpuTrainableParams
 
@@ -123,7 +123,7 @@ class NetworkSerializer:
 		assert "weights" in loadedState
 		params = loadedState["weights"]
 		loadedParams, _ = getNumParams(params)
-		trainableParams = self.model.getTrainableParameters()
+		trainableParams = getTrainableParameters(self.model)
 		thisParams, _ = getNumParams(trainableParams)
 		if loadedParams != thisParams:
 			raise Exception("Inconsistent parameters: %d vs %d." % (loadedParams, thisParams))
@@ -152,7 +152,7 @@ class NetworkSerializer:
 		# Optimizer consistency checks
 		# Not sure if/how we can use this (not always ordered)
 		# l1 = list(model.optimizer.state_dict()["state"].keys())
-		trainableParams = self.model.getTrainableParameters()
+		trainableParams = getTrainableParameters(self.model)
 		l2 = self.model.optimizer.state_dict()["param_groups"][0]["params"]
 		l3 = list(map(lambda x : id(x), trainableParams))
 		assert l2 == l3, "Something was wrong with loading optimizer"

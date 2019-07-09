@@ -20,6 +20,9 @@ def maybeCuda(x):
 def maybeCpu(x):
 	return x.cpu() if tr.cuda.is_available() and hasattr(x, "cpu") else x
 
+def getTrainableParameters(model):
+	return list(filter(lambda p : p.requires_grad, model.parameters()))
+
 def getNumParams(params):
 	numParams, numTrainable = 0, 0
 	for param in params:
@@ -89,34 +92,31 @@ def getTrData(data):
 		trData = maybeCuda(data)
 	return trData
 
-def plotModelHistory(model, metric, plotBestBullet, dpi):
-	trainHistory = model.trainHistory
-	assert metric in trainHistory[0]["trainMetrics"], "Metric %s not found in trainHistory, " + \
-		"use setMetrics accordingly"
+def plotModelMetricHistory(metric, trainHistory, plotBestBullet, dpi=120):
+	assert metric in trainHistory[0]["Train"], \
+		"Metric %s not found in trainHistory, use setMetrics accordingly" % (metri)
 
 	# Aggregate all the values from trainHistory into a list and plot them
-	trainValues, valValues = [], []
-	for epoch in range(len(trainHistory)):
-		trainValues.append(trainHistory[epoch]["trainMetrics"][metric])
-		if "validationMetrics" in trainHistory[epoch] and trainHistory[epoch]["validationMetrics"]:
-			valValues.append(trainHistory[epoch]["validationMetrics"][metric])
+	numEpochs = len(trainHistory)
+	trainValues = [trainHistory[i]["Train"][metric] for i in range(numEpochs)]
+
+	hasValidation = "Validation" in trainHistory[0]
+	if hasValidation:
+		validationValues = [trainHistory[i]["Validation"][metric] for i in range(numEpochs)]
+
 	x = np.arange(len(trainValues)) + 1
 	plt.gcf().clf()
 	plt.gca().cla()
 	plt.plot(x, trainValues, label="Train %s" % (metric))
 
-	# If we don't have a validation results, further analysis will be done on training results
-	if "validationMetrics" in trainHistory[0] and trainHistory[0]["validationMetrics"]:
-		plt.plot(x, valValues, label="Val %s" % (metric))
-		usedValues = valValues
+	if hasValidation:
+		plt.plot(x, validationValues, label="Val %s" % (metric))
+		usedValues = validationValues
 	else:
 		usedValues = trainValues
-	plt.legend()
 
-	# Here, we put a bullet on the best epoch (which can be min for loss, max for accuracy or none for neither)
-	if plotBestBullet == "none":
-		pass
-	elif plotBestBullet == "min":
+	assert plotBestBullet in ("none", "min", "max")
+	if plotBestBullet == "min":
 		minX, minValue = np.argmin(usedValues), np.min(usedValues)
 		offset = minValue // 2
 		plt.annotate("Epoch %d\nMin %2.2f" % (minX + 1, minValue), xy=(minX + 1, minValue))
@@ -126,8 +126,6 @@ def plotModelHistory(model, metric, plotBestBullet, dpi):
 		offset = maxValue // 2
 		plt.annotate("Epoch %d\nMax %2.2f" % (maxX + 1, maxValue), xy=(maxX + 1, maxValue))
 		plt.plot([maxX + 1], [maxValue], "o")
-	else:
-		assert False, "Expected: \"min\", \"max\" or \"none\""
 
 	# Set the y axis to have some space above and below the plot min/max values so it looks prettier.
 	minValue = min(np.min(usedValues), np.min(trainValues))
@@ -136,6 +134,9 @@ def plotModelHistory(model, metric, plotBestBullet, dpi):
 	plt.gca().set_ylim(minValue - diff / 10, maxValue + diff / 10)
 
 	# Finally, save the figure with the name of the metric
+	plt.xlabel("Epoch")
+	plt.ylabel(metric)
+	plt.legend()
 	plt.savefig("%s.png" % (metric), dpi=dpi)
 
 def getModelHistoryMessage(model):
