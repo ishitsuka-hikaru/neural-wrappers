@@ -214,3 +214,10 @@ def topologicalSort(depGraph):
 		if depGraph[key] != 0:
 			raise Exception("Graph is not acyclical")
 	return L
+
+def getGenerators(reader, miniBatchSize):
+	generator = reader.iterate("train", miniBatchSize=miniBatchSize, maxPrefetch=1)
+	numIters = reader.getNumIterations("train", miniBatchSize=miniBatchSize)
+	valGenerator = reader.iterate("validation", miniBatchSize=miniBatchSize, maxPrefetch=1)
+	valNumIters = reader.getNumIterations("validation", miniBatchSize=miniBatchSize)
+	return generator, numIters, valGenerator, valNumIters
