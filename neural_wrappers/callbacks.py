@@ -51,7 +51,7 @@ class SaveHistory(Callback):
 	def __init__(self, fileName, mode="write", **kwargs):
 		super().__init__(**kwargs)
 		assert mode in ("write", "append")
-		mode = "w" if mode == "write" else "a"
+		self.mode = "w" if mode == "write" else "a"
 		self.fileName = fileName
 		self.file = None
 
@@ -62,7 +62,7 @@ class SaveHistory(Callback):
 			return
 
 		if kwargs["epoch"] == 1:
-			self.file = open(fileName, mode=mode, buffering=1)
+			self.file = open(self.fileName, mode=self.mode, buffering=1)
 			self.file.write(kwargs["model"].summary() + "\n")
 		message = kwargs["trainHistory"][-1]["message"]
 		self.file.write(message + "\n")
@@ -135,7 +135,7 @@ class SaveModelsSelfSupervised(SaveModels):
 		super().onEpochEnd(**kwargs)
 
 class ConfusionMatrix(Callback):
-	def __init__(self, numClasses, categoricalLabels, printMatrix=False, **kwargs):
+	def __init__(self, numClasses, categoricalLabels=True, printMatrix=False, **kwargs):
 		name = "ConfusionMatrix" if not "name" in kwargs else kwargs["name"]
 		super().__init__(name=name)
 		self.numClasses = numClasses

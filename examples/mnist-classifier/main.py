@@ -8,7 +8,7 @@ from models import ModelFC, ModelConv
 from neural_wrappers.readers import MNISTReader
 from neural_wrappers.pytorch import maybeCuda
 from neural_wrappers.callbacks import SaveModels, SaveHistory, ConfusionMatrix, PlotMetricsCallback
-from neural_wrappers.metrics import Accuracy
+from neural_wrappers.metrics import Accuracy, F1Score
 from argparse import ArgumentParser
 
 def getArgs():
@@ -41,8 +41,8 @@ def main():
 	print(reader.summary())
 	trainGenerator = reader.iterate("train", miniBatchSize=20)
 	trainSteps = reader.getNumIterations("train", miniBatchSize=20)
-	valGenerator = reader.iterate("test", miniBatchSize=5)
-	valSteps = reader.getNumIterations("test", miniBatchSize=5)
+	valGenerator = reader.iterate("test", miniBatchSize=20)
+	valSteps = reader.getNumIterations("test", miniBatchSize=20)
 
 	if args.model_type == "model_fc":
 		model = maybeCuda(ModelFC(inputShape=(28, 28, 1), outputNumClasses=10))
@@ -50,12 +50,12 @@ def main():
 		model = maybeCuda(ModelConv(inputShape=(28, 28, 1), outputNumClasses=10))
 	print(model.summary())
 	model.setCriterion(lossFn)
-	model.addMetrics({"Accuracy" : Accuracy(categoricalLabels=True)})
+	model.addMetrics({"Accuracy" : Accuracy(), "F1" : F1Score()})
 
 	if args.type == "train":
 		model.setOptimizer(optim.SGD, momentum=0.5, lr=0.01)
 		callbacks = [SaveHistory("history.txt"), PlotMetricsCallback(["Loss", "Accuracy"], ["min", "max"]), \
-			ConfusionMatrix(numClasses=10, categoricalLabels=True), SaveModels("best")]
+			ConfusionMatrix(numClasses=10), SaveModels("best")]
 		model.addCallbacks(callbacks)
 		model.train_generator(trainGenerator, trainSteps, numEpochs=args.num_epochs, \
 			validationGenerator=valGenerator, validationSteps=valSteps)
