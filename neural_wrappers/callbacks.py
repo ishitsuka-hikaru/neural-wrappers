@@ -140,30 +140,61 @@ class ConfusionMatrix(Callback):
 		super().__init__(name=name)
 		self.numClasses = numClasses
 		self.categoricalLabels = categoricalLabels
-		self.confusionMatrix = {
+		self.printMatrix = printMatrix
+		self.epochMatrix = {
 			"Train" : np.zeros((numClasses, numClasses), dtype=np.int32),
 			"Validation" : np.zeros((numClasses, numClasses), dtype=np.int32),
 			"Test" : np.zeros((numClasses, numClasses), dtype=np.int32)
 		}
-		self.printMatrix = printMatrix
+
+	@staticmethod
+	def computeMeanAcc(cfMatrix):
+		# Sum the rows (TP + FP)
+		TPFN = np.sum(cfMatrix, axis=-1)
+		# TP are on diagonal of confusion matrix
+		TP = np.diag(cfMatrix)
+		return 100 * (TP / TPFN).mean()
+
+	@staticmethod
+	def computeMeanF1(cfMatrix):
+		TP = np.diag(cfMatrix)
+		FN = np.sum(cfMatrix, axis=-1) - TP
+		FP = np.sum(cfMatrix, axis=0) - TP
+		P = TP / (TP + FP + 1e-5)
+		R = TP / (TP + FN + 1e-5)
+		F1 = 2 * P * R / (P + R + 1e-5)
+		return F1.mean()
 
 	def onEpochStart(self, **kwargs):
 		# Reset the confusion matrix for the next epoch
-		for Key in self.confusionMatrix:
-			self.confusionMatrix[Key] *= 0
+		for Key in self.epochMatrix:
+			self.epochMatrix[Key] *= 0
 
 	def onEpochEnd(self, **kwargs):
-		# Add to history dictionary
 		if kwargs["isTraining"]:
-			kwargs["trainHistory"][-1]["Train"]["ConfusionMatrix"] = np.copy(self.confusionMatrix["Train"])
-			kwargs["trainHistory"][-1]["Validation"]["ConfusionMatrix"] = np.copy(self.confusionMatrix["Validation"])
+			print("%s (validation)\n%s" % (self.name, self.epochMatrix["Validation"]))
 
-		if self.printMatrix:
-			if kwargs["isTraining"]:
-				Key = "Train" if self.confusionMatrix["Validation"].sum() == 0 else "Validation"
-			else:
-				Key = "Test"
-			print("\nConfusion matrix (%s):\n %s\n" % (Key, self.confusionMatrix[Key]))
+			# Accuracy
+			accTrain = ConfusionMatrix.computeMeanAcc(self.epochMatrix["Train"])
+			accValidation = ConfusionMatrix.computeMeanAcc(self.epochMatrix["Validation"])
+			print("True accuracy. Train: %2.2f%%. Validation: %2.2f%%" % (accTrain, accValidation))
+
+			# F1
+			F1Train = ConfusionMatrix.computeMeanF1(self.epochMatrix["Train"])
+			F1Validation = ConfusionMatrix.computeMeanF1(self.epochMatrix["Validation"])
+			print("True F1 score. Train: %2.2f. Validation: %2.2f" % (F1Train, F1Validation))
+		else:
+			F1Test = ConfusionMatrix.computeMeanF1(self.epochMatrix["Test"])
+			accTest = ConfusionMatrix.computeMeanAcc(self.epochMatrix["Test"])
+			print("%s (test)\n%s" % (self.name, self.epochMatrix["Test"]))
+			print("True F1 score: %2.2f" % (F1Test))
+			print("True accuracy: %2.2f%%" % (accTest))
+
+		if kwargs["isTraining"]:
+			kwargs["trainHistory"][-1]["Train"][self.name] = deepcopy(self.epochMatrix["Train"])
+			kwargs["trainHistory"][-1]["Validation"][self.name] = deepcopy(self.epochMatrix["Validation"])
+
+		return self.epochMatrix
 
 	def onIterationEnd(self, results, labels, **kwargs):
 		if kwargs["isTraining"]:
@@ -174,7 +205,7 @@ class ConfusionMatrix(Callback):
 		if self.categoricalLabels:
 			labels = np.where(labels == 1)[1]
 		for i in range(len(labels)):
-			self.confusionMatrix[Key][labels[i], results[i]] += 1
+			self.epochMatrix[Key][labels[i], results[i]] += 1
 
 class PlotMetricsCallback(Callback):
 	def __init__(self, metrics, plotBestBullet=None, dpi=120, **kwargs):
