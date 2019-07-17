@@ -53,7 +53,7 @@ class SaveHistory(Callback):
 		assert mode in ("write", "append")
 		mode = "w" if mode == "write" else "a"
 		self.fileName = fileName
-		self.file = open(fileName, mode=mode, buffering=1)
+		self.file = None
 
 	def onEpochEnd(self, **kwargs):
 		# SaveHistory should be just in training mode.
@@ -62,6 +62,7 @@ class SaveHistory(Callback):
 			return
 
 		if kwargs["epoch"] == 1:
+			self.file = open(fileName, mode=mode, buffering=1)
 			self.file.write(kwargs["model"].summary() + "\n")
 		message = kwargs["trainHistory"][-1]["message"]
 		self.file.write(message + "\n")
