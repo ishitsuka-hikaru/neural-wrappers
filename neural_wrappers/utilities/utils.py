@@ -1,27 +1,20 @@
 import numpy as np
 import os
 import sys
-from lycon import resize, Interpolation
 from scipy.ndimage import gaussian_filter
+
+from neural_wrappers.utilities.resize import resize
 
 def resize_batch(data, dataShape, type="bilinear"):
 	# No need to do anything if shapes are identical.
 	if data.shape[1 : ] == dataShape:
 		return np.copy(data)
 
-	assert type in ("bilinear", "nearest", "cubic")
-	if type == "bilinear":
-		interpolationType = Interpolation.LINEAR
-	elif type == "nearest":
-		interpolationType = Interpolation.NEAREST
-	else:
-		interpolationType = Interpolation.CUBIC
-
 	numData = len(data)
 	newData = np.zeros((numData, *dataShape), dtype=data.dtype)
 
 	for i in range(len(data)):
-		result = resize(data[i], height=dataShape[0], width=dataShape[1], interpolation=interpolationType)
+		result = resize(data[i], height=dataShape[0], width=dataShape[1], interpolation=type)
 		newData[i] = result.reshape(newData[i].shape)
 	return newData
 
@@ -29,14 +22,6 @@ def resize_black_bars(data, desiredShape, type="bilinear"):
 	# No need to do anything if shapes are identical.
 	if data.shape == desiredShape:
 		return np.copy(data)
-
-	assert type in ("bilinear", "nearest", "cubic")
-	if type == "bilinear":
-		interpolationType = Interpolation.LINEAR
-	elif type == "nearest":
-		interpolationType = Interpolation.NEAREST
-	else:
-		interpolationType = Interpolation.CUBIC
 
 	newData = np.zeros(desiredShape, dtype=data.dtype)
 	# newImage = np.zeros((240, 320, 3), np.uint8)
@@ -61,7 +46,7 @@ def resize_black_bars(data, desiredShape, type="bilinear"):
 	if newRw == 0 or newRh == 0:
 		return newData
 
-	resizedData = resize(data, height=newRh, width=newRw, interpolation=interpolationType)
+	resizedData = resize(data, height=newRh, width=newRw, interpolation=type)
 	newData[halfH : halfH + newRh, halfW : halfW + newRw] = resizedData
 	return newData
 
