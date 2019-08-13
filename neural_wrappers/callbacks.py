@@ -95,7 +95,7 @@ class SaveModels(Callback):
 
 		trainHistory = kwargs["trainHistory"][-1]
 		metricFunc = (lambda x, y : x < y) if self.metricDirection == "min" else (lambda x, y : x > y)
-		Key = "Validation" if self.metric in trainHistory["Validation"] else Train
+		Key = "Validation" if self.metric in trainHistory["Validation"] else "Train"
 		score = trainHistory[Key][self.metric]
 
 		fileName = "model_weights_%d_%s_%2.2f.pkl" % (kwargs["epoch"], self.metric, score)

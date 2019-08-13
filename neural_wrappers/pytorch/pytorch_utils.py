@@ -94,7 +94,7 @@ def getTrData(data):
 
 def plotModelMetricHistory(metric, trainHistory, plotBestBullet, dpi=120):
 	assert metric in trainHistory[0]["Train"], \
-		"Metric %s not found in trainHistory, use setMetrics accordingly" % (metri)
+		"Metric %s not found in trainHistory, use setMetrics accordingly" % (metric)
 
 	# Aggregate all the values from trainHistory into a list and plot them
 	numEpochs = len(trainHistory)
