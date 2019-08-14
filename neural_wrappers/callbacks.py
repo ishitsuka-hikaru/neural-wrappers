@@ -194,6 +194,13 @@ class ConfusionMatrix(Callback):
 			kwargs["trainHistory"][-1]["Train"][self.name] = deepcopy(self.epochMatrix["Train"])
 			kwargs["trainHistory"][-1]["Validation"][self.name] = deepcopy(self.epochMatrix["Validation"])
 
+			# Update F1 and Accuracy as well with their better values (even if these metrics might not be used or if
+			#  they are updated later.
+			kwargs["trainHistory"][-1]["Train"]["Accuracy"] = accTrain
+			kwargs["trainHistory"][-1]["Validation"]["Accuracy"] = accValidation
+			kwargs["trainHistory"][-1]["Train"]["F1Score"] = F1Train
+			kwargs["trainHistory"][-1]["Validation"]["F1Score"] = F1Validation
+
 		return self.epochMatrix
 
 	def onIterationEnd(self, results, labels, **kwargs):
