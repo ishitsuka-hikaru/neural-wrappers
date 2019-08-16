@@ -3,66 +3,6 @@ import os
 import sys
 from scipy.ndimage import gaussian_filter
 
-from neural_wrappers.utilities.resize import resize
-
-def resize_batch(data, dataShape, type="bilinear"):
-	# No need to do anything if shapes are identical.
-	if data.shape[1 : ] == dataShape:
-		return np.copy(data)
-
-	numData = len(data)
-	newData = np.zeros((numData, *dataShape), dtype=data.dtype)
-
-	for i in range(len(data)):
-		result = resize(data[i], height=dataShape[0], width=dataShape[1], interpolation=type)
-		newData[i] = result.reshape(newData[i].shape)
-	return newData
-
-def resize_black_bars(data, desiredShape, type="bilinear"):
-	# No need to do anything if shapes are identical.
-	if data.shape == desiredShape:
-		return np.copy(data)
-
-	newData = np.zeros(desiredShape, dtype=data.dtype)
-	# newImage = np.zeros((240, 320, 3), np.uint8)
-	h, w = data.shape[0 : 2]
-	desiredH, desiredW = desiredShape[0 : 2]
-
-	# Find the rapports between the h/desiredH and w/desiredW
-	rH, rW = h / desiredH, w / desiredW
-	# print(rH, rW)
-
-	# Find which one is the highest, that one will be used
-	minRapp, maxRapp = min(rH, rW), max(rH, rW)
-	if maxRapp == 0:
-		return newData
-	# print(minRapp, maxRapp)
-
-	# Compute the new dimensions, based on th highest rapport
-	newRh, newRw = int(h // maxRapp), int(w // maxRapp)
-	# Also, find the half, so we can inser the other dimension from the half
-	halfH, halfW = int((desiredH - newRh) // 2), int((desiredW - newRw) // 2)
-
-	if newRw == 0 or newRh == 0:
-		return newData
-
-	resizedData = resize(data, height=newRh, width=newRw, interpolation=type)
-	newData[halfH : halfH + newRh, halfW : halfW + newRw] = resizedData
-	return newData
-
-# Resizes a batch of HxW images, to a desired dHxdW, but keeps the same aspect ration, and adds black bars on the
-#  dimension that does not fit (instead of streching as with regular resize).
-def resize_batch_black_bars(data, desiredShape, type="bilinear"):
-	# No need to do anything if shapes are identical.
-	if data.shape[1 : ] == desiredShape:
-		return np.copy(data)
-
-	newData = np.zeros((numData, *desiredShape), dtype=data.dtype)
-	for i in range(len(data)):
-		newData[i] = resize_black_bars(data[i], desiredShape, type)
-
-	return newData
-
 def standardizeData(data, mean, std):
 	data -= mean
 	data /= std
