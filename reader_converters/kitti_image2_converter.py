@@ -1,9 +1,9 @@
 import h5py
-import sys, os
-import cv2
-# from PIL import Image
 import numpy as np
-from lycon import resize, Interpolation
+import os
+from neural_wrappers.utilities import tryReadImage, resize
+from functools import partial
+from argparse import ArgumentParser
 
 '''
 Final structure:
@@ -21,43 +21,35 @@ Final structure:
       calibration
 '''
 
-
-def flushPrint(message):
-	sys.stdout.write(message + "\n")
-	sys.stdout.flush()
-
-def getPaths(basePath, labelData):
+def getPaths(basePath):
+	np.random.seed(42)
 	paths = {}
 	rgbFiles = sorted(os.listdir(basePath + os.sep + "image_2"))
-	if labelData:
-		paths["label"] = list(map(lambda x : basePath + os.sep + "label_2" + os.sep + x[0 : -4] + ".txt", rgbFiles))
-	paths["calib"] = list(map(lambda x : basePath + os.sep + "calib" + os.sep + x[0 : -4] + ".txt", rgbFiles))
-	paths["rgb"] = list(map(lambda x : basePath + os.sep + "image_2" + os.sep + x, rgbFiles))
-	return paths
 
-def whileReadImage(path):
-	i = 0
-	while True:
-		try:
-			bgr_image = cv2.imread(path)
-			b, g, r = cv2.split(bgr_image)
-			image = cv2.merge([r, g, b]).astype(np.float32)
-			return image
-		except Exception as e:
-			print(str(e))
-			i += 1
+	paths["label"] = np.array(list(map(lambda x : "%s/label_2/%s.txt" % (basePath, x[0 : -4]), rgbFiles)))
+	paths["calib"] = np.array(list(map(lambda x : "%s/calib/%s.txt" % (basePath, x[0 : -4]), rgbFiles)))
+	paths["rgb"] = np.array(list(map(lambda x : "%s/image_2/%s" % (basePath, x), rgbFiles)))
+	perm = np.random.permutation(len(paths["rgb"]))
+	for k in paths:
+		paths[k] = paths[k][perm]
 
-			if i == 5:
-				raise Exception
+	# Now, split these dicts in train/val dicts.
+	numData = len(paths["rgb"])
+	numTrain = int(0.8 * numData)
+	numVal = numData - numTrain
 
-def doPng(pngPath):
-	# image = np.uint8(Image.open(pngPath))
-	# bgr_image = cv2.imread(pngPath)
-	try:
-		image = whileReadImage(pngPath)
-		return resize(image, height=375, width=1224, interpolation=Interpolation.LANCZOS)
-	except Exception:
-		sys.stdout.write("Error at %s\n" % (pngPath))
+	print("Num data: %d. Num train: %d. Num validation: %d" % (numData, numTrain, numVal))
+	newPathsDict = {"train" : {}, "validation" : {}}
+
+	for k in paths:
+		newPathsDict["train"][k] = paths[k][0 : numTrain]
+	for k in paths:
+		newPathsDict["validation"][k] = paths[k][numTrain : numTrain + numVal]
+
+	return newPathsDict
+
+def doPng(imagePath, resolution):
+	return resize(tryReadImage(imagePath), height=resolution[0], width=resolution[1], interpolation="bilinear")
 
 def doLabel(labelPath):
 	classes = ["Pedestrian", "Truck", "Car", "Cyclist", "Misc", "Van", "Tram", "Person_sitting"]
@@ -90,55 +82,57 @@ def doCalibration(calibPath):
 	f.close()
 	return calibration
 
-def doH5pyStuff(file, groupName, labelData, dataShape):
-	if groupName in file:
-		group = file[groupName]
-	else:
-		group = file.create_group(groupName)
+def doDataset(file, paths, resolution):
+	numData = {k : len(paths[k]["rgb"]) for k in paths}
+	funcs = {
+		"rgb" : partial(doPng, resolution=resolution),
+		"calib" : doCalibration,
+		"label" : doLabel
+	}
 
-	numData = dataShape[0]
-	if not "camera_2" in group:
-		group = group.create_group("camera_2")
-	else:
-		group = group["camera_2"]
-	if not "rgb" in group:
-		group.create_dataset("rgb", shape=dataShape, dtype=np.uint8)
-	if labelData:
-		if not "labels" in group:
-			group.create_dataset("labels", shape=(numData, ), dtype=h5py.special_dtype(vlen=np.float32))
-	if not "calibration" in group:
-		group.create_dataset("calibration", shape=(numData, 3, 4))
-	return group
+	createDatasetArgs = {}
+	for k in numData:
+		createDatasetArgs[k] = {
+			"rgb" : {"shape" : (numData[k], resolution[0], resolution[1], 3), "dtype" : np.float32},
+			"calib" : {"shape" : (numData[k], 3, 4), "dtype" : np.float32},
+			"label" : {"shape" : (numData[k], ), "dtype" : h5py.special_dtype(vlen=np.float32)}
+		}
 
-def doDataset(file, basePath, groupName, labelData, startIndex):
-	paths = getPaths(basePath, labelData)
-	numData = len(paths["rgb"])
-	dataShape = (numData, 375, 1224, 3)
-	group = doH5pyStuff(file, groupName, labelData, dataShape)
+	for groupKey in paths:
+		file.create_group(groupKey)
 
-	# endIndex = min(startIndex + 100, numData)
-	endIndex = numData
-	if startIndex > endIndex:
-		return
+		for key in paths[groupKey]:
+			shape, dtype = createDatasetArgs[groupKey][key]["shape"], createDatasetArgs[groupKey][key]["dtype"]
+			file[groupKey].create_dataset(key, shape=shape, dtype=dtype)
 
-	for i in range(startIndex, endIndex):
-		if i % 100 == 0:
-			print("%d/%d done" % (i, numData))
-		image = doPng(paths["rgb"][i])
-		calib = doCalibration(paths["calib"][i])
-		group["rgb"][i] = image
-		group["calibration"][i] = calib
-		if labelData:
-			label = doLabel(paths["label"][i])
-			group["labels"][i] = label
+		for i in range(numData[groupKey]):
+			print("%s %d/%d done" % (groupKey, i + 1, numData[groupKey]), end="\r")
+			for key in paths[groupKey]:
+				item = funcs[key](paths[groupKey][key][i])
+				file[groupKey][key][i] = item
+		print("")
+
+def getArgs():
+	parser = ArgumentParser()
+	parser.add_argument("base_directory")
+	parser.add_argument("--rgb_resolution", default="375,1224")
+	parser.add_argument("--output_file", default="dataset.h5")
+
+	args = parser.parse_args()
+	args.rgb_resolution = list(map(lambda x : float(x), args.rgb_resolution.split(",")))
+	return args
 
 def main():
-	assert len(sys.argv) == 4
-	file = h5py.File("kitti_obj.h5", "a")
+	args = getArgs()
+	paths = getPaths(args.base_directory)
 
-	baseDir = os.path.abspath(sys.argv[1])
-	doDataset(file, baseDir + os.sep + "training", "train", labelData=True, startIndex=int(sys.argv[2]))
-	doDataset(file, baseDir + os.sep + "testing", "test", labelData=False, startIndex=int(sys.argv[3]))
+	file = h5py.File(args.output_file, "w")
+	doDataset(file, paths, resolution=args.rgb_resolution)
+
+	# file = h5py.File("dataset.h5", "a")
+	# baseDir = os.path.abspath(sys.argv[1])
+	# doDataset(file, baseDir + os.sep + "training", "train", labelData=True, startIndex=int(sys.argv[2]))
+	# doDataset(file, baseDir + os.sep + "testing", "test", labelData=False, startIndex=int(sys.argv[3]))
 
 if __name__ == "__main__":
 	main()
