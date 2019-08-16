@@ -89,13 +89,8 @@ def resize_batch(data, height, width, interpolation="bilinear", mode="default"):
 	desiredShape = (height, width) if len(data.shape) == 2 else (height, width, data.shape[-1])
 	newData = np.zeros((numData, *desiredShape), dtype=data.dtype)
 	resizeFunc = funcs[mode]
-	print("newData.shape", newData.shape)
 
 	for i in range(len(data)):
-		print("data[i].shape", data[i].shape)
 		result = resizeFunc(data[i], height=height, width=width, interpolation=interpolation)
-		print("result.shape", result.shape)
-		print("desiredShape", desiredShape)
-		# sys.exit(0)
 		newData[i] = result.reshape(desiredShape)
 	return newData
