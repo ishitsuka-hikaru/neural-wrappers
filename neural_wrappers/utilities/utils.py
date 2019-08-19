@@ -146,3 +146,34 @@ def getGenerators(reader, miniBatchSize):
 	valGenerator = reader.iterate("validation", miniBatchSize=miniBatchSize, maxPrefetch=1)
 	valNumIters = reader.getNumIterations("validation", miniBatchSize=miniBatchSize)
 	return generator, numIters, valGenerator, valNumIters
+
+def tryReadImage(path, count=5, imgLib="opencv"):
+	assert imgLib in ("opencv", "PIL")
+
+	def readImageOpenCV(path):
+		import cv2
+		bgr_image = cv2.imread(path)
+		b, g, r = cv2.split(bgr_image)
+		image = cv2.merge([r, g, b]).astype(np.float32)
+		return image
+
+	def readImagePIL(path):
+		from PIL import Image
+		image = np.array(Image.open(path), dtype=np.float32)
+		return image
+
+	if imgLib == "opencv":
+		f = readImageOpenCV
+	elif imgLib == "PIL":
+		f = readImagePIL
+
+	i = 0
+	while True:
+		try:
+			return f(path)
+		except Exception as e:
+			print(str(e))
+			i += 1
+
+			if i == count:
+				raise Exception
