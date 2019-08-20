@@ -237,7 +237,7 @@ class NeuralNetworkPyTorch(nn.Module):
 				resultMetrics = self.run_one_epoch(generator, stepsPerEpoch, isTraining=False, \
 					isOptimizing=False, printMessage=printMessage)
 				duration = datetime.now() - now
-		self.callbacksOnIterationEnd(isTraining=False)
+		self.callbacksOnEpochEnd(isTraining=False)
 		return resultMetrics
 
 	def test_model(self, data, labels, batchSize, printMessage=False):
