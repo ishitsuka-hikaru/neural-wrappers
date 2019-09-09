@@ -55,15 +55,17 @@ class SaveHistory(Callback):
 		self.fileName = fileName
 		self.file = None
 
+	def onEpochStart(self, **kwargs):
+		if self.file is None:
+			self.file = open(self.fileName, mode=self.mode, buffering=1)
+			self.file.write(kwargs["model"].summary() + "\n")
+
 	def onEpochEnd(self, **kwargs):
 		# SaveHistory should be just in training mode.
 		if not kwargs["trainHistory"]:
 			print("Warning! Using SaveHistory callback with no history (probably testing mode).")
 			return
 
-		if kwargs["epoch"] == 1:
-			self.file = open(self.fileName, mode=self.mode, buffering=1)
-			self.file.write(kwargs["model"].summary() + "\n")
 		message = kwargs["trainHistory"][-1]["message"]
 		self.file.write(message + "\n")
 

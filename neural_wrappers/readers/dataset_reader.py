@@ -96,7 +96,8 @@ class DatasetReader:
 	#  final size. It can be a tuple (H, W, D3...Dn) or a callable (identity, lycon.resize etc.)
 	def resizerParams(resize):
 		if type(resize) == tuple:
-			return partial(resize_batch, dataShape=resize, type="bilinear")
+			assert len(resize) >= 2
+			return partial(resize_batch, height=resize[0], width=resize[1], interpolation="bilinear")
 		else:
 			assert hasattr(resize, "__call__"), "The user provided resizer %s must be callable" % (resize)
 			return resize
