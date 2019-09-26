@@ -98,7 +98,7 @@ def plotModelMetricHistory(metric, trainHistory, plotBestBullet, dpi=120):
 
 	# Aggregate all the values from trainHistory into a list and plot them
 	numEpochs = len(trainHistory)
-	trainValues = [trainHistory[i]["Train"][metric] for i in range(numEpochs)]
+	trainValues = np.array([trainHistory[i]["Train"][metric] for i in range(numEpochs)])
 
 	hasValidation = "Validation" in trainHistory[0]
 	if hasValidation:
@@ -111,9 +111,12 @@ def plotModelMetricHistory(metric, trainHistory, plotBestBullet, dpi=120):
 
 	if hasValidation:
 		plt.plot(x, validationValues, label="Val %s" % (metric))
-		usedValues = validationValues
+		usedValues = np.array(validationValues)
 	else:
 		usedValues = trainValues
+	# Against NaNs killing the training for low data count.
+	trainValues[np.isnan(trainValues)] = 0
+	usedValues[np.isnan(usedValues)] = 0
 
 	assert plotBestBullet in ("none", "min", "max")
 	if plotBestBullet == "min":
