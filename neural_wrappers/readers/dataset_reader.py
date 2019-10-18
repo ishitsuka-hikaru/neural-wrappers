@@ -269,10 +269,15 @@ class DatasetReader:
 	# @param[in] desiredDataSHape The shape of each item, should be in accordance with resizer
 	def getDataFromH5(self, dataset, key, indexes, desiredDataShape):
 		resultingShape = [*indexes.shape, *desiredDataShape]
-		results = np.zeros(resultingShape, dtype=dataset[key].dtype).reshape((-1, *desiredDataShape))
 		flattenedIndexes = indexes.flatten()
 
-		for i, index in enumerate(flattenedIndexes):
+		# Need to get first item, so we can infer the dtype after all transforms are made.
+		firstItem = self.retrieveItem(dataset, key, flattenedIndexes[0], flattenedIndexes[0] + 1)
+		firstItem = self.resizer[key](firstItem)
+		results = np.zeros(resultingShape, dtype=firstItem.dtype).reshape((-1, *desiredDataShape))
+
+		for i in range(1, len(flattenedIndexes)):
+			index = flattenedIndexes[i]
 			item = self.retrieveItem(dataset, key, index, index + 1)
 			item = self.resizer[key](item)
 			results[i] = item
