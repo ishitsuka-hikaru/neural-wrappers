@@ -11,6 +11,8 @@ def standardizeData(data, mean, std):
 def minMaxNormalizeData(data, min, max):
 	data -= min
 	data /= (max - min)
+	data[data != data] = 0
+	data[np.isinf(data)] = 0
 	return data
 
 def toCategorical(data, numClasses):

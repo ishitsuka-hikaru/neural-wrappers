@@ -165,15 +165,17 @@ class DatasetReader:
 
 	### Stuff used for iterating through the data provided by this reader ###
 
+	# First 3 steps (acquire data, dimTransform and normalizer) can be applied at once
+	def retrieveItem(self, dataset, dim, startIndex, endIndex):
+		item = self.dimGetter[dim](dataset, dim, startIndex, endIndex)
+		item = self.dimTransform[dim](item)
+		item = self.normalizer[dim][1](item, dim=dim)
+		return item
+
 	# Pipeline: Raw -> dimTransform -> normalizer -> augTransform -> resize -> finalTransform -> data
 	def getData(self, dataset, startIndex, endIndex):
-		data = {}
 		# First 3 steps (acquire data, dimTransform and normalizer) can be applied at once
-		for dim in self.allDims:
-			item = self.dimGetter[dim](dataset, dim, startIndex, endIndex)
-			item = self.dimTransform[dim](item)
-			item = self.normalizer[dim][1](item, dim=dim)
-			data[dim] = item
+		data = {dim : self.retrieveItem(dataset, dim, startIndex, endIndex) for dim in self.allDims}
 
 		# Next steps are independent, because augmentation is also a generator (for efficiency) which provides
 		#  new (copies of) items at every step. We also need to take dataDims and labelDims from the data dictionary
@@ -257,6 +259,26 @@ class DatasetReader:
 		summaryStr += "Aug Transforms(%d):\n%s" % (len(self.transformer.transforms), self.transformer)
 
 		return summaryStr
+
+	# Flatten the indexes array, create a resulting array of shape and type according to resizer.
+	# Equivalent of smart-indexing for np.array, but for H5 Dataset
+	# Example: getDataFromH5(dataset["train"], "rgb", [[1, 3], [15, 13]], (320, 320, 3))
+	# @param[in] dataset The h5 Dataset where we're looking for items
+	# @param[in] key The key inside the h5 Dataset
+	# @param[in] indexes An array of indexes where we are trying to retrieve data
+	# @param[in] desiredDataSHape The shape of each item, should be in accordance with resizer
+	def getDataFromH5(self, dataset, key, indexes, desiredDataShape):
+		resultingShape = [*indexes.shape, *desiredDataShape]
+		results = np.zeros(resultingShape, dtype=dataset[key].dtype).reshape((-1, *desiredDataShape))
+		flattenedIndexes = indexes.flatten()
+
+		for i, index in enumerate(flattenedIndexes):
+			item = self.retrieveItem(dataset, key, index, index + 1)
+			item = self.resizer[key](item)
+			results[i] = item
+
+		results = results.reshape(resultingShape)
+		return results
 
 	def __str__(self):
 		return "General dataset reader. Update __str__ in your dataset for more details when using summary."
