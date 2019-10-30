@@ -45,7 +45,7 @@ def getOptimizerStr(optimizer):
 		optimizerType = "Adam"
 		params = "Learning rate: %s, Betas: %s, Eps: %s, Weight Decay: %s" % (groups["lr"], groups["betas"], \
 			groups["eps"], groups["weight_decay"])
-	elif type(optimizer) == tr.optim.Adam:
+	elif type(optimizer) == tr.optim.AdamW:
 		optimizerType = "AdamW"
 		params = "Learning rate: %s, Betas: %s, Eps: %s, Weight Decay: %s" % (groups["lr"], groups["betas"], \
 			groups["eps"], groups["weight_decay"])
