@@ -45,6 +45,10 @@ def getOptimizerStr(optimizer):
 		optimizerType = "Adam"
 		params = "Learning rate: %s, Betas: %s, Eps: %s, Weight Decay: %s" % (groups["lr"], groups["betas"], \
 			groups["eps"], groups["weight_decay"])
+	elif type(optimizer) == tr.optim.Adam:
+		optimizerType = "AdamW"
+		params = "Learning rate: %s, Betas: %s, Eps: %s, Weight Decay: %s" % (groups["lr"], groups["betas"], \
+			groups["eps"], groups["weight_decay"])
 	else:
 		raise NotImplementedError("Not yet implemneted optimizer str for %s" % (type(optimizer)))
 	return "%s. %s" % (optimizerType, params)
