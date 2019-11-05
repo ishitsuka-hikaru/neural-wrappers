@@ -1,3 +1,4 @@
+import sys
 from .callback import Callback
 
 # TODO: add format to saving files
@@ -28,11 +29,11 @@ class SaveModels(Callback):
 			# nan != nan is True
 			if self.best != self.best or metricFunc(score, self.best):
 				kwargs["model"].saveModel(fileName)
-				sys.stdout.write("Epoch %d. Improvement (%s) from %2.2f to %2.2f\n" % \
+				print("Epoch %d. Improvement (%s) from %2.2f to %2.2f" % \
 					(kwargs["epoch"], self.metric, self.best, score))
 				self.best = score
 			else:
-				sys.stdout.write("Epoch %d did not improve best metric (%s: %2.2f)\n" % \
+				print("Epoch %d did not improve best metric (%s: %2.2f)" % \
 					(kwargs["epoch"], self.emtric, self.best))
 			sys.stdout.flush()
 		elif self.type == "all":
@@ -43,6 +44,6 @@ class SaveModels(Callback):
 			# nan != nan is True
 			if self.best != self.best or metricFunc(score, self.best):
 				kwargs["model"].saveModel("model_best_%s.pkl" % (self.metric))
-				sys.stdout.write("Epoch %d. Improvement (%s) from %2.2f to %2.2f\n" % \
+				print("Epoch %d. Improvement (%s) from %2.2f to %2.2f" % \
 					(kwargs["epoch"], self.metric, self.best, score))
 				self.best = score

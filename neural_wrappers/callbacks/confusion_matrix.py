@@ -1,4 +1,5 @@
 import numpy as np
+from copy import deepcopy
 from .callback import Callback
 
 class ConfusionMatrix(Callback):

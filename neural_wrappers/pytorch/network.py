@@ -22,6 +22,7 @@ class NeuralNetworkPyTorch(nn.Module):
 	def __init__(self, hyperParameters={}):
 		assert type(hyperParameters) == dict
 		self.optimizer = None
+		self.optimizerScheduler = None
 		self.criterion = None
 		self.currentEpoch = 1
 
@@ -307,6 +308,9 @@ class NeuralNetworkPyTorch(nn.Module):
 				sys.stdout.flush()
 			self.callbacksOnEpochEnd(isTraining=True)
 
+			if not self.optimizerScheduler is None:
+				self.optimizerScheduler.step()
+
 			self.currentEpoch += 1
 
 	def train_model(self, data, labels, batchSize, numEpochs, validationData=None, \
@@ -389,6 +393,8 @@ class NeuralNetworkPyTorch(nn.Module):
 		summaryStr += "Callbacks: %s\n" % ("None" if len(strCallbacks) == 0 else strCallbacks)
 
 		summaryStr += "Optimizer: %s\n" % getOptimizerStr(self.optimizer)
+		summaryStr += "Optimizer Scheduler: %s\n" % ("None" if not self.optimizerScheduler \
+			else str(self.optimizerScheduler))
 
 		summaryStr += "GPU: %s" % (tr.cuda.is_available())
 
@@ -409,6 +415,12 @@ class NeuralNetworkPyTorch(nn.Module):
 		else:
 			trainableParams = list(filter(lambda p : p.requires_grad, self.parameters()))
 			self.optimizer = optimizer(trainableParams, **kwargs)
+
+	def setOptimizerScheduler(self, scheduler, **kwargs):
+		assert not self.optimizer is None, "Optimizer must be set before scheduler!"
+		self.optimizerScheduler = scheduler(optimizer=self.optimizer, **kwargs)
+		# Some schedulers need acces to the model's object. Others, will not have this argument.
+		self.optimizerScheduler.model = self
 
 	def setCriterion(self, criterion):
 		self.criterion = criterion

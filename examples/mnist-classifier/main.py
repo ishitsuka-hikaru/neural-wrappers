@@ -4,10 +4,13 @@ import torch as tr
 import torch.optim as optim
 import torch.nn as nn
 import torch.nn.functional as F
+# from torch.optim.lr_scheduler import ReduceLROnPlateau
 from models import ModelFC, ModelConv
 from neural_wrappers.readers import MNISTReader
 from neural_wrappers.pytorch import maybeCuda
 from neural_wrappers.callbacks import SaveModels, SaveHistory, ConfusionMatrix, PlotMetrics
+from neural_wrappers.schedulers import ReduceLROnPlateau
+
 from neural_wrappers.metrics import Accuracy, F1Score
 from argparse import ArgumentParser
 
@@ -49,17 +52,18 @@ def main():
 		model = maybeCuda(ModelFC(inputShape=(28, 28, 1), outputNumClasses=10))
 	elif args.model_type == "model_conv":
 		model = maybeCuda(ModelConv(inputShape=(28, 28, 1), outputNumClasses=10))
-	print(model.summary())
 	model.setCriterion(lossFn)
 	model.addMetrics({"Accuracy" : Accuracy(), "F1" : F1Score()})
+	model.setOptimizer(optim.SGD, momentum=0.5, lr=1)
+	model.setOptimizerScheduler(ReduceLROnPlateau, metric="Loss")
+	print(model.summary())
 
 	if args.type == "train":
-		model.setOptimizer(optim.SGD, momentum=0.5, lr=0.01)
 		callbacks = [SaveHistory("history.txt"), PlotMetrics(["Loss", "Accuracy"], ["min", "max"]), \
 			ConfusionMatrix(numClasses=10), SaveModels("best")]
 		model.addCallbacks(callbacks)
-		model.train_generator(trainGenerator, trainSteps, numEpochs=args.num_epochs, \
-			validationGenerator=valGenerator, validationSteps=valSteps)
+		model.train_generator(trainGenerator, 100, numEpochs=args.num_epochs, \
+			validationGenerator=valGenerator, validationSteps=100)
 	elif args.type == "retrain":
 		model.loadModel(args.weights_file)
 		model.train_generator(trainGenerator, trainSteps, numEpochs=args.num_epochs, \

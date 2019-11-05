@@ -11,6 +11,8 @@
 # import transforms
 
 from .metrics import *
+from .schedulers import ReduceLROnPlateau
+
 from .callbacks import *
 from .utilities import *
 from .models import *
