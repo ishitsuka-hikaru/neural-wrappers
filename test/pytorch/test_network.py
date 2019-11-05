@@ -5,7 +5,7 @@ import torch as tr
 
 import torch.nn as nn
 from torch.optim import Adam, SGD
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+from neural_wrappers.schedulers import ReduceLROnPlateau
 
 class Model(NeuralNetworkPyTorch):
 	def __init__(self, inputSize, hiddenSize, outputSize):
@@ -19,21 +19,6 @@ class Model(NeuralNetworkPyTorch):
 		y2 = self.fc2(y1)
 		y3 = self.fc3(y2)
 		return y3
-
-class SchedulerCallback(Callback):
-	def __init__(self, optimizer, **kwargs):
-		super().__init__(**kwargs)
-		self.scheduler = ReduceLROnPlateau(optimizer, "min", factor=0.1, patience=10, eps=1e-4)
-
-	def onEpochEnd(self, **kwargs):
-		if not kwargs["validationMetrics"]:
-			loss = kwargs["trainMetrics"]["Loss"]
-		else:
-			loss = kwargs["validationMetrics"]["Loss"]
-		self.scheduler.step(loss)
-
-	def onCallbackLoad(self, additional, **kwargs):
-		self.scheduler.optimizer = kwargs["model"].optimizer
 
 class MyTestCallback(Callback):
 	def __init__(self, **kwargs):
@@ -100,25 +85,19 @@ class TestNetwork:
 		model = maybeCuda(Model(I, H, O))
 		model.setOptimizer(SGD, lr=0.005)
 		model.setCriterion(lambda y, t : tr.sum((y - t)**2))
+		model.setOptimizerScheduler(ReduceLROnPlateau, metric="Loss")
 
-		callbacks = [SchedulerCallback(model.optimizer, name="SchedulerCallback")]
-		model.addCallbacks(callbacks)
 		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=10, printMessage=False)
-		# print(model.callbacks[0].scheduler.num_bad_epochs)
 		model.saveModel("test_model.pkl")
 		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=20, printMessage=False)
-		# print(model.callbacks[0].scheduler.num_bad_epochs)
-		assert model.callbacks["SchedulerCallback"].scheduler.optimizer == model.optimizer
+		assert model.optimizerScheduler.optimizer == model.optimizer
 
 		model_new = maybeCuda(Model(I, H, O))
 		model_new.setCriterion(lambda y, t : tr.sum((y - t)**2))
 		model_new.loadModel("test_model.pkl")
-		# print(model_new.callbacks[0].scheduler.num_bad_epochs)
-		assert model_new.callbacks["SchedulerCallback"].scheduler.optimizer == model_new.optimizer
+		assert model_new.optimizerScheduler.optimizer == model_new.optimizer
 		model_new.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=20, printMessage=False)
-		# print(model_new.callbacks[0].scheduler.num_bad_epochs)
-		assert model.callbacks["SchedulerCallback"].scheduler.num_bad_epochs \
-			== model_new.callbacks["SchedulerCallback"].scheduler.num_bad_epochs
+		assert model.optimizerScheduler.num_bad_epochs == model_new.optimizerScheduler.num_bad_epochs
 
 		weights_model = list(model.parameters())
 		weights_model_new = list(model_new.parameters())
@@ -305,15 +284,15 @@ class TestNetwork:
 			assert model.topologicalKeys[i] == model_new.topologicalKeys[i]
 
 if __name__ == "__main__":
-	TestNetwork().test_save_weights_1()
-	TestNetwork().test_save_model_1()
-	TestNetwork().test_save_model_2()
-	TestNetwork().test_save_model_3()
-	TestNetwork().test_add_merics_1()
-	TestNetwork().test_add_merics_2()
-	TestNetwork().test_add_merics_3()
-	TestNetwork().test_add_callbacks_1()
-	TestNetwork().test_setCallbacksDependencies_1()
-	TestNetwork().test_setCallbacksDependencies_2()
-	TestNetwork().test_setCallbacksDependencies_3()
+	# TestNetwork().test_save_weights_1()
+	# TestNetwork().test_save_model_1()
+	# TestNetwork().test_save_model_2()
+	# TestNetwork().test_save_model_3()
+	# TestNetwork().test_add_merics_1()
+	# TestNetwork().test_add_merics_2()
+	# TestNetwork().test_add_merics_3()
+	# TestNetwork().test_add_callbacks_1()
+	# TestNetwork().test_setCallbacksDependencies_1()
+	# TestNetwork().test_setCallbacksDependencies_2()
+	# TestNetwork().test_setCallbacksDependencies_3()
 	TestNetwork().test_setCallbacksDependencies_4()

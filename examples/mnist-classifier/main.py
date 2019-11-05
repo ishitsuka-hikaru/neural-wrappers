@@ -10,8 +10,9 @@ from neural_wrappers.readers import MNISTReader
 from neural_wrappers.pytorch import maybeCuda
 from neural_wrappers.callbacks import SaveModels, SaveHistory, ConfusionMatrix, PlotMetrics
 from neural_wrappers.schedulers import ReduceLROnPlateau
-
+from neural_wrappers.utilities import getGenerators
 from neural_wrappers.metrics import Accuracy, F1Score
+
 from argparse import ArgumentParser
 
 def getArgs():
@@ -43,10 +44,8 @@ def main():
 
 	reader = MNISTReader(args.dataset_path, normalizer={"images" : "standardization"})
 	print(reader.summary())
-	trainGenerator = reader.iterate("train", miniBatchSize=20)
-	trainSteps = reader.getNumIterations("train", miniBatchSize=20)
-	valGenerator = reader.iterate("test", miniBatchSize=20)
-	valSteps = reader.getNumIterations("test", miniBatchSize=20)
+	trainGenerator, trainSteps, valGenerator, valSteps = getGenerators(reader, \
+		miniBatchSize=20, keys=["train", "test"])
 
 	if args.model_type == "model_fc":
 		model = maybeCuda(ModelFC(inputShape=(28, 28, 1), outputNumClasses=10))
@@ -55,15 +54,15 @@ def main():
 	model.setCriterion(lossFn)
 	model.addMetrics({"Accuracy" : Accuracy(), "F1" : F1Score()})
 	model.setOptimizer(optim.SGD, momentum=0.5, lr=0.1)
-	model.setOptimizerScheduler(ReduceLROnPlateau, metric="Loss")
+	model.setOptimizerScheduler(ReduceLROnPlateau, metric="Accuracy")
 	print(model.summary())
 
 	if args.type == "train":
 		callbacks = [SaveHistory("history.txt"), PlotMetrics(["Loss", "Accuracy"], ["min", "max"]), \
 			ConfusionMatrix(numClasses=10), SaveModels("best")]
 		model.addCallbacks(callbacks)
-		model.train_generator(trainGenerator, 100, numEpochs=args.num_epochs, \
-			validationGenerator=valGenerator, validationSteps=100)
+		model.train_generator(trainGenerator, trainSteps, numEpochs=args.num_epochs, \
+			validationGenerator=valGenerator, validationSteps=valSteps)
 	elif args.type == "retrain":
 		model.loadModel(args.weights_file)
 		model.train_generator(trainGenerator, trainSteps, numEpochs=args.num_epochs, \
@@ -72,14 +71,6 @@ def main():
 		model.loadModel(args.weights_file)
 		metrics = model.test_generator(valGenerator, valSteps)
 		print("Metrics: %s" % (metrics))
-
-	model.saveModel("test.pkl")
-	print(model.optimizerScheduler)
-	model = maybeCuda(ModelFC(inputShape=(28, 28, 1), outputNumClasses=10))
-	model.addMetrics({"Accuracy" : Accuracy(), "F1" : F1Score()})
-	# print(model.summary())
-	model.loadModel("test.pkl")
-	print(model.optimizerScheduler)
 
 if __name__ == "__main__":
 	main()

@@ -78,11 +78,11 @@ class NetworkSerializer:
 				callbacksAdditional.append(deepcopy(additional))
 				callbacks.append(deepcopy(callback))
 				callbacksOriginalPositions.append(None)
-			# Pretty awkward, but we need to restore the state of this callback (not the one that stored). Calling
-			#  onCallbackSave must make the object deep-copyable and pickle-able, but it may leave it in a bad state
-			#  (closed files etc.). But we may need to continue using that callback as well (such as storing models
-			#  every epoch, but also continuing training), thus we need to "repair" this callback as if we'd load it
-			#  from state.
+				# Pretty awkward, but we need to restore the state of this callback (not the one that stored). Calling
+				#  onCallbackSave must make the object deep-copyable and pickle-able, but it may leave it in a bad
+				#  state (closed files etc.). But we may need to continue using that callback as well (such as
+				#  storing models every epoch, but also continuing training), thus we need to "repair" this callback
+				#  as if we'd load it from state.
 				callback.onCallbackLoad(additional, model=self.model)
 		return {"state" : callbacks, "additional" : callbacksAdditional, \
 			"callbacks_positions" : callbacksOriginalPositions, "topological_sort" : self.model.topologicalSort}
@@ -167,6 +167,7 @@ class NetworkSerializer:
 			self.model.setOptimizerScheduler(optimizerDict["scheduler_type"], **optimizerDict["scheduler_kwargs"])
 			self.model.optimizerScheduler.load_state_dict(optimizerDict["scheduler_state"])
 			self.model.optimizerScheduler.storedArgs = optimizerDict["scheduler_kwargs"]
+			print("Succesfully loaded optimizer scheduler: %s" % (self.model.optimizerScheduler))
 
 	def doLoadHistoryDict(self, loadedState):
 		assert "history_dict" in loadedState

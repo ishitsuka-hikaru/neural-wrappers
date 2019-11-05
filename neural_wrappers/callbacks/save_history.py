@@ -1,3 +1,4 @@
+import os
 from .callback import Callback
 
 # TODO: add format to saving files
@@ -24,9 +25,11 @@ class SaveHistory(Callback):
 		self.file.write(message + "\n")
 
 	def onCallbackSave(self, **kwargs):
-		self.file.close()
+		if not self.file is None:
+			self.file.close()
 		self.file = None
 
 	def onCallbackLoad(self, additional, **kwargs):
 		# Make sure we're appending to the file now that we're using a loaded model (to not overwrite previous info).
-		self.file = open(self.fileName, mode="a", buffering=1)
+		if os.path.isfile(self.fileName):
+			self.file = open(self.fileName, mode="a", buffering=1)

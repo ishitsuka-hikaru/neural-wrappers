@@ -142,12 +142,13 @@ def topologicalSort(depGraph):
 			raise Exception("Graph is not acyclical")
 	return L
 
-def getGenerators(reader, miniBatchSize, maxPrefetch=1):
-	generator = reader.iterate("train", miniBatchSize=miniBatchSize, maxPrefetch=maxPrefetch)
-	numIters = reader.getNumIterations("train", miniBatchSize=miniBatchSize)
-	valGenerator = reader.iterate("validation", miniBatchSize=miniBatchSize, maxPrefetch=maxPrefetch)
-	valNumIters = reader.getNumIterations("validation", miniBatchSize=miniBatchSize)
-	return generator, numIters, valGenerator, valNumIters
+def getGenerators(reader, miniBatchSize, maxPrefetch=1, keys=["train", "validation"]):
+	items = []
+	for key in keys:
+		generator = reader.iterate(key, miniBatchSize=miniBatchSize, maxPrefetch=maxPrefetch)
+		numIters = reader.getNumIterations(key, miniBatchSize=miniBatchSize)
+		items.extend([generator, numIters])
+	return items
 
 def tryReadImage(path, count=5, imgLib="opencv"):
 	assert imgLib in ("opencv", "PIL")
