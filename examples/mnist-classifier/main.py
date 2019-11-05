@@ -73,5 +73,13 @@ def main():
 		metrics = model.test_generator(valGenerator, valSteps)
 		print("Metrics: %s" % (metrics))
 
+	model.saveModel("test.pkl")
+	print(model.optimizerScheduler)
+	model = maybeCuda(ModelFC(inputShape=(28, 28, 1), outputNumClasses=10))
+	model.addMetrics({"Accuracy" : Accuracy(), "F1" : F1Score()})
+	# print(model.summary())
+	model.loadModel("test.pkl")
+	print(model.optimizerScheduler)
+
 if __name__ == "__main__":
 	main()

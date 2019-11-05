@@ -46,10 +46,19 @@ class NetworkSerializer:
 
 	# @brief Handles saving the optimizer of the model
 	def doSaveOptimizer(self):
-		assert self.model.optimizer != None, "No optimizer was set for this model. Cannot save."
+		assert not self.model.optimizer is None, "No optimizer was set for this model. Cannot save."
 		optimizerType = type(self.model.optimizer)
 		optimizerState = self.model.optimizer.state_dict()
-		return {"state" : optimizerState, "type" : optimizerType}
+		optimizerKwargs = self.model.optimizer.storedArgs
+		Dict = {"state" : optimizerState, "type" : optimizerType, "kwargs" : optimizerKwargs}
+
+		# If there is also an optimizer scheduler appended to this optimizer, save it as well
+		if not self.model.optimizerScheduler is None:
+			Dict["scheduler_state"] = self.model.optimizerScheduler.state_dict()
+			Dict["scheduler_type"] = type(self.model.optimizerScheduler)
+			Dict["scheduler_kwargs"] = self.model.optimizerScheduler.storedArgs
+
+		return Dict
 
 	def doSaveHistoryDict(self):
 		return self.model.trainHistory
@@ -137,17 +146,13 @@ class NetworkSerializer:
 		print("Succesfully loaded weights (%d parameters) " % (loadedParams))
 
 	def doLoadOptimizer(self, loadedState):
-		if not "optimizer" in loadedState and ("optimizer_type" in loadedState and "optimizer_state" in loadedState):
-			print("Warning: Depcrecated model, using \"optimizer_type\" and \"optimizer_state\" keys" +\
-				"instead of \"optimizer\".")
-			loadedState["optimizer"] = \
-				{"state" : loadedState["optimizer_state"], "type" : loadedState["optimizer_type"]}
 		assert "optimizer" in loadedState
 	
 		# Create a new instance of the optimizer. Some optimizers require a lr to be set as well
 		optimizerDict = loadedState["optimizer"]
-		self.model.setOptimizer(optimizerDict["type"], lr=0.01)
+		self.model.setOptimizer(optimizerDict["type"], **optimizerDict["kwargs"])
 		self.model.optimizer.load_state_dict(optimizerDict["state"])
+		self.model.optimizer.storedArgs = optimizerDict["kwargs"]
 
 		# Optimizer consistency checks
 		# Not sure if/how we can use this (not always ordered)
@@ -157,6 +162,11 @@ class NetworkSerializer:
 		l3 = list(map(lambda x : id(x), trainableParams))
 		assert l2 == l3, "Something was wrong with loading optimizer"
 		print("Succesfully loaded optimizer: %s" % (getOptimizerStr(self.model.optimizer)))
+
+		if "scheduler_state" in optimizerDict:
+			self.model.setOptimizerScheduler(optimizerDict["scheduler_type"], **optimizerDict["scheduler_kwargs"])
+			self.model.optimizerScheduler.load_state_dict(optimizerDict["scheduler_state"])
+			self.model.optimizerScheduler.storedArgs = optimizerDict["scheduler_kwargs"]
 
 	def doLoadHistoryDict(self, loadedState):
 		assert "history_dict" in loadedState

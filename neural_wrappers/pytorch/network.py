@@ -415,12 +415,14 @@ class NeuralNetworkPyTorch(nn.Module):
 		else:
 			trainableParams = list(filter(lambda p : p.requires_grad, self.parameters()))
 			self.optimizer = optimizer(trainableParams, **kwargs)
+		self.optimizer.storedArgs = kwargs
 
 	def setOptimizerScheduler(self, scheduler, **kwargs):
 		assert not self.optimizer is None, "Optimizer must be set before scheduler!"
 		self.optimizerScheduler = scheduler(optimizer=self.optimizer, **kwargs)
 		# Some schedulers need acces to the model's object. Others, will not have this argument.
 		self.optimizerScheduler.model = self
+		self.optimizerScheduler.storedArgs = kwargs
 
 	def setCriterion(self, criterion):
 		self.criterion = criterion
