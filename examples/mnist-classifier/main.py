@@ -54,7 +54,7 @@ def main():
 		model = maybeCuda(ModelConv(inputShape=(28, 28, 1), outputNumClasses=10))
 	model.setCriterion(lossFn)
 	model.addMetrics({"Accuracy" : Accuracy(), "F1" : F1Score()})
-	model.setOptimizer(optim.SGD, momentum=0.5, lr=1)
+	model.setOptimizer(optim.SGD, momentum=0.5, lr=0.1)
 	model.setOptimizerScheduler(ReduceLROnPlateau, metric="Loss")
 	print(model.summary())
 
