@@ -7,7 +7,7 @@ from datetime import datetime
 from copy import deepcopy
 from collections import OrderedDict
 
-from transforms import *
+from ..transforms import *
 import neural_wrappers.callbacks
 from neural_wrappers.utilities import makeGenerator, LinePrinter, isBaseOf, RunningMean, topologicalSort
 from neural_wrappers.callbacks import Callback, MetricAsCallback
@@ -188,6 +188,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		startTime = datetime.now()
 		for i, items in enumerate(generator):
 			self.callbacksOnIterationStart(isTraining=isTraining, isOptimizing=isOptimizing)
+
 			npInputs, npLabels = items
 			trInputs = getTrData(npInputs)
 			trLabels = getTrData(npLabels)
@@ -382,12 +383,14 @@ class NeuralNetworkPyTorch(nn.Module):
 		summaryStr += "Hyperparameters: %s\n" % (strHyperParameters)
 
 		strMetrics = str(list(self.getMetrics().keys()))[1 : -1]
-		summaryStr += "Metrics: %s\n" % (strMetrics)
+		summaryStr += "Metrics: %s\n" % ("None" if len(strMetrics) == 0 else strMetrics)
 
 		strCallbacks = str(list(self.getCallbacks().keys()))[1 : -1]
-		summaryStr += "Callbacks: %s\n" % (strCallbacks)
+		summaryStr += "Callbacks: %s\n" % ("None" if len(strCallbacks) == 0 else strCallbacks)
 
 		summaryStr += "Optimizer: %s\n" % getOptimizerStr(self.optimizer)
+
+		summaryStr += "GPU: %s" % (tr.cuda.is_available())
 
 		return summaryStr
 
