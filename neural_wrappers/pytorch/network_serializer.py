@@ -125,10 +125,6 @@ class NetworkSerializer:
 
 	# Handles loading weights from a model.
 	def doLoadWeights(self, loadedState):
-		if not "weights" in loadedState and "params" in loadedState:
-			print("Warning: Depcrecated model, using \"params\" key instead of \"weights\".")
-			loadedState["weights"] = loadedState["params"]
-
 		assert "weights" in loadedState
 		params = loadedState["weights"]
 		loadedParams, _ = getNumParams(params)
@@ -150,6 +146,10 @@ class NetworkSerializer:
 	
 		# Create a new instance of the optimizer. Some optimizers require a lr to be set as well
 		optimizerDict = loadedState["optimizer"]
+
+		if not "kwargs" in optimizerDict:
+			print("Warning: Depcrecated model. No kwargs in optimizerDict. Defaulting to lr=0.01")
+			optimizerDict["kwargs"] = {"lr" : 0.01}
 		self.model.setOptimizer(optimizerDict["type"], **optimizerDict["kwargs"])
 		self.model.optimizer.load_state_dict(optimizerDict["state"])
 		self.model.optimizer.storedArgs = optimizerDict["kwargs"]

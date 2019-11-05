@@ -38,19 +38,21 @@ def getOptimizerStr(optimizer):
 
 	groups = optimizer.param_groups[0]
 	if type(optimizer) == tr.optim.SGD:
-		optimizerType = "SGD"
 		params = "Learning rate: %s, Momentum: %s, Dampening: %s, Weight Decay: %s, Nesterov: %s" % (groups["lr"], \
 			groups["momentum"], groups["dampening"], groups["weight_decay"], groups["nesterov"])
-	elif type(optimizer) == tr.optim.Adam:
-		optimizerType = "Adam"
-		params = "Learning rate: %s, Betas: %s, Eps: %s, Weight Decay: %s" % (groups["lr"], groups["betas"], \
-			groups["eps"], groups["weight_decay"])
-	elif type(optimizer) == tr.optim.AdamW:
-		optimizerType = "AdamW"
+	elif type(optimizer) in (tr.optim.Adam, tr.optim.AdamW, tr.optim.RMSprop):
 		params = "Learning rate: %s, Betas: %s, Eps: %s, Weight Decay: %s" % (groups["lr"], groups["betas"], \
 			groups["eps"], groups["weight_decay"])
 	else:
 		raise NotImplementedError("Not yet implemneted optimizer str for %s" % (type(optimizer)))
+
+	optimizerType = {
+		tr.optim.SGD : "SGD",
+		tr.optim.Adam : "Adam",
+		tr.optim.AdamW : "AdamW",
+		tr.optim.RMSprop : "RMSprop"
+	}[type(optimizer)]
+
 	return "%s. %s" % (optimizerType, params)
 
 # Results come in torch format, but callbacks require numpy, so convert the results back to numpy format
