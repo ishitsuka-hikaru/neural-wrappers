@@ -5,3 +5,4 @@ from .save_models import SaveModels
 from .save_history import SaveHistory
 from .confusion_matrix import ConfusionMatrix
 from .plot_metrics import PlotMetrics, PlotMetrics as PlotMetricsCallback
+from .early_stopping import EarlyStopping

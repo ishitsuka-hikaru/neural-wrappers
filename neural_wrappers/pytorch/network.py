@@ -463,12 +463,18 @@ class NeuralNetworkPyTorch(nn.Module):
 		return self.hyperParameters
 
 	def onModelLoad(self, state):
-		if len(self.hyperParameters.keys()) != len(state.keys()):
-			return False
+		# if len(self.hyperParameters.keys()) != len(state.keys()):
+		# 	return False
 
-		for key in state:
+		allKeys = set(list(self.hyperParameters.keys()) + list(state.keys()))
+
+		for key in allKeys:
 			if not key in self.hyperParameters:
 				return False
+
+			if not key in state:
+				print("Warning. Model has unknown state key: %s, possibly added after training. Skipping." % (key))
+				continue
 
 			if not state[key] == self.hyperParameters[key]:
 				return False

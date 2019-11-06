@@ -4,11 +4,11 @@ import torch as tr
 import torch.optim as optim
 import torch.nn as nn
 import torch.nn.functional as F
-# from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.optim.lr_scheduler import CosineAnnealingLR
 from models import ModelFC, ModelConv
 from neural_wrappers.readers import MNISTReader
 from neural_wrappers.pytorch import maybeCuda
-from neural_wrappers.callbacks import SaveModels, SaveHistory, ConfusionMatrix, PlotMetrics
+from neural_wrappers.callbacks import SaveModels, SaveHistory, ConfusionMatrix, PlotMetrics, EarlyStopping
 from neural_wrappers.schedulers import ReduceLROnPlateau
 from neural_wrappers.utilities import getGenerators
 from neural_wrappers.metrics import Accuracy, F1Score
@@ -54,13 +54,14 @@ def main():
 	model.setCriterion(lossFn)
 	model.addMetrics({"Accuracy" : Accuracy(), "F1" : F1Score()})
 	model.setOptimizer(optim.SGD, momentum=0.5, lr=0.1)
-	model.setOptimizerScheduler(ReduceLROnPlateau, metric="Accuracy")
+	model.setOptimizerScheduler(ReduceLROnPlateau, metric="Loss")
+	callbacks = [SaveHistory("history.txt"), PlotMetrics(["Loss", "Accuracy"], ["min", "max"]), \
+		ConfusionMatrix(numClasses=10), SaveModels("best")]
+	model.addCallbacks(callbacks)
+	model.addCallbacks([EarlyStopping(patience=5)])
 	print(model.summary())
 
 	if args.type == "train":
-		callbacks = [SaveHistory("history.txt"), PlotMetrics(["Loss", "Accuracy"], ["min", "max"]), \
-			ConfusionMatrix(numClasses=10), SaveModels("best")]
-		model.addCallbacks(callbacks)
 		model.train_generator(trainGenerator, trainSteps, numEpochs=args.num_epochs, \
 			validationGenerator=valGenerator, validationSteps=valSteps)
 	elif args.type == "retrain":
