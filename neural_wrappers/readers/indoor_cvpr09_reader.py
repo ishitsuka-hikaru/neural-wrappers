@@ -1,7 +1,6 @@
 import h5py
 import numpy as np
 from .dataset_reader import ClassificationDatasetReader
-from neural_wrappers.transforms import Transformer
 
 class IndoorCVPR09Reader(ClassificationDatasetReader):
 	def __init__(self, datasetPath, imageShape, transforms=["none"], \

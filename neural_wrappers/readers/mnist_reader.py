@@ -2,7 +2,6 @@ import h5py
 import numpy as np
 from .dataset_reader import ClassificationDatasetReader
 from neural_wrappers.utilities import toCategorical
-from neural_wrappers.transforms import Transformer
 
 class MNISTReader(ClassificationDatasetReader):
 	def __init__(self, datasetPath, dataDims=["images"], labelDims=["labels"], \
@@ -33,17 +32,10 @@ class MNISTReader(ClassificationDatasetReader):
 			"images" : np.array([255])
 		}
 
-		self.trainTransformer = self.transformer
-		self.valTransformer = Transformer(self.allDims, [])
-
 		print("[MNIST Reader] Setup complete")
 
 	def iterate_once(self, type, miniBatchSize):
 		assert type in ("train", "test")
-		if type == "train":
-			self.transformer = self.trainTransformer
-		else:
-			self.transformer = self.valTransformer
 
 		dataset = self.dataset[type]
 		numIterations = self.getNumIterations(type, miniBatchSize, accountTransforms=False)

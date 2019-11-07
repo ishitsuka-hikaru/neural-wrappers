@@ -1,7 +1,6 @@
 import h5py
 import numpy as np
 from .dataset_reader import DatasetReader
-from neural_wrappers.transforms import Transformer
 from neural_wrappers.utilities import resize_batch
 from functools import partial
 
@@ -82,9 +81,6 @@ class CitySimReader(DatasetReader):
 			"depth" : np.array([depthMaxDataGroup[dataGroup]])
 		}
 
-		self.trainTransformer = self.transformer
-		self.valTransformer = Transformer(self.allDims, [])
-
 	def getHvnNumDims(hvnTransform):
 		if hvnTransform in ("identity", "identity_long"):
 			return 1
@@ -109,11 +105,6 @@ class CitySimReader(DatasetReader):
 
 	def iterate_once(self, type, miniBatchSize):
 		assert type in ("train", "validation")
-		if type == "train":
-			self.transformer = self.trainTransformer
-		else:
-			self.transformer = self.valTransformer
-
 		dataset = self.dataset[type]
 		numIterations = self.getNumIterations(type, miniBatchSize, accountTransforms=False)
 

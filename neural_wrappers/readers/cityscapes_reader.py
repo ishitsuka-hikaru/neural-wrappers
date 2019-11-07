@@ -1,7 +1,6 @@
 import numpy as np
 import h5py
 from .dataset_reader import DatasetReader
-from neural_wrappers.transforms import Transformer
 
 # # CityScapes Reader class, used with the data already converted in h5py format.
 class CityScapesReader(DatasetReader):
@@ -22,8 +21,6 @@ class CityScapesReader(DatasetReader):
 		self.baseDataGroup = "noseq"
 		self.dataset = h5py.File(self.datasetPath, "r")
 		self.numData = {item : len(self.dataset[item][self.baseDataGroup]["rgb"]) for item in self.dataset}
-		self.trainTransformer = self.transformer
-		self.valTransformer = Transformer(self.allDims, [])
 
 		self.maximums = {
 			"rgb" : np.array([255, 255, 255]),
@@ -48,11 +45,6 @@ class CityScapesReader(DatasetReader):
 
 	def iterate_once(self, type, miniBatchSize):
 		assert type in ("train", "validation")
-		if type == "train":
-			self.transformer = self.trainTransformer
-		else:
-			self.transformer = self.valTransformer
-
 		dataset = self.dataset[type][self.baseDataGroup]
 		numIterations = self.getNumIterations(type, miniBatchSize, accountTransforms=False)
 

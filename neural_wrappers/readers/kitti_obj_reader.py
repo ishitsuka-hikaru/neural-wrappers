@@ -1,7 +1,6 @@
 import numpy as np
 import h5py
 from .dataset_reader import DatasetReader
-from neural_wrappers.transforms import Transformer
 
 class KITTIObjReader(DatasetReader):
 	def __init__(self, datasetPath, resizer=(375, 1224, 3), normalization="min_max_normalization", \
@@ -28,9 +27,6 @@ class KITTIObjReader(DatasetReader):
 		self.indexes, self.numData = DatasetReader.computeSplitIndexesNumData(numAllData, \
 			{"train": trainNum, "validation": valNum})
 
-		self.trainTransformer = self.transformer
-		self.valTransformer = Transformer(self.allDims, [])
-
 		self.maximums = {
 			"rgb" : np.array([255, 255, 255]),
 		}
@@ -41,10 +37,6 @@ class KITTIObjReader(DatasetReader):
 
 	def iterate_once(self, type, miniBatchSize):
 		assert type in ("train", "validation")
-		if type == "train":
-			self.transformer = self.trainTransformer
-		else:
-			self.transformer = self.valTransformer
 
 		# both train and validation are on "train" key (different indexes). Test (TODO) is separately.
 		dataset = self.dataset["train"][self.baseDataGroup]

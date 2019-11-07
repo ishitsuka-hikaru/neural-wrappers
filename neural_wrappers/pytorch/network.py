@@ -7,7 +7,6 @@ from datetime import datetime
 from copy import deepcopy
 from collections import OrderedDict
 
-from ..transforms import *
 import neural_wrappers.callbacks
 from neural_wrappers.utilities import makeGenerator, LinePrinter, isBaseOf, RunningMean, topologicalSort
 from neural_wrappers.callbacks import Callback, MetricAsCallback

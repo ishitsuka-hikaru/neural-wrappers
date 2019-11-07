@@ -1,7 +1,6 @@
 import h5py
 import numpy as np
 from .dataset_reader import DatasetReader
-from neural_wrappers.transforms import Transformer
 
 # NYUDepthV2 only
 class NYUDepthReader(DatasetReader):
