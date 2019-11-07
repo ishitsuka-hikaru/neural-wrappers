@@ -186,12 +186,13 @@ class DatasetReader:
 			item = self.resizer[dim](item)
 
 			if dim in self.dataDims:
-				finalData[dim] = self.dataFinalTransform[dim](item)
-			if dim in self.labelDims:
 				# Ensure that if we're using the same keys in data and labels, we get copies in each dictionary
 				# This is done for safety reasons as we'd probably like to manipulate the data differently
-				if dim in self.dataDims:
-					item = np.copy(item)
+				if dim in self.labelDims:
+					finalData[dim] = self.dataFinalTransform[dim](np.copy(item))
+				else:
+					finalData[dim] = self.dataFinalTransform[dim](item)
+			if dim in self.labelDims:
 				finalLabels[dim] = self.labelFinalTransform[dim](item)
 		return finalData, finalLabels
 
