@@ -16,16 +16,16 @@ def standardizer(data, dim, obj):
 	return standardizeData(data, mean, std)
 
 # @brief DatasetReader baseclass, that every reader must inherit. Provides basic interface for constructing
-#  a dataset reader, with path to the directory/h5py file, data and label dims, dimension transforms, normalizer and
-#  augmentation transforms for each dimension. Both data and labels cand be inexistent, by simply providing a None
-#  for the dataDims or labelDims variable.
+#  a dataset reader, with path to the directory/h5py file, data and label dims, dimension transforms, and normalizer
+#  for each dimension. Both data and labels cand be inexistent, by simply providing a None for the dataDims
+#  or labelDims variable.
 # Pipeline: dimGetter (raw) -> dimTransforms -> normalizer -> resizer -> finalTransforms (data and labels)
 # @param[in] datasetPath The path to the dataset (directory, h5py file etc.)
 # @param[in] dataDims A list representing the dimensions of the data ("rgb", "classes", "depth" etc.) or None
 # @param[in] labelDims A list representing the dimensions of the label ("depth", "segmentation", "label", etc.) or None
 class DatasetReader:
 	def __init__(self, datasetPath, allDims, dataDims, labelDims, dimGetter={}, dimTransform={}, normalizer={}, \
-		augTransform=[], resizer={}, dataFinalTransform={}, labelFinalTransform={}):
+		resizer={}, dataFinalTransform={}, labelFinalTransform={}):
 
 		# Define the dictionaries that must be updated by each dataset reader.
 		self.datasetPath = datasetPath
@@ -48,11 +48,11 @@ class DatasetReader:
 		for dim in allDims:
 			if dim in self.allDims:
 				continue
-			for Dict in [dimTransform, normalizer, augTransform, resizer]:
+			for Dict in [dimTransform, normalizer, resizer]:
 				if dim in Dict:
 					del Dict[dim]
 
-		# Pipeline: dimGetter -> dimTransform -> normalizer -> augTransform -> resize -> finalTransform -> data
+		# Pipeline: dimGetter -> dimTransform -> normalizer -> resize -> finalTransform -> data
 		# This pipe-line is applied for both dataDims and labelDims simultaneously, but they are separated at the very
 		#  end before providing the data to the user.
 
@@ -170,14 +170,10 @@ class DatasetReader:
 		item = self.normalizer[dim][1](item, dim=dim)
 		return item
 
-	# Pipeline: Raw -> dimTransform -> normalizer -> augTransform -> resize -> finalTransform -> data
+	# Pipeline: Raw -> dimTransform -> normalizer -> resize -> finalTransform -> data
 	def getData(self, dataset, startIndex, endIndex):
 		# First 3 steps (acquire data, dimTransform and normalizer) can be applied at once
 		data = {dim : self.retrieveItem(dataset, dim, startIndex, endIndex) for dim in self.allDims}
-
-		# Next steps are independent, because augmentation is also a generator (for efficiency) which provides
-		#  new (copies of) items at every step. We also need to take dataDims and labelDims from the data dictionary
-		#  before providing them to the user.
 		finalData = OrderedDict(zip(self.dataDims, len(self.dataDims) * [None]))
 		finalLabels = OrderedDict(zip(self.labelDims, len(self.labelDims) * [None]))
 

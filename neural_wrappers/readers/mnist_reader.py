@@ -4,12 +4,9 @@ from .dataset_reader import ClassificationDatasetReader
 from neural_wrappers.utilities import toCategorical
 
 class MNISTReader(ClassificationDatasetReader):
-	def __init__(self, datasetPath, dataDims=["images"], labelDims=["labels"], \
-		dimTransform={"images" : np.float32, "labels" : lambda x : toCategorical(x, numClasses=10)}, \
-		normalizer={}, augTransform=[], resizer={}, **kwargs):
+	def __init__(self, datasetPath, dataDims=["images"], labelDims=["labels"], **kwargs):
 		super().__init__(datasetPath, allDims=["images", "labels"], dataDims=dataDims, labelDims=labelDims, \
-			dimTransform=dimTransform, normalizer=normalizer, augTransform=augTransform, resizer=resizer, \
-			dataFinalTransform=lambda x : x["images"], labelFinalTransform=lambda x : x["labels"], **kwargs)
+			dimTransform={"images" : np.float32, "labels" : lambda x : toCategorical(x, numClasses=10)}, **kwargs)
 		self.dataset = h5py.File(self.datasetPath, "r")
 		self.numData = {
 			"train" : 60000,
@@ -46,9 +43,8 @@ class MNISTReader(ClassificationDatasetReader):
 			assert startIndex < endIndex, "startIndex < endIndex. Got values: %d %d" % (startIndex, endIndex)
 			numData = endIndex - startIndex
 
-			for items in self.getData(dataset, startIndex, endIndex):
-				data, labels = items
-				yield items
+			data, labels = self.getData(dataset, startIndex, endIndex)
+			yield data["images"], labels["labels"]
 
 	def getNumberOfClasses(self):
 		return 10
