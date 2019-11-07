@@ -472,7 +472,8 @@ class NeuralNetworkPyTorch(nn.Module):
 				return False
 
 			if not key in state:
-				print("Warning. Model has unknown state key: %s, possibly added after training. Skipping." % (key))
+				print("Warning. Model has unknown state key: %s=%s, possibly added after training. Skipping." % \
+					(key, str(self.hyperParameters[key])))
 				continue
 
 			if not state[key] == self.hyperParameters[key]:
