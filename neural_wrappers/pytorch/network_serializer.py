@@ -106,7 +106,17 @@ class NetworkSerializer:
 		if not self.model.onModelLoad(loadedState["model_state"]):
 			loaded = loadedState["model_state"]
 			current = self.model.onModelSave()
-			raise Exception("Could not correclty load the model state loaded: %s vs. current: %s" % (loaded, current))
+			Str = "Could not correclty load the model state loaded: %s vs. current: %s.\nDiffs:\n" % (loaded, current)
+			for key in set(list(loaded.keys()) + list(current.keys())):
+				if not key in current:
+					Str += "\t- %s in loaded, not in current" % (key)
+					continue
+				if not key in loaded:
+					Str += "\t- %s in current, not in loaded"% (key)
+					continue
+				if current[key] != loaded[key]:
+					Str += "\t- current[%s]=%s. loaded[%s]=%s" % (key, current[key], key, current[key])
+			raise Exception(Str)
 
 		for key in stateKeys:
 			if key == "weights":
