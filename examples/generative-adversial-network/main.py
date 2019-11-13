@@ -2,29 +2,46 @@ import sys
 import os
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.misc import toimage
+from functools import partial
 
 from neural_wrappers.readers import MNISTReader, Cifar10Reader
-from neural_wrappers.pytorch import NeuralNetworkPyTorch, maybeCuda, maybeCpu, GenerativeAdversialNetwork
-from neural_wrappers.callbacks import Callback
+from neural_wrappers.pytorch import GenerativeAdversarialNetwork
+from neural_wrappers.callbacks import Callback, SaveModels
 
 import torch as tr
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
+device = tr.device("cuda") if tr.cuda.is_available() else tr.device("cpu")
+
 # For some reasons, results are much better if provided data is in range -1 : 1 (not 0 : 1 or standardized).
-def GANNormalization(obj, data, type):
-	data = obj.minMaxNormalizer(data, type)
-	data = (data - 0.5) * 2
-	return data
+def GANNormalization(data, dim):
+	return (data / 255 - 0.5) * 2
+
+class GANReader(MNISTReader):
+	def __init__(self, noiseSize, **kwargs):
+		self.noiseSize = noiseSize
+		super().__init__(**kwargs)
+
+	def iterate_once(self, type, miniBatchSize):
+		for data, labels in super().iterate_once(type, miniBatchSize):
+			# We need to give items for the entire training epoch, which includes optimizing both the generator and
+			#  the discriminator. We also don't need any labels for the generator, so we'll just pass None
+
+			MB = data.shape[0]
+			gNoise = np.random.randn(MB, self.noiseSize).astype(np.float32)
+			dNoise = np.random.randn(MB, self.noiseSize).astype(np.float32)
+
+			# Pack the data in two components, one for G and one for D
+			yield (gNoise, None), ((data, dNoise), None)
 
 def plot_image(image, title):
 	plt.gcf().gca().axis("off")
 	plt.gcf().gca().set_title(title)
 	cmap = None if image.shape[2] == 3 else "gray"
 	image = image[..., 0] if image.shape[2] == 1 else image
-	image = np.array(toimage(image))
+	# image = np.array(toimage(image))
 	plt.imshow(image, cmap=cmap)
 
 def plot_images(images, titles, gridShape):
@@ -35,38 +52,39 @@ def plot_images(images, titles, gridShape):
 		plot_image(images[j], titles[j])
 
 class PlotCallback(Callback):
-	def __init__(self, realDataGenerator, imageShape):
-		self.realDataGenerator = realDataGenerator
+	def __init__(self, latentSpaceSize, imageShape):
+		super().__init__("PlotCallback")
 		self.imageShape = imageShape
+		self.latentSpaceSize = latentSpaceSize
 
 		if not os.path.exists("images"):
 			os.mkdir("images")
 
 	def onEpochEnd(self, **kwargs):
 		GAN = kwargs["model"]
-		latentSpaceSize = GAN.generator.inputSize
-		randomInputsG = maybeCuda(tr.randn(10, latentSpaceSize))
-		randomOutG = GAN.generator.forward(randomInputsG).contiguous().view(-1, *self.imageShape)
-		realItems = next(self.realDataGenerator)[0]
-		trRealItems = maybeCuda(tr.from_numpy(np.expand_dims(realItems, axis=-1)))
 
-		inD = tr.cat([randomOutG, trRealItems], dim=0)
-		outD = maybeCpu(GAN.discriminator.forward(inD).detach()).numpy()
+		# Generate 20 random gaussian inputs
+		randomNoise = np.random.randn(20, self.latentSpaceSize).astype(np.float32)
+		npRandomOutG = GAN.generator.npForward(randomNoise).reshape(-1, *self.imageShape)[..., 0] / 2 + 0.5
 
-		items = [maybeCpu(inD[j].detach()).numpy().reshape(self.imageShape) for j in range(len(inD))]
-		titles = ["%2.3f" % (outD[j]) for j in range(len(outD))]
-		plot_images(items, titles, gridShape=(4, 5))
-		plt.savefig("images/%d.png" % (kwargs["epoch"]))
-		plt.clf()
+		# Plot the inputs and discriminator's confidence in them
+		items = [npRandomOutG[j] for j in range(len(npRandomOutG))]
+		
+		ax = plt.subplots(4, 5)[1]
+		for i in range(4):
+			for j in range(5):
+				ax[i, j].imshow(npRandomOutG[i * 4 + j], cmap="gray")
+		plt.savefig("results_epoch%d.png" % (GAN.currentEpoch))
 
-class SaveModel(Callback):
-	def onEpochEnd(self, **kwargs):
-		kwargs["model"].save_model("GAN.pkl")
+# class SaveModel(Callback):
+# 	def onEpochEnd(self, **kwargs):
+# 		kwargs["model"].save_model("GAN.pkl")
 
-def getReader(readerType, readerPath):
-	assert readerType in ("mnist", "cifar10")
+def getReader(readerType, readerPath, latentSpaceSize):
+	assert readerType in ("mnist", )
 	if readerType == "mnist":
-		reader = MNISTReader(readerPath, normalization=("GAN Normalization", GANNormalization))
+		reader = GANReader(noiseSize=latentSpaceSize, datasetPath=readerPath, \
+			normalizer=({"images" : ("GAN", GANNormalization)}))
 		imageShape = (28, 28, 1)
 	else:
 		reader = Cifar10Reader(readerPath, normalization=("GAN Normalization", GANNormalization))
@@ -96,30 +114,29 @@ def main():
 	latentSpaceSize = 200
 
 	# Define reader, generator and callbacks
-	reader, imageShape = getReader(sys.argv[2], sys.argv[3])
+	reader, imageShape = getReader(sys.argv[2], sys.argv[3], latentSpaceSize)
 	print(reader.summary())
 	generator = reader.iterate("train", miniBatchSize=MB, maxPrefetch=1)
 	numIterations = reader.getNumIterations("train", miniBatchSize=MB)
-	callbacks = [PlotCallback(reader.iterate("test", miniBatchSize=10, maxPrefetch=1), imageShape), SaveModel()]
+	# numIterations = 10
+	# callbacks = [PlotCallback(reader.iterate("test", miniBatchSize=10, maxPrefetch=1), imageShape), SaveModel()]
 
 	generatorModel, discriminatorModel = getModel(sys.argv[2], latentSpaceSize, imageShape)
 
 	# Define model
-	GAN = GenerativeAdversialNetwork(generator=generatorModel, discriminator=discriminatorModel)
-	GAN = maybeCuda(GAN)
+	GAN = GenerativeAdversarialNetwork(generator=generatorModel, discriminator=discriminatorModel).to(device)
 	GAN.generator.setOptimizer(tr.optim.SGD, lr=0.01)
 	GAN.discriminator.setOptimizer(tr.optim.SGD, lr=0.01)
-	GAN.setCriterion(nn.BCELoss())
+	GAN.addCallbacks([SaveModels("last"), PlotCallback(latentSpaceSize, imageShape)])
 	print(GAN.summary())
 
 	if sys.argv[1] == "train":
-		GAN.train_generator(generator, numIterations, numEpochs=numEpochs, callbacks=callbacks)
+		GAN.train_generator(generator, numIterations, numEpochs=numEpochs)
 	elif sys.argv[1] == "retrain":
-		GAN.load_model("GAN.pkl")
-		GAN.train_generator(generator, numIterations, numEpochs=numEpochs, \
-			callbacks=callbacks, optimizeG=True, numStepsD=1)
+		GAN.loadModel("model_last_Loss.pkl")
+		GAN.train_generator(generator, numIterations, numEpochs=numEpochs)
 	elif sys.argv[1] == "test_best":
-		GAN.load_model("GAN.pkl")
+		GAN.loadModel("model_last_Loss.pkl")
 		while True:
 			# Generate 100 random gaussian inputs
 			randomInputsG = maybeCuda(tr.randn(100, latentSpaceSize))
@@ -134,18 +151,22 @@ def main():
 				plot_image(image, title)
 				plt.show()
 	else:
-		GAN.load_model("GAN.pkl")
+		GAN.loadModel("model_last_Loss.pkl")
 		while True:
 			# Generate 20 random gaussian inputs
-			randomInputsG = maybeCuda(tr.randn(20, latentSpaceSize))
-			randomOutG = GAN.generator.forward(randomInputsG).view(-1, *imageShape)
-			outD = maybeCpu(GAN.discriminator.forward(randomOutG).detach()).numpy()
-			npRandomOutG = maybeCpu(randomOutG.detach()).numpy()
+			randomNoise = np.random.randn(20, latentSpaceSize).astype(np.float32)
+			npRandomOutG = GAN.generator.npForward(randomNoise).reshape(-1, *imageShape)[..., 0] / 2 + 0.5
+			print(npRandomOutG.min(), npRandomOutG.max())
+			# exit()
 
 			# # Plot the inputs and discriminator's confidence in them
-			items = [npRandomOutG[j] for j in range(len(randomOutG))]
-			titles = ["%2.3f" % (outD[j]) for j in range(len(outD))]
-			plot_images(items, titles, gridShape=(4, 5))
+			items = [npRandomOutG[j] for j in range(len(npRandomOutG))]
+			# titles = ["%2.3f" % (outD[j]) for j in range(len(outD))]
+			# plot_images(items, titles, gridShape=(4, 5))
+			ax = plt.subplots(4, 5)[1]
+			for i in range(4):
+				for j in range(5):
+					ax[i, j].imshow(npRandomOutG[i * 4 + j], cmap="gray")
 			plt.show()
 			plt.clf()
 

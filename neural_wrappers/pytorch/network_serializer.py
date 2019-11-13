@@ -115,7 +115,7 @@ class NetworkSerializer:
 					Str += "\t- %s in current, not in loaded"% (key)
 					continue
 				if current[key] != loaded[key]:
-					Str += "\t- current[%s]=%s. loaded[%s]=%s" % (key, current[key], key, current[key])
+					Str += "\t- current[%s]=%s. loaded[%s]=%s" % (key, current[key], key, loaded[key])
 			raise Exception(Str)
 
 		for key in stateKeys:

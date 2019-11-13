@@ -175,8 +175,6 @@ class NeuralNetworkPyTorch(nn.Module):
 		assert not self.criterion is None, "Set criterion before training or testing"
 
 		metricResults = {metric : RunningMean() for metric in self.callbacks.keys()}
-		i = 0
-
 		if isTraining and isOptimizing:
 			optimizeCallback = (lambda optim, loss : (optim.zero_grad(), loss.backward(), optim.step()))
 		else:
@@ -246,6 +244,17 @@ class NeuralNetworkPyTorch(nn.Module):
 		numIterations = data.shape[0] // batchSize + (data.shape[0] % batchSize != 0)
 		return self.test_generator(dataGenerator, stepsPerEpoch=numIterations, printMessage=printMessage)
 
+	def epochPrologue(self, epochMetrics, printMessage):
+		if printMessage:
+			sys.stdout.write(epochMetrics["message"] + "\n")
+			sys.stdout.flush()
+
+		self.trainHistory.append(epochMetrics)
+		self.callbacksOnEpochEnd(isTraining=True)
+		if not self.optimizerScheduler is None:
+			self.optimizerScheduler.step()
+		self.currentEpoch += 1
+
 	# @param[in] generator Generator which is used to get items for numEpochs epochs, each taking stepsPerEpoch steps
 	# @param[in] stepsPerEpoch How many steps each epoch takes (assumed constant). The generator must generate this
 	#  amount of items every epoch.
@@ -296,21 +305,11 @@ class NeuralNetworkPyTorch(nn.Module):
 				validationMetrics = None
 
 			duration = datetime.now() - now
-			message = self.computePrintMessage(epochMetrics["Train"], validationMetrics, numEpochs, duration)
 
-			self.trainHistory.append(epochMetrics)
 			epochMetrics["duration"] = duration
+			message = self.computePrintMessage(epochMetrics["Train"], validationMetrics, numEpochs, duration)
 			epochMetrics["message"] = message
-
-			if printMessage:
-				sys.stdout.write(message + "\n")
-				sys.stdout.flush()
-			self.callbacksOnEpochEnd(isTraining=True)
-
-			if not self.optimizerScheduler is None:
-				self.optimizerScheduler.step()
-
-			self.currentEpoch += 1
+			self.epochPrologue(epochMetrics, printMessage)
 
 	def train_model(self, data, labels, batchSize, numEpochs, validationData=None, \
 		validationLabels=None, printMessage=True):
@@ -426,13 +425,17 @@ class NeuralNetworkPyTorch(nn.Module):
 	def setCriterion(self, criterion):
 		self.criterion = criterion
 
+	# Useful to passing numpy data but still returning backpropagable results
+	def npForwardTrResult(self, x):
+		trInput = getTrData(x)
+		trResult = self.forward(trInput)
+		return trResult
+
 	# Wrapper for passing numpy arrays, converting them to torch arrays, forward network and convert back to numpy
 	# @param[in] x The input, which can be a numpy array, or a list/tuple/dict of numpy arrays
 	# @return y The output of the network as numpy array
 	def npForward(self, x):
-		trInput = getTrData(x)
-		trResult = self.forward(trInput)
-		npResult = getNpData(trResult)
+		npResult = getNpData(self.npForwardTrResult(x))
 		return npResult
 
 	# The network algorithm. This must be updated for specific networks, so the whole metric/callbacks system works

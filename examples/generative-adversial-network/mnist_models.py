@@ -24,7 +24,7 @@ class GeneratorLinear(NeuralNetworkPyTorch):
 		y2 = F.leaky_relu(self.bn2(self.fc2(y1)), negative_slope=0.2)
 		y3 = F.leaky_relu(self.bn3(self.fc3(y2)), negative_slope=0.2)
 		y4 = F.leaky_relu(self.bn4(self.fc4(y3)), negative_slope=0.2)
-		y5 = F.tanh(self.fc5(y4))
+		y5 = tr.tanh(self.fc5(y4))
 		y5 = y5.view(-1, *self.outputSize)
 		return y5
 
@@ -41,6 +41,6 @@ class DiscriminatorLinear(NeuralNetworkPyTorch):
 		x = x.view(-1, self.inputSize[0] * self.inputSize[1] * self.inputSize[2])
 		y1 = F.leaky_relu(self.fc1(x), negative_slope=0.2)
 		y2 = F.leaky_relu(self.fc2(y1), negative_slope=0.2)
-		y3 = F.sigmoid(self.fc3(y2))
+		y3 = tr.sigmoid(self.fc3(y2))
 		y3 = y3.view(y3.shape[0])
 		return y3
