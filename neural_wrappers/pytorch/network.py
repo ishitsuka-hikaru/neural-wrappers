@@ -7,9 +7,8 @@ from datetime import datetime
 from copy import deepcopy
 from collections import OrderedDict
 
-import neural_wrappers.callbacks
-from neural_wrappers.utilities import makeGenerator, LinePrinter, isBaseOf, RunningMean, topologicalSort
-from neural_wrappers.callbacks import Callback, MetricAsCallback
+from ..utilities import makeGenerator, LinePrinter, isBaseOf, RunningMean, topologicalSort
+from ..callbacks import Callback, MetricAsCallback
 
 from .network_serializer import NetworkSerializer
 from .pytorch_utils import getNumParams, getOptimizerStr, getNpData, getTrData, StorePrevState
@@ -83,8 +82,7 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	# Returns only the callbacks that are of subclass Callback (not metrics)
 	def getCallbacks(self):
-		callbacks = {k : v for k, v in self.callbacks.items() \
-			if not isBaseOf(v, neural_wrappers.callbacks.MetricAsCallback)}
+		callbacks = {k : v for k, v in self.callbacks.items() if not isBaseOf(v, MetricAsCallback)}
 		return callbacks
 
 	def clearCallbacks(self):
@@ -94,8 +92,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.iterPrintMessageKeys = ["Loss"]
 
 	def getMetrics(self):
-		callbacks = {k : v for k, v in self.callbacks.items() \
-			if isBaseOf(v, neural_wrappers.callbacks.MetricAsCallback)}
+		callbacks = {k : v for k, v in self.callbacks.items() if isBaseOf(v, MetricAsCallback)}
 		return callbacks
 
 	# Does a topological sort on the given list of callback dependencies. This MUST be called after all addMetrics and
