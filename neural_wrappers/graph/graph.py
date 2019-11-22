@@ -1,5 +1,5 @@
 import torch.nn as nn
-from neural_wrappers.pytorch import NeuralNetworkPyTorch
+from ..pytorch import NeuralNetworkPyTorch
 from functools import partial
 
 class Graph(NeuralNetworkPyTorch):

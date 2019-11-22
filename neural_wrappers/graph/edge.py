@@ -1,10 +1,7 @@
 import torch.nn as nn
 from functools import partial
-from ..nodes import MapNode, VectorNode
+from .node import MapNode, VectorNode
 
-# Amazing python relative import shittiness
-import sys
-sys.path.append("../..')")
 from models import ModelMap2Map, ModelMap2Vector, ModelVector2Map
 
 class Edge(nn.Module):
