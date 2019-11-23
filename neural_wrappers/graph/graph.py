@@ -1,12 +1,16 @@
 import torch.nn as nn
-from ..pytorch import NeuralNetworkPyTorch
+from ..pytorch import NeuralNetworkPyTorch, getNpData
 from functools import partial
+
+def makeGeneratro(trInputs, trLabels):
+	yield trInputs, trLabels
 
 class Graph(NeuralNetworkPyTorch):
 	def __init__(self, edges):
 		super().__init__()
 		self.edges = nn.ModuleList(edges)
 		self.nodes = self.getNodes()
+		self.edgeLoss = {}
 
 		# Add metrics
 		self.addMetrics(self.getEdgesMetrics())
@@ -15,7 +19,9 @@ class Graph(NeuralNetworkPyTorch):
 	def lossFn(y, t, self):
 		loss = 0
 		for edge in self.edges:
-			loss += edge.lossFn(t)
+			edgeLoss = edge.lossFn(t)
+			self.edgeLoss[edge] = edgeLoss
+			loss += edgeLoss
 		return loss
 
 	def networkAlgorithm(self, trInputs, trLabels):
@@ -29,33 +35,104 @@ class Graph(NeuralNetworkPyTorch):
 			Graph.trySetNodeGT(trInputs, edge.inputNode)
 			Graph.trySetNodeGT(trInputs, edge.outputNode)
 
+			# TODO: Perhaps call run_one_epoch and get the benefit of callbacks AND metrics. Or hack the metrics here.
 			edgeOutput = edge.forward(trInputs)
+
 			trResults[edge] = edgeOutput
 
 		# print("_____________________________")
 		trLoss = self.criterion(trResults, trLabels)
 
 		# Clear GT for all nodes after going through the graph
-		for node in self.nodes:
-			node.setGroundTruth(None)
-			node.clearNodeOutputs()
+		# for node in self.nodes:
+		# 	node.setGroundTruth(None)
+		# 	node.clearNodeOutputs()
 		return trResults, trLoss
 
-	# TODO!
 	def getEdgesMetrics(self):
+		metrics = {}
 		for edge in self.edges:
-			print(edge)
-		# exit()
-		return {}
-	# 	metrics = {}
-	# 	for edge in self.edges:
-	# 		for metric in edge.metrics:
-	# 		# outputMetrics = edge.outputNode.metrics
-	# 		# for metric in outputMetrics:
-	# 			newName = "%s %s" % (edge, metric)
-	# 			newF = partial(outputMetrics[metric], keyName=edge)
-	# 			metrics[newName] = newF
-	# 	return metrics
+			# metrics[edge] = edge.metrics
+			for metric in edge.metrics:
+				# newName = "%s %s" % (edge, metric)
+				newName = (edge, metric)
+				metrics[newName] = edge.metrics[metric]
+		return metrics
+
+	def callbacksOnIterationEnd(self, data, labels, results, loss, iteration, numIterations, \
+		metricResults, isTraining, isOptimizing):
+		iterResults = {}
+		for i, key in enumerate(self.topologicalKeys):
+			# Hack the args so we only use relevant results and labels. Make a list (of all edge outputs), but also
+			#  for regular metrics.
+			inputResults, inputLabels, iterLoss = [results], labels, loss
+			if type(key) == tuple:
+				edge = key[0]
+				edgeID = str(edge)
+				B = edge.outputNode
+				inputLabels = B.getGroundTruth()
+				iterLoss = self.edgeLoss[edge]
+				if not edgeID in B.outputs:
+					continue
+				inputResults = B.outputs[edgeID]
+
+			metricKwArgs = {"data" : data, "loss" : iterLoss, "iteration" : iteration, \
+				"numIterations" : numIterations, "iterResults" : iterResults, \
+				"metricResults" : metricResults, "isTraining" : isTraining, "isOptimizing" : isOptimizing
+			}
+
+			# Loop through all edge outputs and average results.
+			for inputResult in inputResults:
+				inputResult = getNpData(inputResult)
+				inputLabels = getNpData(inputLabels)
+				# iterResults is updated at each step in the order of topological sort
+				iterResults[key] = self.callbacks[key].onIterationEnd(inputResult, inputLabels, **metricKwArgs)
+				# Add it to running mean only if it's numeric
+				try:
+					metricResults[key].update(iterResults[key], 1)
+				except Exception:
+					continue
+
+	def computeIterPrintMessage(self, i, stepsPerEpoch, metricResults, iterFinishTime):
+		message = "Iteration: %d/%d." % (i + 1, stepsPerEpoch)
+		for key in metricResults:
+			if not key in self.iterPrintMessageKeys:
+				continue
+			message += " %s: %2.2f." % (key, metricResults[key].get())
+
+		if self.optimizer:
+			message += " LR: %2.5f." % (self.optimizer.state_dict()["param_groups"][0]["lr"])
+
+		# iterFinishTime / (i + 1) is the current estimate per iteration. That value times stepsPerEpoch is
+		#  the current estimation per epoch. That value minus current time is the current estimation for
+		#  time remaining for this epoch. It can also go negative near end of epoch, so use abs.
+		ETA = abs(iterFinishTime / (i + 1) * stepsPerEpoch - iterFinishTime)
+		message += " ETA: %s" % (ETA)
+		return message
+
+	# Computes the message that is printed to the stdout. This method is also called by SaveHistory callback.
+	# @param[in] kwargs The arguments sent to any regular callback.
+	# @return A string that contains the one-line message that is printed at each end of epoch.
+	def computePrintMessage(self, trainMetrics, validationMetrics, numEpochs, duration):
+		done = self.currentEpoch / numEpochs * 100
+		message = "Epoch %d/%d. Done: %2.2f%%." % (self.currentEpoch, numEpochs, done)
+		for metric in trainMetrics:
+			if not metric in self.iterPrintMessageKeys:
+				continue
+			message += " %s: %2.2f." % (metric, trainMetrics[metric])
+
+		if not validationMetrics is None:
+			for metric in validationMetrics:
+				if not metric in self.iterPrintMessageKeys:
+					continue
+				message += " %s: %2.2f." % ("Val " + metric, validationMetrics[metric])
+
+		if self.optimizer:
+			message += " LR: %2.5f." % (self.optimizer.state_dict()["param_groups"][0]["lr"])
+
+		message += " Took: %s." % (duration)
+		return message
+
 
 	def getNodes(self):
 		nodes = set()

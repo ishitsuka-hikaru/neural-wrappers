@@ -4,6 +4,8 @@ import numpy as np
 import sys
 from collections import OrderedDict
 
+device = tr.device("cuda") if tr.cuda.is_available() else tr.device("cpu")
+
 class StorePrevState:
 	def __init__(self, moduleObj):
 		self.moduleObj = moduleObj
@@ -70,9 +72,10 @@ def getNpData(results):
 		npResults = {}
 		for key in results:
 			npResults[key] = getNpData(results[key])
-
 	elif type(results) == tr.Tensor:
-		 npResults = maybeCpu(results.detach()).numpy()
+		 npResults = results.detach().to("cpu").numpy()
+	elif type(results) == np.ndarray:
+		npResults = results
 	else:
 		assert False, "Got type %s" % (type(results))
 	return npResults
@@ -93,9 +96,9 @@ def getTrData(data):
 		for key in data:
 			trData[key] = getTrData(data[key])
 	elif type(data) is np.ndarray:
-		trData = maybeCuda(tr.from_numpy(data))
+		trData = tr.from_numpy(data).to(device)
 	elif type(data) is tr.Tensor:
-		trData = maybeCuda(data)
+		trData = data.to(device)
 	return trData
 
 def plotModelMetricHistory(metric, trainHistory, plotBestBullet, dpi=120):

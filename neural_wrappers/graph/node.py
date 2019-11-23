@@ -25,18 +25,18 @@ class Node:
 		self.groundTruth = self.setGroundTruth(None)
 		self.outputs = {}
 
-	def getModel(self, inputNode):
-		inputNodeAncestors = type(inputNode).mro()
+	def getModel(self, outputNode):
+		outputNodeAncestors = type(outputNode).mro()
 		found = False
-		for Type in inputNodeAncestors:
+		for Type in outputNodeAncestors:
 			if Type in self.modelTypes:
 				found = True
 				break
 		if not found:
-			assert False, "Couldn't find a model for type: %s out of the given models: %s" % (inputNodeAncestors, \
+			assert False, "Couldn't find a model for type: %s out of the given models: %s" % (outputNodeAncestors, \
 				self.modelTypes)
-		model = self.modelTypes[Type](**inputNode.modelKwArgs)
-		model.addMetrics(self.metrics)
+		model = self.modelTypes[Type](**outputNode.modelKwArgs)
+		model.addMetrics(outputNode.metrics)
 		return model
 
 	# This node's inputs based on whatever GT data we receive (inputs dict + self.groundTruthKey) as well as whatever

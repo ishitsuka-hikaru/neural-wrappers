@@ -1,8 +1,9 @@
 import torch.nn as nn
 from functools import partial
 from .node import MapNode, VectorNode
+from ..pytorch import NeuralNetworkPyTorch
 
-class Edge(nn.Module):
+class Edge(NeuralNetworkPyTorch):
 	def __init__(self, inputNode, outputNode, forwardFn=None, lossFn=None, dependencies=[]):
 		super().__init__()
 		self.inputNode = inputNode
