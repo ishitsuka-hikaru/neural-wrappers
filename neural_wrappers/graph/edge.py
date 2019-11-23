@@ -22,17 +22,17 @@ class Edge(nn.Module):
 	#  loss between them. This can be updated for a more specific edge algorithm for loss computation.
 	def defaultLossFn(t, A, B, edgeID):
 		L = 0
-		t = t[B.groundTruthKey]
+		t = B.getGroundTruth()
 		for y in B.outputs[edgeID]:
 			L += B.lossFn(y, t)
 		return L
 
 	# Communication between input and output node.
 	def defaultForward(inputs, A, B, model, edgeID):
-		edgeInputs, inputNodeKeys = A.getInputs(inputs)
+		A.setGroundTruth(inputs[A.groundTruthKey])
+		edgeInputs, inputNodeKeys = A.getInputs()
 		B.outputs[edgeID] = []
 		for x in edgeInputs:
-			# Get the input from all possible inputs
 			y = model.forward(x)
 			B.outputs[edgeID].append(y)
 		# print("[%s forward] Num messages: %d. In keys: %s. In Shape: %s. Out Shape: %s" % (edgeID, inputNodeKeys, \

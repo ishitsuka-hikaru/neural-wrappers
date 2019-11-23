@@ -42,9 +42,12 @@ class Node:
 	# This node's inputs based on whatever GT data we receive (inputs dict + self.groundTruthKey) as well as whatever
 	#  intermediate messages we recieved. This is programmable for every node. By default, we return all GTs and all
 	#  received messages as possible inputs to the node's forward function
-	def getInputs(self, inputs):
-		nodeInputs = [inputs[self.groundTruthKey]]
-		nodeKeys = ["GT"]
+	def getInputs(self):
+		nodeInputs, nodeKeys = [], []
+		if not self.groundTruth is None:
+			nodeInputs.append(self.groundTruth)
+			nodeKeys.append("GT")
+
 		for key in self.outputs.keys():
 			nodeInputs.extend(self.outputs[key])
 			nodeKeys.extend([key] * len(self.outputs[key]))
@@ -52,6 +55,9 @@ class Node:
 
 	def setGroundTruth(self, groundTruth):
 		self.groundTruth = groundTruth
+
+	def getGroundTruth(self):
+		return self.groundTruth
 
 	def clearNodeOutputs(self):
 		self.outputs = {}
