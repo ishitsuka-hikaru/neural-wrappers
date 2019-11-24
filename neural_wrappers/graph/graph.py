@@ -2,11 +2,13 @@ import torch.nn as nn
 from ..pytorch import NeuralNetworkPyTorch, getNpData
 from ..utilities import MultiLinePrinter
 from functools import partial
+from copy import copy
 
 class Graph(NeuralNetworkPyTorch):
 	def __init__(self, edges):
 		super().__init__()
 		self.edges = nn.ModuleList(edges)
+		self.edgeIDsTOEdges = {str(edge) : edge for edge in self.edges}
 		self.nodes = self.getNodes()
 		self.edgeLoss = {}
 		self.linePrinter = MultiLinePrinter()
@@ -47,10 +49,9 @@ class Graph(NeuralNetworkPyTorch):
 	def getEdgesMetrics(self):
 		metrics = {}
 		for edge in self.edges:
-			# metrics[edge] = edge.metrics
 			for metric in edge.metrics:
-				# newName = "%s %s" % (edge, metric)
-				newName = (edge, metric)
+				# Store the actual edge object as part of the metric key so we can retrive its nodes.
+				newName = (str(edge), metric)
 				metrics[newName] = edge.metrics[metric]
 		return metrics
 
@@ -79,9 +80,10 @@ class Graph(NeuralNetworkPyTorch):
 			# Hack the args so we only use relevant results and labels. Make a list (of all edge outputs), but also
 			#  for regular metrics.
 			inputResults, inputLabels, iterLoss = [results], labels, loss
+
 			if type(key) == tuple:
-				edge = key[0]
-				edgeID = str(edge)
+				edgeID = key[0]
+				edge = self.edgeIDsTOEdges[edgeID]
 				B = edge.outputNode
 				inputLabels = getNpData(B.getGroundTruth())
 				iterLoss = self.edgeLoss[edge]
@@ -120,8 +122,9 @@ class Graph(NeuralNetworkPyTorch):
 
 		for edge in self.edges:
 			message = "  - [%s] " % (edge)
+			edgeID = str(edge)
 			for metric in edge.metrics:
-				key = (edge, metric)
+				key = (edgeID, metric)
 				if not key in self.iterPrintMessageKeys:
 					continue
 				message += "%s: %2.3f. " % (metric, metricResults[key].get())
@@ -143,6 +146,7 @@ class Graph(NeuralNetworkPyTorch):
 
 		for edge in self.edges:
 			message = "  - [%s] " % (edge)
+			edgeID = str(edge)
 			for metric in edge.metrics:
 				key = (edge, metric)
 				if not key in self.iterPrintMessageKeys:
@@ -150,12 +154,16 @@ class Graph(NeuralNetworkPyTorch):
 				message += "%s: %2.3f. " % (metric, trainMetrics[key])
 			if not validationMetrics is None:
 				for metric in edge.metrics:
-					key = (edge, metric)
+					key = (edgeID, metric)
 					if not key in self.iterPrintMessageKeys:
 						continue
 				message += "Val %s: %2.3f. " % (metric, validationMetrics[key])
 			messages.append(message)
 		return messages
+
+	def epochPrologue(self, epochMetrics, printMessage):
+		epochMetrics["message"] = "\n".join(epochMetrics["message"])
+		super().epochPrologue(epochMetrics, printMessage)
 
 	def __str__(self):
 		Str = "Graph:"

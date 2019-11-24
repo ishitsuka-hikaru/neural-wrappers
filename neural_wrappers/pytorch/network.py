@@ -243,8 +243,6 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	def epochPrologue(self, epochMetrics, printMessage):
 		if printMessage:
-			if type(epochMetrics["message"]) == list:
-				epochMetrics["message"] = "\n".join(epochMetrics["message"])
 			sys.stdout.write(epochMetrics["message"] + "\n")
 			sys.stdout.flush()
 
