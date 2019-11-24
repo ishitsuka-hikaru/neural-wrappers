@@ -9,3 +9,6 @@ class MetricAsCallback(Callback):
 
 	def onIterationEnd(self, results, labels, **kwargs):
 		return self.metric(results, labels, **kwargs)
+
+	def __call__(self, results, labels, **kwargs):
+		return self.metric(results, labels, **kwargs)

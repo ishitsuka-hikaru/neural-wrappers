@@ -1,9 +1,7 @@
 import torch.nn as nn
 from ..pytorch import NeuralNetworkPyTorch, getNpData
+from ..utilities import MultiLinePrinter
 from functools import partial
-
-def makeGeneratro(trInputs, trLabels):
-	yield trInputs, trLabels
 
 class Graph(NeuralNetworkPyTorch):
 	def __init__(self, edges):
@@ -11,6 +9,7 @@ class Graph(NeuralNetworkPyTorch):
 		self.edges = nn.ModuleList(edges)
 		self.nodes = self.getNodes()
 		self.edgeLoss = {}
+		self.linePrinter = MultiLinePrinter()
 
 		# Add metrics
 		self.addMetrics(self.getEdgesMetrics())
@@ -59,6 +58,24 @@ class Graph(NeuralNetworkPyTorch):
 				metrics[newName] = edge.metrics[metric]
 		return metrics
 
+	def getNodes(self):
+		nodes = set()
+		for edge in self.edges:
+			nodes.add(edge.inputNode)
+			nodes.add(edge.outputNode)
+		return nodes
+
+	# Try to set the GT of the node from the dict of inputs. We will store the value inputs[node.groundTruthKey] if
+	#  the node has a groundTruthKey and its groundTruth is None (Not set by other edge beforehand)
+	def trySetNodeGT(inputs, node):
+		if not node.groundTruthKey in inputs:
+			return
+		if not node.getGroundTruth() is None:
+			return
+		node.setGroundTruth(inputs[node.groundTruthKey])
+
+	### Some updates to original NeuralNetworkPyTorch to work seamlessly with graphs (mostly printing)
+
 	def callbacksOnIterationEnd(self, data, labels, results, loss, iteration, numIterations, \
 		metricResults, isTraining, isOptimizing):
 		iterResults = {}
@@ -94,61 +111,56 @@ class Graph(NeuralNetworkPyTorch):
 					continue
 
 	def computeIterPrintMessage(self, i, stepsPerEpoch, metricResults, iterFinishTime):
+		messages = []
 		message = "Iteration: %d/%d." % (i + 1, stepsPerEpoch)
-		for key in metricResults:
-			if not key in self.iterPrintMessageKeys:
-				continue
-			message += " %s: %2.2f." % (key, metricResults[key].get())
-
 		if self.optimizer:
-			message += " LR: %2.5f." % (self.optimizer.state_dict()["param_groups"][0]["lr"])
-
+			message += "LR: %2.5f." % (self.optimizer.state_dict()["param_groups"][0]["lr"])
 		# iterFinishTime / (i + 1) is the current estimate per iteration. That value times stepsPerEpoch is
 		#  the current estimation per epoch. That value minus current time is the current estimation for
 		#  time remaining for this epoch. It can also go negative near end of epoch, so use abs.
 		ETA = abs(iterFinishTime / (i + 1) * stepsPerEpoch - iterFinishTime)
 		message += " ETA: %s" % (ETA)
-		return message
+		messages.append(message)
+
+		for edge in self.edges:
+			message = "  - [%s] " % (edge)
+			for metric in edge.metrics:
+				key = (edge, metric)
+				if not key in self.iterPrintMessageKeys:
+					continue
+				message += "%s: %2.3f. " % (metric, metricResults[key].get())
+			messages.append(message)
+		return messages
 
 	# Computes the message that is printed to the stdout. This method is also called by SaveHistory callback.
 	# @param[in] kwargs The arguments sent to any regular callback.
 	# @return A string that contains the one-line message that is printed at each end of epoch.
 	def computePrintMessage(self, trainMetrics, validationMetrics, numEpochs, duration):
+		messages = []
 		done = self.currentEpoch / numEpochs * 100
 		message = "Epoch %d/%d. Done: %2.2f%%." % (self.currentEpoch, numEpochs, done)
-		for metric in trainMetrics:
-			if not metric in self.iterPrintMessageKeys:
-				continue
-			message += " %s: %2.2f." % (metric, trainMetrics[metric])
-
-		if not validationMetrics is None:
-			for metric in validationMetrics:
-				if not metric in self.iterPrintMessageKeys:
-					continue
-				message += " %s: %2.2f." % ("Val " + metric, validationMetrics[metric])
-
 		if self.optimizer:
 			message += " LR: %2.5f." % (self.optimizer.state_dict()["param_groups"][0]["lr"])
 
 		message += " Took: %s." % (duration)
-		return message
+		messages.append(message)
 
-
-	def getNodes(self):
-		nodes = set()
 		for edge in self.edges:
-			nodes.add(edge.inputNode)
-			nodes.add(edge.outputNode)
-		return nodes
+			message = "  - [%s] " % (edge)
+			for metric in edge.metrics:
+				key = (edge, metric)
+				if not key in self.iterPrintMessageKeys:
+					continue
+				message += "%s: %2.3f. " % (metric, trainMetrics[key])
+			if not validationMetrics is None:
+				for metric in edge.metrics:
+					key = (edge, metric)
+					if not key in self.iterPrintMessageKeys:
+						continue
+				message += "Val %s: %2.3f. " % (metric, validationMetrics[key])
+			messages.append(message)
+		return messages
 
-	# Try to set the GT of the node from the dict of inputs. We will store the value inputs[node.groundTruthKey] if
-	#  the node has a groundTruthKey and its groundTruth is None (Not set by other edge beforehand)
-	def trySetNodeGT(inputs, node):
-		if not node.groundTruthKey in inputs:
-			return
-		if not node.getGroundTruth() is None:
-			return
-		node.setGroundTruth(inputs[node.groundTruthKey])
 
 	def __str__(self):
 		Str = "Graph:"

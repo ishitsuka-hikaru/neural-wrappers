@@ -38,22 +38,6 @@ def NoneAssert(conndition, noneCheck, message=""):
 	if noneCheck:
 		assert conndition, message
 
-class LinePrinter:
-	def __init__(self):
-		self.maxLength = 0
-
-	def print(self, message):
-		if message[-1] == "\n":
-			message = message[0 : -1]
-			additional = "\n"
-		else:
-			additional = "\r"
-
-		self.maxLength = np.maximum(len(message), self.maxLength)
-		message += (self.maxLength - len(message)) * " " + additional
-		sys.stdout.write(message)
-		sys.stdout.flush()
-
 # @brief Returns true if whatType is subclass of baseType. The parameters can be instantiated objects or types. In the
 #  first case, the parameters are converted to their type and then the check is done.
 def isBaseOf(whatType, baseType):

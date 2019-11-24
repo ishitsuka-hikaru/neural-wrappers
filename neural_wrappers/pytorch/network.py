@@ -243,6 +243,8 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	def epochPrologue(self, epochMetrics, printMessage):
 		if printMessage:
+			if type(epochMetrics["message"]) == list:
+				epochMetrics["message"] = "\n".join(epochMetrics["message"])
 			sys.stdout.write(epochMetrics["message"] + "\n")
 			sys.stdout.flush()
 
@@ -335,7 +337,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		for key in sorted(metricResults):
 			if not key in self.iterPrintMessageKeys:
 				continue
-			message += " %s: %2.2f." % (key, metricResults[key].get())
+			message += " %s: %2.3f." % (key, metricResults[key].get())
 
 		if self.optimizer:
 			message += " LR: %2.5f." % (self.optimizer.state_dict()["param_groups"][0]["lr"])
@@ -356,13 +358,13 @@ class NeuralNetworkPyTorch(nn.Module):
 		for metric in sorted(trainMetrics):
 			if not metric in self.iterPrintMessageKeys:
 				continue
-			message += " %s: %2.2f." % (metric, trainMetrics[metric])
+			message += " %s: %2.3f." % (metric, trainMetrics[metric])
 
 		if not validationMetrics is None:
 			for metric in sorted(validationMetrics):
 				if not metric in self.iterPrintMessageKeys:
 					continue
-				message += " %s: %2.2f." % ("Val " + metric, validationMetrics[metric])
+				message += " Val %s: %2.3f." % (metric, validationMetrics[metric])
 
 		if self.optimizer:
 			message += " LR: %2.5f." % (self.optimizer.state_dict()["param_groups"][0]["lr"])
