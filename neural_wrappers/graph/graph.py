@@ -145,19 +145,20 @@ class Graph(NeuralNetworkPyTorch):
 		messages.append(message)
 
 		for edge in self.edges:
-			message = "  - [%s] " % (edge)
+			message = "  - %s. [Train] " % (edge)
 			edgeID = str(edge)
 			for metric in edge.metrics:
-				key = (edge, metric)
+				key = (edgeID, metric)
 				if not key in self.iterPrintMessageKeys:
 					continue
 				message += "%s: %2.3f. " % (metric, trainMetrics[key])
 			if not validationMetrics is None:
+				message += "| [Validation] "
 				for metric in edge.metrics:
 					key = (edgeID, metric)
 					if not key in self.iterPrintMessageKeys:
 						continue
-				message += "Val %s: %2.3f. " % (metric, validationMetrics[key])
+					message += "%s: %2.3f. " % (metric, validationMetrics[key])
 			messages.append(message)
 		return messages
 
