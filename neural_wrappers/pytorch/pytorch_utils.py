@@ -116,10 +116,10 @@ def plotModelMetricHistory(metric, trainHistory, plotBestBullet, dpi=120):
 	x = np.arange(len(trainValues)) + 1
 	plt.gcf().clf()
 	plt.gca().cla()
-	plt.plot(x, trainValues, label="Train %s" % (metric))
+	plt.plot(x, trainValues, label="Train %s" % (str(metric)))
 
 	if hasValidation:
-		plt.plot(x, validationValues, label="Val %s" % (metric))
+		plt.plot(x, validationValues, label="Val %s" % (str(metric)))
 		usedValues = np.array(validationValues)
 	else:
 		usedValues = trainValues
@@ -149,7 +149,7 @@ def plotModelMetricHistory(metric, trainHistory, plotBestBullet, dpi=120):
 	plt.xlabel("Epoch")
 	plt.ylabel(metric)
 	plt.legend()
-	plt.savefig("%s.png" % (metric), dpi=dpi)
+	plt.savefig("%s.png" % (str(metric)), dpi=dpi)
 
 def getModelHistoryMessage(model):
 		Str = model.summary() + "\n"

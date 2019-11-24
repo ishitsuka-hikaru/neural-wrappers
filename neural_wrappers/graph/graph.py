@@ -19,7 +19,7 @@ class Graph(NeuralNetworkPyTorch):
 		loss = 0
 		for edge in self.edges:
 			edgeLoss = edge.lossFn(t)
-			self.edgeLoss[edge] = edgeLoss
+			self.edgeLoss[edge] = getNpData(edgeLoss)
 			loss += edgeLoss
 		return loss
 
@@ -34,18 +34,14 @@ class Graph(NeuralNetworkPyTorch):
 			Graph.trySetNodeGT(trInputs, edge.inputNode)
 			Graph.trySetNodeGT(trInputs, edge.outputNode)
 
-			# TODO: Perhaps call run_one_epoch and get the benefit of callbacks AND metrics. Or hack the metrics here.
+			# We kind of hacked the metrics of all edges using this class. Perhaps a more modular approach would be to
+			#  call run_one_epoch here for each edge.
 			edgeOutput = edge.forward(trInputs)
 
 			trResults[edge] = edgeOutput
 
 		# print("_____________________________")
 		trLoss = self.criterion(trResults, trLabels)
-
-		# Clear GT for all nodes after going through the graph
-		# for node in self.nodes:
-		# 	node.setGroundTruth(None)
-		# 	node.clearNodeOutputs()
 		return trResults, trLoss
 
 	def getEdgesMetrics(self):
@@ -87,11 +83,11 @@ class Graph(NeuralNetworkPyTorch):
 				edge = key[0]
 				edgeID = str(edge)
 				B = edge.outputNode
-				inputLabels = B.getGroundTruth()
+				inputLabels = getNpData(B.getGroundTruth())
 				iterLoss = self.edgeLoss[edge]
 				if not edgeID in B.outputs:
 					continue
-				inputResults = B.outputs[edgeID]
+				inputResults = getNpData(B.outputs[edgeID])
 
 			metricKwArgs = {"data" : data, "loss" : iterLoss, "iteration" : iteration, \
 				"numIterations" : numIterations, "iterResults" : iterResults, \
@@ -160,7 +156,6 @@ class Graph(NeuralNetworkPyTorch):
 				message += "Val %s: %2.3f. " % (metric, validationMetrics[key])
 			messages.append(message)
 		return messages
-
 
 	def __str__(self):
 		Str = "Graph:"
