@@ -58,7 +58,6 @@ class Graph(NeuralNetworkPyTorch):
 			nodes.add(edge.outputNode)
 		return nodes
 
-
 	### Some updates to original NeuralNetworkPyTorch to work seamlessly with graphs (mostly printing)
 
 	def callbacksOnIterationEnd(self, data, labels, results, loss, iteration, numIterations, \
@@ -97,17 +96,8 @@ class Graph(NeuralNetworkPyTorch):
 					continue
 
 	def computeIterPrintMessage(self, i, stepsPerEpoch, metricResults, iterFinishTime):
-		messages = []
-		message = "Iteration: %d/%d." % (i + 1, stepsPerEpoch)
-		if self.optimizer:
-			message += " LR: %2.5f." % (self.optimizer.state_dict()["param_groups"][0]["lr"])
-		# iterFinishTime / (i + 1) is the current estimate per iteration. That value times stepsPerEpoch is
-		#  the current estimation per epoch. That value minus current time is the current estimation for
-		#  time remaining for this epoch. It can also go negative near end of epoch, so use abs.
-		ETA = abs(iterFinishTime / (i + 1) * stepsPerEpoch - iterFinishTime)
-		message += " ETA: %s" % (ETA)
-		messages.append(message)
-
+		strMetricResults = {k : metricResults[k] for k in filter(lambda x : type(x) == str, metricResults.keys())}
+		messages = super().computeIterPrintMessage(i, stepsPerEpoch, strMetricResults, iterFinishTime)
 		for edge in self.edges:
 			message = "  - [%s] " % (edge)
 			edgeID = str(edge)
@@ -123,14 +113,11 @@ class Graph(NeuralNetworkPyTorch):
 	# @param[in] kwargs The arguments sent to any regular callback.
 	# @return A string that contains the one-line message that is printed at each end of epoch.
 	def computePrintMessage(self, trainMetrics, validationMetrics, numEpochs, duration):
-		messages = []
-		done = self.currentEpoch / numEpochs * 100
-		message = "Epoch %d/%d. Done: %2.2f%%." % (self.currentEpoch, numEpochs, done)
-		if self.optimizer:
-			message += " LR: %2.5f." % (self.optimizer.state_dict()["param_groups"][0]["lr"])
-
-		message += " Took: %s." % (duration)
-		messages.append(message)
+		# Keep the non-edge metrics for the default printer.
+		strTrainMetrics = {k : trainMetrics[k] for k in filter(lambda x : type(x) == str, trainMetrics.keys())}
+		strValMetrics = None if not validationMetrics else \
+			{k : validationMetrics[k] for k in filter(lambda x : type(x) == str, validationMetrics.keys())}
+		messages = super().computePrintMessage(strTrainMetrics, strValMetrics, numEpochs, duration)
 
 		for edge in self.edges:
 			message = "  - %s. [Train] " % (edge)
@@ -141,7 +128,7 @@ class Graph(NeuralNetworkPyTorch):
 					continue
 				message += "%s: %2.3f. " % (metric, trainMetrics[key])
 			if not validationMetrics is None:
-				message += "| [Validation] "
+				message += " | [Validation] "
 				for metric in edge.metrics:
 					key = (edgeID, metric)
 					if not key in self.iterPrintMessageKeys:
@@ -169,10 +156,6 @@ class Graph(NeuralNetworkPyTorch):
 		#  iteration.
 		for node in self.nodes:
 			node.setGroundTruth(None)
-
-	def epochPrologue(self, epochMetrics, printMessage):
-		epochMetrics["message"] = "\n".join(epochMetrics["message"])
-		super().epochPrologue(epochMetrics, printMessage)
 
 	def draw(self, fileName, cleanup=True):
 		nodes = [x.name for x in self.nodes]

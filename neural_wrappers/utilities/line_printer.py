@@ -38,7 +38,7 @@ class MultiLinePrinter:
 		message = messages[-1]
 		if message[-1] == "\n":
 			message = message[0 : -1]
-		linePrinters[i].print(message)
+		linePrinters[-1].print(message)
 		
 		# Go up N-1 lines to overwrite at next message
 		for i in range(len(messages) - 1):

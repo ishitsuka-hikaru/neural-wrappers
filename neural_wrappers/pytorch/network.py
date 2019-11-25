@@ -7,7 +7,7 @@ from datetime import datetime
 from copy import deepcopy
 from collections import OrderedDict
 
-from ..utilities import makeGenerator, LinePrinter, isBaseOf, RunningMean, topologicalSort
+from ..utilities import makeGenerator, MultiLinePrinter, isBaseOf, RunningMean, topologicalSort
 from ..callbacks import Callback, MetricAsCallback
 
 from .network_serializer import NetworkSerializer
@@ -37,7 +37,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		#  epoch value. Each value of the list is a dictionary that holds by default only loss value, but callbacks
 		#  can add more items to this (like confusion matrix or accuracy, see mnist example).
 		self.trainHistory = []
-		self.linePrinter = LinePrinter()
+		self.linePrinter = MultiLinePrinter()
 		self.serializer = NetworkSerializer(self)
 		# A dictionary that holds values used to instantaite this module that should not change during training. This
 		#  will be used to compare loaded models which technically hold same weights, but are different in important
@@ -234,6 +234,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.callbacksOnEpochStart(isTraining=True)
 
 	def epochPrologue(self, epochMetrics, printMessage):
+		epochMetrics["message"] = "\n".join(epochMetrics["message"])
 		if printMessage:
 			sys.stdout.write(epochMetrics["message"] + "\n")
 			sys.stdout.flush()
@@ -346,44 +347,50 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.iterPrintMessageKeys = Keys
 
 	def computeIterPrintMessage(self, i, stepsPerEpoch, metricResults, iterFinishTime):
+		messages = []
 		message = "Iteration: %d/%d." % (i + 1, stepsPerEpoch)
-		for key in sorted(metricResults):
-			if not key in self.iterPrintMessageKeys:
-				continue
-			message += " %s: %2.3f." % (key, metricResults[key].get())
-
 		if self.optimizer:
 			message += " LR: %2.5f." % (self.optimizer.state_dict()["param_groups"][0]["lr"])
-
 		# iterFinishTime / (i + 1) is the current estimate per iteration. That value times stepsPerEpoch is
 		#  the current estimation per epoch. That value minus current time is the current estimation for
 		#  time remaining for this epoch. It can also go negative near end of epoch, so use abs.
 		ETA = abs(iterFinishTime / (i + 1) * stepsPerEpoch - iterFinishTime)
 		message += " ETA: %s" % (ETA)
-		return message
+		messages.append(message)
+
+		message = "  - Metrics."
+		for key in sorted(metricResults):
+			if not key in self.iterPrintMessageKeys:
+				continue
+			message += " %s: %2.3f." % (key, metricResults[key].get())
+		messages.append(message)
+		return messages
 
 	# Computes the message that is printed to the stdout. This method is also called by SaveHistory callback.
 	# @param[in] kwargs The arguments sent to any regular callback.
 	# @return A string that contains the one-line message that is printed at each end of epoch.
 	def computePrintMessage(self, trainMetrics, validationMetrics, numEpochs, duration):
+		messages = []
 		done = self.currentEpoch / numEpochs * 100
 		message = "Epoch %d/%d. Done: %2.2f%%." % (self.currentEpoch, numEpochs, done)
+		if self.optimizer:
+			message += " LR: %2.5f." % (self.optimizer.state_dict()["param_groups"][0]["lr"])
+		message += " Took: %s." % (duration)
+		messages.append(message)
+
+		message = "  - Metrics. [Train]"
 		for metric in sorted(trainMetrics):
 			if not metric in self.iterPrintMessageKeys:
 				continue
 			message += " %s: %2.3f." % (metric, trainMetrics[metric])
-
 		if not validationMetrics is None:
+			message += " | [Validation] "
 			for metric in sorted(validationMetrics):
 				if not metric in self.iterPrintMessageKeys:
 					continue
 				message += " Val %s: %2.3f." % (metric, validationMetrics[metric])
-
-		if self.optimizer:
-			message += " LR: %2.5f." % (self.optimizer.state_dict()["param_groups"][0]["lr"])
-
-		message += " Took: %s." % (duration)
-		return message
+		messages.append(message)
+		return messages
 
 	def summary(self):
 		summaryStr = "[Model summary]\n"
