@@ -4,6 +4,8 @@ from ..utilities import MultiLinePrinter
 from functools import partial
 from copy import copy
 
+from .draw_graph import drawGraph
+
 class Graph(NeuralNetworkPyTorch):
 	def __init__(self, edges):
 		super().__init__()
@@ -165,6 +167,11 @@ class Graph(NeuralNetworkPyTorch):
 	def epochPrologue(self, epochMetrics, printMessage):
 		epochMetrics["message"] = "\n".join(epochMetrics["message"])
 		super().epochPrologue(epochMetrics, printMessage)
+
+	def draw(self):
+		nodes = [x.name for x in self.nodes]
+		edges = [(x.inputNode.name, x.outputNode.name) for x in self.edges]
+		drawGraph(nodes, edges)
 
 	def __str__(self):
 		Str = "Graph:"
