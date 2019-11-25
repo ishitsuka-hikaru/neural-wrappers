@@ -182,11 +182,11 @@ class NeuralNetworkPyTorch(nn.Module):
 		#  same list, but every element in the list is tranasformed in torch format.
 		startTime = datetime.now()
 		for i, items in enumerate(generator):
-			self.callbacksOnIterationStart(isTraining=isTraining, isOptimizing=isOptimizing)
-
 			npInputs, npLabels = items
 			trInputs = getTrData(npInputs)
 			trLabels = getTrData(npLabels)
+
+			self.iterationEpilogue(isTraining, isOptimizing, trLabels)
 
 			# Call the network algorithm. By default this is just results = self.forward(inputs);
 			#  loss = criterion(results). But this can be updated for specific network architectures (i.e. GANs)
@@ -195,20 +195,9 @@ class NeuralNetworkPyTorch(nn.Module):
 			npResults = getNpData(trResults)
 			npLoss = trLoss.to("cpu").detach().numpy()
 			optimizeCallback(self.optimizer, trLoss)
-			iterFinishTime = (datetime.now() - startTime)
 
-			# metrics and callbacks are merged. Each callback/metric can have one or more "parents" which
-			#  forms an ayclical graph. They must be called in such an order that all the parents are satisfied before
-			#  all children (topological sort).
-			# Iteration callbacks are called here. These include metrics or random callbacks such as plotting results
-			#  in testing mode.
-			self.callbacksOnIterationEnd(data=npInputs, labels=npLabels, results=npResults, \
-				loss=npLoss, iteration=i, numIterations=stepsPerEpoch, metricResults=metricResults, \
-				isTraining=isTraining, isOptimizing=isOptimizing)
-
-			# Print the message, after the metrics are updated.
-			if printMessage:
-				self.linePrinter.print(self.computeIterPrintMessage(i, stepsPerEpoch, metricResults, iterFinishTime))
+			self.iterationPrologue(npInputs, npLabels, npResults, npLoss, i, stepsPerEpoch, \
+				metricResults, isTraining, isOptimizing, printMessage, startTime)
 
 			if i == stepsPerEpoch - 1:
 				break
@@ -241,6 +230,9 @@ class NeuralNetworkPyTorch(nn.Module):
 		numIterations = data.shape[0] // batchSize + (data.shape[0] % batchSize != 0)
 		return self.test_generator(dataGenerator, stepsPerEpoch=numIterations, printMessage=printMessage)
 
+	def epochEpilogue(self):
+		self.callbacksOnEpochStart(isTraining=True)
+
 	def epochPrologue(self, epochMetrics, printMessage):
 		if printMessage:
 			sys.stdout.write(epochMetrics["message"] + "\n")
@@ -251,6 +243,29 @@ class NeuralNetworkPyTorch(nn.Module):
 		if not self.optimizerScheduler is None:
 			self.optimizerScheduler.step()
 		self.currentEpoch += 1
+
+	def iterationEpilogue(self, isTraining, isOptimizing, labels):
+		self.callbacksOnIterationStart(isTraining=isTraining, isOptimizing=isOptimizing)
+
+	# Called after every iteration steps. Usually just calls onIterationEnd for all callbacks and prints the iteration
+	#  message. However, other networks can call this to update other states at the end of each iteration. Example of
+	#  this is Graph, which resets the GTs for all edges before each iteration.
+	def iterationPrologue(self, inputs, labels, results, loss, iteration, \
+		stepsPerEpoch, metricResults, isTraining, isOptimizing, printMessage, startTime):
+		# metrics and callbacks are merged. Each callback/metric can have one or more "parents" which
+		#  forms an ayclical graph. They must be called in such an order that all the parents are satisfied before
+		#  all children (topological sort).
+		# Iteration callbacks are called here. These include metrics or random callbacks such as plotting results
+		#  in testing mode.
+		self.callbacksOnIterationEnd(data=inputs, labels=labels, results=results, \
+			loss=loss, iteration=iteration, numIterations=stepsPerEpoch, metricResults=metricResults, \
+			isTraining=isTraining, isOptimizing=isOptimizing)
+
+		# Print the message, after the metrics are updated.
+		if printMessage:
+			iterFinishTime = (datetime.now() - startTime)
+			message = self.computeIterPrintMessage(iteration, stepsPerEpoch, metricResults, iterFinishTime)
+			self.linePrinter.print(message)
 
 	# @param[in] generator Generator which is used to get items for numEpochs epochs, each taking stepsPerEpoch steps
 	# @param[in] stepsPerEpoch How many steps each epoch takes (assumed constant). The generator must generate this
@@ -278,7 +293,7 @@ class NeuralNetworkPyTorch(nn.Module):
 			# self.trainHistory.append({})
 			assert len(self.trainHistory) == self.currentEpoch - 1
 			epochMetrics = {}
-			self.callbacksOnEpochStart(isTraining=True)
+			self.epochEpilogue()
 
 			# Run for training data and append the results
 			now = datetime.now()

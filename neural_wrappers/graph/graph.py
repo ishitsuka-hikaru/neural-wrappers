@@ -10,7 +10,7 @@ class Graph(NeuralNetworkPyTorch):
 	def __init__(self, edges):
 		super().__init__()
 		self.edges = nn.ModuleList(edges)
-		self.edgeIDsTOEdges = {str(edge) : edge for edge in self.edges}
+		self.edgeIDsToEdges = {str(edge) : edge for edge in self.edges}
 		self.nodes = self.getNodes()
 		self.edgeLoss = {}
 		self.linePrinter = MultiLinePrinter()
@@ -32,12 +32,6 @@ class Graph(NeuralNetworkPyTorch):
 		# TODO: Execution order. (synchronus vs asynchronus as well as topological sort at various levels.)
 		# For now, the execution is synchronous and linear as defined by the list of edges
 		for edge in self.edges:
-			# Set GT for both sides of the edge, if none is already available. Edge algorithm could've overwritten this
-			#  node's GT OR can also clear the GT itself. However, it is graph's responsability to try to give the GT
-			#  using the groundTruthKey if possible
-			Graph.trySetNodeGT(trInputs, edge.inputNode)
-			Graph.trySetNodeGT(trInputs, edge.outputNode)
-
 			# We kind of hacked the metrics of all edges using this class. Perhaps a more modular approach would be to
 			#  call run_one_epoch here for each edge.
 			edgeOutput = edge.forward(trInputs)
@@ -64,14 +58,6 @@ class Graph(NeuralNetworkPyTorch):
 			nodes.add(edge.outputNode)
 		return nodes
 
-	# Try to set the GT of the node from the dict of inputs. We will store the value inputs[node.groundTruthKey] if
-	#  the node has a groundTruthKey and its groundTruth is None (Not set by other edge beforehand)
-	def trySetNodeGT(inputs, node):
-		if not node.groundTruthKey in inputs:
-			return
-		if not node.getGroundTruth() is None:
-			return
-		node.setGroundTruth(inputs[node.groundTruthKey])
 
 	### Some updates to original NeuralNetworkPyTorch to work seamlessly with graphs (mostly printing)
 
@@ -85,7 +71,7 @@ class Graph(NeuralNetworkPyTorch):
 
 			if type(key) == tuple:
 				edgeID = key[0]
-				edge = self.edgeIDsTOEdges[edgeID]
+				edge = self.edgeIDsToEdges[edgeID]
 				B = edge.outputNode
 				inputLabels = getNpData(B.getGroundTruth())
 				iterLoss = self.edgeLoss[edge]
@@ -114,7 +100,7 @@ class Graph(NeuralNetworkPyTorch):
 		messages = []
 		message = "Iteration: %d/%d." % (i + 1, stepsPerEpoch)
 		if self.optimizer:
-			message += "LR: %2.5f." % (self.optimizer.state_dict()["param_groups"][0]["lr"])
+			message += " LR: %2.5f." % (self.optimizer.state_dict()["param_groups"][0]["lr"])
 		# iterFinishTime / (i + 1) is the current estimate per iteration. That value times stepsPerEpoch is
 		#  the current estimation per epoch. That value minus current time is the current estimation for
 		#  time remaining for this epoch. It can also go negative near end of epoch, so use abs.
@@ -163,6 +149,26 @@ class Graph(NeuralNetworkPyTorch):
 					message += "%s: %2.3f. " % (metric, validationMetrics[key])
 			messages.append(message)
 		return messages
+
+	def iterationEpilogue(self, isTraining, isOptimizing, trLabels):
+		# Set the GT for each node based on the inputs available at this step. Edges may overwrite this when reaching
+		#  a node via an edge, however it is the graph's responsability to set the default GTs. What happens during the
+		#  optimization shouldn't be influenced by this default.
+		for node in self.nodes:
+			if not node.groundTruthKey in trLabels:
+				continue
+			node.setGroundTruth(trLabels[node.groundTruthKey])
+
+	def iterationPrologue(self, inputs, labels, results, loss, iteration, \
+		stepsPerEpoch, metricResults, isTraining, isOptimizing, printMessage, startTime):
+		super().iterationPrologue(inputs, labels, results, loss, iteration, stepsPerEpoch, metricResults, \
+			isTraining, isOptimizing, printMessage, startTime)
+
+		# Super important step. We need to clean the GTs of the previous step, so trySetNodeGT actually updates it.
+		# We can only do it here, because run_one_epoch in NeuralNetworkPyTorch calls this as the last thing at each
+		#  iteration.
+		for node in self.nodes:
+			node.setGroundTruth(None)
 
 	def epochPrologue(self, epochMetrics, printMessage):
 		epochMetrics["message"] = "\n".join(epochMetrics["message"])
