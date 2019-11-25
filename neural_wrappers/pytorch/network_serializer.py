@@ -2,13 +2,11 @@
 import torch as tr
 import numpy as np
 from copy import deepcopy
-from .pytorch_utils import maybeCuda, getNumParams, getOptimizerStr, getTrainableParameters
-import sys, os
-dir_path = os.path.dirname(os.path.realpath(__file__))
-sys.path.append(dir_path + "/../utilities")
-from utils import isBaseOf
-import neural_wrappers.callbacks
 from collections import OrderedDict
+
+from .pytorch_utils import maybeCuda, getNumParams, getOptimizerStr, getTrainableParameters
+from ..utilities import isBaseOf
+from ..callbacks import MetricAsCallback
 
 class NetworkSerializer:
 	# @param[in] The model upon which this serializer works.
@@ -20,6 +18,14 @@ class NetworkSerializer:
 	# @brief Stores a model (with all its caveats: weights, optimizer, history and callbacks)
 	# @param[in] path The path where the serialized object is stored
 	def saveModel(self, path, stateKeys):
+		state = self.doSerialization(stateKeys)
+		tr.save(state, path)
+
+	# @brief Computes a serialized version of the model, by storing the state of all caveats that makes up a
+	#  NeuralNetworkPyTorch model: weights, optimizer, history and callbacks state.
+	# @param[in] stateKeys A list of all keys that are to be stored (saveWeights just stores weights for example)
+	# @return returns a serialized version of the model
+	def doSerialization(self, stateKeys):
 		assert len(stateKeys) > 0
 		state = {}
 		for key in stateKeys:
@@ -35,7 +41,7 @@ class NetworkSerializer:
 				state[key] = self.model.onModelSave()
 			else:
 				assert False, "Got unknown key %s" % (key)
-		tr.save(state, path)
+		return state
 
 	# @brief Handles saving the weights of the model
 	# @return A list of all the parameters (converted to CPU) so they are pickle-able
@@ -71,7 +77,7 @@ class NetworkSerializer:
 			# Store only callbacks, not MetricAsCallbacks (As they are lambdas which cannot be pickle'd).
 			# Metrics must be reloaded anyway, as they do not hold any (global) state, like full Callbacks do.
 			callback = self.model.callbacks[key]
-			if isBaseOf(callback, neural_wrappers.callbacks.MetricAsCallback):
+			if isBaseOf(callback, MetricAsCallback):
 				callbacksOriginalPositions.append(callback.name)
 			else:
 				additional = callback.onCallbackSave(model=self.model)
