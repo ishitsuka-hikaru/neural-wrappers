@@ -22,7 +22,7 @@ class Graph(NeuralNetworkPyTorch):
 	def lossFn(y, t, self):
 		loss = 0
 		for edge in self.edges:
-			edgeLoss = edge.lossFn(y, t)
+			edgeLoss = edge.loss(y, t)
 			self.edgeLoss[edge] = getNpData(edgeLoss)
 			loss += edgeLoss
 		return loss

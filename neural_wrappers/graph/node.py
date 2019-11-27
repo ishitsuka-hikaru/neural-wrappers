@@ -85,7 +85,7 @@ class Node:
 			#  node has the ability to cut the input and use it as it was simply generated from here. Optimization is
 			#  thus done only with current node's weights (not self.outputs[key]'s inputNode or even its ancestors)
 			if self.backPropIntermediateResults:
-				edgeOutputs = [x.detach_() for x in edgeOutputs]
+				edgeOutputs = [x.detach() for x in edgeOutputs]
 			nodeInputs.extend(edgeOutputs)
 			nodeKeys.extend([key] * len(edgeOutputs))
 		return nodeInputs, nodeKeys
