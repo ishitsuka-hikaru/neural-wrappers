@@ -1,43 +1,69 @@
 import numpy as np
 from copy import copy
 
+def pickTypeFromMRO(Type, switchType):
+	Type = type(Type) if type(Type) != type else Type
+	typeMRO = Type.mro()
+	for Type in typeMRO:
+		if Type in switchType:
+			return switchType[Type]
+	assert False, "%s not in %s" % (typeMRO, switchType)
+
 class Node:
 	# A dictionary that gives a unique tag to all nodes by appending an increasing number to name.
 	lastNodeID = 0
 	unicityNodesDict = {}
 
-	def __init__(self, name, groundTruthKey, modelTypes, lossFn, metrics, modelKwArgs):
+	def __init__(self, name, groundTruthKey):
 		assert not name is "GT", "GT is a reserved keyword"
 		self.name = Node.getUniqueName(name)
 		self.groundTruthKey = groundTruthKey
 
-		# Model types. Each node must update this dictionary s.t. edges can implement the right type of models
-		# Key is the other node and this node is the outputNode.
-		#  Example: This node is a VectorNode, we tackle the MapNode neighbours: MapNode ----> THIS
-		#  modelTypes = {MapNode: ModelMapToNumber}
-		# We can make more specific implementations, such as a specific model for RGB nodes pointing to this node.
-		self.modelTypes = modelTypes
-		self.metrics = metrics
-		self.lossFn = lossFn
-		self.modelKwArgs = modelKwArgs
+		# Each node must implement an encoder and a decoder. The first one will transform the given input to some
+		#  node specific representation, while the second one wiill decode incoming representations.
+		# These dictionaries contain the models for all outgoing (encoders) and incoming (decoders) edges of this node.
+		self.encoders = {}
+		self.decoders = {}
 
 		# This must be set at every iteration before calling getInputs and lossFn in Edge.
 		self.groundTruth = self.setGroundTruth(None)
 		self.outputs = {}
 
-	def getModel(self, outputNode):
-		outputNodeAncestors = type(outputNode).mro()
-		found = False
-		for Type in outputNodeAncestors:
-			if Type in self.modelTypes:
-				found = True
-				break
-		if not found:
-			assert False, "Couldn't find a model for type: %s out of the given models: %s" % (outputNodeAncestors, \
-				self.modelTypes)
-		model = self.modelTypes[Type](**outputNode.modelKwArgs)
-		model.addMetrics(outputNode.metrics)
-		return model
+	# Adds an encoder to the encoders dictionary. If edgeType if node-node or node-edge, reuse the node-specific
+	#  encoder. If it is not yet defined, instatiate it first using getEncoder(None).
+	def addEncoder(self, outputNodeType, edgeID, edgeType):
+		assert edgeType in ("node-node", "node-edge", "edge-node", "edge-edge"), "Got %s" % (edgeType)
+		assert edgeID != "node"
+		assert not edgeID in self.encoders, "An encoder is alredy defined for this edge."
+
+		if edgeType in ("node-node", "node-edge"):
+			if not "node" in self.encoders:
+				self.encoders["node"] = self.getEncoder(None)
+			model = self.encoders["node"]
+		else:
+			model = self.getEncoder(outputNodeType)
+		self.encoders[edgeID] = model
+
+	# Adds a decoder to the decoders dictionary. If edgeType if edge-edge or node-edge, reuse the node-specific
+	#  decoder. If it is not yet defined, instatiate it first using getDecoder(None).
+	def addDecoder(self, inputNodeType, edgeID, edgeType):
+		assert edgeType in ("node-node", "node-edge", "edge-node", "edge-edge")
+		assert edgeID != "node"
+		assert not edgeID in self.decoders, "A decoder is alredy defined for this edge."
+
+		if edgeType in ("node-node", "dege-node"):
+			if not "node" in self.decoders:
+				self.decoders["node"] = self.getDecoder(None)
+			model = self.decoders["node"]
+		else:
+			model = self.getDecoder(inputNodeType)
+		self.decoders[edgeID] = model
+
+	def getEncoder(self, outputNodeType=None):
+		raise Exception("Must be implemented by each node!")
+
+	def getDecoder(self, inputNodeType=None):
+		raise Exception("Must be implemented by each node!")
 
 	# This node's inputs based on whatever GT data we receive (inputs dict + self.groundTruthKey) as well as whatever
 	#  intermediate messages we recieved. This is programmable for every node. By default, we return all GTs and all

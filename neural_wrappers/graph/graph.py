@@ -22,7 +22,7 @@ class Graph(NeuralNetworkPyTorch):
 	def lossFn(y, t, self):
 		loss = 0
 		for edge in self.edges:
-			edgeLoss = edge.lossFn(t)
+			edgeLoss = edge.lossFn(y, t)
 			self.edgeLoss[edge] = getNpData(edgeLoss)
 			loss += edgeLoss
 		return loss
@@ -35,7 +35,6 @@ class Graph(NeuralNetworkPyTorch):
 			# We kind of hacked the metrics of all edges using this class. Perhaps a more modular approach would be to
 			#  call run_one_epoch here for each edge.
 			edgeOutput = edge.forward(trInputs)
-
 			trResults[edge] = edgeOutput
 
 		# print("_____________________________")
