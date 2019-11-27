@@ -14,10 +14,14 @@ class Node:
 	lastNodeID = 0
 	unicityNodesDict = {}
 
-	def __init__(self, name, groundTruthKey):
+	def __init__(self, name, groundTruthKey, backPropIntermediateResults=True):
 		assert not name is "GT", "GT is a reserved keyword"
 		self.name = Node.getUniqueName(name)
 		self.groundTruthKey = groundTruthKey
+
+		# This parameter gives us the option to backprop any input back to its original source (or to the first node
+		#  that has backPropIntermediateResults=False). If it's set to True, all results that appear in 
+		self.backPropIntermediateResults = backPropIntermediateResults
 
 		# Each node must implement an encoder and a decoder. The first one will transform the given input to some
 		#  node specific representation, while the second one wiill decode incoming representations.
@@ -75,12 +79,23 @@ class Node:
 			nodeKeys.append("GT")
 
 		for key in self.outputs.keys():
-			nodeInputs.extend(self.outputs[key])
-			nodeKeys.extend([key] * len(self.outputs[key]))
+			edgeOutputs = self.outputs[key]
+			# Very important. Some nodes may not want to backpropagate to the original link where this output was
+			#  generated, as this could increase time/memory very much, especially for very long graphs. Thus, each
+			#  node has the ability to cut the input and use it as it was simply generated from here. Optimization is
+			#  thus done only with current node's weights (not self.outputs[key]'s inputNode or even its ancestors)
+			if self.backPropIntermediateResults:
+				edgeOutputs = [x.detach_() for x in edgeOutputs]
+			nodeInputs.extend(edgeOutputs)
+			nodeKeys.extend([key] * len(edgeOutputs))
 		return nodeInputs, nodeKeys
 
 	def setGroundTruth(self, groundTruth):
+		# Ground truth is always detached from the graph, so we don't optimize both sides of the graph, if the GT of
+		#  one particular node was generated from other side.
 		self.groundTruth = groundTruth
+		if not self.groundTruth is None:
+			self.groundTruth.detach_()
 
 	def getGroundTruth(self):
 		return self.groundTruth

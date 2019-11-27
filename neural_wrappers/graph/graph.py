@@ -143,7 +143,7 @@ class Graph(NeuralNetworkPyTorch):
 		for node in self.nodes:
 			if not node.groundTruthKey in trLabels:
 				continue
-			node.setGroundTruth(trLabels[node.groundTruthKey])
+			node.setGroundTruth(trLabels[node.groundTruthKey].detach())
 
 	def iterationPrologue(self, inputs, labels, results, loss, iteration, \
 		stepsPerEpoch, metricResults, isTraining, isOptimizing, printMessage, startTime):
@@ -155,6 +155,10 @@ class Graph(NeuralNetworkPyTorch):
 		#  iteration.
 		for node in self.nodes:
 			node.setGroundTruth(None)
+			# Important that this is here, otherwise, we keep old items from the graph at the next iteration causing
+			#  .backward() to fail (asks for retain_graph). Solution for TimeEdges would be to save outputs with
+			#  detach().
+			node.outputs = {}
 
 	def draw(self, fileName, cleanup=True):
 		nodes = [x.name for x in self.nodes]

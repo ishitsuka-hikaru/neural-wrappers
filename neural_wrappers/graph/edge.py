@@ -49,6 +49,11 @@ class Edge(NeuralNetworkPyTorch):
 		A, B, model, edgeID = self.inputNode, self.outputNode, self.model, self.edgeID
 		edgeInputs, inputNodeKeys = A.getInputs()
 		B.outputs[edgeID] = []
+
+		# for name, param in self.named_parameters():
+		# 	if param.requires_grad:
+		# 		print (name, param.data.mean())
+
 		for x in edgeInputs:
 			y = model.forward(x)
 			B.outputs[edgeID].append(y)
