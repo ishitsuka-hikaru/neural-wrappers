@@ -31,7 +31,7 @@ class Graph(NeuralNetworkPyTorch):
 			loss += edgeLoss
 		return loss
 
-	def networkAlgorithm(self, trInputs, trLabels):
+	def forward(self, trInputs):
 		trResults = {}
 		# TODO: Execution order. (synchronus vs asynchronus as well as topological sort at various levels.)
 		# For now, the execution is synchronous and linear as defined by the list of edges
@@ -40,10 +40,7 @@ class Graph(NeuralNetworkPyTorch):
 			#  call run_one_epoch here for each edge.
 			edgeOutput = edge.forward(trInputs)
 			trResults[edge] = edgeOutput
-
-		# print("_____________________________")
-		trLoss = self.criterion(trResults, trLabels)
-		return trResults, trLoss
+		return trResults
 
 	def getEdgesMetrics(self):
 		metrics = {}
