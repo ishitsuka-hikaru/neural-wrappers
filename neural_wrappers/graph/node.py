@@ -1,23 +1,15 @@
-import numpy as np
-from copy import copy
-
-def pickTypeFromMRO(Type, switchType):
-	Type = type(Type) if type(Type) != type else Type
-	typeMRO = Type.mro()
-	for Type in typeMRO:
-		if Type in switchType:
-			return switchType[Type]
-	assert False, "%s not in %s" % (typeMRO, switchType)
-
 class Node:
 	# A dictionary that gives a unique tag to all nodes by appending an increasing number to name.
 	lastNodeID = 0
 	unicityNodesDict = {}
 
-	def __init__(self, name, groundTruthKey, backPropIntermediateResults=True):
+	def __init__(self, name, groundTruthKey, backPropIntermediateResults=True, **kwargs):
 		assert not name is "GT", "GT is a reserved keyword"
 		self.name = Node.getUniqueName(name)
 		self.groundTruthKey = groundTruthKey
+
+		# Set up hyperparameters for this node (used for saving/loading identical node)
+		self.hyperParameters = self.getHyperParameters(kwargs)
 
 		# This parameter gives us the option to backprop any input back to its original source (or to the first node
 		#  that has backPropIntermediateResults=False). If it's set to True, all results that appear in 
@@ -107,6 +99,12 @@ class Node:
 		name = "%s (ID: %d)" % (name, Node.lastNodeID)
 		Node.lastNodeID += 1
 		return name
+
+	def getHyperParameters(self, kwargs):
+		hyperParameters = kwargs
+		hyperParameters["name"] = self.name
+		hyperParameters["groundTruthKey"] = self.groundTruthKey
+		return hyperParameters
 
 	def __str__(self):
 		return self.name

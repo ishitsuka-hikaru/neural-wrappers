@@ -7,7 +7,7 @@ from datetime import datetime
 from copy import deepcopy
 from collections import OrderedDict
 
-from ..utilities import makeGenerator, MultiLinePrinter, isBaseOf, RunningMean, topologicalSort
+from ..utilities import makeGenerator, MultiLinePrinter, isBaseOf, RunningMean, topologicalSort, deepCheckEqual
 from ..callbacks import Callback, MetricAsCallback
 
 from .network_serializer import NetworkSerializer
@@ -488,7 +488,6 @@ class NeuralNetworkPyTorch(nn.Module):
 		# 	return False
 
 		allKeys = set(list(self.hyperParameters.keys()) + list(state.keys()))
-
 		for key in allKeys:
 			if not key in self.hyperParameters:
 				return False
@@ -497,8 +496,9 @@ class NeuralNetworkPyTorch(nn.Module):
 				print("Warning. Model has unknown state key: %s=%s, possibly added after training. Skipping." % \
 					(key, str(self.hyperParameters[key])))
 				continue
+			loadedState = state[key]
+			modelState = self.hyperParameters[key]
 
-			if not state[key] == self.hyperParameters[key]:
+			if not deepCheckEqual(loadedState, modelState):
 				return False
-
 		return True

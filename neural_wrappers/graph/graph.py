@@ -7,16 +7,22 @@ from copy import copy
 from .draw_graph import drawGraph
 
 class Graph(NeuralNetworkPyTorch):
-	def __init__(self, edges):
-		super().__init__()
+	def __init__(self, edges, **kwargs):
+		self.nodes = Graph.getNodes(edges)
+		# Set up hyperparameters for every node
+		for node in self.nodes:
+			kwargs[node.name] = node.hyperParameters
+		super().__init__(hyperParameters=kwargs)
+
 		self.edges = nn.ModuleList(edges)
 		self.edgeIDsToEdges = {str(edge) : edge for edge in self.edges}
-		self.nodes = self.getNodes()
 		self.edgeLoss = {}
 		self.linePrinter = MultiLinePrinter()
 
 		# Add metrics
 		self.addMetrics(self.getEdgesMetrics())
+		print("HERE?")
+		print(self.getMetrics().keys())
 		self.setCriterion(partial(Graph.lossFn, self=self))
 
 	def lossFn(y, t, self):
@@ -50,9 +56,9 @@ class Graph(NeuralNetworkPyTorch):
 				metrics[newName] = edge.metrics[metric]
 		return metrics
 
-	def getNodes(self):
+	def getNodes(edges):
 		nodes = set()
-		for edge in self.edges:
+		for edge in edges:
 			nodes.add(edge.inputNode)
 			nodes.add(edge.outputNode)
 		return nodes

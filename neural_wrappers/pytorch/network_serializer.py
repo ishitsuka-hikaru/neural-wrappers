@@ -73,12 +73,14 @@ class NetworkSerializer:
 		callbacksAdditional = []
 		callbacks = []
 		callbacksOriginalPositions = []
+		metricPositions = []
 		for i, key in enumerate(self.model.callbacks):
 			# Store only callbacks, not MetricAsCallbacks (As they are lambdas which cannot be pickle'd).
 			# Metrics must be reloaded anyway, as they do not hold any (global) state, like full Callbacks do.
 			callback = self.model.callbacks[key]
 			if isBaseOf(callback, MetricAsCallback):
 				callbacksOriginalPositions.append(callback.name)
+				metricPositions.append(i)
 			else:
 				additional = callback.onCallbackSave(model=self.model)
 				callbacksAdditional.append(deepcopy(additional))
@@ -91,7 +93,8 @@ class NetworkSerializer:
 				#  as if we'd load it from state.
 				callback.onCallbackLoad(additional, model=self.model)
 		return {"state" : callbacks, "additional" : callbacksAdditional, \
-			"callbacks_positions" : callbacksOriginalPositions, "topological_sort" : self.model.topologicalSort}
+			"callbacks_positions" : callbacksOriginalPositions, "topological_sort" : self.model.topologicalSort, \
+			"metrics_positions" : metricPositions}
 
 	## Loading ##
 
@@ -198,14 +201,19 @@ class NetworkSerializer:
 		additionals = loadedState["callbacks"]["additional"]
 		originalPositions = loadedState["callbacks"]["callbacks_positions"]
 		topologicalSort = loadedState["callbacks"]["topological_sort"]
+		metricsPositions = loadedState["callbacks"]["metrics_positions"]
 
-		filteredPositions = list(filter(lambda x : type(x) is str, originalPositions))
+		# Old behaviour: Assume metrics are stored with string key.
+		# New behaviour: Store another list "metrics_positions" that stores the index of the metrics and uses this as
+		#  way to find out which are callbacks and which are metrics.
+		# filteredPositions = list(filter(lambda x : type(x) is str, originalPositions))
+		loadedMetrics = [originalPositions[i] for i in metricsPositions]
 		# This filtering is needed if we're doing save/load on the same model (such as loading and storing very often
 		#  so there are some callbacks that need to be reloaded.
 		metricCallbacks = self.model.getMetrics()
-		assert len(filteredPositions) == len(metricCallbacks), \
+		assert len(metricCallbacks) == len(metricCallbacks), \
 			"Some metrics were saved: %s, but the list of loaded callbacks is different %s" \
-			% (filteredPositions, list(metricCallbacks.keys()))
+			% (metricCallbacks, list(metricCallbacks.keys()))
 
 		# Create a new OrederedDict, with the correct order (local metrics + stored callbacks), so we can load the
 		#  topological sort correctly.

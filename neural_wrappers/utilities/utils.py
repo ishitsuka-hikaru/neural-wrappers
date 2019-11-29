@@ -2,6 +2,7 @@ import numpy as np
 import os
 import sys
 from scipy.ndimage import gaussian_filter
+from collections import OrderedDict
 
 def standardizeData(data, mean, std):
 	data -= mean
@@ -164,3 +165,34 @@ def tryReadImage(path, count=5, imgLib="opencv"):
 
 			if i == count:
 				raise Exception
+
+# Given a Type and a dictionary of {Type : Item}, returns the first Item that matches any ancestor of Type (assumed in
+#  order of importance!)
+# Example: B (extends) A (extends) Base (extends) Object
+# pickTypeFromMRO(B, {Base: "msg1", A: "msg2", Object: "msg3"}) will return msg2 because that's how mro() works.
+def pickTypeFromMRO(Type, switchType):
+	Type = type(Type) if type(Type) != type else Type
+	typeMRO = Type.mro()
+	for Type in typeMRO:
+		if Type in switchType:
+			return switchType[Type]
+	assert False, "%s not in %s" % (typeMRO, switchType)
+
+# Deep check if two items are equal. Dicts are checked value by value and numpy array are compared using "closeEnough"
+#  method
+def deepCheckEqual(a, b):
+	if type(a) != type(b):
+		print("Types %s and %s differ." % (type(a), type(b)))
+		return False
+	Type = type(a)
+	if Type in (dict, OrderedDict):
+		for key in a:
+			if not deepCheckEqual(a[key], b[key]):
+				return False
+		return True
+	elif Type == np.ndarray:
+		return np.sum(np.abs(a - b)) < 1e-5
+	else:
+		return a == b
+	assert False, "Shouldn't reach here"
+	return False
