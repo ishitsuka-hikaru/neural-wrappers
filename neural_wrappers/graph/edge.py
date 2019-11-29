@@ -24,6 +24,7 @@ def defaultForward(self, x):
 		B.outputs[edgeID].append(y)
 	# print("[%s forward] Num messages: %d. In keys: %s. In Shape: %s. Out Shape: %s" % (edgeID, inputNodeKeys, \
 		# len(B.outputs[edgeID]), edgeInputs[0].shape, B.outputs[edgeID][0].shape))
+	return B.outputs[edgeID]
 
 class Edge(NeuralNetworkPyTorch):
 	def __init__(self, inputNode, outputNode, edgeType="edge-edge", forwardFn=None, lossFn=None, dependencies=[]):
