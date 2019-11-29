@@ -21,8 +21,6 @@ class Graph(NeuralNetworkPyTorch):
 
 		# Add metrics
 		self.addMetrics(self.getEdgesMetrics())
-		print("HERE?")
-		print(self.getMetrics().keys())
 		self.setCriterion(partial(Graph.lossFn, self=self))
 
 	def lossFn(y, t, self):
