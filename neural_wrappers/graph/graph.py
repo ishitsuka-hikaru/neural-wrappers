@@ -38,8 +38,9 @@ class Graph(NeuralNetworkPyTorch):
 		for edge in self.edges:
 			# We kind of hacked the metrics of all edges using this class. Perhaps a more modular approach would be to
 			#  call run_one_epoch here for each edge.
+			edgeID = str(edge)
 			edgeOutput = edge.forward(trInputs)
-			trResults[edge] = edgeOutput
+			trResults[edgeID] = edgeOutput
 		return trResults
 
 	def getEdgesMetrics(self):
@@ -160,6 +161,7 @@ class Graph(NeuralNetworkPyTorch):
 			#  .backward() to fail (asks for retain_graph). Solution for TimeEdges would be to save outputs with
 			#  detach().
 			node.outputs = {}
+			node.inputs = {}
 
 	def draw(self, fileName, cleanup=True):
 		nodes = [x.name for x in self.nodes]

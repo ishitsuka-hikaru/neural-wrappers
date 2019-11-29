@@ -24,6 +24,8 @@ class Node:
 		# This must be set at every iteration before calling getInputs and lossFn in Edge.
 		self.groundTruth = self.setGroundTruth(None)
 		self.outputs = {}
+		# This stores the actual input tensors used for each edge computation and must be set by each edge forward fn.
+		self.inputs = {}
 
 	# Adds an encoder to the encoders dictionary. If edgeType if node-node or node-edge, reuse the node-specific
 	#  encoder. If it is not yet defined, instatiate it first using getEncoder(None).

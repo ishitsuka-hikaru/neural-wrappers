@@ -17,9 +17,12 @@ def defaultLossFn(self, y, t):
 def defaultForward(self, x):
 	A, B, model, edgeID = self.inputNode, self.outputNode, self.model, self.edgeID
 	edgeInputs, inputNodeKeys = A.getInputs()
+	# Store actually used inputs (may differ in other algorithms)
+	A.inputs[edgeID] = []
 	B.outputs[edgeID] = []
 
 	for x in edgeInputs:
+		A.inputs[edgeID].append(x)
 		y = model.forward(x)
 		B.outputs[edgeID].append(y)
 	# print("[%s forward] Num messages: %d. In keys: %s. In Shape: %s. Out Shape: %s" % (edgeID, inputNodeKeys, \
