@@ -167,6 +167,15 @@ class NeuralNetworkPyTorch(nn.Module):
 		trResults, trLoss = self.networkAlgorithm(trInputs, trLabels)
 
 		npResults, npLoss = getNpData(trResults), getNpData(trLoss)
+
+		# Might be better to use a callback so we skip this step
+		if isTraining and isOptimizing:
+			self.optimizer.zero_grad()
+			trLoss.backward()
+			self.optimizer.step()
+		else:
+			trLoss.detach_()
+
 		return npResults, npLoss
 
 	# Basic method that does a forward phase for one epoch given a generator. It can apply a step of optimizer or not.
@@ -183,10 +192,6 @@ class NeuralNetworkPyTorch(nn.Module):
 		assert not self.criterion is None, "Set criterion before training or testing"
 
 		metricResults = {metric : RunningMean() for metric in self.callbacks.keys()}
-		if isTraining and isOptimizing:
-			optimizeCallback = lambda optim, loss : (optim.zero_grad(), loss.backward(), optim.step())
-		else:
-			optimizeCallback = lambda optim, loss : loss.detach_()
 
 		# The protocol requires the generator to have 2 items, inputs and labels (both can be None). If there are more
 		#  inputs, they can be packed together (stacked) or put into a list, in which case the ntwork will receive the
@@ -195,7 +200,6 @@ class NeuralNetworkPyTorch(nn.Module):
 		for i, items in enumerate(generator):
 			npInputs, npLabels = items
 			npResults, npLoss = self.mainLoop(npInputs, npLabels, isTraining, isOptimizing)
-			optimizeCallback(self.optimizer, trLoss)
 
 			self.iterationPrologue(npInputs, npLabels, npResults, npLoss, i, stepsPerEpoch, \
 				metricResults, isTraining, isOptimizing, printMessage, startTime)

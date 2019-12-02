@@ -143,25 +143,13 @@ class Graph(NeuralNetworkPyTorch):
 		#  a node via an edge, however it is the graph's responsability to set the default GTs. What happens during the
 		#  optimization shouldn't be influenced by this default.
 		for node in self.nodes:
-			if not node.groundTruthKey in trLabels:
-				continue
-			node.setGroundTruth(trLabels[node.groundTruthKey].detach())
-
-	def iterationPrologue(self, inputs, labels, results, loss, iteration, \
-		stepsPerEpoch, metricResults, isTraining, isOptimizing, printMessage, startTime):
-		super().iterationPrologue(inputs, labels, results, loss, iteration, stepsPerEpoch, metricResults, \
-			isTraining, isOptimizing, printMessage, startTime)
-
-		# Super important step. We need to clean the GTs of the previous step, so trySetNodeGT actually updates it.
-		# We can only do it here, because run_one_epoch in NeuralNetworkPyTorch calls this as the last thing at each
-		#  iteration.
-		for node in self.nodes:
-			node.setGroundTruth(None)
-			# Important that this is here, otherwise, we keep old items from the graph at the next iteration causing
-			#  .backward() to fail (asks for retain_graph). Solution for TimeEdges would be to save outputs with
-			#  detach().
-			node.outputs = {}
 			node.inputs = {}
+			# Important that this is here, otherwise, we keep old items from the graph at the next iteration causing
+			#  .backward() to fail (asks for retain_graph).
+			# (Solution for TimeEdges would be to save outputs with detach().)
+			node.outputs = {}
+			groundTruthData = trLabels[node.groundTruthKey].detach() if node.groundTruthKey in trLabels else None
+			node.setGroundTruth(groundTruthData)
 
 	def draw(self, fileName, cleanup=True):
 		nodes = [x.name for x in self.nodes]
