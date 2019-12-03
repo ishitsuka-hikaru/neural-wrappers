@@ -152,9 +152,7 @@ class Graph(NeuralNetworkPyTorch):
 			node.setGroundTruth(groundTruthData)
 
 	def draw(self, fileName, cleanup=True):
-		nodes = [x.name for x in self.nodes]
-		edges = [(x.inputNode.name, x.outputNode.name) for x in self.edges]
-		drawGraph(nodes, edges, fileName, cleanup)
+		drawGraph(self.nodes, self.edges, fileName, cleanup)
 
 	def __str__(self):
 		Str = "Graph:"
