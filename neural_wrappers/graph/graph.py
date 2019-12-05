@@ -12,6 +12,8 @@ class Graph(NeuralNetworkPyTorch):
 		# Set up hyperparameters for every node
 		for node in self.nodes:
 			kwargs[node.name] = node.hyperParameters
+		for edge in edges:
+			kwargs[str(edge)] = edge.hyperParameters
 		super().__init__(hyperParameters=kwargs)
 
 		self.edges = nn.ModuleList(edges)
