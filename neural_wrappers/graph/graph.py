@@ -26,8 +26,9 @@ class Graph(NeuralNetworkPyTorch):
 	def lossFn(y, t, self):
 		loss = 0
 		for edge in self.edges:
+			edgeID = str(edge)
 			edgeLoss = edge.loss(y, t)
-			self.edgeLoss[edge] = getNpData(edgeLoss)
+			self.edgeLoss[edgeID] = getNpData(edgeLoss)
 			loss += edgeLoss
 		return loss
 
@@ -36,20 +37,24 @@ class Graph(NeuralNetworkPyTorch):
 		# TODO: Execution order. (synchronus vs asynchronus as well as topological sort at various levels.)
 		# For now, the execution is synchronous and linear as defined by the list of edges
 		for edge in self.edges:
-			# We kind of hacked the metrics of all edges using this class. Perhaps a more modular approach would be to
-			#  call run_one_epoch here for each edge.
 			edgeID = str(edge)
 			edgeOutput = edge.forward(trInputs)
+
+			# Set the edge outputs inside the node as well, so we can access them when calling getInputs()
+			edge.outputNode.messages[edgeID] = edgeOutput
+
+			# Update the outputs of the whole graph as well
 			trResults[edgeID] = edgeOutput
 		return trResults
 
 	def getEdgesMetrics(self):
 		metrics = {}
 		for edge in self.edges:
-			for metric in edge.metrics:
+			edgeMetrics = edge.getMetrics()
+			for metric in edgeMetrics:
 				# Store the actual edge object as part of the metric key so we can retrive its nodes.
 				newName = (str(edge), metric)
-				metrics[newName] = edge.metrics[metric]
+				metrics[newName] = edgeMetrics[metric]
 		return metrics
 
 	def getNodes(edges):
@@ -67,17 +72,15 @@ class Graph(NeuralNetworkPyTorch):
 		for i, key in enumerate(self.topologicalKeys):
 			# Hack the args so we only use relevant results and labels. Make a list (of all edge outputs), but also
 			#  for regular metrics.
-			inputResults, inputLabels, iterLoss = [results], labels, loss
+			results, inputLabels, iterLoss = [results], labels, loss
 
 			if type(key) == tuple:
 				edgeID = key[0]
 				edge = self.edgeIDsToEdges[edgeID]
 				B = edge.outputNode
-				inputLabels = getNpData(B.getGroundTruth())
-				iterLoss = self.edgeLoss[edge]
-				if not edgeID in B.outputs:
-					continue
-				inputResults = getNpData(B.outputs[edgeID])
+				labels = getNpData(B.getGroundTruth())
+				results = getNpData(edge.outputs)
+				iterLoss = self.edgeLoss[edgeID]
 
 			metricKwArgs = {"data" : data, "loss" : iterLoss, "iteration" : iteration, \
 				"numIterations" : numIterations, "iterResults" : iterResults, \
@@ -85,11 +88,9 @@ class Graph(NeuralNetworkPyTorch):
 			}
 
 			# Loop through all edge outputs and average results.
-			for inputResult in inputResults:
-				inputResult = getNpData(inputResult)
-				inputLabels = getNpData(inputLabels)
+			for result in results:
 				# iterResults is updated at each step in the order of topological sort
-				iterResults[key] = self.callbacks[key].onIterationEnd(inputResult, inputLabels, **metricKwArgs)
+				iterResults[key] = self.callbacks[key].onIterationEnd(result, labels, **metricKwArgs)
 				# Add it to running mean only if it's numeric
 				try:
 					metricResults[key].update(iterResults[key], 1)
@@ -102,7 +103,7 @@ class Graph(NeuralNetworkPyTorch):
 		for edge in self.edges:
 			message = "  - [%s] " % (edge)
 			edgeID = str(edge)
-			for metric in edge.metrics:
+			for metric in edge.getMetrics():
 				key = (edgeID, metric)
 				if not key in self.iterPrintMessageKeys:
 					continue
@@ -123,14 +124,14 @@ class Graph(NeuralNetworkPyTorch):
 		for edge in self.edges:
 			message = "  - %s. [Train] " % (edge)
 			edgeID = str(edge)
-			for metric in edge.metrics:
+			for metric in edge.getMetrics():
 				key = (edgeID, metric)
 				if not key in self.iterPrintMessageKeys:
 					continue
 				message += "%s: %2.3f. " % (metric, trainMetrics[key])
 			if not validationMetrics is None:
 				message += " | [Validation] "
-				for metric in edge.metrics:
+				for metric in edge.getMetrics():
 					key = (edgeID, metric)
 					if not key in self.iterPrintMessageKeys:
 						continue
@@ -143,13 +144,9 @@ class Graph(NeuralNetworkPyTorch):
 		#  a node via an edge, however it is the graph's responsability to set the default GTs. What happens during the
 		#  optimization shouldn't be influenced by this default.
 		for node in self.nodes:
-			node.inputs = {}
-			# Important that this is here, otherwise, we keep old items from the graph at the next iteration causing
-			#  .backward() to fail (asks for retain_graph).
-			# (Solution for TimeEdges would be to save outputs with detach().)
-			node.outputs = {}
 			groundTruthData = trLabels[node.groundTruthKey].detach() if node.groundTruthKey in trLabels else None
 			node.setGroundTruth(groundTruthData)
+			node.messages = {}
 
 	def draw(self, fileName, cleanup=True):
 		drawGraph(self.nodes, self.edges, fileName, cleanup)

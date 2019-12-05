@@ -3,59 +3,20 @@ class Node:
 	lastNodeID = 0
 	unicityNodesDict = {}
 
-	def __init__(self, name, groundTruthKey, backPropIntermediateResults=True, **kwargs):
+	def __init__(self, name, groundTruthKey, **kwargs):
 		assert not name is "GT", "GT is a reserved keyword"
 		self.name = Node.getUniqueName(name)
 		self.groundTruthKey = groundTruthKey
 
 		# Set up hyperparameters for this node (used for saving/loading identical node)
 		self.hyperParameters = self.getHyperParameters(kwargs)
-
-		# This parameter gives us the option to backprop any input back to its original source (or to the first node
-		#  that has backPropIntermediateResults=False). If it's set to True, all results that appear in 
-		self.backPropIntermediateResults = backPropIntermediateResults
-
-		# Each node must implement an encoder and a decoder. The first one will transform the given input to some
-		#  node specific representation, while the second one wiill decode incoming representations.
-		# These dictionaries contain the models for all outgoing (encoders) and incoming (decoders) edges of this node.
-		self.encoders = {}
-		self.decoders = {}
-
-		# This must be set at every iteration before calling getInputs and lossFn in Edge.
 		self.groundTruth = self.setGroundTruth(None)
-		self.outputs = {}
-		# This stores the actual input tensors used for each edge computation and must be set by each edge forward fn.
-		self.inputs = {}
+		# Messages are the items received at this node via all its incoming edges.
+		self.messages = {}
 
-	# Adds an encoder to the encoders dictionary. If edgeType if node-node or node-edge, reuse the node-specific
-	#  encoder. If it is not yet defined, instatiate it first using getEncoder(None).
-	def addEncoder(self, outputNodeType, edgeID, edgeType):
-		assert edgeType in ("node-node", "node-edge", "edge-node", "edge-edge"), "Got %s" % (edgeType)
-		assert edgeID != "node"
-		assert not edgeID in self.encoders, "An encoder is alredy defined for this edge."
-
-		if edgeType in ("node-node", "node-edge"):
-			if not "node" in self.encoders:
-				self.encoders["node"] = self.getEncoder(None)
-			model = self.encoders["node"]
-		else:
-			model = self.getEncoder(outputNodeType)
-		self.encoders[edgeID] = model
-
-	# Adds a decoder to the decoders dictionary. If edgeType if edge-edge or node-edge, reuse the node-specific
-	#  decoder. If it is not yet defined, instatiate it first using getDecoder(None).
-	def addDecoder(self, inputNodeType, edgeID, edgeType):
-		assert edgeType in ("node-node", "node-edge", "edge-node", "edge-edge")
-		assert edgeID != "node"
-		assert not edgeID in self.decoders, "A decoder is alredy defined for this edge."
-
-		if edgeType in ("node-node", "dege-node"):
-			if not "node" in self.decoders:
-				self.decoders["node"] = self.getDecoder(None)
-			model = self.decoders["node"]
-		else:
-			model = self.getDecoder(inputNodeType)
-		self.decoders[edgeID] = model
+		# Node-specific encoder and decoder instances. By default they are not instancicated.
+		self.nodeEncoder = None
+		self.nodeDecoder = None
 
 	def getEncoder(self, outputNodeType=None):
 		raise Exception("Must be implemented by each node!")
@@ -66,23 +27,24 @@ class Node:
 	# This node's inputs based on whatever GT data we receive (inputs dict + self.groundTruthKey) as well as whatever
 	#  intermediate messages we recieved. This is programmable for every node. By default, we return all GTs and all
 	#  received messages as possible inputs to the node's forward function
-	def getInputs(self):
-		nodeInputs, nodeKeys = [], []
+	def getInputs(self, prune=False):
+		items, edgeKeys = [], []
+		# Add GT first, if it exist
 		if not self.groundTruth is None:
-			nodeInputs.append(self.groundTruth)
-			nodeKeys.append("GT")
+			items.append(self.groundTruth)
+			edgeKeys.append("GT")
 
-		for key in self.outputs.keys():
-			edgeOutputs = self.outputs[key]
-			# Very important. Some nodes may not want to backpropagate to the original link where this output was
-			#  generated, as this could increase time/memory very much, especially for very long graphs. Thus, each
-			#  node has the ability to cut the input and use it as it was simply generated from here. Optimization is
-			#  thus done only with current node's weights (not self.outputs[key]'s inputNode or even its ancestors)
-			if self.backPropIntermediateResults:
-				edgeOutputs = [x.detach() for x in edgeOutputs]
-			nodeInputs.extend(edgeOutputs)
-			nodeKeys.extend([key] * len(edgeOutputs))
-		return nodeInputs, nodeKeys
+		# All the messages are received from incoming edges to this node.
+		for key in self.messages.keys():
+			edgeMessages = self.messages[key]
+			items.extend(edgeMessages)
+			edgeKeys.extend([key] * len(edgeMessages))
+
+		# If the edge that required this inputs wishes to prune the history of the inputs, detach them.
+		# For debugging: Add a print here before and after detach for all items' grad_fn and requires_grad
+		if prune:
+			items = [x.detach() for x in items]
+		return items, edgeKeys
 
 	def setGroundTruth(self, groundTruth):
 		# Ground truth is always detached from the graph, so we don't optimize both sides of the graph, if the GT of
