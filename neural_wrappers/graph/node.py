@@ -3,13 +3,13 @@ class Node:
 	lastNodeID = 0
 	unicityNodesDict = {}
 
-	def __init__(self, name, groundTruthKey, **kwargs):
+	def __init__(self, name, groundTruthKey, hyperParameters={}):
 		assert not name is "GT", "GT is a reserved keyword"
 		self.name = Node.getUniqueName(name)
 		self.groundTruthKey = groundTruthKey
 
 		# Set up hyperparameters for this node (used for saving/loading identical node)
-		self.hyperParameters = self.getHyperParameters(kwargs)
+		self.hyperParameters = self.getHyperParameters(hyperParameters)
 		self.groundTruth = self.setGroundTruth(None)
 		# Messages are the items received at this node via all its incoming edges.
 		self.messages = {}
@@ -50,8 +50,10 @@ class Node:
 		# Ground truth is always detached from the graph, so we don't optimize both sides of the graph, if the GT of
 		#  one particular node was generated from other side.
 		self.groundTruth = groundTruth
-		if not self.groundTruth is None:
-			self.groundTruth.detach_()
+		if type(self.groundTruth) in (dict, ):
+			self.groundTruth = {k : self.groundTruth[k].detach() for k in self.groundTruth}
+		elif not self.groundTruth is None:
+			self.groundTruth = self.groundTruth.detach()
 
 	def getGroundTruth(self):
 		return self.groundTruth
@@ -64,8 +66,7 @@ class Node:
 		Node.lastNodeID += 1
 		return name
 
-	def getHyperParameters(self, kwargs):
-		hyperParameters = kwargs
+	def getHyperParameters(self, hyperParameters):
 		hyperParameters["name"] = self.name
 		hyperParameters["groundTruthKey"] = self.groundTruthKey
 		return hyperParameters

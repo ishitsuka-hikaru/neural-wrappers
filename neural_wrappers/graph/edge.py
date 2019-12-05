@@ -42,10 +42,10 @@ def defaultForward(self, x):
 #  input.
 class Edge(NeuralNetworkPyTorch):
 	def __init__(self, inputNode, outputNode, edgeType="edge-edge", forwardFn=None, \
-		lossFn=None, dependencies=[], pruneBackprop=False, **kwargs):
-		kwargs["edgeType"] = edgeType
-		kwargs["pruneBackprop"] = pruneBackprop
-		super().__init__(hyperParameters=kwargs)
+		lossFn=None, dependencies=[], pruneBackprop=False, hyperParameters={}):
+		hyperParameters["edgeType"] = edgeType
+		hyperParameters["pruneBackprop"] = pruneBackprop
+		super().__init__(hyperParameters=hyperParameters)
 		assert edgeType in ("node-node", "node-edge", "edge-node", "edge-edge")
 		self.inputNode = inputNode
 		self.outputNode = outputNode

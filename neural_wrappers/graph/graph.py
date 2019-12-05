@@ -7,14 +7,14 @@ from copy import copy
 from .draw_graph import drawGraph
 
 class Graph(NeuralNetworkPyTorch):
-	def __init__(self, edges, **kwargs):
+	def __init__(self, edges, hyperParameters={}):
 		self.nodes = Graph.getNodes(edges)
 		# Set up hyperparameters for every node
 		for node in self.nodes:
-			kwargs[node.name] = node.hyperParameters
+			hyperParameters[node.name] = node.hyperParameters
 		for edge in edges:
-			kwargs[str(edge)] = edge.hyperParameters
-		super().__init__(hyperParameters=kwargs)
+			hyperParameters[str(edge)] = edge.hyperParameters
+		super().__init__(hyperParameters=hyperParameters)
 
 		self.edges = nn.ModuleList(edges)
 		self.edgeIDsToEdges = {str(edge) : edge for edge in self.edges}
@@ -145,9 +145,18 @@ class Graph(NeuralNetworkPyTorch):
 		# Set the GT for each node based on the inputs available at this step. Edges may overwrite this when reaching
 		#  a node via an edge, however it is the graph's responsability to set the default GTs. What happens during the
 		#  optimization shouldn't be influenced by this default.
+		# If the ground truth key is "*", then all items are provided to the node and it's expected that the node will
+		#  manage the labels accordingly.
 		for node in self.nodes:
-			groundTruthData = trLabels[node.groundTruthKey].detach() if node.groundTruthKey in trLabels else None
-			node.setGroundTruth(groundTruthData)
+			if node.groundTruthKey is None:
+				labels = None
+			elif node.groundTruthKey in trLabels:
+				labels = trLabels[node.groundTruthKey]
+			elif node.groundTruthKey == "*":
+				labels = trLabels
+			else:
+				raise Exception("Key %s required from GT data not in labels %s" % (list(trLabels.keys())))
+			node.setGroundTruth(labels)
 			node.messages = {}
 
 	def draw(self, fileName, cleanup=True):
