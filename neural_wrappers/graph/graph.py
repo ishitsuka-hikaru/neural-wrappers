@@ -150,10 +150,12 @@ class Graph(NeuralNetworkPyTorch):
 		for node in self.nodes:
 			if node.groundTruthKey is None:
 				labels = None
-			elif node.groundTruthKey in trLabels:
-				labels = trLabels[node.groundTruthKey]
 			elif node.groundTruthKey == "*":
 				labels = trLabels
+			elif (type(node.groundTruthKey) is str) and (node.groundTruthKey != "*"):
+				labels = trLabels[node.groundTruthKey]
+			elif type(node.groundTruthKey) in (list, tuple):
+				labels = {k : trLabels[k] for k in node.groundTruthKey}
 			else:
 				raise Exception("Key %s required from GT data not in labels %s" % (list(trLabels.keys())))
 			node.setGroundTruth(labels)
