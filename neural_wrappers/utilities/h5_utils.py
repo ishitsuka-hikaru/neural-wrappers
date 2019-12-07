@@ -41,7 +41,8 @@ def h5ReadDict(data, N=None):
 
 def h5ReadSmartIndexing(data, indexes):
 	# Flatten the indexes [[1, 3], [15, 13]] => [1, 3, 15, 13]
-	flattenedIndexes = np.uint32(indexes).flatten()
+	indexes = np.uint32(indexes)
+	flattenedIndexes = indexes.flatten()
 	N = len(flattenedIndexes)
 
 	flattenedShape = (N, *data.shape[1 : ])
