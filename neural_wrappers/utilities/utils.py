@@ -178,6 +178,9 @@ def pickTypeFromMRO(Type, switchType):
 			return switchType[Type]
 	assert False, "%s not in %s" % (typeMRO, switchType)
 
+def npCloseEnough(a, b, eps=1e-5):
+	return np.sum(np.abs(a - b)) < eps
+
 # Deep check if two items are equal. Dicts are checked value by value and numpy array are compared using "closeEnough"
 #  method
 def deepCheckEqual(a, b):
@@ -191,7 +194,7 @@ def deepCheckEqual(a, b):
 				return False
 		return True
 	elif Type == np.ndarray:
-		return np.sum(np.abs(a - b)) < 1e-5
+		return npCloseEnough(a, b)
 	else:
 		return a == b
 	assert False, "Shouldn't reach here"

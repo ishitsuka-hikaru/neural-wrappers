@@ -201,13 +201,17 @@ class NetworkSerializer:
 		additionals = loadedState["callbacks"]["additional"]
 		originalPositions = loadedState["callbacks"]["callbacks_positions"]
 		topologicalSort = loadedState["callbacks"]["topological_sort"]
-		metricsPositions = loadedState["callbacks"]["metrics_positions"]
+		try:
+			# Old behaviour: Assume metrics are stored with string key.
+			# New behaviour: Store another list "metrics_positions" that stores the index of the metrics and uses
+			#  this as way to find out which are callbacks and which are metrics.
+			metricsPositions = loadedState["callbacks"]["metrics_positions"]
+			loadedMetrics = [originalPositions[i] for i in metricsPositions]
+		except Exception:
+			print("Warning! Old behaviour of loading metrics by assuming string keys. Will be deleted at some point.")
+			loadedMetrics = list(filter(lambda x : type(x) is str, originalPositions))
 
-		# Old behaviour: Assume metrics are stored with string key.
-		# New behaviour: Store another list "metrics_positions" that stores the index of the metrics and uses this as
-		#  way to find out which are callbacks and which are metrics.
-		# filteredPositions = list(filter(lambda x : type(x) is str, originalPositions))
-		loadedMetrics = [originalPositions[i] for i in metricsPositions]
+
 		# This filtering is needed if we're doing save/load on the same model (such as loading and storing very often
 		#  so there are some callbacks that need to be reloaded.
 		metricCallbacks = self.model.getMetrics()
