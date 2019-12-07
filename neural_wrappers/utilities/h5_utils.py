@@ -5,7 +5,7 @@ def h5Print(data, level=0):
 	if type(data) in (h5py._hl.files.File, h5py._hl.group.Group):
 		for key in data:
 			print("\n%s- %s" % ("  " * level, key), end="")
-			prettyPrintDict(data[key], level=level+1)
+			h5Print(data[key], level=level+1)
 	elif type(data) == h5py._hl.dataset.Dataset:
 		print("Shape: %s. Type: %s" % (data.shape, data.dtype), end="")
 	else:
