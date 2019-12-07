@@ -2,9 +2,9 @@ import numpy as np
 from prefetch_generator import BackgroundGenerator
 from functools import partial
 from collections import OrderedDict
-from h5_utils import h5ReadSmartIndexing
 
-from ..utilities import standardizeData, minMaxNormalizeData, resize_batch, identity, makeList, isSubsetOf
+from ..utilities import standardizeData, minMaxNormalizeData, resize_batch, \
+	identity, makeList, isSubsetOf, h5ReadSmartIndexing
 
 def minMaxNormalizer(data, dim, obj):
 	min = obj.minimums[dim]
