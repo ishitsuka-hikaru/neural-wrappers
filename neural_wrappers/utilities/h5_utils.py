@@ -33,7 +33,7 @@ def h5ReadDict(data, N=None):
 			res = data[()]
 		elif type(N) is int:
 			res = data[0 : N]
-		elif type(N) is list:
+		elif type(N) in (list, np.ndarray):
 			res = h5ReadSmartIndexing(data, N)
 	else:
 		assert False, "Unexpected type %s" % (type(data))
@@ -41,7 +41,7 @@ def h5ReadDict(data, N=None):
 
 def h5ReadSmartIndexing(data, indexes):
 	# Flatten the indexes [[1, 3], [15, 13]] => [1, 3, 15, 13]
-	indexes = np.uint32(indexes)
+	indexes = np.array(indexes)
 	flattenedIndexes = indexes.flatten()
 	N = len(flattenedIndexes)
 
