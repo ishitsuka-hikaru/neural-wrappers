@@ -1,9 +1,10 @@
 import numpy as np
 from prefetch_generator import BackgroundGenerator
-from neural_wrappers.utilities import standardizeData, minMaxNormalizeData, \
-	resize_batch, identity, makeList, isSubsetOf
 from functools import partial
 from collections import OrderedDict
+from h5_utils import h5ReadSmartIndexing
+
+from ..utilities import standardizeData, minMaxNormalizeData, resize_batch, identity, makeList, isSubsetOf
 
 def minMaxNormalizer(data, dim, obj):
 	min = obj.minimums[dim]
@@ -257,27 +258,21 @@ class DatasetReader:
 	# @param[in] key The key inside the h5 Dataset
 	# @param[in] indexes An array of indexes where we are trying to retrieve data
 	def getDataFromH5(self, dataset, key, indexes):
-		# Flatten the indexes [[1, 3], [15, 13]] => [1, 3, 15, 13]
-		flattenedIndexes = indexes.flatten()
+		# Read using smart indexing
+		items = h5ReadSmartIndexing(dataset[key], indexes)
+		# Flatten data for resizer
+		oneItemShape = items.shape[len(indexes.shape) : ]
+		flattenedItems = items.reshape((-1, *oneItemShape))
+		flattenedItems = self.dimTransform[key](flattenedItems)
+		flattenedItems = self.normalizer[key][1](flattenedItems, dim=key)
 
-		# Need to get first item, so we can infer the dtype after all transforms are made.
-		firstItem = self.retrieveItem(dataset, key, flattenedIndexes[0], flattenedIndexes[0] + 1)
-		# firstItem[0] because retrieveItem will give a shape of (1 x actualShape)
-		firstItem = self.resizer[key](firstItem)[0]
+		# Resize flatened data
+		reiszedFlattenedData = self.resizer[key](flattenedItems)
+		oneResizedItemShape = reiszedFlattenedData.shape[1 : ]
 
-		resultingShape = [*indexes.shape, *firstItem.shape]
-		flattenedResultsShape = [len(flattenedIndexes), *firstItem.shape]
-		results = np.zeros(flattenedResultsShape, dtype=firstItem.dtype)
-		results[0] = firstItem
-
-		for i in range(1, len(flattenedIndexes)):
-			index = flattenedIndexes[i]
-			item = self.retrieveItem(dataset, key, index, index + 1)
-			item = self.resizer[key](item)[0]
-			results[i] = item
-
-		results = results.reshape(resultingShape)
-		return results
+		# Resize back to smart index shape
+		resizedData = reiszedFlattenedData.reshape((*indexes.shape, *oneResizedItemShape))
+		return resizedData
 
 	def __str__(self):
 		return "General dataset reader. Update __str__ in your dataset for more details when using summary."
