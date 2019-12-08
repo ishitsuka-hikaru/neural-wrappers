@@ -3,6 +3,7 @@ import os
 import sys
 from scipy.ndimage import gaussian_filter
 from collections import OrderedDict
+from np_utils import closeEnough
 
 def standardizeData(data, mean, std):
 	data -= mean
@@ -177,9 +178,6 @@ def pickTypeFromMRO(Type, switchType):
 		if Type in switchType:
 			return switchType[Type]
 	assert False, "%s not in %s" % (typeMRO, switchType)
-
-def npCloseEnough(a, b, eps=1e-5):
-	return np.sum(np.abs(a - b)) < eps
 
 # Deep check if two items are equal. Dicts are checked value by value and numpy array are compared using "closeEnough"
 #  method
