@@ -41,7 +41,7 @@ def h5ReadDict(data, N=None):
 
 def h5ReadSmartIndexing(data, indexes):
 	# Flatten the indexes [[1, 3], [15, 13]] => [1, 3, 15, 13]
-	indexes = np.array(indexes)
+	indexes = np.array(indexes, dtype=np.uint32)
 	flattenedIndexes = indexes.flatten()
 	N = len(flattenedIndexes)
 
@@ -50,7 +50,7 @@ def h5ReadSmartIndexing(data, indexes):
 	# Retrieve the items 1 by 1 from the flattened version of the indexes
 	result = np.zeros(flattenedShape, data.dtype)
 	for i in range(N):
-		result[i] = data[i]
+		result[i] = data[flattenedIndexes[i]]
 	# Reshape the data accordingly
 	result = result.reshape(finalShape)
 	return result
