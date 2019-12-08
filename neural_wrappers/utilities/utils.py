@@ -3,7 +3,7 @@ import os
 import sys
 from scipy.ndimage import gaussian_filter
 from collections import OrderedDict
-from np_utils import closeEnough
+from .np_utils import npCloseEnough
 
 def standardizeData(data, mean, std):
 	data -= mean
