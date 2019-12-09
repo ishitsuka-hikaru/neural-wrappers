@@ -19,7 +19,7 @@ class GraphDrawer:
 		return dotEdges
 
 	# TODO: edge-edge is only supported (Add node-edge, edge-node, node-node edge types)
-	def draw(self, fileName, cleanup):
+	def draw(self, fileName, cleanup, view):
 		# Create the graph using the original labels
 		dot = Digraph(format="png", engine="fdp")
 
@@ -44,7 +44,7 @@ class GraphDrawer:
 
 		for node in self.nodes:
 			dot.subgraph(subgraphs[node])
-		dot.render(fileName, view=False, cleanup=cleanup)
+		dot.render(fileName, view=view, cleanup=cleanup)
 
-def drawGraph(nodes, edges, fileName, cleanup):
-	GraphDrawer(list(nodes), list(edges)).draw(fileName, cleanup)
+def drawGraph(nodes, edges, fileName, cleanup, view):
+	GraphDrawer(list(nodes), list(edges)).draw(fileName, cleanup, view)

@@ -161,8 +161,8 @@ class Graph(NeuralNetworkPyTorch):
 			node.setGroundTruth(labels)
 			node.messages = {}
 
-	def draw(self, fileName, cleanup=True):
-		drawGraph(self.nodes, self.edges, fileName, cleanup)
+	def draw(self, fileName, cleanup=True, view=False):
+		drawGraph(self.nodes, self.edges, fileName, cleanup, view)
 
 	def __str__(self):
 		Str = "Graph:"
