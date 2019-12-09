@@ -4,6 +4,8 @@ import numpy as np
 import h5py
 from mnist import MNIST
 
+# The source_dir should contain the 4 items from http://yann.lecun.com/exdb/mnist/ (extracted, not .gz).
+
 def main():
 	assert len(sys.argv) == 3, "Usage: python mnist_converter.py source_dir output_path"
 	sourceDir = os.path.abspath(sys.argv[1]) 
