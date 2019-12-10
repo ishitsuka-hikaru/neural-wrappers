@@ -9,7 +9,7 @@ from .draw_graph import drawGraph
 class Graph(NeuralNetworkPyTorch):
 	def __init__(self, edges, hyperParameters={}):
 		self.nodes = Graph.getNodes(edges)
-		hyperParameters = self.getHyperParameters(hyperParameters)
+		hyperParameters = self.getHyperParameters(hyperParameters, edges)
 		super().__init__(hyperParameters=hyperParameters)
 
 		self.edges = nn.ModuleList(edges)
@@ -160,7 +160,7 @@ class Graph(NeuralNetworkPyTorch):
 	def draw(self, fileName, cleanup=True, view=False):
 		drawGraph(self.nodes, self.edges, fileName, cleanup, view)
 
-	def getHyperParameters(self, hyperParameters):
+	def getHyperParameters(self, hyperParameters, edges):
 		# Set up hyperparameters for every node
 		hyperParameters = {k : hyperParameters[k] for k in hyperParameters}
 		for node in self.nodes:

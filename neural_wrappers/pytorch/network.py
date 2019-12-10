@@ -216,21 +216,21 @@ class NeuralNetworkPyTorch(nn.Module):
 			metricResults[metric] = metricResults[metric].get()
 		return metricResults
 
-	def test_generator(self, generator, stepsPerEpoch, printMessage=False):
+	def test_generator(self, generator, stepsPerEpoch, printMessage=None):
 		assert stepsPerEpoch > 0
+		self.linePrinter = MessagePrinter(printMessage)
 		self.callbacksOnEpochStart(isTraining=False)
 		with StorePrevState(self):
 			# self.eval()
 			with tr.no_grad():
 				now = datetime.now()
 				# Store previous state and restore it after running epoch in eval mode.
-				resultMetrics = self.run_one_epoch(generator, stepsPerEpoch, isTraining=False, \
-					isOptimizing=False, printMessage=printMessage)
+				resultMetrics = self.run_one_epoch(generator, stepsPerEpoch, isTraining=False, isOptimizing=False)
 				duration = datetime.now() - now
 		self.callbacksOnEpochEnd(isTraining=False)
 		return resultMetrics
 
-	def test_model(self, data, labels, batchSize, printMessage=False):
+	def test_model(self, data, labels, batchSize, printMessage=None):
 		dataGenerator = makeGenerator(data, labels, batchSize)
 		numIterations = data.shape[0] // batchSize + (data.shape[0] % batchSize != 0)
 		return self.test_generator(dataGenerator, stepsPerEpoch=numIterations, printMessage=printMessage)
@@ -324,7 +324,7 @@ class NeuralNetworkPyTorch(nn.Module):
 			self.epochPrologue(epochMetrics)
 
 	def train_model(self, data, labels, batchSize, numEpochs, validationData=None, \
-		validationLabels=None, printMessage=True):
+		validationLabels=None, printMessage=None):
 		dataGenerator = makeGenerator(data, labels, batchSize)
 		numIterations = data.shape[0] // batchSize + (data.shape[0] % batchSize != 0)
 

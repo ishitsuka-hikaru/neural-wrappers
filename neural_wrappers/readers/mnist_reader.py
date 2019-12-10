@@ -4,7 +4,7 @@ from .dataset_reader import ClassificationDatasetReader
 from neural_wrappers.utilities import toCategorical
 
 class MNISTReader(ClassificationDatasetReader):
-	def __init__(self, datasetPath, dataDims=["images"], labelDims=["labels"], normalizer="standardization", \
+	def __init__(self, datasetPath, dataDims=["images"], labelDims=["labels"], normalizer={}, \
 		dimTransform={
 			"images" : np.float32,
 			"labels" : lambda x : toCategorical(x, numClasses=10)
