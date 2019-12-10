@@ -20,13 +20,17 @@ def getPaths(baseDir, keepN=None):
 	def depthFunc(rgbItem):
 		return baseDir + os.sep + rgbItem.replace("rgb", "depth")
 
+	def semanticFunc(rgbItem):
+		return baseDir + os.sep + rgbItem.replace("rgb", "semantic_segmentation")
+
 	rgbList = sorted(list(filter(lambda x : x.find("rgb") != -1, os.listdir(baseDir))))
 	N = len(rgbList)
 	result = {
 		"rgb" : list(map(lambda x : baseDir + os.sep + x, rgbList)),
 		"depth" : list(map(depthFunc, rgbList)),
 		"position" : list(map(positionFunc, rgbList)),
-		"ids" : list(map(idsFunc, rgbList))
+		"ids" : list(map(idsFunc, rgbList)),
+		"semantic_segmentation" : list(map(semanticFunc, rgbList))
 	}
 
 	# Sort entries by IDs
@@ -89,16 +93,47 @@ def storeToH5File(file, data):
 				i += 1
 		return npDphNorm
 
+	def doSemantic(path):
+		item = doPng(path)
+		labels = {
+			(0, 0, 0): "Unlabeled",
+			(70, 70, 70): "Building",
+			(153, 153, 190): "Fence",
+			(160, 170, 250): "Other",
+			(60, 20, 220): "Pedestrian",
+			(153, 153, 153): "Pole",
+			(50, 234, 157): "Road line",
+			(128, 64, 128): "Road",
+			(232, 35, 244): "Sidewalk",
+			(35, 142, 107): "Vegetation",
+			(142, 0, 0): "Car",
+			(156, 102, 102): "Wall",
+			(0, 220, 220): "Traffic sign"
+		}
+		labelKeys = list(labels.keys())
+		result = np.zeros(shape=item.shape[0] * item.shape[1], dtype=np.uint8)
+		flattenedRGB = item.reshape(-1, 3)
+
+		for i, label in enumerate(labelKeys):
+			equalOnAllDims = np.prod(flattenedRGB == label, axis=-1)
+			where = np.where(equalOnAllDims == 1)[0]
+			result[where] = i
+
+		result = result.reshape(*item.shape[0 : 2])
+		return result
+
 	N = len(data["rgb"])
 	funcs = {
 		"rgb" : doPng,
 		"depth" : doDepth,
 		"position" : lambda x : x,
-		"ids" : lambda x : x
+		"ids" : lambda x : x,
+		"semantic_segmentation" : doSemantic
 	}
 
 	# Infer the shape and dtype from first item
 	for key in data:
+		assert key in funcs, "Not found %s in funcs %s" % (key, list(funcs))
 		item = funcs[key](data[key][0])
 		file.create_dataset(key, (N, *item.shape), dtype=item.dtype)
 
@@ -126,7 +161,7 @@ def getDataStatistics(file, maxDepthMeters=300):
 
 def main():
 	assert len(sys.argv) == 3, "Usage: python3 h5_exporter.py baseDir result.h5"
-	paths = getPaths(sys.argv[1], keepN=100)
+	paths = getPaths(sys.argv[1], keepN=None)
 	print("Got %d paths. Keys: %s" % (len(paths["rgb"]), list(paths.keys())))
 
 	trainPaths, valPaths = getTrainValPaths(paths)
