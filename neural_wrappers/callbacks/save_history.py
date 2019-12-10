@@ -22,6 +22,8 @@ class SaveHistory(Callback):
 			return
 
 		message = kwargs["trainHistory"][-1]["message"]
+		if type(message) in (list, tuple):
+			message = "\n".join(message)
 		self.file.write(message + "\n")
 
 	def onCallbackSave(self, **kwargs):

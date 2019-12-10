@@ -63,7 +63,7 @@ def main():
 
 	if args.type == "train":
 		model.train_generator(trainGenerator, trainSteps, numEpochs=args.num_epochs, \
-			validationGenerator=valGenerator, validationSteps=valSteps)
+			validationGenerator=valGenerator, validationSteps=valSteps, printMessage="v2")
 	elif args.type == "retrain":
 		model.loadModel(args.weights_file)
 		model.train_generator(trainGenerator, trainSteps, numEpochs=args.num_epochs, \
