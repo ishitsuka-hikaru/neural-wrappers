@@ -16,7 +16,7 @@ def defaultLossFn(self, y, t):
 # Communication between input and output node.
 def defaultForward(self, x):
 	A, B, model, edgeID = self.inputNode, self.outputNode, self.model, self.edgeID
-	edgeInputs, inputNodeKeys = A.getInputs(prune=self.pruneBackprop)
+	edgeInputs, inputNodeKeys = A.getInputs(blockGradients=self.blockGradients)
 	self.inputs = []
 	self.outputs = []
 
@@ -37,14 +37,13 @@ def defaultForward(self, x):
 # @param[in] lossFn Custom loss function. If not set, we'll use the default loss function which uses all outputs at the
 #  output node and call the output node's loss function for each of them.
 # @param[in] dependencies A list of edge dependenices. This is used for topological sorot during each iteration.
-# @param[in] pruneBackprop If set to true, each output of this edge will be owned by the outputNode, rather than
+# @param[in] blockGradients If set to true, each output of this edge will be owned by the outputNode, rather than
 #  maintaing a history of its origin. This is used s.t. long graphs don't have to backpropagate to the source of each
 #  input.
 class Edge(NeuralNetworkPyTorch):
 	def __init__(self, inputNode, outputNode, edgeType="edge-edge", forwardFn=None, \
-		lossFn=None, dependencies=[], pruneBackprop=False, hyperParameters={}):
-		hyperParameters["edgeType"] = edgeType
-		hyperParameters["pruneBackprop"] = pruneBackprop
+		lossFn=None, dependencies=[], blockGradients=False, hyperParameters={}):
+		hyperParameters = self.getHyperParameters(hyperParameters, edgeType, blockGradients)
 		super().__init__(hyperParameters=hyperParameters)
 		assert edgeType in ("node-node", "node-edge", "edge-node", "edge-edge")
 		self.inputNode = inputNode
@@ -59,7 +58,7 @@ class Edge(NeuralNetworkPyTorch):
 		self.outputs = []
 
 		self.dependencies = dependencies
-		self.setPruneBackprop(pruneBackprop)
+		self.setBlockGradients(blockGradients)
 
 	def forward(self, x):
 		return self.forwardFn(self, x)
@@ -123,8 +122,15 @@ class Edge(NeuralNetworkPyTorch):
 		self.forwardFn = forwardFn
 		self.lossFn = lossFn
 
-	def setPruneBackprop(self, value):
-		self.pruneBackprop = value
+	def setBlockGradients(self, value):
+		self.blockGradients = value
+
+	def getHyperParameters(self, hyperParameters, edgeType, blockGradients):
+		# Without this shallow copy we risk of having other references to hyperparameters.
+		hyperParameters = {k : hyperParameters[k] for k in hyperParameters.keys()}
+		hyperParameters["edgeType"] = edgeType
+		hyperParameters["blockGradients"] = blockGradients
+		return hyperParameters
 
 	def __str__(self):
 		return "%s -> %s" % (str(self.inputNode), str(self.outputNode))

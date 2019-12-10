@@ -1,7 +1,6 @@
 class Node:
 	# A dictionary that gives a unique tag to all nodes by appending an increasing number to name.
 	lastNodeID = 0
-	unicityNodesDict = {}
 
 	def __init__(self, name, groundTruthKey, hyperParameters={}):
 		assert not name is "GT", "GT is a reserved keyword"
@@ -27,7 +26,7 @@ class Node:
 	# This node's inputs based on whatever GT data we receive (inputs dict + self.groundTruthKey) as well as whatever
 	#  intermediate messages we recieved. This is programmable for every node. By default, we return all GTs and all
 	#  received messages as possible inputs to the node's forward function
-	def getInputs(self, prune=False):
+	def getInputs(self, blockGradients=False):
 		items, edgeKeys = [], []
 		# Add GT first, if it exist
 		if not self.groundTruth is None:
@@ -42,7 +41,7 @@ class Node:
 
 		# If the edge that required this inputs wishes to prune the history of the inputs, detach them.
 		# For debugging: Add a print here before and after detach for all items' grad_fn and requires_grad
-		if prune:
+		if blockGradients:
 			items = [x.detach() for x in items]
 		return items, edgeKeys
 
@@ -67,6 +66,9 @@ class Node:
 		return name
 
 	def getHyperParameters(self, hyperParameters):
+		# This is some weird bug. If i leave the same hyperparameters coming (here I make a shallow copy),
+		#  making two instances of the same class results in having same hyperparameters.
+		hyperParameters = {k : hyperParameters[k] for k in hyperParameters.keys()}
 		hyperParameters["name"] = self.name
 		hyperParameters["groundTruthKey"] = self.groundTruthKey
 		return hyperParameters

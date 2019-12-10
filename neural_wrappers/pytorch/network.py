@@ -169,12 +169,13 @@ class NeuralNetworkPyTorch(nn.Module):
 		npResults, npLoss = getNpData(trResults), getNpData(trLoss)
 
 		# Might be better to use a callback so we skip this step
-		if isTraining and isOptimizing:
-			self.optimizer.zero_grad()
-			trLoss.backward()
-			self.optimizer.step()
-		else:
-			trLoss.detach_()
+		if not trLoss is None:
+			if isTraining and isOptimizing:
+				self.optimizer.zero_grad()
+				trLoss.backward()
+				self.optimizer.step()
+			else:
+				trLoss.detach_()
 
 		return npResults, npLoss
 
