@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 from neural_wrappers.utilities import h5StoreDict
 
-def getPaths(baseDir, keepN=None):
+def getPaths(baseDir):
 	def positionFunc(rgbItem):
 		splits = rgbItem.split("_")
 		x, y, z, roll, pitch, yaw = splits[5], splits[7], splits[9], splits[15][0 : -4], splits[11], splits[13]
@@ -42,13 +42,9 @@ def getPaths(baseDir, keepN=None):
 	mask = np.abs(sortedPos - right).sum(axis=-1) > 0.1
 	print("Removed %d duplicate entries" % (len(mask) - mask.sum()))
 	result = {k : result[k][mask] for k in result}
-
-	if not keepN is None:
-		result = {k : result[k][0 : keepN] for k in result}
-
 	return result
 
-def getTrainValPaths(paths):
+def getTrainValPaths(paths, keepN=None):
 	np.random.seed(42)
 	perm = np.random.permutation(len(paths["rgb"]))
 	numTrain = int(len(paths["rgb"]) * 0.8)
@@ -62,6 +58,11 @@ def getTrainValPaths(paths):
 
 	trainPaths = {k : paths[k][trainIx] for k in paths}
 	valPaths = {k : paths[k][valIx] for k in paths}
+
+	if not keepN is None:
+		trainPaths = {k : trainPaths[k][0 : keepN] for k in trainPaths}
+		valPaths = {k : valPaths[k][0 : keepN] for k in valPaths}
+
 	return trainPaths, valPaths
 
 def storeToH5File(file, data):
@@ -136,6 +137,7 @@ def storeToH5File(file, data):
 		assert key in funcs, "Not found %s in funcs %s" % (key, list(funcs))
 		item = funcs[key](data[key][0])
 		file.create_dataset(key, (N, *item.shape), dtype=item.dtype)
+		file[key][0] = item
 
 	# Do the rest N-1 items identically
 	for i in range(1, N):
@@ -161,10 +163,10 @@ def getDataStatistics(file, maxDepthMeters=300):
 
 def main():
 	assert len(sys.argv) == 3, "Usage: python3 h5_exporter.py baseDir result.h5"
-	paths = getPaths(sys.argv[1], keepN=None)
+	paths = getPaths(sys.argv[1])
 	print("Got %d paths. Keys: %s" % (len(paths["rgb"]), list(paths.keys())))
 
-	trainPaths, valPaths = getTrainValPaths(paths)
+	trainPaths, valPaths = getTrainValPaths(paths, keepN=None)
 	print("Got paths: Train: %d; Val: %d" % (len(trainPaths["rgb"]), len(valPaths["rgb"])))
 	plotPaths(trainPaths, valPaths)
 
