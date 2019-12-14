@@ -25,7 +25,7 @@ def standardizer(data, dim, obj):
 # @param[in] dataDims A list representing the dimensions of the data ("rgb", "classes", "depth" etc.) or None
 # @param[in] labelDims A list representing the dimensions of the label ("depth", "segmentation", "label", etc.) or None
 class DatasetReader:
-	def __init__(self, datasetPath, allDims, dataDims, labelDims, dimGetter={}, dimTransform={}, normalizer={}, \
+	def __init__(self, datasetPath, dataDims, labelDims, dimGetter={}, dimTransform={}, normalizer={}, \
 		resizer={}, dataFinalTransform={}, labelFinalTransform={}):
 
 		# Define the dictionaries that must be updated by each dataset reader.
@@ -34,23 +34,14 @@ class DatasetReader:
 		self.numData = {"train" : 0, "validation" : 0, "test" : 0}
 		self.dataDims = makeList(dataDims)
 		self.labelDims = makeList(labelDims)
-
-		# Sanity check
-		allDims = makeList(allDims)
-		assert isSubsetOf(self.dataDims, allDims) and isSubsetOf(self.labelDims, allDims), ("Exepcted dataDims " + \
-			"(%s) and labelDims (%s) to be a subset of allDims (%s)") % (self.dataDims, self.labelDims, allDims)
-		# Small efficiency trick, as we only care about the dims in dataDims and labelDims, so no need to perofrm the
-		#  pipeline for other unused ones, just to drop them at the very end.
 		self.allDims = set(list(self.dataDims) + list(self.labelDims))
 		# print(self.allDims, set(self.allDims))
 		# assert len(self.allDims) == len(set(self.allDims))
 		# Also, if in any level of processing a dimension is given, that was not specified in dataDims or labelDims,
 		#  remove it, as it is unused.
-		for dim in allDims:
-			if dim in self.allDims:
-				continue
-			for Dict in [dimTransform, normalizer, resizer]:
-				if dim in Dict:
+		for Dict in [dimTransform, normalizer, resizer]:
+			for dim in Dict:
+				if not dim in self.allDims:
 					del Dict[dim]
 
 		# Pipeline: dimGetter -> dimTransform -> normalizer -> resize -> finalTransform -> data

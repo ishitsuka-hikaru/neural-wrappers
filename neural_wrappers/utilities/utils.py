@@ -61,7 +61,7 @@ def identityVar(*args):
 #  he'd have to use a 1-element list. This handles that case, so the overall API uses lists, but user provides
 #  just an element. If None, just return None.
 def makeList(x):
-	return None if type(x) == type(None) else x if type(x) == list else [x]
+	return None if type(x) == type(None) else list(x) if type(x) in (list, set, tuple) else [x]
 
 # ["test"] and ["blah", "blah2"] => False
 # ["blah2"] and ["blah", "blah2"] => True

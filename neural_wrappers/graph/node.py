@@ -76,5 +76,8 @@ class Node:
 	def __str__(self):
 		return self.name
 
+	def __repr__(self):
+		return self.name.split(" ")[0]
+
 class VectorNode(Node): pass
 class MapNode(Node): pass
