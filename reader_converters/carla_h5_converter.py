@@ -23,6 +23,9 @@ def getPaths(baseDir):
 	def semanticFunc(rgbItem):
 		return baseDir + os.sep + rgbItem.replace("rgb", "semantic_segmentation")
 
+	def normalFunc(rgbItem):
+		return baseDir + os.sep + rgbItem.replace("rgb", "normal")
+
 	rgbList = sorted(list(filter(lambda x : x.find("rgb") != -1, os.listdir(baseDir))))
 	N = len(rgbList)
 	result = {
@@ -30,7 +33,8 @@ def getPaths(baseDir):
 		"depth" : list(map(depthFunc, rgbList)),
 		"position" : list(map(positionFunc, rgbList)),
 		"ids" : list(map(idsFunc, rgbList)),
-		"semantic_segmentation" : list(map(semanticFunc, rgbList))
+		"semantic_segmentation" : list(map(semanticFunc, rgbList)),
+		"normal" : list(map(normalFunc, rgbList))
 	}
 
 	# Sort entries by IDs
@@ -123,13 +127,19 @@ def storeToH5File(file, data):
 		result = result.reshape(*item.shape[0 : 2])
 		return result
 
+	# Normals are stored as [0 - 255] on 3 channels, representing the normals w.r.t world. We move them to [-1 : 1]
+	def doNormal(path):
+		item = doPng(path)
+		return ((np.float32(item) / 255) - 0.5) * 2
+
 	N = len(data["rgb"])
 	funcs = {
 		"rgb" : doPng,
 		"depth" : doDepth,
 		"position" : lambda x : x,
 		"ids" : lambda x : x,
-		"semantic_segmentation" : doSemantic
+		"semantic_segmentation" : doSemantic,
+		"normal" : doNormal
 	}
 
 	# Infer the shape and dtype from first item
@@ -166,7 +176,7 @@ def main():
 	paths = getPaths(sys.argv[1])
 	print("Got %d paths. Keys: %s" % (len(paths["rgb"]), list(paths.keys())))
 
-	trainPaths, valPaths = getTrainValPaths(paths, keepN=None)
+	trainPaths, valPaths = getTrainValPaths(paths, keepN=20)
 	print("Got paths: Train: %d; Val: %d" % (len(trainPaths["rgb"]), len(valPaths["rgb"])))
 	plotPaths(trainPaths, valPaths)
 
