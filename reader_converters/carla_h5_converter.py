@@ -1,11 +1,26 @@
 # Converter for CARLA simulator. Exports to H5 file based on a given path to an Unreal/Carla export (of pngs).
 import numpy as np
 import os
-import sys
 import h5py
 import matplotlib.pyplot as plt
 from PIL import Image
 from neural_wrappers.utilities import h5StoreDict
+from argparse import ArgumentParser
+
+def getArgs():
+	parser = ArgumentParser()
+	parser.add_argument("baseDir")
+	parser.add_argument("resultFile")
+	parser.add_argument("--N", type=int, default=None)
+	parser.add_argument("--splits", default="80,20")
+	parser.add_argument("--split_keys", default="train,validation")
+
+	args = parser.parse_args()
+	args.splits = list(map(lambda x : float(x) / 100, args.splits.split(",")))
+	args.split_keys = args.split_keys.split(",")
+	assert abs(sum(args.splits) - 1) < 1e-5
+	assert len(args.splits) == len(args.split_keys)
+	return args
 
 def getPaths(baseDir):
 	def positionFunc(rgbItem):
@@ -48,26 +63,51 @@ def getPaths(baseDir):
 	result = {k : result[k][mask] for k in result}
 	return result
 
-def getTrainValPaths(paths, keepN=None):
+def getTrainValPaths(paths, splits, splitKeys, keepN=None):
 	np.random.seed(42)
-	perm = np.random.permutation(len(paths["rgb"]))
-	numTrain = int(len(paths["rgb"]) * 0.8)
-	numVal = len(paths["rgb"]) - numTrain
+	N = len(paths["rgb"])
+	perm = np.random.permutation(N)
+	# rgb, depth, semantic etc.
+	pathKeys = paths.keys()
+	
+	# Randomize order
+	paths = {k : paths[k][perm] for k in pathKeys}
+	# Get (startIndex, endIndex) tuple for each key
+	dataIx, lastIx = {}, 0
+	for i in range(len(splitKeys) - 1):
+		nK = int(splits[i] * N)
+		dataIx[splitKeys[i]] = (lastIx, lastIx + nK)
+		lastIx += nK
+	dataIx[splitKeys[-1]] = (lastIx, N)
 
-	allIx = np.random.permutation(len(paths["rgb"]))
-	# Optional: sort them ascending in array. I think this is a bad idea, as we can find out neighbours by searhing
-	#  at startup time for closest neighbours (via distance or ids)
-	trainIx = allIx[0 : numTrain]
-	valIx = allIx[numTrain : ]
-
-	trainPaths = {k : paths[k][trainIx] for k in paths}
-	valPaths = {k : paths[k][valIx] for k in paths}
+	# Now, take the paths for all the keys as defined by indexes above
+	newPaths = {}
+	for k in splitKeys:
+		startIx, endIx = dataIx[k]
+		thisPaths = {pathKey : paths[pathKey][startIx : endIx] for pathKey in pathKeys}
+		newPaths[k] = thisPaths
+		print(k)
+		for pathKey in pathKeys:
+			print(" - %s : %d" % (pathKey, len(thisPaths[pathKey])))
 
 	if not keepN is None:
-		trainPaths = {k : trainPaths[k][0 : keepN] for k in trainPaths}
-		valPaths = {k : valPaths[k][0 : keepN] for k in valPaths}
+		for k in splitKeys:
+			newPaths[k] = {pathKey : newPaths[k][pathKey][0 : keepN] for pathKey in pathKeys}
 
-	return trainPaths, valPaths
+	for k in splitKeys:
+		thisPaths = newPaths[k]
+		print(k, "=>", end="")
+		for pathKey in pathKeys:
+			print(" %s : %d |" % (pathKey, len(thisPaths[pathKey])), end="")
+		print("")
+	return newPaths
+
+def plotPaths(paths):
+	for k in paths:
+		plt.gcf().clear()
+		plt.scatter(paths[k]["position"][..., 0], paths[k]["position"][..., 1])
+		print("Storing PNG paths: %s_points.png" % (k))
+		plt.savefig("%s_points.png" % (k))
 
 def storeToH5File(file, data):
 	def doPng(path):
@@ -156,38 +196,28 @@ def storeToH5File(file, data):
 			file[key][i] = funcs[key](data[key][i])
 	print("")
 
-def plotPaths(trainPaths, valPaths):
-	plt.scatter(trainPaths["position"][..., 0], trainPaths["position"][..., 1])
-	plt.savefig("train_points.png")
-	plt.figure()
-	plt.scatter(valPaths["position"][..., 0], valPaths["position"][..., 1])
-	plt.savefig("val_points.png")
-
 def getDataStatistics(file, maxDepthMeters=300):
 	statistics = {}
-	positions = {k : file[k]["position"][0 : ] for k in ["train", "validation"]}
+	dataKeys = list(file)
+	positions = {k : file[k]["position"][0 : ] for k in dataKeys}
 	posConcat = np.concatenate([positions[k] for k in positions])
 	statistics["position"] = {"min" : posConcat.min(axis=0), "max" : posConcat.max(axis=0)}
 	statistics["depth"] = {"min" : 0, "max" : maxDepthMeters}
 	return {"dataStatistics" : statistics}
 
 def main():
-	assert len(sys.argv) == 3, "Usage: python3 h5_exporter.py baseDir result.h5"
-	paths = getPaths(sys.argv[1])
+	args = getArgs()
+	paths = getPaths(args.baseDir)
 	print("Got %d paths. Keys: %s" % (len(paths["rgb"]), list(paths.keys())))
 
-	trainPaths, valPaths = getTrainValPaths(paths, keepN=20)
-	print("Got paths: Train: %d; Val: %d" % (len(trainPaths["rgb"]), len(valPaths["rgb"])))
-	plotPaths(trainPaths, valPaths)
+	paths = getTrainValPaths(paths, args.splits, args.split_keys, keepN=args.N)
+	plotPaths(paths)
 
-	file = h5py.File(sys.argv[2], "w")
-	file.create_group("train")
-	print("Storing train set")
-	storeToH5File(file["train"], trainPaths)
-
-	file.create_group("validation")
-	print("Storing validation set")
-	storeToH5File(file["validation"], valPaths)
+	file = h5py.File(args.resultFile, "w")
+	for k in paths:
+		file.create_group(k)
+		print("Storing %s set" % (k))
+		storeToH5File(file[k], paths[k])
 
 	# file = h5py.File(sys.argv[2], "r")
 	print("Storing statistics!")
@@ -196,7 +226,7 @@ def main():
 	h5StoreDict(file["others"], statistics)
 
 	file.flush()
-	print("Done! Exported to %s." % (sys.argv[2]))
+	print("Done! Exported to %s." % (args.resultFile))
 
 if __name__ == "__main__":
 	main()
