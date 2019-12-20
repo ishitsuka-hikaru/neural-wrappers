@@ -170,7 +170,8 @@ def storeToH5File(file, data):
 	# Normals are stored as [0 - 255] on 3 channels, representing the normals w.r.t world. We move them to [-1 : 1]
 	def doNormal(path):
 		item = doPng(path)
-		return ((np.float32(item) / 255) - 0.5) * 2
+		item = ((np.float32(item) / 255) - 0.5) * 2
+		return item
 
 	N = len(data["rgb"])
 	funcs = {
