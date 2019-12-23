@@ -35,14 +35,11 @@ class DatasetReader:
 		self.dataDims = makeList(dataDims)
 		self.labelDims = makeList(labelDims)
 		self.allDims = set(list(self.dataDims) + list(self.labelDims))
-		# print(self.allDims, set(self.allDims))
-		# assert len(self.allDims) == len(set(self.allDims))
 		# Also, if in any level of processing a dimension is given, that was not specified in dataDims or labelDims,
 		#  remove it, as it is unused.
-		for Dict in [dimTransform, normalizer, resizer]:
-			for dim in Dict:
-				if not dim in self.allDims:
-					del Dict[dim]
+		dimTransform = self.keepOnlyRelevantDims(dimTransform)
+		normalizer = self.keepOnlyRelevantDims(normalizer)
+		resizer = self.keepOnlyRelevantDims(resizer)
 
 		# Pipeline: dimGetter -> dimTransform -> normalizer -> resize -> finalTransform -> data
 		# This pipe-line is applied for both dataDims and labelDims simultaneously, but they are separated at the very
@@ -75,6 +72,15 @@ class DatasetReader:
 		self.labelFinalTransform = DatasetReader.populateDictByDims(self.labelDims, labelFinalTransform, identity)
 
 	### Stuff used for initialization and info about the data that is processed by this reader ###
+
+	# Some dicts may have additional keys that are not in allDims. We only care to keep a minimal and consistent set
+	#  of keys, so we remove the ones that are useless.
+	def keepOnlyRelevantDims(self, Dict):
+		newDict = {}
+		for dim in Dict:
+			if dim in self.allDims:
+				newDict[dim] = Dict[dim]
+		return newDict
 
 	# Some transforms (dataDim and dataFinal) must be user provided (or defaulted to identity). This method just checks
 	#  that they are callable.

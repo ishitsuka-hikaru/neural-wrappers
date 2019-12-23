@@ -14,10 +14,12 @@ def getArgs():
 	parser.add_argument("--N", type=int, default=None)
 	parser.add_argument("--splits", default="80,20")
 	parser.add_argument("--split_keys", default="train,validation")
+	parser.add_argument("--randomize_order", default=1, type=int)
 
 	args = parser.parse_args()
 	args.splits = list(map(lambda x : float(x) / 100, args.splits.split(",")))
 	args.split_keys = args.split_keys.split(",")
+	args.randomize_order = bool(args.randomize_order)
 	assert abs(sum(args.splits) - 1) < 1e-5
 	assert len(args.splits) == len(args.split_keys)
 	return args
@@ -63,15 +65,17 @@ def getPaths(baseDir):
 	result = {k : result[k][mask] for k in result}
 	return result
 
-def getTrainValPaths(paths, splits, splitKeys, keepN=None):
-	np.random.seed(42)
+def getTrainValPaths(paths, splits, splitKeys, keepN=None, randomizeOrder=True):
 	N = len(paths["rgb"])
-	perm = np.random.permutation(N)
 	# rgb, depth, semantic etc.
 	pathKeys = paths.keys()
 	
 	# Randomize order
-	paths = {k : paths[k][perm] for k in pathKeys}
+	if randomizeOrder:
+		np.random.seed(42)
+		perm = np.random.permutation(N)
+		paths = {k : paths[k][perm] for k in pathKeys}
+
 	# Get (startIndex, endIndex) tuple for each key
 	dataIx, lastIx = {}, 0
 	for i in range(len(splitKeys) - 1):
