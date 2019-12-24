@@ -103,6 +103,7 @@ class Edge(NeuralNetworkPyTorch):
 		metrics = model[-1].getMetrics()
 		if "Loss" in metrics:
 			del metrics["Loss"]
+
 		self.addMetrics(metrics)
 		self.setCriterion(model[-1].criterion)
 		return model

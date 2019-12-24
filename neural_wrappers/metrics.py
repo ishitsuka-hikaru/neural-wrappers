@@ -2,16 +2,25 @@ import numpy as np
 from functools import reduce
 
 class Metric:
+	# @param[in] direction Defines the "direction" of the metric, as in if the better value means it is minimized or
+	#  maximized. For example, Loss functions (or errors in general) are minimized, thus "min". However, other metrics
+	#  such as Accuracy or F1Score are to be maximized, hence "max". Defaults to "min".
+	def __init__(self, direction="min"):
+		assert direction in ("min", "max")
+		self.direction = direction
+
 	def __call__(self, results, labels, **kwargs):
 		raise NotImplementedError("Should have implemented this")
 
 class Accuracy(Metric):
 	def __init__(self, categoricalLabels=True):
+		super().__init__("max")
 		self.categoricalLabels = categoricalLabels
 
 	def __call__(self, results, labels, **kwargs):
 		predicted = np.argmax(results, axis=-1)
 		labels = np.argmax(labels, axis=-1) if self.categoricalLabels else labels
+		# MBxHxWx3xNumClasses outputs => product of MB*H*W*3 (as NC are gone due to argmax above)
 		total = reduce(lambda x, y: x*y, predicted.shape)
 		correct = np.sum(predicted == labels)
 		accuracy = correct / total * 100
@@ -19,6 +28,7 @@ class Accuracy(Metric):
 
 class F1Score(Metric):
 	def __init__(self, categoricalLabels=True):
+		super().__init__("max")
 		self.categoricalLabels = categoricalLabels
 
 	@staticmethod

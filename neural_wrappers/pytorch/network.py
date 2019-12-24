@@ -58,10 +58,13 @@ class NeuralNetworkPyTorch(nn.Module):
 			assert hasattr(metrics[key], "__call__"), "The user provided transformation %s must be callable" % (key)
 			assert key not in self.callbacks, "Metric %s already in callbacks list." % (key)
 
-			metricAsCallback = MetricAsCallback(metricName=key, metric=metrics[key])
+			metricAsCallback = metrics[key]
+			# There may be cases where the metric is already a MetricAsCallback (i.e. graph metrics inherited from each
+			#  edges or simply creating the MetricAsCallback object yourself), so there is no need to wrap it twice.
+			if not type(metricAsCallback) == MetricAsCallback:
+				metricAsCallback = MetricAsCallback(metricName=key, metric=metricAsCallback)
 			self.callbacks[key] = metricAsCallback
 			self.iterPrintMessageKeys.append(key)
-
 		# Warning, calling addMetrics might invalidat topological sort as we reset the indexes here. If there are
 		#  dependencies already set using setCallbacksDependeices, it must be called again.
 		self.topologicalSort = np.arange(len(self.callbacks))
@@ -398,12 +401,14 @@ class NeuralNetworkPyTorch(nn.Module):
 		numParams, numTrainable = getNumParams(self.parameters())
 		summaryStr += "Parameters count: %d. Trainable parameters: %d.\n" % (numParams, numTrainable)
 
-		strHyperParameters = " | ".join(["%s => %s" % (x, y) for x, y in \
-			zip(self.hyperParameters.keys(), self.hyperParameters.values())])
-		summaryStr += "Hyperparameters: %s\n" % (strHyperParameters)
+		summaryStr += "Hyperparameters:\n"
+		for hyperParameter in self.hyperParameters:
+			summaryStr += "\t- %s: %s\n" % (hyperParameter, self.hyperParameters[hyperParameter])
 
-		strMetrics = str(list(self.getMetrics().keys()))[1 : -1]
-		summaryStr += "Metrics: %s\n" % ("None" if len(strMetrics) == 0 else strMetrics)
+		summaryStr += "Metrics:\n"
+		metrics = self.getMetrics()
+		for metric in metrics:
+			summaryStr += "\t- %s (%s)\n" % (metric, metrics[metric].getDirection())
 
 		strCallbacks = str(list(self.getCallbacks().keys()))[1 : -1]
 		summaryStr += "Callbacks: %s\n" % ("None" if len(strCallbacks) == 0 else strCallbacks)
