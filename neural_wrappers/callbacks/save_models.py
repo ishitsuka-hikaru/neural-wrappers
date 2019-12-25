@@ -3,14 +3,12 @@ from .callback import Callback
 
 # TODO: add format to saving files
 class SaveModels(Callback):
-	def __init__(self, type="all", metric="Loss", metricDirection="min", **kwargs):
+	def __init__(self, type="all", metric="Loss", **kwargs):
 		super().__init__(**kwargs)
 		assert type in ("all", "improvements", "last", "best")
 		self.type = type
 		self.best = float("nan")
 		self.metric = metric
-		assert metricDirection in ("min", "max")
-		self.metricDirection = metricDirection
 
 	# Saving by best train loss is validation is not available, otherwise validation. Nasty situation can occur if one
 	#  epoch there is a validation loss and the next one there isn't, so we need formats to avoid this and error out
@@ -20,7 +18,9 @@ class SaveModels(Callback):
 			return
 
 		trainHistory = kwargs["trainHistory"][-1]
-		metricFunc = (lambda x, y : x < y) if self.metricDirection == "min" else (lambda x, y : x > y)
+		metricDirection = kwargs["model"].getMetrics()[self.metric].getDirection()
+
+		metricFunc = (lambda x, y : x < y) if metricDirection == "min" else (lambda x, y : x > y)
 		Key = "Validation" if "Validation" in trainHistory else "Train"
 		score = trainHistory[Key][self.metric]
 
