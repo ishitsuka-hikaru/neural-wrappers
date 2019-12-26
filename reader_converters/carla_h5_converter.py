@@ -12,14 +12,25 @@ def getArgs():
 	parser.add_argument("baseDir")
 	parser.add_argument("resultFile")
 	parser.add_argument("--N", type=int, default=None)
+	parser.add_argument("--test_export", default=0, type=int)
 	parser.add_argument("--splits", default="80,20")
 	parser.add_argument("--split_keys", default="train,validation")
-	parser.add_argument("--randomize_order", default=1, type=int)
+	parser.add_argument("--train_set_file")
 
 	args = parser.parse_args()
-	args.splits = list(map(lambda x : float(x) / 100, args.splits.split(",")))
-	args.split_keys = args.split_keys.split(",")
-	args.randomize_order = bool(args.randomize_order)
+	args.test_export = bool(args.test_export)
+	if args.test_export:
+		print("Test export. Setting --randomize_order=False, --split_keys=test and --splits=100")
+		args.randomize_order = False
+		args.split_keys = "test"
+		args.splits = 100
+		assert not train_set_file is None, \
+			"For test export, we need the path to the train set, so we can copy its statistics"
+	else:
+		args.randomize_order = True
+		args.split_keys = args.split_keys.split(",")
+		args.splits = list(map(lambda x : float(x) / 100, args.splits.split(",")))
+
 	assert abs(sum(args.splits) - 1) < 1e-5
 	assert len(args.splits) == len(args.split_keys)
 	return args
@@ -35,28 +46,28 @@ def getPaths(baseDir):
 		return id
 
 	def depthFunc(rgbItem):
-		return baseDir + os.sep + rgbItem.replace("rgb", "depth")
+		return rgbItem.replace("rgb", "depth")
 
 	def semanticFunc(rgbItem):
-		return baseDir + os.sep + rgbItem.replace("rgb", "semantic_segmentation")
+		return rgbItem.replace("rgb", "semantic_segmentation")
 
 	def normalFunc(rgbItem):
-		return baseDir + os.sep + rgbItem.replace("rgb", "normal")
+		return rgbItem.replace("rgb", "normal")
 
 	rgbList = sorted(list(filter(lambda x : x.find("rgb") != -1, os.listdir(baseDir))))
 	N = len(rgbList)
 	result = {
-		"rgb" : list(map(lambda x : baseDir + os.sep + x, rgbList)),
-		"depth" : list(map(depthFunc, rgbList)),
-		"position" : list(map(positionFunc, rgbList)),
-		"ids" : list(map(idsFunc, rgbList)),
-		"semantic_segmentation" : list(map(semanticFunc, rgbList)),
-		"normal" : list(map(normalFunc, rgbList))
+		"rgb" : np.array(rgbList, "S"),
+		"depth" : np.array(list(map(depthFunc, rgbList)), "S"),
+		"position" : np.array(list(map(positionFunc, rgbList)), np.float32),
+		"ids" : np.array(list(map(idsFunc, rgbList)), np.uint64),
+		"semantic_segmentation" : np.array(list(map(semanticFunc, rgbList)), "S"),
+		"normal" : np.array(list(map(normalFunc, rgbList)), "S")
 	}
 
 	# Sort entries by IDs
-	argSort = np.argsort(np.array(result["ids"], dtype=np.int64))
-	result = {k : np.array(result[k])[argSort] for k in result}
+	argSort = np.argsort(result["ids"])
+	result = {k : result[k][argSort] for k in result}
 	# Remove duplicate entries
 	sortedPos = result["position"]
 	right = np.append(sortedPos[1 :], [[0, 0, 0, 0, 0, 0]], axis=0)
@@ -113,8 +124,9 @@ def plotPaths(paths):
 		print("Storing PNG paths: %s_points.png" % (k))
 		plt.savefig("%s_points.png" % (k))
 
-def storeToH5File(file, data):
+def storeToH5File(baseDir, file, data):
 	def doPng(path):
+		path = baseDir + os.sep + str(path, "utf8")
 		i = 0
 		while True:
 			if i == 5:
@@ -128,6 +140,7 @@ def storeToH5File(file, data):
 		return npImg
 
 	def doDepth(path):
+		path = baseDir + os.sep + str(path, "utf8")
 		i = 0
 		while True:
 			if i == 5:
@@ -222,7 +235,7 @@ def main():
 	for k in paths:
 		file.create_group(k)
 		print("Storing %s set" % (k))
-		storeToH5File(file[k], paths[k])
+		storeToH5File(args.baseDir, file[k], paths[k])
 
 	# file = h5py.File(sys.argv[2], "r")
 	print("Storing statistics!")
