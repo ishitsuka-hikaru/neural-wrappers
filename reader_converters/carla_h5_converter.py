@@ -5,6 +5,7 @@ import h5py
 import matplotlib.pyplot as plt
 from PIL import Image
 from neural_wrappers.utilities import h5StoreDict
+from neural_wrappers.readers.carla_h5_reader import CarlaH5PathsReader
 from argparse import ArgumentParser
 
 def getArgs():
@@ -125,85 +126,20 @@ def plotPaths(paths):
 		plt.savefig("%s_points.png" % (k))
 
 def storeToH5File(baseDir, file, data):
-	def doPng(path):
-		path = baseDir + os.sep + str(path, "utf8")
-		i = 0
-		while True:
-			if i == 5:
-				return np.zeros((854, 854, 3), dtype=np.uint8)
-			try:
-				img = Image.open(path)
-				npImg = np.array(img, np.uint8)[..., 0 : 3]
-				break
-			except Exception as e:
-				i += 1
-		return npImg
-
-	def doDepth(path):
-		path = baseDir + os.sep + str(path, "utf8")
-		i = 0
-		while True:
-			if i == 5:
-				return np.zeros((854, 854), dtype=np.float32)
-			try:
-				dph = np.array(Image.open(path), np.float32)[..., 0 : 3]
-				dphNorm = (dph[..., 0] + dph[..., 1] * 256 + dph[..., 2] * 256 * 256) / (256 * 256 * 256 - 1) * 1000
-				dphNormImg = Image.fromarray(dphNorm)
-				npDphNorm = np.array(dphNormImg, dtype=np.float32)
-				break
-			except Exception as e:
-				i += 1
-		return npDphNorm
-
-	def doSemantic(path):
-		item = doPng(path)
-		labels = {
-			(0, 0, 0): "Unlabeled",
-			(70, 70, 70): "Building",
-			(153, 153, 190): "Fence",
-			(160, 170, 250): "Other",
-			(60, 20, 220): "Pedestrian",
-			(153, 153, 153): "Pole",
-			(50, 234, 157): "Road line",
-			(128, 64, 128): "Road",
-			(232, 35, 244): "Sidewalk",
-			(35, 142, 107): "Vegetation",
-			(142, 0, 0): "Car",
-			(156, 102, 102): "Wall",
-			(0, 220, 220): "Traffic sign"
-		}
-		labelKeys = list(labels.keys())
-		result = np.zeros(shape=item.shape[0] * item.shape[1], dtype=np.uint8)
-		flattenedRGB = item.reshape(-1, 3)
-
-		for i, label in enumerate(labelKeys):
-			equalOnAllDims = np.prod(flattenedRGB == label, axis=-1)
-			where = np.where(equalOnAllDims == 1)[0]
-			result[where] = i
-
-		result = result.reshape(*item.shape[0 : 2])
-		return result
-
-	# Normals are stored as [0 - 255] on 3 channels, representing the normals w.r.t world. We move them to [-1 : 1]
-	def doNormal(path):
-		item = doPng(path)
-		item = ((np.float32(item) / 255) - 0.5) * 2
-		return item
-
 	N = len(data["rgb"])
 	funcs = {
-		"rgb" : doPng,
-		"depth" : doDepth,
-		"position" : lambda x : x,
-		"ids" : lambda x : x,
-		"semantic_segmentation" : doSemantic,
-		"normal" : doNormal
+		"rgb" : CarlaH5PathsReader.doPng,
+		"depth" : CarlaH5PathsReader.doDepth,
+		"position" : lambda x, _ : x,
+		"ids" : lambda x, _ : x,
+		"semantic_segmentation" : CarlaH5PathsReader.doSemantic,
+		"normal" : CarlaH5PathsReader.doNormal
 	}
 
 	# Infer the shape and dtype from first item
 	for key in data:
 		assert key in funcs, "Not found %s in funcs %s" % (key, list(funcs))
-		item = funcs[key](data[key][0])
+		item = funcs[key](data[key][0], baseDir)
 		file.create_dataset(key, (N, *item.shape), dtype=item.dtype)
 		file[key][0] = item
 
@@ -211,7 +147,7 @@ def storeToH5File(baseDir, file, data):
 	for i in range(1, N):
 		print("%d/%d" % (i + 1, N), end="\r")
 		for key in data:
-			file[key][i] = funcs[key](data[key][i])
+			file[key][i] = funcs[key](data[key][i], baseDir)
 	print("")
 
 def getDataStatistics(file, maxDepthMeters=300):
@@ -221,7 +157,7 @@ def getDataStatistics(file, maxDepthMeters=300):
 	posConcat = np.concatenate([positions[k] for k in positions])
 	statistics["position"] = {"min" : posConcat.min(axis=0), "max" : posConcat.max(axis=0)}
 	statistics["depth"] = {"min" : 0, "max" : maxDepthMeters}
-	return {"dataStatistics" : statistics}
+	return statistics
 
 def main():
 	args = getArgs()
@@ -240,8 +176,7 @@ def main():
 	# file = h5py.File(sys.argv[2], "r")
 	print("Storing statistics!")
 	statistics = getDataStatistics(file, maxDepthMeters=300)
-	file.create_group("others")
-	h5StoreDict(file["others"], statistics)
+	h5StoreDict(file, {"others" : {"dataStatistics" : statistics}})
 
 	file.flush()
 	print("Done! Exported to %s." % (args.resultFile))

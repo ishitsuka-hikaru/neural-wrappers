@@ -1,4 +1,5 @@
 import h5py
+import os
 from carla_h5_converter import getArgs, getTrainValPaths, getPaths, plotPaths, getDataStatistics
 from neural_wrappers.utilities import h5StoreDict
 
@@ -15,7 +16,8 @@ def main():
 
 	print("Storing statistics!")
 	statistics = getDataStatistics(file)
-	h5StoreDict(file, {"others" : statistics})
+	baseDirectory = os.getcwd() + os.sep + args.baseDir
+	h5StoreDict(file, {"others" : {"dataStatistics" : statistics, "baseDirectory" : baseDirectory}})
 
 	file.flush()
 	print("Done! Exported to %s." % (args.resultFile))
