@@ -178,7 +178,13 @@ def main():
 		storeToH5File(args.baseDir, file[k], paths[k])
 
 	print("Storing statistics!")
-	statisticsFile = h5py.File(args.statistics_file, "r") if args.test_export else file
+	if args.test_export:
+		statisticsFile = h5py.File(args.statistics_file, "r")
+		# This is here so the dataset reader works as intended.
+		file["train"] = file["test"]
+		file["validation"] = file["test"]
+	else:
+		statisticsFile = file
 	statistics = getDataStatistics(args, statisticsFile)
 	others = {"datatStatistics" : statistics}
 	h5StoreDict(file, {"others" : others})
