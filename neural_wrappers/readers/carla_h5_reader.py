@@ -142,7 +142,7 @@ class CarlaH5Reader(DatasetReader):
 
 		# Compute this here and not as a normalizer, because we need non-normalized values as labels.
 		dimTransform = {
-			# "rgb" : partial(rgbNorm, rgbNormalization=normalization["rgb"]), \
+			"rgb" : partial(rgbNorm, rgbNormalization=normalization["rgb"]), \
 			"depth" : partial(depthNorm, depthNormalization=normalization["depth"], depthStats=self.depthStats), \
 			"position" : partial(poseNorm, poseRepresentation=self.poseRepresentation, inputSize=self.resolution, \
 				positionsExtremes=self.positionsExtremes, poseNormalization=normalization["position"])

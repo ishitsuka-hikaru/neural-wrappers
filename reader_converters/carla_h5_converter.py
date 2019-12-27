@@ -4,7 +4,7 @@ import os
 import h5py
 import matplotlib.pyplot as plt
 from PIL import Image
-from neural_wrappers.utilities import h5StoreDict
+from neural_wrappers.utilities import h5StoreDict, h5ReadDict
 from neural_wrappers.readers.carla_h5_reader import CarlaH5PathsReader
 from argparse import ArgumentParser
 
@@ -16,16 +16,16 @@ def getArgs():
 	parser.add_argument("--test_export", default=0, type=int)
 	parser.add_argument("--splits", default="80,20")
 	parser.add_argument("--split_keys", default="train,validation")
-	parser.add_argument("--train_set_file")
+	parser.add_argument("--statistics_file")
 
 	args = parser.parse_args()
 	args.test_export = bool(args.test_export)
 	if args.test_export:
-		print("Test export. Setting --randomize_order=False, --split_keys=test and --splits=100")
+		print("Test export. Setting --randomize_order=False, --split_keys=test and --splits=1")
 		args.randomize_order = False
-		args.split_keys = "test"
-		args.splits = 100
-		assert not train_set_file is None, \
+		args.split_keys = ["test"]
+		args.splits = [1]
+		assert not args.statistics_file is None, \
 			"For test export, we need the path to the train set, so we can copy its statistics"
 	else:
 		args.randomize_order = True
@@ -150,13 +150,17 @@ def storeToH5File(baseDir, file, data):
 			file[key][i] = funcs[key](data[key][i], baseDir)
 	print("")
 
-def getDataStatistics(file, maxDepthMeters=300):
-	statistics = {}
-	dataKeys = list(file)
-	positions = {k : file[k]["position"][0 : ] for k in dataKeys}
-	posConcat = np.concatenate([positions[k] for k in positions])
-	statistics["position"] = {"min" : posConcat.min(axis=0), "max" : posConcat.max(axis=0)}
-	statistics["depth"] = {"min" : 0, "max" : maxDepthMeters}
+def getDataStatistics(args, file, maxDepthMeters=300):
+	if args.test_export:
+		statisticsFile = h5py.File(args.statistics_file, "r")
+		statistics = h5ReadDict(statisticsFile["others"]["dataStatistics"])
+	else:
+		statistics = {}
+		dataKeys = list(file)
+		positions = {k : file[k]["position"][0 : ] for k in dataKeys}
+		posConcat = np.concatenate([positions[k] for k in positions])
+		statistics["position"] = {"min" : posConcat.min(axis=0), "max" : posConcat.max(axis=0)}
+		statistics["depth"] = {"min" : 0, "max" : maxDepthMeters}
 	return statistics
 
 def main():
@@ -173,10 +177,11 @@ def main():
 		print("Storing %s set" % (k))
 		storeToH5File(args.baseDir, file[k], paths[k])
 
-	# file = h5py.File(sys.argv[2], "r")
 	print("Storing statistics!")
-	statistics = getDataStatistics(file, maxDepthMeters=300)
-	h5StoreDict(file, {"others" : {"dataStatistics" : statistics}})
+	statisticsFile = h5py.File(args.statistics_file, "r") if args.test_export else file
+	statistics = getDataStatistics(args, statisticsFile)
+	others = {"datatStatistics" : statistics}
+	h5StoreDict(file, {"others" : others})
 
 	file.flush()
 	print("Done! Exported to %s." % (args.resultFile))

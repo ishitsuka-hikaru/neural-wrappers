@@ -15,9 +15,11 @@ def main():
 	h5StoreDict(file, paths)
 
 	print("Storing statistics!")
-	statistics = getDataStatistics(file)
+	statisticsFile = h5py.File(args.statistics_file, "r") if args.test_export else file
+	statistics = getDataStatistics(args, statisticsFile)
 	baseDirectory = os.getcwd() + os.sep + args.baseDir
-	h5StoreDict(file, {"others" : {"dataStatistics" : statistics, "baseDirectory" : baseDirectory}})
+	others = {"dataStatistics" : statistics, "baseDirectory" : baseDirectory}
+	h5StoreDict(file, {"others" : others})
 
 	file.flush()
 	print("Done! Exported to %s." % (args.resultFile))
