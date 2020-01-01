@@ -191,7 +191,7 @@ def doStatistics(args, file):
 		print("[doStatistics] Computing statistics (positions extremes, depth max) using this dataset.")
 		statistics = computeStatistics(file)
 
-	others = {"datatStatistics" : statistics}
+	others = {"dataStatistics" : statistics, "baseDirectory" : os.path.abspath(args.baseDir)}
 	h5StoreDict(file, {"others" : others})
 	return file
 
