@@ -12,6 +12,7 @@ def getArgs():
 	parser = ArgumentParser()
 	parser.add_argument("baseDir")
 	parser.add_argument("resultFile")
+	parser.add_argument("storeMethod")
 	parser.add_argument("--N", type=int, default=None)
 	parser.add_argument("--test_export", default=0, type=int)
 	parser.add_argument("--splits", default="80,20")
@@ -20,6 +21,7 @@ def getArgs():
 
 	args = parser.parse_args()
 	args.test_export = bool(args.test_export)
+	assert args.storeMethod in ("h5", "paths")
 	if args.test_export:
 		print("Test export. Setting --randomize_order=False, --split_keys=test and --splits=1")
 		args.randomize_order = False
@@ -49,21 +51,41 @@ def getPaths(baseDir):
 	def depthFunc(rgbItem):
 		return rgbItem.replace("rgb", "depth")
 
+	def rgbDomain2Func(rgbItem):
+		return rgbItem.replace("rgb", "rgbDomain2")
+
 	def semanticFunc(rgbItem):
-		return rgbItem.replace("rgb", "semantic_segmentation")
+		return rgbItem.replace("rgb", "semanticSegmentation")
 
 	def normalFunc(rgbItem):
 		return rgbItem.replace("rgb", "normal")
+
+	def cameraNormalFunc(rgbItem):
+		return rgbItem.replace("rgb", "cameranormal")
+
+	def wireframeFunc(rgbItem):
+		return rgbItem.replace("rgb", "wireframe")
+
+	def halftoneFunc(rgbItem):
+		return rgbItem.replace("rgb", "halftone")
+
+	def flowFunc(rgbItem):
+		return rgbItem.replace("rgb", "flow")
 
 	rgbList = sorted(list(filter(lambda x : x.find("rgb") != -1, os.listdir(baseDir))))
 	N = len(rgbList)
 	result = {
 		"rgb" : np.array(rgbList, "S"),
+		"rgbDomain2" : np.array(list(map(rgbDomain2Func, rgbList)), "S"),
 		"depth" : np.array(list(map(depthFunc, rgbList)), "S"),
 		"position" : np.array(list(map(positionFunc, rgbList)), np.float32),
 		"ids" : np.array(list(map(idsFunc, rgbList)), np.uint64),
 		"semantic_segmentation" : np.array(list(map(semanticFunc, rgbList)), "S"),
-		"normal" : np.array(list(map(normalFunc, rgbList)), "S")
+		"normal" : np.array(list(map(normalFunc, rgbList)), "S"),
+		"cameranormal" : np.array(list(map(normalFunc, rgbList)), "S"),
+		"wireframe" : np.array(list(map(normalFunc, rgbList)), "S"),
+		"halftone" : np.array(list(map(halftoneFunc, rgbList)), "S"),
+		"flow" : np.array(list(map(flowFunc, rgbList)), "S"),
 	}
 
 	# Sort entries by IDs
@@ -150,18 +172,50 @@ def storeToH5File(baseDir, file, data):
 			file[key][i] = funcs[key](data[key][i], baseDir)
 	print("")
 
-def getDataStatistics(args, file, maxDepthMeters=300):
-	if args.test_export:
-		statisticsFile = h5py.File(args.statistics_file, "r")
-		statistics = h5ReadDict(statisticsFile["others"]["dataStatistics"])
-	else:
+def doStatistics(args, file):
+	def computeStatistics(file):
 		statistics = {}
 		dataKeys = list(file)
 		positions = {k : file[k]["position"][0 : ] for k in dataKeys}
 		posConcat = np.concatenate([positions[k] for k in positions])
 		statistics["position"] = {"min" : posConcat.min(axis=0), "max" : posConcat.max(axis=0)}
 		statistics["depth"] = {"min" : 0, "max" : maxDepthMeters}
-	return statistics
+		return statistics
+
+	print("[doStatistics] Storing statistics!")
+	if args.statistics_file:
+		print("[doStatistics] Using statistics of", args.statistics_file)
+		statisticsFile = h5py.File(args.statistics_file, "r")
+		statistics = h5ReadDict(statisticsFile["others"]["dataStatistics"])
+	else:
+		print("[doStatistics] Computing statistics (positions extremes, depth max) using this dataset.")
+		statistics = computeStatistics(file)
+
+	others = {"datatStatistics" : statistics}
+	h5StoreDict(file, {"others" : others})
+	return file
+
+def doWorkH5(baseDir, file, paths):
+	for k in paths:
+		file.create_group(k)
+		print("Storing %s set" % (k))
+		storeToH5File(baseDir, file[k], paths[k])
+
+def doWorkPaths(file, paths):
+	h5StoreDict(file, paths)
+
+def doWork(args, file, paths):
+	print("[doWork] Storing method:", args.storeMethod)
+	if args.storeMethod == "h5":
+		doWorkH5(args.baseDir, file, paths)
+	elif args.storeMethod == "paths":
+		doWorkPaths(file, paths)
+
+	# This is here so the dataset reader works as intended.
+	if args.test_export:
+		file["train"] = file["test"]
+		file["validation"] = file["test"]
+	return file
 
 def main():
 	args = getArgs()
@@ -172,23 +226,8 @@ def main():
 	plotPaths(paths)
 
 	file = h5py.File(args.resultFile, "w")
-	for k in paths:
-		file.create_group(k)
-		print("Storing %s set" % (k))
-		storeToH5File(args.baseDir, file[k], paths[k])
-
-	print("Storing statistics!")
-	if args.test_export:
-		statisticsFile = h5py.File(args.statistics_file, "r")
-		# This is here so the dataset reader works as intended.
-		file["train"] = file["test"]
-		file["validation"] = file["test"]
-	else:
-		statisticsFile = file
-	statistics = getDataStatistics(args, statisticsFile)
-	others = {"datatStatistics" : statistics}
-	h5StoreDict(file, {"others" : others})
-
+	file = doWork(args, file, paths)
+	file = doStatistics(args, file)
 	file.flush()
 	print("Done! Exported to %s." % (args.resultFile))
 
