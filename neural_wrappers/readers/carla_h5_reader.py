@@ -267,3 +267,6 @@ class CarlaH5PathsReader(CarlaH5Reader):
 		self.dimGetter["normal"] = lambda dataset, dim, startIndex, endIndex: \
 			np.array([CarlaH5PathsReader.doNormal(path, baseDirectory) \
 			for path in dataset["normal"][startIndex : endIndex]])
+		self.dimGetter["cameranormal"] = lambda dataset, dim, startIndex, endIndex: \
+			np.array([CarlaH5PathsReader.doNormal(path, baseDirectory) \
+			for path in dataset["cameranormal"][startIndex : endIndex]])
