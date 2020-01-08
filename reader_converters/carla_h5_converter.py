@@ -72,7 +72,7 @@ def getPaths(baseDir):
 	def flowFunc(rgbItem):
 		return rgbItem.replace("rgb", "flow")
 
-	rgbList = sorted(list(filter(lambda x : x.find("rgb") != -1, os.listdir(baseDir))))
+	rgbList = sorted(list(filter(lambda x : x.find("rgb_") != -1, os.listdir(baseDir))))
 	N = len(rgbList)
 	result = {
 		"rgb" : np.array(rgbList, "S"),
@@ -82,8 +82,8 @@ def getPaths(baseDir):
 		"ids" : np.array(list(map(idsFunc, rgbList)), np.uint64),
 		"semantic_segmentation" : np.array(list(map(semanticFunc, rgbList)), "S"),
 		"normal" : np.array(list(map(normalFunc, rgbList)), "S"),
-		"cameranormal" : np.array(list(map(normalFunc, rgbList)), "S"),
-		"wireframe" : np.array(list(map(normalFunc, rgbList)), "S"),
+		"cameranormal" : np.array(list(map(cameraNormalFunc, rgbList)), "S"),
+		"wireframe" : np.array(list(map(wireframeFunc, rgbList)), "S"),
 		"halftone" : np.array(list(map(halftoneFunc, rgbList)), "S"),
 		"flow" : np.array(list(map(flowFunc, rgbList)), "S"),
 	}

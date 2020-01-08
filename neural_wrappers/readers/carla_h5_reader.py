@@ -187,6 +187,7 @@ class CarlaH5Reader(DatasetReader):
 			yield data, labels
 
 class CarlaH5PathsReader(CarlaH5Reader):
+	@staticmethod
 	def doPng(path, baseDirectory):
 		i = 0
 		path = baseDirectory + os.sep + str(path, "utf8")
@@ -202,6 +203,7 @@ class CarlaH5PathsReader(CarlaH5Reader):
 				i += 1
 		return npImg
 
+	@staticmethod
 	def doDepth(path, baseDirectory):
 		i = 0
 		path = baseDirectory + os.sep + str(path, "utf8")
@@ -218,6 +220,7 @@ class CarlaH5PathsReader(CarlaH5Reader):
 				i += 1
 		return npDphNorm
 
+	@staticmethod
 	def doSemantic(path, baseDirectory):
 		item = CarlaH5PathsReader.doPng(path, baseDirectory)
 		labels = {
@@ -248,6 +251,7 @@ class CarlaH5PathsReader(CarlaH5Reader):
 		return result
 
 	# Normals are stored as [0 - 255] on 3 channels, representing the normals w.r.t world. We move them to [-1 : 1]
+	@staticmethod
 	def doNormal(path, baseDirectory):
 		item = CarlaH5PathsReader.doPng(path, baseDirectory)
 		item = ((np.float32(item) / 255) - 0.5) * 2
@@ -258,6 +262,10 @@ class CarlaH5PathsReader(CarlaH5Reader):
 		baseDirectory = self.dataset["others"]["baseDirectory"][()]
 		self.dimGetter["rgb"] = lambda dataset, dim, startIndex, endIndex: \
 			np.array([CarlaH5PathsReader.doPng(path, baseDirectory) for path in dataset["rgb"][startIndex : endIndex]])
+		self.dimGetter["wireframe"] = lambda dataset, dim, startIndex, endIndex: \
+			np.array([CarlaH5PathsReader.doPng(path, baseDirectory) for path in dataset["wireframe"][startIndex : endIndex]])
+		self.dimGetter["halftone"] = lambda dataset, dim, startIndex, endIndex: \
+			np.array([CarlaH5PathsReader.doPng(path, baseDirectory) for path in dataset["halftone"][startIndex : endIndex]])
 		self.dimGetter["depth"] = lambda dataset, dim, startIndex, endIndex: \
 			np.array([CarlaH5PathsReader.doDepth(path, baseDirectory) \
 			for path in dataset["depth"][startIndex : endIndex]])
