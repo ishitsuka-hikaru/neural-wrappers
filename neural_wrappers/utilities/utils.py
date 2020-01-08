@@ -148,7 +148,7 @@ def tryReadImage(path, count=5, imgLib="opencv"):
 
 	def readImagePIL(path):
 		from PIL import Image
-		image = np.array(Image.open(path), dtype=np.float32)
+		image = np.array(Image.open(path), dtype=np.float32)[..., 0 : 3]
 		return image
 
 	if imgLib == "opencv":
@@ -161,7 +161,7 @@ def tryReadImage(path, count=5, imgLib="opencv"):
 		try:
 			return f(path)
 		except Exception as e:
-			print(str(e))
+			print("Path: %s. Exception: %s" % (path, e))
 			i += 1
 
 			if i == count:

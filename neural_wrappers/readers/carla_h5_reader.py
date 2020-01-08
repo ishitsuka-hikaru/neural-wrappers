@@ -6,7 +6,7 @@ from functools import partial
 from PIL import Image
 
 from .dataset_reader import DatasetReader
-from ..utilities import minMaxNormalizeData
+from ..utilities import minMaxNormalizeData, tryReadImage
 
 def getQuatFromRotation(rotation):
 	assert rotation.min() >= -1 and rotation.max() <= 1
@@ -189,36 +189,17 @@ class CarlaH5Reader(DatasetReader):
 class CarlaH5PathsReader(CarlaH5Reader):
 	@staticmethod
 	def doPng(path, baseDirectory):
-		i = 0
 		path = baseDirectory + os.sep + str(path, "utf8")
-		while True:
-			if i == 5:
-				return np.zeros((854, 854, 3), dtype=np.uint8)
-			try:
-				img = Image.open(path)
-				npImg = np.array(img, np.uint8)[..., 0 : 3]
-				break
-			except Exception as e:
-				print(e)
-				i += 1
+		npImg = tryReadImage(path).astype(np.uint8)
 		return npImg
 
 	@staticmethod
 	def doDepth(path, baseDirectory):
-		i = 0
 		path = baseDirectory + os.sep + str(path, "utf8")
-		while True:
-			if i == 5:
-				return np.zeros((854, 854), dtype=np.float32)
-			try:
-				dph = np.array(Image.open(path), np.float32)[..., 0 : 3]
-				dphNorm = (dph[..., 0] + dph[..., 1] * 256 + dph[..., 2] * 256 * 256) / (256 * 256 * 256 - 1) * 1000
-				dphNormImg = Image.fromarray(dphNorm)
-				npDphNorm = np.array(dphNormImg, dtype=np.float32)
-				break
-			except Exception as e:
-				i += 1
-		return npDphNorm
+		dph = tryReadImage(path)
+		dphNorm = (dph[..., 0] + dph[..., 1] * 256 + dph[..., 2] * 256 * 256) / (256 * 256 * 256 - 1) * 1000
+		dphNorm = np.float32(dphNorm)
+		return dphNorm
 
 	@staticmethod
 	def doSemantic(path, baseDirectory):
@@ -263,9 +244,11 @@ class CarlaH5PathsReader(CarlaH5Reader):
 		self.dimGetter["rgb"] = lambda dataset, dim, startIndex, endIndex: \
 			np.array([CarlaH5PathsReader.doPng(path, baseDirectory) for path in dataset["rgb"][startIndex : endIndex]])
 		self.dimGetter["wireframe"] = lambda dataset, dim, startIndex, endIndex: \
-			np.array([CarlaH5PathsReader.doPng(path, baseDirectory) for path in dataset["wireframe"][startIndex : endIndex]])
+			np.array([CarlaH5PathsReader.doPng(path, baseDirectory) \
+			for path in dataset["wireframe"][startIndex : endIndex]])
 		self.dimGetter["halftone"] = lambda dataset, dim, startIndex, endIndex: \
-			np.array([CarlaH5PathsReader.doPng(path, baseDirectory) for path in dataset["halftone"][startIndex : endIndex]])
+			np.array([CarlaH5PathsReader.doPng(path, baseDirectory) \
+			for path in dataset["halftone"][startIndex : endIndex]])
 		self.dimGetter["depth"] = lambda dataset, dim, startIndex, endIndex: \
 			np.array([CarlaH5PathsReader.doDepth(path, baseDirectory) \
 			for path in dataset["depth"][startIndex : endIndex]])

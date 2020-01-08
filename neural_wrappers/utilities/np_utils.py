@@ -4,6 +4,11 @@ import numpy as np
 def npCloseEnough(a, b, eps=1e-5):
 	return np.sum(np.abs(a - b)) < eps
 
+# @brief A more detailed printer about numpy arrays.
+def npGetInfo(data):
+	return "Shape: %s. Min: %s. Max: %s. Mean: %s. Std: %s. Dtype: %s" % \
+		(data.shape, np.min(data), np.max(data), np.mean(data), np.std(data), data.dtype)
+
 # @brief Pad the last dimension of a list (of lists) to the highest member of those outer lists.
 # Example:
 # a = [[[1,2], [1,2,3]], [[1,2,3,4], [1,2,3]], [[1,2], [1]]]
