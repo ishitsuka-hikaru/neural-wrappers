@@ -2,6 +2,7 @@ import torch.nn as nn
 from functools import partial
 from .node import MapNode, VectorNode
 from ..pytorch import NeuralNetworkPyTorch
+from .utils import forwardUseAll
 
 # Default loss of this edge goes through all ground truths and all outputs of the output node and computes the
 #  loss between them. This can be updated for a more specific edge algorithm for loss computation.
@@ -13,26 +14,13 @@ def defaultLossFn(self, y, t):
 		L += self.criterion(y, t)
 	return L
 
-# Communication between input and output node.
-def defaultForward(self, x):
-	A, B, model, edgeID = self.inputNode, self.outputNode, self.model, self.edgeID
-	edgeInputs, inputNodeKeys = A.getInputs(blockGradients=self.blockGradients)
-	self.inputs = []
-	self.outputs = []
-
-	for x in edgeInputs:
-		self.inputs.append(x)
-		y = model.forward(x)
-		self.outputs.append(y)
-	return self.outputs
-
 # @param[in] inputNode Instance of the input node of this edge
 # @param[in] outputNode Instance of the output node of this edge
 # @param[in] edgeType The type of edge. Available options are: node-node, node-edge, edge-node, edge-edge. In the node
 #  cases, we'll use the node specific encoder/decoder for this edge, while in the edge cases, the edge specific
 #  encoder/decoder. It's up to the node to implement those, however the edge may have to adapt the results in a custom
 #  forward function.
-# @param[in] forwardFn Custom forward function. If not set, we'll use defaultForward which passes forward all available
+# @param[in] forwardFn Custom forward function. If not set, we'll use forwardUseAll which passes forward all available
 #  inputs at the inputNode
 # @param[in] lossFn Custom loss function. If not set, we'll use the default loss function which uses all outputs at the
 #  output node and call the output node's loss function for each of them.
@@ -117,7 +105,7 @@ class Edge(NeuralNetworkPyTorch):
 
 		# Set the forward/loss functions for this edge as well.
 		if not forwardFn:
-			forwardFn = defaultForward
+			forwardFn = forwardUseAll
 		if not lossFn:
 			lossFn = defaultLossFn
 		self.forwardFn = forwardFn
