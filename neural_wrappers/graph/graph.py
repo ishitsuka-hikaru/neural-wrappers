@@ -132,18 +132,20 @@ class Graph(NeuralNetworkPyTorch):
 		for edge in self.edges:
 			message = "  - %s. [Train] " % (edge)
 			edgeID = str(edge)
-			for metric in edge.getMetrics():
-				key = (edgeID, metric)
+			for key in edge.getMetrics():
 				if not key in self.iterPrintMessageKeys:
 					continue
-				message += "%s: %2.3f. " % (metric, trainMetrics[key])
+				if key == "Loss":
+					continue
+				message += "%s: %2.3f. " % (key, trainMetrics[key])
 			if not validationMetrics is None:
 				message += " | [Validation] "
-				for metric in edge.getMetrics():
-					key = (edgeID, metric)
+				for key in edge.getMetrics():
 					if not key in self.iterPrintMessageKeys:
 						continue
-					message += "%s: %2.3f. " % (metric, validationMetrics[key])
+					if key == "Loss":
+						continue
+					message += "%s: %2.3f. " % (key, validationMetrics[key])
 			messages.append(message)
 		return messages
 
