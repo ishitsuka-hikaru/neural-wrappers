@@ -214,15 +214,6 @@ class NetworkSerializer:
 		additionals = loadedState["callbacks"]["additional"]
 		originalPositions = loadedState["callbacks"]["callbacks_positions"]
 		topologicalSort = loadedState["callbacks"]["topological_sort"]
-		try:
-			# Old behaviour: Assume metrics are stored with string key.
-			# New behaviour: Store another list "metrics_positions" that stores the index of the metrics and uses
-			#  this as way to find out which are callbacks and which are metrics.
-			metricsPositions = loadedState["callbacks"]["metrics_positions"]
-			loadedMetrics = [originalPositions[i] for i in metricsPositions]
-		except Exception:
-			print("Warning! Old behaviour of loading metrics by assuming string keys. Will be deleted at some point.")
-			loadedMetrics = list(filter(lambda x : type(x) is str, originalPositions))
 
 		# This filtering is needed if we're doing save/load on the same model (such as loading and storing very often
 		#  so there are some callbacks that need to be reloaded.
@@ -235,8 +226,6 @@ class NetworkSerializer:
 		#  topological sort correctly.
 		newCallbacks = OrderedDict()
 		j = 0
-		# TODO: might have to reimplement this perhaps because of changing callback names before/after loading
-		#  which might mess up topological sort.
 		for i in range(len(originalPositions)):
 			# Loading stored callbacks with state
 			if originalPositions[i] == None:
@@ -251,8 +240,8 @@ class NetworkSerializer:
 				key = originalPositions[i]
 				value = metricCallbacks[key]
 			newCallbacks[key] = value
-		self.model.callbacks = newCallbacks
 
+		self.model.callbacks = newCallbacks
 		self.model.topologicalSort = topologicalSort
 		self.model.topologicalKeys = np.array(list(self.model.callbacks.keys()))[topologicalSort]
 
