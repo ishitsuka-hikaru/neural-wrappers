@@ -21,6 +21,7 @@ class Graph(NeuralNetworkPyTorch):
 		self.addMetrics(self.getEdgesMetrics())
 		self.setCriterion(partial(Graph.lossFn, self=self))
 
+	@staticmethod
 	def lossFn(y, t, self):
 		loss = 0
 		for edge in self.edges:
@@ -55,6 +56,7 @@ class Graph(NeuralNetworkPyTorch):
 				metrics[metric] = edgeMetrics[metric]
 		return metrics
 
+	@staticmethod
 	def getNodes(edges):
 		nodes = set()
 		for edge in edges:

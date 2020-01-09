@@ -226,10 +226,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		with StorePrevState(self):
 			# self.eval()
 			with tr.no_grad():
-				now = datetime.now()
-				# Store previous state and restore it after running epoch in eval mode.
 				resultMetrics = self.run_one_epoch(generator, stepsPerEpoch, isTraining=False, isOptimizing=False)
-				duration = datetime.now() - now
 		self.callbacksOnEpochEnd(isTraining=False)
 		return resultMetrics
 

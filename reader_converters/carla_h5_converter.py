@@ -173,7 +173,7 @@ def storeToH5File(baseDir, file, data):
 	print("")
 
 def doStatistics(args, file):
-	def computeStatistics(file):
+	def computeStatistics(file, maxDepthMeters):
 		statistics = {}
 		dataKeys = list(file)
 		positions = {k : file[k]["position"][0 : ] for k in dataKeys}
@@ -189,7 +189,7 @@ def doStatistics(args, file):
 		statistics = h5ReadDict(statisticsFile["others"]["dataStatistics"])
 	else:
 		print("[doStatistics] Computing statistics (positions extremes, depth max) using this dataset.")
-		statistics = computeStatistics(file)
+		statistics = computeStatistics(file, maxDepthMeters=args.max_depth_meters)
 
 	others = {"dataStatistics" : statistics, "baseDirectory" : os.path.abspath(args.baseDir)}
 	h5StoreDict(file, {"others" : others})
@@ -222,7 +222,7 @@ def main():
 	paths = getPaths(args.baseDir)
 	print("Got %d paths. Keys: %s" % (len(paths["rgb"]), list(paths.keys())))
 
-	paths = getTrainValPaths(paths, args.splits, args.split_keys, keepN=args.N)
+	paths = getTrainValPaths(paths, args.splits, args.split_keys, keepN=args.N, randomizeOrder=args.randomize_order)
 	plotPaths(paths)
 
 	file = h5py.File(args.resultFile, "w")
