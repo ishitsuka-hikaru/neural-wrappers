@@ -50,9 +50,9 @@ class Graph(NeuralNetworkPyTorch):
 		for edge in self.edges:
 			edgeMetrics = edge.getMetrics()
 			for metric in edgeMetrics:
-				# Store the actual edge object as part of the metric key so we can retrive its nodes.
-				newName = (str(edge), metric)
-				metrics[newName] = edgeMetrics[metric]
+				if metric == "Loss":
+					continue
+				metrics[metric] = edgeMetrics[metric]
 		return metrics
 
 	def getNodes(edges):
@@ -70,7 +70,7 @@ class Graph(NeuralNetworkPyTorch):
 		for i, key in enumerate(self.topologicalKeys):
 			# Hack the args so we only use relevant results and labels. Make a list (of all edge outputs), but also
 			#  for regular metrics.
-			results, inputLabels, iterLoss = [results], labels, loss
+			results, iterLoss = [results], loss
 
 			if type(key) == tuple:
 				edgeID = key[0]

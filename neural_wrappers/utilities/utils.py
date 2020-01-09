@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import sys
+import pickle
 from scipy.ndimage import gaussian_filter
 from collections import OrderedDict
 from .np_utils import npCloseEnough
@@ -197,3 +198,11 @@ def deepCheckEqual(a, b):
 		return a == b
 	assert False, "Shouldn't reach here"
 	return False
+
+def isPicklable(item):
+	try:
+		_ = pickle.dumps(item)
+		return True
+	except Exception as e:
+		print("Item is not pickable: %s" % (e))
+		return False

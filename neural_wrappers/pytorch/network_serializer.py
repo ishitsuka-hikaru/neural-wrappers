@@ -5,7 +5,7 @@ from copy import deepcopy
 from collections import OrderedDict
 
 from .pytorch_utils import maybeCuda, getNumParams, getOptimizerStr, getTrainableParameters
-from ..utilities import isBaseOf, deepCheckEqual
+from ..utilities import isBaseOf, deepCheckEqual, isPicklable
 from ..callbacks import MetricAsCallback
 
 class NetworkSerializer:
@@ -41,6 +41,7 @@ class NetworkSerializer:
 				state[key] = self.model.onModelSave()
 			else:
 				assert False, "Got unknown key %s" % (key)
+			assert isPicklable(state[key]), "Key %s is not pickable" % (key)
 		return state
 
 	# @brief Handles saving the weights of the model
@@ -78,6 +79,8 @@ class NetworkSerializer:
 			# Store only callbacks, not MetricAsCallbacks (As they are lambdas which cannot be pickle'd).
 			# Metrics must be reloaded anyway, as they do not hold any (global) state, like full Callbacks do.
 			callback = self.model.callbacks[key]
+			assert key == self.model.callbacks[key].name, ("Some inconsistency between the metric's key and the" + \
+				" MetricAsCallback's name was found. Key: %s. Name: %s" % (key, callback.name))
 			if isBaseOf(callback, MetricAsCallback):
 				callbacksOriginalPositions.append(callback.name)
 				metricPositions.append(i)
@@ -98,14 +101,19 @@ class NetworkSerializer:
 
 	## Loading ##
 
-	# Loads a stored binary model
-	def loadModel(self, path, stateKeys):
-		assert len(stateKeys) > 0
+	@staticmethod
+	def readPkl(path):
 		try:
 			loadedState = tr.load(path)
 		except Exception:
 			print("Exception raised while loading model with tr.load(). Forcing CPU load")
 			loadedState = tr.load(path, map_location=lambda storage, loc: storage)
+		return loadedState
+
+	# Loads a stored binary model
+	def loadModel(self, path, stateKeys):
+		assert len(stateKeys) > 0
+		loadedState = NetworkSerializer.readPkl(path)
 
 		print("Loading model from %s" % (path))
 		if not "model_state" in loadedState:
@@ -216,7 +224,6 @@ class NetworkSerializer:
 			print("Warning! Old behaviour of loading metrics by assuming string keys. Will be deleted at some point.")
 			loadedMetrics = list(filter(lambda x : type(x) is str, originalPositions))
 
-
 		# This filtering is needed if we're doing save/load on the same model (such as loading and storing very often
 		#  so there are some callbacks that need to be reloaded.
 		metricCallbacks = self.model.getMetrics()
@@ -245,6 +252,7 @@ class NetworkSerializer:
 				value = metricCallbacks[key]
 			newCallbacks[key] = value
 		self.model.callbacks = newCallbacks
+
 		self.model.topologicalSort = topologicalSort
 		self.model.topologicalKeys = np.array(list(self.model.callbacks.keys()))[topologicalSort]
 

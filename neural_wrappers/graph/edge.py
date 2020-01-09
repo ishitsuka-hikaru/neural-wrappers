@@ -2,6 +2,7 @@ import torch.nn as nn
 from functools import partial
 from .node import MapNode, VectorNode
 from ..pytorch import NeuralNetworkPyTorch
+from ..pytorch.network_serializer import NetworkSerializer
 from .utils import forwardUseAll
 
 # Default loss of this edge goes through all ground truths and all outputs of the output node and computes the
@@ -87,12 +88,17 @@ class Edge(NeuralNetworkPyTorch):
 			self.getEncoder(),
 			self.getDecoder()
 		)
-		# self.addMetrics(model[-1].getMetrics())
 		metrics = model[-1].getMetrics()
-		if "Loss" in metrics:
-			del metrics["Loss"]
-
-		self.addMetrics(metrics)
+		# Update metrics' name to be a tuple of (edge, originalName)
+		newMetrics = {}
+		for key in metrics:
+			metric = metrics[key]
+			# Very important to use str(self), not self here, otherwise the metric's name is not pickleable (as it'd
+			#  try to store the edge itself, which isn't pickleable)
+			newName = (str(self), metric.name)
+			metric.name = newName
+			newMetrics[newName] = metric
+		self.addMetrics(newMetrics)
 		self.setCriterion(model[-1].criterion)
 		return model
 
@@ -120,6 +126,19 @@ class Edge(NeuralNetworkPyTorch):
 		hyperParameters["edgeType"] = edgeType
 		hyperParameters["blockGradients"] = blockGradients
 		return hyperParameters
+
+	def loadPretrainedEdge(self, path):
+		print("Attempting to load pretrained edge %s from %s" % (self, path))
+		pklFile = NetworkSerializer.readPkl(path)
+		# Do a sanity check that this loaded model is a single_link containing desired edge
+		relevantKeys = list(filter(lambda x : x.find("->") != -1, pklFile["model_state"].keys()))
+		assert len(relevantKeys) == 1
+		relevantKeys = list(map(lambda x : x.split("->"), relevantKeys))[0]
+		relevantKeys = list(map(lambda x : x.split("(")[0][0 : -1], relevantKeys))
+		assert len(relevantKeys) == 2
+		assert relevantKeys[0] == self.inputNode.name.split("(")[0][0 : -1]
+		assert relevantKeys[1][1 : ] == self.outputNode.name.split("(")[0][0 : -1]
+		self.serializer.doLoadWeights(pklFile)
 
 	def __str__(self):
 		return "%s -> %s" % (str(self.inputNode), str(self.outputNode))
