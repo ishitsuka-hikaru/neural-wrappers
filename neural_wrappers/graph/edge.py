@@ -127,8 +127,8 @@ class Edge(NeuralNetworkPyTorch):
 		hyperParameters["blockGradients"] = blockGradients
 		return hyperParameters
 
-	def loadPretrainedEdge(self, path):
-		print("Attempting to load pretrained edge %s from %s" % (self, path))
+	def loadPretrainedEdge(self, path, trainable=True):
+		print("Attempting to load pretrained edge %s from %s (Trainable: %s)" % (self, path, trainable))
 		pklFile = NetworkSerializer.readPkl(path)
 		# Do a sanity check that this loaded model is a single_link containing desired edge
 		relevantKeys = list(filter(lambda x : x.find("->") != -1, pklFile["model_state"].keys()))
@@ -139,6 +139,7 @@ class Edge(NeuralNetworkPyTorch):
 		assert relevantKeys[0] == self.inputNode.name.split("(")[0][0 : -1]
 		assert relevantKeys[1][1 : ] == self.outputNode.name.split("(")[0][0 : -1]
 		self.serializer.doLoadWeights(pklFile)
+		self.setTrainableWeights(trainable)			
 
 	def __str__(self):
 		return "%s -> %s" % (str(self.inputNode), str(self.outputNode))

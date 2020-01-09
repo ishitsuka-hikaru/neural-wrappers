@@ -69,7 +69,7 @@ class Graph(NeuralNetworkPyTorch):
 	def callbacksOnIterationEnd(self, data, labels, results, loss, iteration, numIterations, \
 		metricResults, isTraining, isOptimizing):
 		iterResults = {}
-		for i, key in enumerate(self.topologicalKeys):
+		for key in self.topologicalKeys:
 			# Hack the args so we only use relevant results and labels. Make a list (of all edge outputs), but also
 			#  for regular metrics.
 			results, iterLoss = [results], loss
@@ -80,7 +80,10 @@ class Graph(NeuralNetworkPyTorch):
 				B = edge.outputNode
 				labels = getNpData(B.getGroundTruth())
 				results = getNpData(edge.outputs)
-				iterLoss = self.edgeLoss[edgeID]
+				# Some edges may have no loss (are pre-trained, for example)
+				iterLoss = None
+				if edgeID in self.edgeLoss:
+					iterLoss = self.edgeLoss[edgeID]
 
 			metricKwArgs = {"data" : data, "loss" : iterLoss, "iteration" : iteration, \
 				"numIterations" : numIterations, "iterResults" : iterResults, \
@@ -102,13 +105,18 @@ class Graph(NeuralNetworkPyTorch):
 		messages = super().computeIterPrintMessage(i, stepsPerEpoch, strMetricResults, iterFinishTime)
 		for edge in self.edges:
 			message = "  - [%s] " % (edge)
-			edgeID = str(edge)
-			for metric in edge.getMetrics():
-				key = (edgeID, metric)
+			message = ""
+			for key in edge.getMetrics():
 				if not key in self.iterPrintMessageKeys:
 					continue
-				message += "%s: %2.3f. " % (metric, metricResults[key].get())
-			messages.append(message)
+				if key == "Loss":
+					continue
+
+				message += "%s: %2.3f. " % (key[1], metricResults[key].get())
+
+			if message != "":
+				message = "  - [%s] %s" % (edge, message)
+				messages.append(message)
 		return messages
 
 	# Computes the message that is printed to the stdout. This method is also called by SaveHistory callback.

@@ -146,7 +146,7 @@ class NeuralNetworkPyTorch(nn.Module):
 	def callbacksOnIterationEnd(self, data, labels, results, loss, iteration, numIterations, \
 		metricResults, isTraining, isOptimizing):
 		iterResults = {}
-		for i, key in enumerate(self.topologicalKeys):
+		for key in self.topologicalKeys:
 			# iterResults is updated at each step in the order of topological sort
 			iterResults[key] = self.callbacks[key].onIterationEnd(results, labels, data=data, loss=loss, \
 				iteration=iteration, numIterations=numIterations, iterResults=iterResults, \
@@ -503,3 +503,7 @@ class NeuralNetworkPyTorch(nn.Module):
 			if not deepCheckEqual(loadedState, modelState):
 				return False
 		return True
+
+	def setTrainableWeights(self, value):
+		for param in self.parameters():
+		    param.requires_grad = value
