@@ -136,11 +136,11 @@ class Graph(NeuralNetworkPyTorch):
 					continue
 				if key == "Loss":
 					continue
-				trainMessage += "%s: %2.3f. " % (key, trainMetrics[key])
+				trainMessage += "%s: %2.3f. " % (key[1], trainMetrics[key])
 				if not validationMetrics is None:
-					validationMessage += "%s: %2.3f. " % (key, validationMetrics[key])
+					validationMessage += "%s: %2.3f. " % (key[1], validationMetrics[key])
 			if trainMessage != "":
-				message = "  - %s. [Train] %s| [Validation] %s" % (key, trainMessage, validationMessage)
+				message = "  - %s. [Train] %s| [Validation] %s" % (edge, trainMessage, validationMessage)
 				messages.append(message)
 		return messages
 
