@@ -130,23 +130,18 @@ class Graph(NeuralNetworkPyTorch):
 		messages = super().computePrintMessage(strTrainMetrics, strValMetrics, numEpochs, duration)
 
 		for edge in self.edges:
-			message = "  - %s. [Train] " % (edge)
-			edgeID = str(edge)
+			trainMessage, validationMessage = "", ""
 			for key in edge.getMetrics():
 				if not key in self.iterPrintMessageKeys:
 					continue
 				if key == "Loss":
 					continue
-				message += "%s: %2.3f. " % (key, trainMetrics[key])
-			if not validationMetrics is None:
-				message += " | [Validation] "
-				for key in edge.getMetrics():
-					if not key in self.iterPrintMessageKeys:
-						continue
-					if key == "Loss":
-						continue
-					message += "%s: %2.3f. " % (key, validationMetrics[key])
-			messages.append(message)
+				trainMessage += "%s: %2.3f. " % (key, trainMetrics[key])
+				if not validationMetrics is None:
+					validationMessage += "%s: %2.3f. " % (key, validationMetrics[key])
+			if trainMessage != "":
+				message = "  - %s. [Train] %s| [Validation] %s" % (key, trainMessage, validationMessage)
+				messages.append(message)
 		return messages
 
 	def iterationEpilogue(self, isTraining, isOptimizing, trLabels):

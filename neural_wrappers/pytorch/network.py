@@ -377,18 +377,16 @@ class NeuralNetworkPyTorch(nn.Module):
 		message += " Took: %s." % (duration)
 		messages.append(message)
 
-		message = "  - Metrics. [Train]"
+		trainMessage, validationMessage = "", ""
 		for metric in sorted(trainMetrics):
 			if not metric in self.iterPrintMessageKeys:
 				continue
-			message += " %s: %2.3f." % (metric, trainMetrics[metric])
-		if not validationMetrics is None:
-			message += " | [Validation] "
-			for metric in sorted(validationMetrics):
-				if not metric in self.iterPrintMessageKeys:
-					continue
-				message += " Val %s: %2.3f." % (metric, validationMetrics[metric])
-		messages.append(message)
+			trainMessage += "%s: %2.3f. " % (metric, trainMetrics[metric])
+			if not validationMetrics is None:
+				validationMessage += "%s: %2.3f. " % (metric, validationMetrics[metric])
+		if message != "":
+			metricsMessage = "  -Metrics. [Train] %s| [Validation] %s" % (trainMessage, validationMessage)
+			messages.append(metricsMessage)
 		return messages
 
 	def summary(self):
