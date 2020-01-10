@@ -42,9 +42,12 @@ def getOptimizerStr(optimizer):
 	if type(optimizer) == tr.optim.SGD:
 		params = "Learning rate: %s, Momentum: %s, Dampening: %s, Weight Decay: %s, Nesterov: %s" % (groups["lr"], \
 			groups["momentum"], groups["dampening"], groups["weight_decay"], groups["nesterov"])
-	elif type(optimizer) in (tr.optim.Adam, tr.optim.AdamW, tr.optim.RMSprop):
+	elif type(optimizer) in (tr.optim.Adam, tr.optim.AdamW):
 		params = "Learning rate: %s, Betas: %s, Eps: %s, Weight Decay: %s" % (groups["lr"], groups["betas"], \
 			groups["eps"], groups["weight_decay"])
+	elif type(optimizer) == tr.optim.RMSprop:
+		params = "Learning rate: %s, Momentum: %s. Alpha: %s, Eps: %s, Weight Decay: %s" % (groups["lr"], \
+			groups["momentum"], groups["alpha"], groups["eps"], groups["weight_decay"])
 	else:
 		raise NotImplementedError("Not yet implemneted optimizer str for %s" % (type(optimizer)))
 
