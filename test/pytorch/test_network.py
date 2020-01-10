@@ -59,13 +59,13 @@ class TestNetwork:
 		model.setOptimizer(Adam, lr=0.001)
 		model.setCriterion(lambda y, t : tr.sum((y - t)**2))
 
-		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=5, printMessage=False)
+		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=5, printMessage=None)
 		model.saveModel("test_model.pkl")
-		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=5, printMessage=False)
+		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=5, printMessage=None)
 		model_new = maybeCuda(Model(I, H, O))
 		model_new.loadModel("test_model.pkl")
 		model_new.setCriterion(lambda y, t : tr.sum((y - t)**2))
-		model_new.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=5, printMessage=False)
+		model_new.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=5, printMessage=None)
 
 		weights_model = list(model.parameters())
 		weights_model_new = list(model_new.parameters())
@@ -87,16 +87,16 @@ class TestNetwork:
 		model.setCriterion(lambda y, t : tr.sum((y - t)**2))
 		model.setOptimizerScheduler(ReduceLROnPlateau, metric="Loss")
 
-		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=10, printMessage=False)
+		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=10, printMessage=None)
 		model.saveModel("test_model.pkl")
-		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=20, printMessage=False)
+		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=20, printMessage=None)
 		assert model.optimizerScheduler.optimizer == model.optimizer
 
 		model_new = maybeCuda(Model(I, H, O))
 		model_new.setCriterion(lambda y, t : tr.sum((y - t)**2))
 		model_new.loadModel("test_model.pkl")
 		assert model_new.optimizerScheduler.optimizer == model_new.optimizer
-		model_new.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=20, printMessage=False)
+		model_new.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=20, printMessage=None)
 		assert model.optimizerScheduler.num_bad_epochs == model_new.optimizerScheduler.num_bad_epochs
 
 		weights_model = list(model.parameters())
@@ -117,11 +117,11 @@ class TestNetwork:
 		model.setOptimizer(Adam, lr=0.01)
 		model.setCriterion(lambda y, t: y.mean())
 
-		callbacks = [SaveModels("best", "Loss", "min"), SaveModels("last"), SaveHistory("history.txt")]
+		callbacks = [SaveModels("best", "Loss"), SaveModels("last"), SaveHistory("history.txt")]
 		model.addCallbacks(callbacks)
 		model.addMetrics({"Test" : lambda x, y, **k : 0.5})
 		beforeKeys = list(model.callbacks.keys())
-		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=10, printMessage=False)
+		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=10, printMessage=None)
 		model.saveModel("test_model.pkl")
 		model.loadModel("test_model.pkl")
 		afterKeys = list(model.callbacks.keys())
@@ -178,7 +178,7 @@ class TestNetwork:
 		I, H, O = 100, 50, 30
 		model = maybeCuda(Model(I, H, O))
 		try:
-			callbacks = [SaveModels("best", "Loss", "min", name="SaveModelsBest"), \
+			callbacks = [SaveModels("best", "Loss", name="SaveModelsBest"), \
 				SaveModels("last", name="SaveModelsLast"), SaveHistory("history.txt")]
 			model.addCallbacks([MyTestCallback(name="TestCallback")])
 			model.addCallbacks(callbacks)
@@ -190,7 +190,7 @@ class TestNetwork:
 		I, H, O = 100, 50, 30
 		model = maybeCuda(Model(I, H, O))
 		try:
-			callbacks = [SaveModels("best", "Loss", "min", name="SaveModelsBest"), \
+			callbacks = [SaveModels("best", "Loss", name="SaveModelsBest"), \
 				SaveModels("last", name="SaveModelsLast"), SaveHistory("history.txt")]
 			model.addCallbacks([MyTestCallback(name="TestCallback")])
 			model.addCallbacks(callbacks)
@@ -203,7 +203,7 @@ class TestNetwork:
 		I, H, O = 100, 50, 30
 		model = maybeCuda(Model(I, H, O))
 		try:
-			callbacks = [SaveModels("best", "Loss", "min", name="SaveModelsBest"), \
+			callbacks = [SaveModels("best", "Loss", name="SaveModelsBest"), \
 				SaveModels("last", name="SaveModelsLast"), SaveHistory("history.txt")]
 			model.addCallbacks([MyTestCallback(name="TestCallback")])
 			model.addCallbacks(callbacks)
@@ -225,7 +225,7 @@ class TestNetwork:
 		I, H, O = 100, 50, 30
 		model = maybeCuda(Model(I, H, O))
 		try:
-			callbacks = [SaveModels("best", "Loss", "min", name="SaveModelsBest"), \
+			callbacks = [SaveModels("best", "Loss", name="SaveModelsBest"), \
 				SaveModels("last", name="SaveModelsLast"), SaveHistory("history.txt")]
 			model.addCallbacks([MyTestCallback(name="TestCallback")])
 			model.addCallbacks(callbacks)
@@ -260,7 +260,7 @@ class TestNetwork:
 		model = maybeCuda(Model(I, H, O))
 		model_new = maybeCuda(Model(I, H, O))
 		try:
-			callbacks = [SaveModels("best", "Loss", "min", name="SaveModelsBest"), \
+			callbacks = [SaveModels("best", "Loss", name="SaveModelsBest"), \
 				SaveModels("last", name="SaveModelsLast"), SaveHistory("history.txt")]
 			model.addCallbacks([MyTestCallback(name="TestCallback")])
 			model.addCallbacks(callbacks)

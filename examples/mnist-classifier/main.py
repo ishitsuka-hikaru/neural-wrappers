@@ -55,7 +55,7 @@ def main():
 	model.addMetrics({"Accuracy" : Accuracy(), "F1" : F1Score()})
 	model.setOptimizer(optim.SGD, momentum=0.5, lr=0.1)
 	model.setOptimizerScheduler(ReduceLROnPlateau, metric="Loss")
-	callbacks = [SaveHistory("history.txt"), PlotMetrics(["Loss", "Accuracy"], ["min", "max"]), \
+	callbacks = [SaveHistory("history.txt"), PlotMetrics(["Loss", "Accuracy"]), \
 		ConfusionMatrix(numClasses=10), SaveModels("best")]
 	model.addCallbacks(callbacks)
 	model.addCallbacks([EarlyStopping(patience=5)])

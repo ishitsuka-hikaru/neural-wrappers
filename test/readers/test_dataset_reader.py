@@ -2,11 +2,9 @@ import numpy as np
 from neural_wrappers.readers import DatasetReader
 
 class BasicReader(DatasetReader):
-	def __init__(self, dataDims, labelDims, dimTransform={}, normalizer={}, augTransform=[], resizer={}):
-		allDims = dataDims[:]
-		allDims.extend(labelDims)
-		super().__init__(None, allDims=allDims, dataDims=dataDims, labelDims=labelDims, dimTransform=dimTransform, \
-			normalizer=normalizer, augTransform=augTransform, resizer=resizer)
+	def __init__(self, dataDims, labelDims, dimTransform={}, normalizer={}, resizer={}):
+		super().__init__(None, dataDims=dataDims, labelDims=labelDims, dimTransform=dimTransform, \
+			normalizer=normalizer, resizer=resizer)
 
 def double(x):
 	return x * 2

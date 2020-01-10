@@ -8,10 +8,10 @@ class MNISTReader(ClassificationDatasetReader):
 		dimTransform={
 			"images" : np.float32,
 			"labels" : lambda x : toCategorical(x, numClasses=10)
-		},):
+		}):
 
-		super().__init__(datasetPath, allDims=["images", "labels"], dataDims=dataDims, \
-			labelDims=labelDims, dimTransform=dimTransform, normalizer=normalizer)
+		super().__init__(datasetPath, dataDims=dataDims, labelDims=labelDims, \
+			dimTransform=dimTransform, normalizer=normalizer)
 		self.dataset = h5py.File(self.datasetPath, "r")
 		self.numData = {
 			"train" : 60000,
