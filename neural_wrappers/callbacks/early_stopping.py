@@ -44,9 +44,6 @@ class EarlyStopping(Callback):
 			print("[EarlyStopping] Num bad epochs in a row: %d. Stopping the training!" % (self.numBadEpochs))
 			sys.exit(0)
 
-	def onCallbackSave(self, **kwargs):
-		print("saving", self.numBadEpochs)
-
 	def onCallbackLoad(self, additional, **kwargs):
 		# Need to call this one more time to update bestMetricScore/numBadEpochs and so on from trainHistory. There
 		#  could be a case where SaveModel was called before this callback and the stored state is with one epoch
