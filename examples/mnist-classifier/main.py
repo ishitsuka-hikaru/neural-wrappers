@@ -22,6 +22,7 @@ def getArgs():
 	parser.add_argument("dataset_path")
 	parser.add_argument("--weights_file")
 	parser.add_argument("--num_epochs", type=int, default=100)
+	parser.add_argument("--batch_size", type=int, default=20)
 
 	args = parser.parse_args()
 
@@ -45,7 +46,7 @@ def main():
 	reader = MNISTReader(args.dataset_path, normalizer={"images" : "standardization"})
 	print(reader.summary())
 	trainGenerator, trainSteps, valGenerator, valSteps = getGenerators(reader, \
-		miniBatchSize=20, keys=["train", "test"])
+		miniBatchSize=args.batch_size, keys=["train", "test"])
 
 	if args.model_type == "model_fc":
 		model = maybeCuda(ModelFC(inputShape=(28, 28, 1), outputNumClasses=10))

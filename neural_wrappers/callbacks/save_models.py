@@ -28,10 +28,10 @@ class SaveModels(Callback):
 		if self.type == "improvements":
 			# nan != nan is True
 			if self.best != self.best or metricFunc(score, self.best):
+				self.best = score
 				kwargs["model"].saveModel(fileName)
 				print("[SaveModels] Epoch %d. Improvement (%s) from %2.2f to %2.2f" % \
 					(kwargs["epoch"], self.metric, self.best, score))
-				self.best = score
 			else:
 				print("Epoch %d did not improve best metric (%s: %2.2f)" % \
 					(kwargs["epoch"], self.emtric, self.best))
@@ -43,7 +43,7 @@ class SaveModels(Callback):
 		elif self.type == "best":
 			# nan != nan is True
 			if self.best != self.best or metricFunc(score, self.best):
+				self.best = score
 				kwargs["model"].saveModel("model_best_%s.pkl" % (self.metric))
 				print("[SaveModels] Epoch %d. Improvement (%s) from %2.2f to %2.2f" % \
 					(kwargs["epoch"], self.metric, self.best, score))
-				self.best = score

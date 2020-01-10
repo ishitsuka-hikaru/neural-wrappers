@@ -229,7 +229,13 @@ class NetworkSerializer:
 				key = callbacks[j].name
 				value = callbacks[j]
 				additional = additionals[j]
-				value.onCallbackLoad(additional, model=self.model)
+
+				# This should be safe (trainHistory is not empty) because doLoadHistory is called before this method
+				kwargs = {
+					"model" : self.model,
+					"trainHistory" : self.model.trainHistory
+				}
+				value.onCallbackLoad(additional, **kwargs)
 				j += 1
 			# Loading stored metrics without state (assumed setMetrics is called identically as it was before storing)
 			# This includes setCriterion as well.
