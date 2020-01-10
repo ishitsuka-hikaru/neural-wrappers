@@ -74,7 +74,6 @@ class NetworkSerializer:
 		callbacksAdditional = []
 		callbacks = []
 		callbacksOriginalPositions = []
-		metricPositions = []
 		for i, key in enumerate(self.model.callbacks):
 			# Store only callbacks, not MetricAsCallbacks (As they are lambdas which cannot be pickle'd).
 			# Metrics must be reloaded anyway, as they do not hold any (global) state, like full Callbacks do.
@@ -83,7 +82,6 @@ class NetworkSerializer:
 				" MetricAsCallback's name was found. Key: %s. Name: %s" % (key, callback.name))
 			if isBaseOf(callback, MetricAsCallback):
 				callbacksOriginalPositions.append(callback.name)
-				metricPositions.append(i)
 			else:
 				additional = callback.onCallbackSave(model=self.model)
 				callbacksAdditional.append(deepcopy(additional))
@@ -96,8 +94,7 @@ class NetworkSerializer:
 				#  as if we'd load it from state.
 				callback.onCallbackLoad(additional, model=self.model)
 		return {"state" : callbacks, "additional" : callbacksAdditional, \
-			"callbacks_positions" : callbacksOriginalPositions, "topological_sort" : self.model.topologicalSort, \
-			"metrics_positions" : metricPositions}
+			"callbacks_positions" : callbacksOriginalPositions, "topological_sort" : self.model.topologicalSort}
 
 	## Loading ##
 
