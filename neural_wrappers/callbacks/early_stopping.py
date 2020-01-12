@@ -23,7 +23,6 @@ class EarlyStopping(Callback):
 
 		# First epoch we need to get some value running.
 		if self.bestMetricScore is None:
-			print("Case0")
 			self.numBadEpochs = 0
 			self.bestMetricScore = score
 			self.metricDirection = kwargs["model"].getMetrics()[self.metric].getDirection()
@@ -32,7 +31,6 @@ class EarlyStopping(Callback):
 
 		fIsBetter = EarlyStopping._init_is_better(self.metricDirection, self.patience, self.percentage, self.min_delta)
 		if fIsBetter(score, self.bestMetricScore):
-			print("Case1")
 			self.numBadEpochs = 0
 			self.bestMetricScore = score
 		else:
@@ -43,12 +41,6 @@ class EarlyStopping(Callback):
 		if self.numBadEpochs >= self.patience:
 			print("[EarlyStopping] Num bad epochs in a row: %d. Stopping the training!" % (self.numBadEpochs))
 			sys.exit(0)
-
-	def onCallbackLoad(self, additional, **kwargs):
-		# Need to call this one more time to update bestMetricScore/numBadEpochs and so on from trainHistory. There
-		#  could be a case where SaveModel was called before this callback and the stored state is with one epoch
-		#  behind on this callback.
-		self.onEpochEnd(**kwargs)
 
 	def _init_is_better(metricDirection, patience, modePercentage, minDelta):
 		if patience == 0:

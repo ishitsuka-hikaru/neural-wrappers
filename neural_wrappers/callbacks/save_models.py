@@ -2,6 +2,9 @@ import sys
 from .callback import Callback
 
 # TODO: add format to saving files
+# Note: This callback should be called after all (relevant) callbacks were called, otherwise we risk of storing a model
+#  that hasn't updated all it's callbacks. This is relevant, for example in EarlyStopping, where we'd save the state
+#  of the N-1th epoch instead of last, causing it to lead to different behavioiur pre/post loading.
 class SaveModels(Callback):
 	def __init__(self, type="all", metric="Loss", **kwargs):
 		super().__init__(**kwargs)
