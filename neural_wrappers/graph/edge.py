@@ -128,18 +128,22 @@ class Edge(NeuralNetworkPyTorch):
 		return hyperParameters
 
 	def loadPretrainedEdge(self, path, trainable=True):
+		thisInputNode = self.inputNode.name.split("(")[0][0 : -1]
+		thisOutputNode = self.outputNode.name.split("(")[0][0 : -1]
+
 		print("Attempting to load pretrained edge %s from %s (Trainable: %s)" % (self, path, trainable))
 		pklFile = NetworkSerializer.readPkl(path)
 		# Do a sanity check that this loaded model is a single_link containing desired edge
+		# Some parsing to find the relevant edge of the pkl file
 		relevantKeys = list(filter(lambda x : x.find("->") != -1, pklFile["model_state"].keys()))
-		assert len(relevantKeys) == 1
-		relevantKeys = list(map(lambda x : x.split("->"), relevantKeys))[0]
-		relevantKeys = list(map(lambda x : x.split("(")[0][0 : -1], relevantKeys))
-		assert len(relevantKeys) == 2
-		assert relevantKeys[0] == self.inputNode.name.split("(")[0][0 : -1]
-		assert relevantKeys[1][1 : ] == self.outputNode.name.split("(")[0][0 : -1]
+		relevantKeys = list(map(lambda x : x.split("->"), relevantKeys))
+		assert len(relevantKeys) == len(list(filter(lambda x : len(x) == 2, relevantKeys)))
+		relevantKeys = list(map(lambda x : (x[0].split(" ")[0], x[1][1 : ].split(" ")[0]), relevantKeys))
+		check2 = list(filter(lambda x : x[0] == thisInputNode and x[1] == thisOutputNode, relevantKeys))
+		assert len(check2) == 1, "More than 1 %s->%s edges were found: %s" % (thisInputNode, thisOutputNode, check2)
+		index = relevantKeys.index((thisInputNode, thisOutputNode))
 		self.serializer.doLoadWeights(pklFile)
-		self.setTrainableWeights(trainable)			
+		self.setTrainableWeights(trainable)
 
 	def __str__(self):
 		return "%s -> %s" % (str(self.inputNode), str(self.outputNode))
