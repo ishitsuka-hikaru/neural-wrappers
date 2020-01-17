@@ -141,7 +141,6 @@ class Edge(NeuralNetworkPyTorch):
 		relevantKeys = list(map(lambda x : (x[0].split(" ")[0], x[1][1 : ].split(" ")[0]), relevantKeys))
 		check2 = list(filter(lambda x : x[0] == thisInputNode and x[1] == thisOutputNode, relevantKeys))
 		assert len(check2) == 1, "More than 1 %s->%s edges were found: %s" % (thisInputNode, thisOutputNode, check2)
-		index = relevantKeys.index((thisInputNode, thisOutputNode))
 		self.serializer.doLoadWeights(pklFile)
 		self.setTrainableWeights(trainable)
 

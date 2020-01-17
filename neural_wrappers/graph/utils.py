@@ -7,7 +7,7 @@
 #  storing the intermediate results.
 def forwardUseAll(self, x):
 	A, model = self.inputNode, self.model
-	edgeInputs, inputNodeKeys = A.getInputs(blockGradients=self.blockGradients)
+	edgeInputs, _ = A.getInputs(blockGradients=self.blockGradients)
 	self.inputs = []
 	self.outputs = []
 

@@ -17,4 +17,9 @@ class PlotMetrics(Callback):
 			plotModelMetricHistory(metric, trainHistory, direction)
 
 	def __str__(self):
-		return "PlotMetrics (%s)" % (", ".join(self.metrics))
+		assert len(self.metrics) >= 1
+		Str = str(self.metrics[0])
+		for i in range(len(self.metrics)):
+			Str += ", %s" % (str(self.metrics[i]))
+
+		return "PlotMetrics (%s)" % (Str)
