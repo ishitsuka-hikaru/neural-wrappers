@@ -5,11 +5,11 @@ from .callback import Callback
 # TODO: Remove mode from ctor and infer at epoch end.
 class EarlyStopping(Callback):
 	def __init__(self, metric="Loss", min_delta=0, patience=10, percentage=False):
-		super().__init__()
 		self.metric = metric
 		self.min_delta = min_delta
 		self.patience = patience
 		self.percentage = percentage
+		super().__init__()
 
 		self.bestMetricScore = None
 		self.numBadEpochs = 0
@@ -49,3 +49,7 @@ class EarlyStopping(Callback):
 		if modePercentage:
 			minDelta = best * minDelta / 100
 		return lambda a, best : fDirection(a, best, minDelta)
+
+	def __str__(self):
+		return "EarlyStopping (Metric: %s. Min delta: %2.2f. Patience: %d. Percentage: %s)" \
+			% (self.metric, self.min_delta, self.patience, self.percentage)

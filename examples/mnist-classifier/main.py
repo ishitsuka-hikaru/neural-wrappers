@@ -57,9 +57,8 @@ def main():
 	model.setOptimizer(optim.SGD, momentum=0.5, lr=0.1)
 	model.setOptimizerScheduler(ReduceLROnPlateau, metric="Loss")
 	callbacks = [SaveHistory("history.txt"), PlotMetrics(["Loss", "Accuracy"]), \
-		ConfusionMatrix(numClasses=10), SaveModels("best")]
+		ConfusionMatrix(numClasses=10), EarlyStopping(patience=5), SaveModels("best")]
 	model.addCallbacks(callbacks)
-	model.addCallbacks([EarlyStopping(patience=5)])
 	print(model.summary())
 
 	if args.type == "train":

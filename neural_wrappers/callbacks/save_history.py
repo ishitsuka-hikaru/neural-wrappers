@@ -4,10 +4,10 @@ from .callback import Callback
 # TODO: add format to saving files
 class SaveHistory(Callback):
 	def __init__(self, fileName, mode="write", **kwargs):
+		self.fileName = fileName
 		super().__init__(**kwargs)
 		assert mode in ("write", "append")
 		self.mode = "w" if mode == "write" else "a"
-		self.fileName = fileName
 		self.file = None
 
 	def onEpochStart(self, **kwargs):
@@ -35,3 +35,6 @@ class SaveHistory(Callback):
 		# Make sure we're appending to the file now that we're using a loaded model (to not overwrite previous info).
 		if os.path.isfile(self.fileName):
 			self.file = open(self.fileName, mode="a", buffering=1)
+
+	def __str__(self):
+		return "SaveHistory (File: %s)" % (self.fileName)

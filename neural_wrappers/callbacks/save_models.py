@@ -7,11 +7,11 @@ from .callback import Callback
 #  of the N-1th epoch instead of last, causing it to lead to different behavioiur pre/post loading.
 class SaveModels(Callback):
 	def __init__(self, type="all", metric="Loss", **kwargs):
-		super().__init__(**kwargs)
 		assert type in ("all", "improvements", "last", "best")
 		self.type = type
 		self.best = float("nan")
 		self.metric = metric
+		super().__init__(**kwargs)
 
 	# Saving by best train loss is validation is not available, otherwise validation. Nasty situation can occur if one
 	#  epoch there is a validation loss and the next one there isn't, so we need formats to avoid this and error out
@@ -50,3 +50,6 @@ class SaveModels(Callback):
 				kwargs["model"].saveModel("model_best_%s.pkl" % (self.metric))
 				print("[SaveModels] Epoch %d. Improvement (%s) from %2.2f to %2.2f" % \
 					(kwargs["epoch"], self.metric, self.best, score))
+
+	def __str__(self):
+		return "SaveModels (Metric: %s. Type: %s)" % (self.metric, self.type)

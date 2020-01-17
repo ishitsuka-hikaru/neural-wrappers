@@ -295,4 +295,4 @@ if __name__ == "__main__":
 	# TestNetwork().test_setCallbacksDependencies_1()
 	# TestNetwork().test_setCallbacksDependencies_2()
 	# TestNetwork().test_setCallbacksDependencies_3()
-	TestNetwork().test_setCallbacksDependencies_4()
+	# TestNetwork().test_setCallbacksDependencies_4()
