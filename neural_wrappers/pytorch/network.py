@@ -11,7 +11,7 @@ from ..utilities import makeGenerator, MessagePrinter, isBaseOf, RunningMean, to
 from ..callbacks import Callback, MetricAsCallback
 
 from .network_serializer import NetworkSerializer
-from .pytorch_utils import getNumParams, getOptimizerStr, getNpData, getTrData, StorePrevState
+from .utils import getNumParams, getOptimizerStr, getNpData, getTrData, StorePrevState
 
 # Wrapper on top of the PyTorch model. Added methods for saving and loading a state. To completly implement a PyTorch
 #  model, one must define layers in the object's constructor, call setOptimizer, setCriterion and implement the

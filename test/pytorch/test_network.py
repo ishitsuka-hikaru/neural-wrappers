@@ -284,6 +284,7 @@ class TestNetwork:
 			assert model.topologicalKeys[i] == model_new.topologicalKeys[i]
 
 if __name__ == "__main__":
+    pass
 	# TestNetwork().test_save_weights_1()
 	# TestNetwork().test_save_model_1()
 	# TestNetwork().test_save_model_2()

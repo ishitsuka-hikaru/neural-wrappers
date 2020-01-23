@@ -1,5 +1,5 @@
 from .callback import Callback
-from ..pytorch.pytorch_utils import plotModelMetricHistory
+from ..pytorch.utils import plotModelMetricHistory
 
 class PlotMetrics(Callback):
 	def __init__(self, metrics, **kwargs):

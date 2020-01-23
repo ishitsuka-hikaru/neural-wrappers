@@ -4,7 +4,7 @@ import numpy as np
 from copy import deepcopy
 from collections import OrderedDict
 
-from .pytorch_utils import maybeCuda, getNumParams, getOptimizerStr, getTrainableParameters
+from .utils import maybeCuda, getNumParams, getOptimizerStr, getTrainableParameters
 from ..utilities import isBaseOf, deepCheckEqual, isPicklable
 from ..callbacks import MetricAsCallback
 

@@ -2,7 +2,7 @@ import torch as tr
 import numpy as np
 
 from .network import NeuralNetworkPyTorch
-from .pytorch_utils import maybeCuda, maybeCpu
+from .utils import maybeCuda, maybeCpu
 from inspect import signature
 from datetime import datetime
 
