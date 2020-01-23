@@ -1,14 +1,14 @@
 import torch.nn as nn
 from functools import partial
 from .node import MapNode, VectorNode
-from ..pytorch import NeuralNetworkPyTorch
+from ..pytorch import NeuralNetworkPyTorch, trModuleWrapper
 from ..pytorch.network_serializer import NetworkSerializer
 from .utils import forwardUseAll
 
 # Default loss of this edge goes through all ground truths and all outputs of the output node and computes the
 #  loss between them. This can be updated for a more specific edge algorithm for loss computation.
 def defaultLossFn(self, y, t):
-	A, B, edgeID = self.inputNode, self.outputNode, self.edgeID
+	B = self.outputNode
 	L = 0
 	t = B.getGroundTruth()
 	for y in self.outputs:
@@ -43,6 +43,7 @@ class Edge(NeuralNetworkPyTorch):
 		self.edgeID = str(self)
 		self.model = None
 		self.setupModel(forwardFn, lossFn)
+
 		self.inputs = []
 		self.outputs = []
 
@@ -84,30 +85,26 @@ class Edge(NeuralNetworkPyTorch):
 			return B.getDecoder(type(A))
 
 	def getModel(self):
-		model = nn.Sequential(
-			self.getEncoder(),
-			self.getDecoder()
-		)
-		metrics = model[-1].getMetrics()
-		# Update metrics' name to be a tuple of (edge, originalName)
-		newMetrics = {}
-		for key in metrics:
-			metric = metrics[key]
-			# Very important to use str(self), not self here, otherwise the metric's name is not pickleable (as it'd
-			#  try to store the edge itself, which isn't pickleable)
-			newName = (str(self), metric.name)
-			metric.name = newName
-			newMetrics[newName] = metric
-		self.addMetrics(newMetrics)
-		self.setCriterion(model[-1].criterion)
-		return model
+		if not self.model:
+			self.setupModel()
+		return self.model
 
 	# Default model for this edge is just a sequential mapping between the A's encoder and B's decoder.
 	#  Other edges may requires additional edge-specific parameters or some more complicated views to convert the
 	#   output of A's encoder to the input of B's decoder.
 	def setupModel(self, forwardFn, lossFn):
 		assert self.model is None
-		self.model = self.getModel()
+		self.model = trModuleWrapper(nn.Sequential(self.getEncoder(), self.getDecoder()))
+		metrics = self.outputNode.getMetrics()
+		criterion = self.outputNode.getCriterion()
+
+		# Update metrics' name to be a tuple of (edge, originalName)
+		newMetrics = {}
+		for key in metrics:
+			# Very important to use str(self), not self here, otherwise the metric's name is not pickleable (as it'd
+			#  try to store the edge itself, which isn't pickleable)
+			newName = (str(self), key)
+			newMetrics[newName] = metrics[key]
 
 		# Set the forward/loss functions for this edge as well.
 		if not forwardFn:
@@ -116,6 +113,8 @@ class Edge(NeuralNetworkPyTorch):
 			lossFn = defaultLossFn
 		self.forwardFn = forwardFn
 		self.lossFn = lossFn
+		self.addMetrics(newMetrics)
+		self.setCriterion(criterion)
 
 	def setBlockGradients(self, value):
 		self.blockGradients = value

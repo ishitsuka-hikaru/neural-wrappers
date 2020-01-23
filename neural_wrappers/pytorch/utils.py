@@ -6,6 +6,17 @@ from collections import OrderedDict
 
 device = tr.device("cuda") if tr.cuda.is_available() else tr.device("cpu")
 
+def trModuleWrapper(module):
+	from .network import NeuralNetworkPyTorch
+	class Model(NeuralNetworkPyTorch):
+		def __init__(self, module):
+			super().__init__()
+			self.module = module
+
+		def forward(self, x):
+			return self.module(x)
+	return Model(module)
+
 class StorePrevState:
 	def __init__(self, moduleObj):
 		self.moduleObj = moduleObj

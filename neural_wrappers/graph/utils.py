@@ -23,6 +23,7 @@ def forwardUseAll(self, x):
 # @return The outputs (which are also stored in self.outputs). This is to preserve PyTorch's interface, while also
 #  storing the intermediate results.
 def forwardUseGT(self, x):
+	# print("[forwardUseGT]", self)
 	A, model = self.inputNode, self.model
 	edgeInputs, inputNodeKeys = A.getInputs(blockGradients=self.blockGradients)
 	self.inputs = []

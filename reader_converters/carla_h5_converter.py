@@ -18,6 +18,7 @@ def getArgs():
 	parser.add_argument("--splits", default="80,20")
 	parser.add_argument("--split_keys", default="train,validation")
 	parser.add_argument("--statistics_file")
+	parser.add_argument("--max_depth_meters", default=300, type=int)
 
 	args = parser.parse_args()
 	args.test_export = bool(args.test_export)

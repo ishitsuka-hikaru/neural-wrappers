@@ -23,6 +23,9 @@ class Node:
 	def getDecoder(self, inputNodeType=None):
 		raise Exception("Must be implemented by each node!")
 
+	def getMetrics(self):
+		raise Exception("Must be implemented by each node!")
+
 	# This node's inputs based on whatever GT data we receive (inputs dict + self.groundTruthKey) as well as whatever
 	#  intermediate messages we recieved. This is programmable for every node. By default, we return all GTs and all
 	#  received messages as possible inputs to the node's forward function
