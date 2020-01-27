@@ -55,7 +55,7 @@ class NeuralNetworkPyTorch(nn.Module):
 
 		for key in metrics:
 			# assert type(key) == str, "The key of the metric must be a string"
-			assert hasattr(metrics[key], "__call__"), "The user provided transformation %s must be callable" % (key)
+			assert hasattr(metrics[key], "__call__"), "The user provided metric %s must be callable" % (key)
 			assert key not in self.callbacks, "Metric %s already in callbacks list." % (key)
 
 			metricAsCallback = metrics[key]

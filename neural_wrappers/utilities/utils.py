@@ -94,10 +94,10 @@ class RunningMean:
 		return self.value / (self.count + 1e-5)
 
 	def __repr__(self):
-		return self.get()
+		return str(self.get())
 
 	def __str__(self):
-		return self.get()
+		return str(self.get())
 
 # Given a graph as a dict {Node : [Dependencies]}, returns a list [Node] ordered with a correct topological sort order
 # Applies Kahn's algorithm: https://ocw.cs.pub.ro/courses/pa/laboratoare/laborator-07
