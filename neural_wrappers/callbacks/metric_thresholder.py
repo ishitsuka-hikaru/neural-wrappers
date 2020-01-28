@@ -39,16 +39,23 @@ class MetricThresholder(Callback):
 			result = self.metric(results, labels, threshold=threshold) * MB
 			iterResults.append(result)
 		self.currentResult.update(iterResults, MB)
-	
-	def onEpochEnd(self, **kwargs):
-		values = self.currentResult.get()[1 : ]
-		diffs = self.thresholds[1 : ] - self.thresholds[0 : -1]
+
+	@staticmethod
+	def doPlot(x, y, metricName, figureName, ylim):
+		diffs = x[1 : ] - x[0 : -1]
+		values = y[1 : ]
 		AUC = np.dot(values, diffs)
 
 		plt.figure()
-		plt.plot(self.thresholds, self.currentResult.get(), marker="x")
-		plt.ylim(*self.ylim)
-		plt.ylabel(self.metricName)
-		plt.xlabel("Thresholds (%d total)" % (len(self.thresholds)))
+		plt.plot(x, y, marker="x")
+		plt.ylim(*ylim)
+		plt.ylabel(metricName)
+		plt.xlabel("Thresholds (%d total)" % (len(x)))
 		plt.title("AUC: %2.3f" % (AUC))
-		plt.savefig("metric_thresholder_%s_epoch%d.png" % (self.metricName, kwargs["epoch"]))
+		plt.savefig(figureName)
+
+	def onEpochEnd(self, **kwargs):
+		x = self.currentResult.get()
+		y = self.thresholds
+		figureName = "metric_thresholder_%s_epoch%d.png" % (self.metricName, kwargs["epoch"])
+		MetricThresholder.doPlot(x, y, self.metricName, figureName, self.ylim)

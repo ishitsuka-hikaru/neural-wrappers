@@ -8,10 +8,10 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 from models import ModelFC, ModelConv
 from neural_wrappers.readers import MNISTReader
 from neural_wrappers.pytorch import maybeCuda
-from neural_wrappers.callbacks import SaveModels, SaveHistory, ConfusionMatrix, PlotMetrics, EarlyStopping
+from neural_wrappers.callbacks import SaveModels, SaveHistory, ConfusionMatrix, PlotMetrics, EarlyStopping, PrecisionRecallCurve, MetricThresholder
 from neural_wrappers.schedulers import ReduceLROnPlateau
 from neural_wrappers.utilities import getGenerators
-from neural_wrappers.metrics import Accuracy, F1Score
+from neural_wrappers.metrics import Accuracy, F1Score, ThresholdAccuracy
 
 from argparse import ArgumentParser
 
@@ -57,13 +57,13 @@ def main():
 	model.setOptimizer(optim.SGD, momentum=0.5, lr=0.1)
 	model.setOptimizerScheduler(ReduceLROnPlateau, metric="Loss")
 	callbacks = [SaveHistory("history.txt"), PlotMetrics(["Loss", "Accuracy"]), \
-		ConfusionMatrix(numClasses=10), EarlyStopping(patience=5), SaveModels("best")]
+		ConfusionMatrix(numClasses=10), EarlyStopping(patience=5), SaveModels("best"), MetricThresholder("ThresholdAcc", ThresholdAccuracy(), np.linspace(0, 1, 20)), PrecisionRecallCurve(np.linspace(0, 1, 10))]
 	model.addCallbacks(callbacks)
 	print(model.summary())
 
 	if args.type == "train":
-		model.train_generator(trainGenerator, trainSteps, numEpochs=args.num_epochs, \
-			validationGenerator=valGenerator, validationSteps=valSteps, printMessage="v2")
+		model.train_generator(trainGenerator, 50, numEpochs=args.num_epochs, \
+			validationGenerator=valGenerator, validationSteps=50, printMessage="v2")
 	elif args.type == "retrain":
 		model.loadModel(args.weights_file)
 		model.train_generator(trainGenerator, trainSteps, numEpochs=args.num_epochs, \
