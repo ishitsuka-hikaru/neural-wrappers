@@ -1,20 +1,26 @@
 import numpy as np
 import torch as tr
 import matplotlib.pyplot as plt
+from inspect import getfullargspec
+
 from .callback import Callback
-from ..utilities import npCloseEnough, RunningMean
+from ..utilities import RunningMean, npCloseEnough
 
 # @brief MetricThresholder is a class that takes as inputs a metric and a list of thresholds. The provided metric must
 #  be callable and not be agnosti to the parameter "threshold", which will be used to compute the metric for each
 #  provided threshold (i.e. Accuracy for prediction>0.1, >0.3, >0.5...>1)
 class MetricThresholder(Callback):
-	def __init__(self, metric, thresholds):
+	def __init__(self, metricName, metric, thresholds, ylim=[0, 1]):
 		super().__init__()
+		self.metricName = metricName
 		self.metric = metric
 		self.thresholds = np.array(thresholds)
+		self.ylim = ylim
 		assert npCloseEnough(self.thresholds, np.sort(self.thresholds)), "Thresholds must be an ordered range."
 		assert len(self.thresholds) > 1
-		assert hasattr(self.metric, "__call__"), "The user provided metric %s must be callable" % (self.metric)
+		assert hasattr(self.metric, "__call__"), "	The user provided metric %s must be callable" % (self.metricName)
+		assert "threshold" in getfullargspec(self.metric.__call__).args, \
+			"The use provided metric %s must have threshold as a kwarg." % (self.metricName)
 
 	def onEpochStart(self, **kwargs):
 		isOptimizing = tr.is_grad_enabled()
@@ -41,6 +47,8 @@ class MetricThresholder(Callback):
 
 		plt.figure()
 		plt.plot(self.thresholds, self.currentResult.get(), marker="x")
-		plt.ylim(0, 1)
+		plt.ylim(*self.ylim)
+		plt.ylabel(self.metricName)
+		plt.xlabel("Thresholds (%d total)" % (len(self.thresholds)))
 		plt.title("AUC: %2.3f" % (AUC))
-		plt.savefig("metric_thresholder_%s_epoch%d.png" % (self.metric, kwargs["epoch"]))
+		plt.savefig("metric_thresholder_%s_epoch%d.png" % (self.metricName, kwargs["epoch"]))
