@@ -1,5 +1,6 @@
 import numpy as np
 from .metric import Metric
+from scipy.special import softmax
 
 class F1Score(Metric):
 	def __init__(self, categoricalLabels=True):
@@ -35,4 +36,28 @@ class F1Score(Metric):
 		if numClasses > 0:
 			f1 /= numClasses
 
+		return f1
+
+# @brief The thresholded variant of F1Score (not argmax, but rather correct and higher than some threshold value). To
+#  be used mostly in corroboration with MetricThresholder Callback.
+class ThresholdF1Score(Metric):
+	def __init__(self):
+		super().__init__("max")
+
+	def __call__(self, results, labels, threshold=0.5, **kwargs):
+		numClasses = results.shape[-1]
+		results = softmax(results, axis=-1)
+		results = results >= threshold
+		labels = labels.astype(np.bool)
+
+		f1 = 0
+		for i in range(numClasses):
+			classF1 = F1Score.classF1Score(results[..., i], labels[..., i])
+			if classF1 == 0:
+				numClasses -= 1
+			# print(i, results[..., i].shape, labels[..., i].shape, classF1)
+			f1 += classF1
+
+		if numClasses > 0:
+			f1 /= numClasses
 		return f1
