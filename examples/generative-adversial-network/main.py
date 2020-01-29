@@ -139,10 +139,10 @@ def main():
 		GAN.loadModel("model_last_Loss.pkl")
 		while True:
 			# Generate 100 random gaussian inputs
-			randomInputsG = maybeCuda(tr.randn(100, latentSpaceSize))
+			randomInputsG = tr.randn(100, latentSpaceSize).to(device)
 			randomOutG = GAN.generator.forward(randomInputsG).view(-1, *imageShape)
-			outD = maybeCpu(GAN.discriminator.forward(randomOutG).detach()).numpy()
-			npRandomOutG = maybeCpu(randomOutG.detach()).numpy()
+			outD = GAN.discriminator.forward(randomOutG).detach().to("cpu").numpy()
+			npRandomOutG = randomOutG.detach().to("cpu").numpy()
 			indexes = np.where(outD > 0.95)[0]
 			for j in range(len(indexes)):
 				index = indexes[j]

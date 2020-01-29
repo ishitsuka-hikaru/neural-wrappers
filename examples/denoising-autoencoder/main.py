@@ -5,7 +5,7 @@ import torch as tr
 import torch.nn as nn
 from models import ModelFC
 from neural_wrappers.readers import MNISTReader, CorrupterReader
-from neural_wrappers.pytorch import NeuralNetworkPyTorch, maybeCuda, SelfSupervisedNetwork, maybeCpu
+from neural_wrappers.pytorch import NeuralNetworkPyTorch, SelfSupervisedNetwork, device
 from neural_wrappers.callbacks import Callback
 from neural_wrappers.metrics import Accuracy
 from Mihlib import plot_image, show_plots
@@ -85,7 +85,7 @@ def main():
 	assert len(sys.argv) == 3, "Usage: python main.py train/retrain/test/train_then_classify/" + \
 		"pretrained_train_classifier <path/to/mnist>"
 
-	model = maybeCuda(DenoisingModelFC())
+	model = DenoisingModelFC().to(device)
 	mnistReader = MNISTReader(sys.argv[2])
 	corrupterReader = CorrupterReader(mnistReader, corruptionPercent=20)
 	# Train for self supervised reconstruction
@@ -141,9 +141,7 @@ def main():
 		model.load_model("model_reconstruction_weights.pkl")
 		for items in valGenerator:
 			corrupted, original = items
-			trCorrupted = Variable(maybeCuda(tr.from_numpy(corrupted)))
-			trResults = model.forward(trCorrupted)
-			npResults = maybeCpu(trResults.data).numpy()
+			npResults = model.npForward(corrupted)
 			for j in range(len(npResults)):
 				plot_images([original[j], corrupted[j], npResults[j]], ["Original", "Corrupted", "Result"], (1, 3))
 				plt.show()

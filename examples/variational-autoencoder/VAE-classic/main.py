@@ -5,7 +5,7 @@
 import sys
 import numpy as np
 from neural_wrappers.readers import MNISTReader
-from neural_wrappers.pytorch import NeuralNetworkPyTorch, maybeCuda, maybeCpu
+from neural_wrappers.pytorch import NeuralNetworkPyTorch, device
 from neural_wrappers.callbacks import SaveModels
 import matplotlib.pyplot as plt
 from scipy.misc import toimage
@@ -85,7 +85,7 @@ class VAE(NeuralNetworkPyTorch):
 		batchSize = x[0].shape[0]
 		y_mean, y_std = self.encoder(x)
 		# "Reparametrization trick": Sample from N(0, I) and multiply by our distribution's mean/std.
-		z_samples = maybeCuda(tr.randn(batchSize, self.numEncodings)).requires_grad_(False)
+		z_samples = tr.randn(batchSize, self.numEncodings).to(device)
 		z_samples *= y_std
 		z_samples += y_mean
 		y_decoder = self.decoder(z_samples)
@@ -135,7 +135,7 @@ def main():
 	generator = reader.iterate("train", miniBatchSize=miniBatchSize)
 	numIterations = reader.getNumIterations("train", miniBatchSize=miniBatchSize)
 	print("Batch size: %d. Num iterations: %d" % (miniBatchSize, numIterations))
-	network = maybeCuda(VAE(numEncodings=300, encoderType=sys.argv[3]))
+	network = VAE(numEncodings=300, encoderType=sys.argv[3]).to(device)
 	network.setCriterion(lossFunction)
 	network.setOptimizer(optim.SGD, lr=0.000001, momentum=0.3)
 	metrics = { "Latent Loss" : lossLatent, "Decoder Loss" : lossDecoder }
@@ -161,8 +161,8 @@ def main():
 
 		for items in generator:
 			images, _ = items
-			y_result, y_mean, y_std = network.forward(maybeCuda(tr.from_numpy(images)))
-			results = maybeCpu(y_result.data).numpy().reshape((-1, 28, 28))
+			y_result, y_mean, y_std = network.npForward(images)
+			results = y_result.reshape((-1, 28, 28))
 			for j in range(len(results)):
 				loss = lossDecoder([results[j].reshape((1, 28, 28)), None, None], images[j].reshape((1, 28, 28)))
 				print("Reconstruction loss: %d" % (loss))
@@ -173,9 +173,8 @@ def main():
 		assert len(sys.argv) == 5
 		network.loadModel(sys.argv[4])
 		while True:
-			z_samples = maybeCuda(tr.randn(1, network.numEncodings)).requires_grad_(False)
-			y_result = network.decoder.forward(z_samples)
-			result = maybeCpu(y_result.data).numpy().reshape((28, 28))
+			z_samples = tr.randn(1, network.numEncodings).to(device)
+			result = network.decoder.npForward(z_samples).reshape((28, 28))
 			result_binary = np.uint8(result > 0.5)
 			plot_images([result, result_binary], ["Sampled image", "Binary"])
 

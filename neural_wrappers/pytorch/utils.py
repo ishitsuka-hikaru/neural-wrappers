@@ -27,12 +27,6 @@ class StorePrevState:
 	def __exit__(self, type, value, traceback):
 		self.prevState()
 
-def maybeCuda(x):
-	return x.cuda() if tr.cuda.is_available() and hasattr(x, "cuda") else x
-
-def maybeCpu(x):
-	return x.cpu() if tr.cuda.is_available() and hasattr(x, "cpu") else x
-
 def getTrainableParameters(model):
 	return list(filter(lambda p : p.requires_grad, model.parameters()))
 

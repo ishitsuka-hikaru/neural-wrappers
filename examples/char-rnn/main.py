@@ -6,10 +6,9 @@ import torch.nn as nn
 import torch.optim as optim
 import sys
 import time
-from neural_wrappers.pytorch import RecurrentNeuralNetworkPyTorch, maybeCuda, maybeCpu
+from neural_wrappers.pytorch import RecurrentNeuralNetworkPyTorch, device
 from neural_wrappers.readers import DatasetReader
 from neural_wrappers.callbacks import SaveModels
-from torch.autograd import Variable
 
 class RNN_PyTorch(RecurrentNeuralNetworkPyTorch):
 	def __init__(self, cellType, hiddenSize):
@@ -102,22 +101,22 @@ def sample(model, seedText, numIters, hprev=None):
 
 	hprev = None
 	for i in range(len(seedText)):
-		output = maybeCuda(Variable(tr.from_numpy(tensorSeed[:, i])))
+		output = tr.from_numpy(tensorSeed[:, i]).to(device)
 		_, hprev = model.forward(output, hprev)
 
 	result = ""
 	for i in range(200):
 		output, hprev = model.forward(output, hprev)
-		p = maybeCpu(output.data).numpy()[0].flatten()
+		p = output.detach().to("cpu").numpy()[0].flatten()
 		charIndex = np.random.choice(range(len(TextUtils.alphabet)), p=p)
 		result += TextUtils.alphabet[charIndex]
-		output = maybeCuda(Variable(tr.from_numpy(np.expand_dims(TextUtils.toCategorical(charIndex), axis=0))))
+		output = tr.from_numpy(np.expand_dims(TextUtils.toCategorical(charIndex), axis=0)).to(device)
 	return result
 
 def main():
 	assert sys.argv[1] in ("train", "test")
 	sequenceSize = 5
-	model = maybeCuda(RNN_PyTorch(cellType="LSTM", hiddenSize=100))
+	model = RNN_PyTorch(cellType="LSTM", hiddenSize=100).to(device)
 	print(model.summary())
 
 	if sys.argv[1] == "train":

@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from scipy.misc import toimage
 
 from neural_wrappers.readers import MNISTReader
-from neural_wrappers.pytorch import NeuralNetworkPyTorch, maybeCuda, maybeCpu
+from neural_wrappers.pytorch import NeuralNetworkPyTorch
 from neural_wrappers.callbacks import SaveModels
 
 import torch as tr
@@ -103,7 +103,7 @@ class CVAE(NeuralNetworkPyTorch):
 		batchSize = x_corrupted.shape[0]
 		y_mean, y_std = self.encoder(x_original)
 		# "Reparametrization trick": Sample from N(0, I) and multiply by our distribution's mean/std.
-		z_samples = Variable(maybeCuda(tr.randn(batchSize, self.numEncodings)), requires_grad=False)
+		z_samples = tr.randn(batchSize, self.numEncodings)).to(device)
 		z_samples *= y_std
 		z_samples += y_mean
 		y_decoder = self.decoder(x_corrupted, z_samples)
@@ -137,7 +137,7 @@ def main():
 	numIterations = reader.getNumIterations("train", miniBatchSize=miniBatchSize)
 
 	print("Batch size: %d. Num iterations: %d" % (miniBatchSize, numIterations))
-	network = maybeCuda(CVAE(numEncodings=300, encoderType=sys.argv[3]))
+	network = CVAE(numEncodings=300, encoderType=sys.argv[3]).to(device)
 	network.setCriterion(lossFunction)
 	network.setOptimizer(optim.SGD, lr=0.000001, momentum=0.3)
 	metrics = { "Latent Loss" : lossLatent, "Decoder Loss" : lossDecoder }
@@ -164,13 +164,12 @@ def main():
 
 		for items in generator:
 			(x_original, x_corrupted), _ = items
-			z_samples = Variable(maybeCuda(tr.randn(miniBatchSize, network.numEncodings)), requires_grad=False)
-			x_corrupted_tr = Variable(maybeCuda(tr.from_numpy(x_corrupted)), requires_grad=False)
+			z_samples = tr.randn(miniBatchSize, network.numEncodings).to(device)
+			x_corrupted_tr = tr.from_numpy(x_corrupted).to(device)
 
-			y_results = network.decoder.forward(x_corrupted_tr, z_samples)
+			y_results = network.decoder.npForward(x_corrupted_tr, z_samples)
 			for j in range(len(y_results)):
-				y_result = y_results[j]
-				result = maybeCpu(y_result.data).numpy().reshape((28, 28))
+				result = y_results[j].reshape((28, 28))
 				result_binary = np.uint8(result > 0.5)
 				plot_images([x_original[j], x_corrupted[j], result, result_binary], \
 					["Original", "Corrupted", "Reconstruction", "Binary"])

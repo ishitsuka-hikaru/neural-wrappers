@@ -4,7 +4,7 @@ import numpy as np
 from copy import deepcopy
 from collections import OrderedDict
 
-from .utils import maybeCuda, getNumParams, getOptimizerStr, getTrainableParameters
+from .utils import getNumParams, getOptimizerStr, getTrainableParameters, device
 from ..utilities import isBaseOf, deepCheckEqual, isPicklable
 from ..callbacks import MetricAsCallback
 
@@ -166,7 +166,7 @@ class NetworkSerializer:
 			if item.shape != params[i].shape:
 				raise Exception("Inconsistent parameters: %d vs %d." % (item.shape, params[i].shape))
 			with tr.no_grad():
-				item[:] = maybeCuda(params[i][:])
+				item[:] = params[i][:].to(device)
 			item.requires_grad_(True)
 		print("Succesfully loaded weights (%d parameters) " % (loadedParams))
 
