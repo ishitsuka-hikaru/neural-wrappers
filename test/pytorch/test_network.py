@@ -1,4 +1,4 @@
-from neural_wrappers.pytorch import NeuralNetworkPyTorch, maybeCuda, maybeCpu
+from neural_wrappers.pytorch import NeuralNetworkPyTorch, device
 from neural_wrappers.callbacks import Callback, SaveModels, SaveHistory
 import numpy as np
 import torch as tr
@@ -28,9 +28,9 @@ class TestNetwork:
 	def test_save_weights_1(self):
 		N, I, H, O = 500, 100, 50, 30
 
-		inputs = maybeCuda(tr.randn(N, I))
-		targets = maybeCuda(tr.randn(N, O))
-		model = maybeCuda(Model(I, H, O))
+		inputs = tr.randn(N, I).to(device)
+		targets = tr.randn(N, O).to(device)
+		model = Model(I, H, O).to(device)
 		for i in range(5):
 			outputs = model.forward(inputs)
 			error = tr.sum((outputs - targets)**2)
@@ -41,13 +41,13 @@ class TestNetwork:
 				param.grad *= 0
 
 		model.saveWeights("test_weights.pkl")
-		model_new = maybeCuda(Model(I, H, O))
+		model_new = Model(I, H, O).to(device)
 		model_new.loadWeights("test_weights.pkl")
 
 		outputs = model.forward(inputs)
-		error = maybeCpu(tr.sum((outputs - targets)**2)).data.numpy()
+		error = tr.sum((outputs - targets)**2).detach().to("cpu").numpy()
 		outputs_new = model_new.forward(inputs)
-		error_new = maybeCpu(tr.sum((outputs_new - targets)**2)).data.numpy()
+		error_new = tr.sum((outputs_new - targets)**2).detach().to("cpu").numpy()
 		assert np.abs(error - error_new) < 1e-5
 
 	def test_save_model_1(self):
@@ -55,14 +55,14 @@ class TestNetwork:
 		inputs = np.float32(np.random.randn(N, I))	
 		targets = np.float32(np.random.randn(N, O))
 
-		model = maybeCuda(Model(I, H, O))
+		model = Model(I, H, O).to(device)
 		model.setOptimizer(Adam, lr=0.001)
 		model.setCriterion(lambda y, t : tr.sum((y - t)**2))
 
 		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=5, printMessage=None)
 		model.saveModel("test_model.pkl")
 		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=5, printMessage=None)
-		model_new = maybeCuda(Model(I, H, O))
+		model_new = Model(I, H, O).to(device)
 		model_new.loadModel("test_model.pkl")
 		model_new.setCriterion(lambda y, t : tr.sum((y - t)**2))
 		model_new.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=5, printMessage=None)
@@ -74,7 +74,7 @@ class TestNetwork:
 		for j in range(len(weights_model)):
 			weight = weights_model[j]
 			weight_new = weights_model_new[j]
-			diff = maybeCpu(tr.sum(tr.abs(weight - weight_new))).data.numpy()
+			diff = tr.sum(tr.abs(weight - weight_new)).detach().to("cpu").numpy()
 			assert diff < 1e-5, "%d: Diff: %2.5f.\n %s %s" % (j, diff, weight, weight_new)
 
 	def test_save_model_2(self):
@@ -82,7 +82,7 @@ class TestNetwork:
 		inputs = np.float32(np.random.randn(N, I))
 		targets = np.float32(np.random.randn(N, O))
 
-		model = maybeCuda(Model(I, H, O))
+		model = Model(I, H, O).to(device)
 		model.setOptimizer(SGD, lr=0.005)
 		model.setCriterion(lambda y, t : tr.sum((y - t)**2))
 		model.setOptimizerScheduler(ReduceLROnPlateau, metric="Loss")
@@ -92,7 +92,7 @@ class TestNetwork:
 		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=20, printMessage=None)
 		assert model.optimizerScheduler.optimizer == model.optimizer
 
-		model_new = maybeCuda(Model(I, H, O))
+		model_new = Model(I, H, O).to(device)
 		model_new.setCriterion(lambda y, t : tr.sum((y - t)**2))
 		model_new.loadModel("test_model.pkl")
 		assert model_new.optimizerScheduler.optimizer == model_new.optimizer
@@ -105,7 +105,7 @@ class TestNetwork:
 		for j in range(len(weights_model)):
 			weight = weights_model[j]
 			weight_new = weights_model_new[j]
-			diff = maybeCpu(tr.sum(tr.abs(weight - weight_new))).data.numpy()
+			diff = tr.sum(tr.abs(weight - weight_new)).detach().to("cpu").numpy()
 			assert diff < 1e-5, "%d: Diff: %2.5f.\n %s %s" % (j, diff, weight, weight_new)
 
 	def test_save_model_3(self):
@@ -113,7 +113,7 @@ class TestNetwork:
 		inputs = np.float32(np.random.randn(N, I))
 		targets = np.float32(np.random.randn(N, O))
 
-		model = maybeCuda(Model(I, H, O))
+		model = Model(I, H, O).to(device)
 		model.setOptimizer(Adam, lr=0.01)
 		model.setCriterion(lambda y, t: y.mean())
 
@@ -133,7 +133,7 @@ class TestNetwork:
 	# Adding metrics normally should be fine.
 	def test_add_merics_1(self):
 		I, H, O = 100, 50, 30
-		model = maybeCuda(Model(I, H, O))
+		model = Model(I, H, O).to(device)
 		try:
 			model.addMetrics({"Test" : lambda x, y, **k : 0.5})
 		except Exception:
@@ -147,7 +147,7 @@ class TestNetwork:
 	# Adding two metrics with same name should clash it
 	def test_add_merics_2(self):
 		I, H, O = 100, 50, 30
-		model = maybeCuda(Model(I, H, O))
+		model = Model(I, H, O).to(device)
 		try:
 			model.addMetrics({"Test" : lambda x, y, **k : 0.5})
 		except Exception:
@@ -162,7 +162,7 @@ class TestNetwork:
 	# Adding one metric and one callback with same name should clash it
 	def test_add_merics_3(self):
 		I, H, O = 100, 50, 30
-		model = maybeCuda(Model(I, H, O))
+		model = Model(I, H, O).to(device)
 		try:
 			model.addMetrics({"Test" : lambda x, y, **k : 0.5})
 		except Exception:
@@ -176,7 +176,7 @@ class TestNetwork:
 
 	def test_add_callbacks_1(self):
 		I, H, O = 100, 50, 30
-		model = maybeCuda(Model(I, H, O))
+		model = Model(I, H, O).to(device)
 		try:
 			callbacks = [SaveModels("best", "Loss", name="SaveModelsBest"), \
 				SaveModels("last", name="SaveModelsLast"), SaveHistory("history.txt")]
@@ -188,7 +188,7 @@ class TestNetwork:
 
 	def test_setCallbacksDependencies_1(self):
 		I, H, O = 100, 50, 30
-		model = maybeCuda(Model(I, H, O))
+		model = Model(I, H, O).to(device)
 		try:
 			callbacks = [SaveModels("best", "Loss", name="SaveModelsBest"), \
 				SaveModels("last", name="SaveModelsLast"), SaveHistory("history.txt")]
@@ -201,7 +201,7 @@ class TestNetwork:
 
 	def test_setCallbacksDependencies_2(self):
 		I, H, O = 100, 50, 30
-		model = maybeCuda(Model(I, H, O))
+		model = Model(I, H, O).to(device)
 		try:
 			callbacks = [SaveModels("best", "Loss", name="SaveModelsBest"), \
 				SaveModels("last", name="SaveModelsLast"), SaveHistory("history.txt")]
@@ -223,7 +223,7 @@ class TestNetwork:
 
 	def test_setCallbacksDependencies_3(self):
 		I, H, O = 100, 50, 30
-		model = maybeCuda(Model(I, H, O))
+		model = Model(I, H, O).to(device)
 		try:
 			callbacks = [SaveModels("best", "Loss", name="SaveModelsBest"), \
 				SaveModels("last", name="SaveModelsLast"), SaveHistory("history.txt")]
@@ -257,8 +257,8 @@ class TestNetwork:
 
 	def test_setCallbacksDependencies_4(self):
 		I, H, O = 100, 50, 30
-		model = maybeCuda(Model(I, H, O))
-		model_new = maybeCuda(Model(I, H, O))
+		model = Model(I, H, O).to(device)
+		model_new = Model(I, H, O).to(device)
 		try:
 			callbacks = [SaveModels("best", "Loss", name="SaveModelsBest"), \
 				SaveModels("last", name="SaveModelsLast"), SaveHistory("history.txt")]

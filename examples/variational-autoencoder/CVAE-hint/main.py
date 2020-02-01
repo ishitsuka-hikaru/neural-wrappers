@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 from neural_wrappers.readers import MNISTReader
-from neural_wrappers.pytorch import NeuralNetworkPyTorch, maybeCuda, maybeCpu
+from neural_wrappers.pytorch import NeuralNetworkPyTorch, device
 from neural_wrappers.callbacks import SaveModels
 from neural_wrappers.utilities import toCategorical
 import matplotlib.pyplot as plt
@@ -79,7 +79,7 @@ class VAE(NeuralNetworkPyTorch):
 		batchSize = x.shape[0]
 		y_mean, y_std = self.encoder(x, t)
 		# "Reparametrization trick": Sample from N(0, I) and multiply by our distribution's mean/std.
-		z_samples = maybeCuda(tr.randn(batchSize, self.numEncodings))
+		z_samples = tr.randn(batchSize, self.numEncodings).to(device)
 		z_samples *= y_std
 		z_samples += y_mean
 		y_decoder = self.decoder(z_samples, t)
@@ -116,7 +116,7 @@ def main():
 	generator = reader.iterate("train", miniBatchSize=miniBatchSize)
 	numIterations = reader.getNumIterations("train", miniBatchSize=miniBatchSize)
 	print("Batch size: %d. Num iterations: %d" % (miniBatchSize, numIterations))
-	network = maybeCuda(VAE(numEncodings=300))
+	network = VAE(numEncodings=300).to(device)
 	network.setCriterion(lossFunction)
 	network.setOptimizer(optim.SGD, lr=0.000001, momentum=0.3)
 	metrics = { "Latent Loss" : lossLatent, "Decoder Loss" : lossDecoder }
@@ -136,12 +136,11 @@ def main():
 	elif sys.argv[1] == "test":
 		network.loadModel(sys.argv[3])
 		while True:
-			z_samples = maybeCuda(tr.randn(1, network.numEncodings))
+			z_samples = tr.randn(1, network.numEncodings).to(device)
 			desiredClass = np.random.randint(0, 10, size=(1, 1))
 			print(desiredClass)
-			t = maybeCuda(tr.from_numpy(np.float32(toCategorical(desiredClass, 10))))
-			y_result = network.decoder.forward(z_samples, t)
-			result = maybeCpu(y_result.data).numpy().reshape((28, 28))
+			t = np.float32(toCategorical(desiredClass, 10))
+			result = network.decoder.npForward(z_samples, t).reshpae((28, 28))
 			result_binary = np.uint8(result > 0.5)
 			plot_images([result, result_binary], ["Sampled image", "Binary"])
 

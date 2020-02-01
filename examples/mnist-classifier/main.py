@@ -7,11 +7,11 @@ import torch.nn.functional as F
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from models import ModelFC, ModelConv
 from neural_wrappers.readers import MNISTReader
-from neural_wrappers.pytorch import maybeCuda
 from neural_wrappers.callbacks import SaveModels, SaveHistory, ConfusionMatrix, PlotMetrics, EarlyStopping
 from neural_wrappers.schedulers import ReduceLROnPlateau
 from neural_wrappers.utilities import getGenerators
 from neural_wrappers.metrics import Accuracy, F1Score
+from neural_wrappers.pytorch import device
 
 from argparse import ArgumentParser
 
@@ -49,9 +49,9 @@ def main():
 		miniBatchSize=args.batch_size, keys=["train", "test"])
 
 	if args.model_type == "model_fc":
-		model = maybeCuda(ModelFC(inputShape=(28, 28, 1), outputNumClasses=10))
+		model = ModelFC(inputShape=(28, 28, 1), outputNumClasses=10).to(device)
 	elif args.model_type == "model_conv":
-		model = maybeCuda(ModelConv(inputShape=(28, 28, 1), outputNumClasses=10))
+		model = ModelConv(inputShape=(28, 28, 1), outputNumClasses=10).to(device)
 	model.setCriterion(lossFn)
 	model.addMetrics({"Accuracy" : Accuracy(), "F1" : F1Score()})
 	model.setOptimizer(optim.SGD, momentum=0.5, lr=0.1)
