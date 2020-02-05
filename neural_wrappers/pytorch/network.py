@@ -46,7 +46,15 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.hyperParameters = hyperParameters
 		super(NeuralNetworkPyTorch, self).__init__()
 
-	##### Metrics and callbacks #####
+	##### Metrics, callbacks and hyperparameters #####
+
+	# @brief Adds hyperparameters to the dictionary. Only works if the model has not been trained yet (so we don't)
+	#  update the hyperparameters post-training as it would invalidate the whole principle.
+	def addHyperParameters(self, hyperParameters):
+		assert self.currentEpoch == 1, "Can only add hyperparameters before training"
+		for key in hyperParameters:
+			assert not key in self.hyperParameters
+			self.hyperParameters[key] = hyperParameters[key]
 
 	# Sets the user provided list of metrics as callbacks and adds them to the callbacks list.
 	def addMetrics(self, metrics):
