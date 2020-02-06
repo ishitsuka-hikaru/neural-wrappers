@@ -1,7 +1,7 @@
 import torch.nn as nn
 from functools import partial
 from .node import MapNode, VectorNode
-from ..pytorch import NeuralNetworkPyTorch, trModuleWrapper
+from ..pytorch import NeuralNetworkPyTorch, trModuleWrapper, getTrData
 from ..pytorch.network_serializer import NetworkSerializer
 from .utils import forwardUseAll
 
@@ -42,7 +42,9 @@ class Edge(NeuralNetworkPyTorch):
 		# Model stuff
 		self.edgeID = str(self)
 		self.model = None
-		self.setupModel(forwardFn, lossFn)
+		self.forwardFn = forwardFn
+		self.lossFn = lossFn
+		self.setupModel()
 
 		self.inputs = []
 		self.outputs = []
@@ -50,8 +52,20 @@ class Edge(NeuralNetworkPyTorch):
 		self.dependencies = dependencies
 		self.setBlockGradients(blockGradients)
 
+	def getInputs(self, allLabels):
+		inputs = self.inputNode.getMessages()
+		if not self.inputNode.groundTruth is None:
+			inputs["GT"] = self.inputNode.getGroundTruth().unsqueeze(dim=0)
+		if self.blockGradients:
+			inputs = {k : inputs[k].detach() for k in inputs}
+		return inputs
+
 	def forward(self, x):
-		return self.forwardFn(self, x)
+		self.inputs = self.getInputs(x)
+		res = self.forwardFn(self, self.inputs)
+		self.outputs = res
+		self.outputNode.addMessage(self, res)
+		return self.outputs
 
 	def loss(self, y, t):
 		return self.lossFn(self, y, t)
@@ -92,7 +106,7 @@ class Edge(NeuralNetworkPyTorch):
 	# Default model for this edge is just a sequential mapping between the A's encoder and B's decoder.
 	#  Other edges may requires additional edge-specific parameters or some more complicated views to convert the
 	#   output of A's encoder to the input of B's decoder.
-	def setupModel(self, forwardFn, lossFn):
+	def setupModel(self):
 		assert self.model is None
 		self.model = trModuleWrapper(nn.Sequential(self.getEncoder(), self.getDecoder()))
 		metrics = self.outputNode.getMetrics()
@@ -107,12 +121,10 @@ class Edge(NeuralNetworkPyTorch):
 			newMetrics[newName] = metrics[key]
 
 		# Set the forward/loss functions for this edge as well.
-		if not forwardFn:
-			forwardFn = forwardUseAll
-		if not lossFn:
-			lossFn = defaultLossFn
-		self.forwardFn = forwardFn
-		self.lossFn = lossFn
+		if not self.forwardFn:
+			self.forwardFn = forwardUseAll
+		if not self.lossFn:
+			self.lossFn = defaultLossFn
 		self.addMetrics(newMetrics)
 		self.setCriterion(criterion)
 

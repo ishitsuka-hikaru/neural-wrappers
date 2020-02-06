@@ -1,3 +1,5 @@
+from ..pytorch import getTrData
+
 class Node:
 	# A dictionary that gives a unique tag to all nodes by appending an increasing number to name.
 	lastNodeID = 0
@@ -9,7 +11,7 @@ class Node:
 
 		# Set up hyperparameters for this node (used for saving/loading identical node)
 		self.hyperParameters = self.getHyperParameters(hyperParameters)
-		self.groundTruth = self.setGroundTruth(None)
+		self.setGroundTruth(None)
 		# Messages are the items received at this node via all its incoming edges.
 		self.messages = {}
 
@@ -26,27 +28,14 @@ class Node:
 	def getMetrics(self):
 		raise Exception("Must be implemented by each node!")
 
-	# This node's inputs based on whatever GT data we receive (inputs dict + self.groundTruthKey) as well as whatever
-	#  intermediate messages we recieved. This is programmable for every node. By default, we return all GTs and all
-	#  received messages as possible inputs to the node's forward function
-	def getInputs(self, blockGradients=False):
-		items, edgeKeys = [], []
-		# Add GT first, if it exist
-		if not self.groundTruth is None:
-			items.append(self.groundTruth)
-			edgeKeys.append("GT")
+	def getCriterion(self):
+		raise Exception("Must be implemented by each node!")
 
-		# All the messages are received from incoming edges to this node.
-		for key in self.messages.keys():
-			edgeMessages = self.messages[key]
-			items.extend(edgeMessages)
-			edgeKeys.extend([key] * len(edgeMessages))
+	def getMessages(self):
+		return {k : getTrData(self.messages[k]) for k in self.messages}
 
-		# If the edge that required this inputs wishes to prune the history of the inputs, detach them.
-		# For debugging: Add a print here before and after detach for all items' grad_fn and requires_grad
-		if blockGradients:
-			items = [x.detach() for x in items]
-		return items, edgeKeys
+	def addMessage(self, edgeID, message):
+		self.messages[edgeID] = message
 
 	def setGroundTruth(self, groundTruth):
 		# Ground truth is always detached from the graph, so we don't optimize both sides of the graph, if the GT of
@@ -63,6 +52,7 @@ class Node:
 	def clearNodeOutputs(self):
 		self.outputs = {}
 
+	@staticmethod
 	def getUniqueName(name):
 		name = "%s (ID: %d)" % (name, Node.lastNodeID)
 		Node.lastNodeID += 1
