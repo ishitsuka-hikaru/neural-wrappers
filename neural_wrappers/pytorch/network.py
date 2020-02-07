@@ -401,7 +401,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		summaryStr = "[Model summary]\n"
 		summaryStr += self.__str__() + "\n"
 
-		numParams, numTrainable = getNumParams(self.parameters())
+		numParams, numTrainable = getNumParams(self)
 		summaryStr += "Parameters count: %d. Trainable parameters: %d.\n" % (numParams, numTrainable)
 
 		summaryStr += "Hyperparameters:\n"

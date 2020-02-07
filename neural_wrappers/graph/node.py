@@ -49,6 +49,14 @@ class Node:
 	def getGroundTruth(self):
 		return self.groundTruth
 
+	def getGroundTruthInput(self, inputs):
+		assert not self.groundTruthKey is None
+		if type(self.groundTruthKey) is str:
+			return inputs[self.groundTruthKey]
+		elif type(self.groundTruthKey) in (list, tuple):
+			return [inputs[key] for key in self.groundTruthKey]
+		assert False
+
 	def clearNodeOutputs(self):
 		self.outputs = {}
 
