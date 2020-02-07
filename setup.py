@@ -1,3 +1,6 @@
+#!/usr/bin/python3
+# -*- coding: utf8 -*-
+
 from distutils.core import setup
 setup(
   name = 'neural_wrappers',         # How you named your package folder (MyLib)

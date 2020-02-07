@@ -38,3 +38,32 @@ def forwardUseIntermediateResult(self, x):
 			y = self.model.forward(message)
 			outputs.append(y)
 	return tr.stack(outputs)
+
+# @brief Transforms the GT of a node into a running mean of computed GT under "computed", as well as storing
+#  original one in "GT".
+def updateRunningMeanNodeGT(node, result):
+	GT = node.getGroundTruth()
+	if not type(GT) is dict:
+		GT = {"GT" : GT}
+		GT["computed"] = result
+		node.setGroundTruth(GT)
+		node.count = 1
+	else:
+		# Running mean with GT
+		GT["computed"] = (GT["computed"] * node.count + result) / (node.count + 1)
+		node.setGroundTruth(GT)
+		node.count += 1
+
+def forwardStoreAverageGTNoGTInput(self, x):
+	# Single link only to output node
+	res = forwardUseIntermediateResult(self, x)
+	for i in range(len(res)):
+		updateRunningMeanNodeGT(self.outputNode, res[i])
+	return res
+
+def forwardStoreAverageGTUsingGTInput(self, x):
+	# Single link only to output node.
+	res = forwardUseGT(self, x)
+	for i in range(len(res)):
+		updateRunningMeanNodeGT(self.outputNode, res[i])
+	return res
