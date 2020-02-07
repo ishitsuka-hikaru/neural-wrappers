@@ -68,8 +68,8 @@ class TestGraph:
 		edges = [(A, C), (B, C), (C, E), (D, E)]
 		graph = Graph([Edge(nodes[a], nodes[b]) for (a, b) in edges])
 		data = {nodes[a].groundTruthKey : tr.randn(MB, dataStuff[a]) for a in dataStuff}
-
 		graph.iterationEpilogue(False, False, data)
+
 		expectedOutputsShapes = {
 			(A, C) : (1, 13, 10),
 			(B, C) : (1, 13, 10),
@@ -77,7 +77,8 @@ class TestGraph:
 			(D, E) : (1, 13, 3)
 		}
 		for edge in graph.edges:
-			res = edge.forward(data)
+			edgeInputs = edge.getInputs(data)
+			res = edge.forward(edgeInputs)
 			Key = (type(edge.inputNode), type(edge.outputNode))
 			assert res.shape == expectedOutputsShapes[Key]
 		

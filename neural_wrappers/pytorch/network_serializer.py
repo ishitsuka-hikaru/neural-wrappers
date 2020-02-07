@@ -202,14 +202,6 @@ class NetworkSerializer:
 		self.model.setOptimizer(optimizerDict["type"], **optimizerDict["kwargs"])
 		self.model.optimizer.load_state_dict(optimizerDict["state"])
 		self.model.optimizer.storedArgs = optimizerDict["kwargs"]
-
-		# Optimizer consistency checks
-		# Not sure if/how we can use this (not always ordered)
-		# l1 = list(model.optimizer.state_dict()["state"].keys())
-		trainableParams = getTrainableParameters(self.model)
-		l2 = self.model.optimizer.state_dict()["param_groups"][0]["params"]
-		l3 = list(map(lambda x : id(x), trainableParams))
-		assert l2 == l3, "Something was wrong with loading optimizer"
 		print("Succesfully loaded optimizer: %s" % (getOptimizerStr(self.model.optimizer)))
 
 		if "scheduler_state" in optimizerDict:
