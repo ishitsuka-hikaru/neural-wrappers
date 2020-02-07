@@ -28,16 +28,28 @@ class StorePrevState:
 		self.prevState()
 
 def getTrainableParameters(model):
-	return list(filter(lambda p : p.requires_grad, model.parameters()))
+	trainableParameters = {}
+	# Some PyTorch "weird" stuff. Basically this is a hack specifically for BatchNorm (Dropout not supported yet...).
+	# BatchNorm parameters are not stored in named_parameters(), just in state_dict(), however in state_dict() we can't
+	#  know if it's trainable or not. So, in order to keep all trainable parameters, we need to check if it's either
+	#  a BN (we'll also store non-trainable BN, but that's okay) or if it's trainable (in named_params).
+	namedParams = dict(model.named_parameters())
+	nonParametersNames = ["running_mean", "running_var", "num_batches_tracked"]
+	for name in model.state_dict():
+		if name.split(".")[-1] in nonParametersNames \
+			or ((name in namedParams) and (namedParams[name].requires_grad)):
+			trainableParameters[name] = model.state_dict()[name]
+	return trainableParameters
 
-def getNumParams(params):
-	numParams, numTrainable = 0, 0
-	for param in params:
-		npParamCount = np.prod(param.data.shape)
-		numParams += npParamCount
-		if param.requires_grad:
-			numTrainable += npParamCount
-	return numParams, numTrainable
+def _computeNumParams(namedParams):
+	numParams = 0
+	for name in namedParams:
+		param = namedParams[name]
+		numParams += np.prod(param.shape)
+	return numParams
+
+def getNumParams(model):
+	return _computeNumParams(model.state_dict()), _computeNumParams(getTrainableParameters(model))
 
 def getOptimizerStr(optimizer):
 	if optimizer is None:

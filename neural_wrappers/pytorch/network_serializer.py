@@ -4,7 +4,7 @@ import numpy as np
 from copy import deepcopy
 from collections import OrderedDict
 
-from .utils import getNumParams, getOptimizerStr, getTrainableParameters, device
+from .utils import getNumParams, getOptimizerStr, getTrainableParameters, _computeNumParams, device
 from ..utilities import isBaseOf, deepCheckEqual, isPicklable
 from ..callbacks import MetricAsCallback
 
@@ -48,8 +48,9 @@ class NetworkSerializer:
 	# @return A list of all the parameters (converted to CPU) so they are pickle-able
 	def doSaveWeights(self):
 		trainableParams = getTrainableParameters(self.model)
-		cpuTrainableParams = list(map(lambda x : x.cpu(), trainableParams))
-		return cpuTrainableParams
+		# cpuTrainableParams = {k : trainableParams[k].cpu() for k in trainableParams}
+		parametersState = {x : self.model.state_dict()[x] for x in trainableParams.keys()}
+		return parametersState
 
 	# @brief Handles saving the optimizer of the model
 	def doSaveOptimizer(self):
@@ -152,23 +153,45 @@ class NetworkSerializer:
 				assert False, "Got unknown key %s" % (key)
 		print("Finished loading model")
 
+	def doLoadWeightsOld(self, loadedState):
+		assert "weights" in loadedState
+		loadedParams = loadedState["weights"]
+		# trainableParams = getTrainableParameters(self.model)
+		trainableParams = dict(filter(lambda x : x[1].requires_grad, self.model.named_parameters()))
+		numTrainableParams = _computeNumParams(trainableParams)
+		numLoadedParams = _computeNumParams({i : x for i, x in zip(range(len(loadedParams)), loadedParams)})
+
+		assert numLoadedParams == numTrainableParams, "Inconsistent parameters: Loaded: %d vs Model (trainable): %d." \
+			% (numLoadedParams, numTrainableParams)
+		for i, name in enumerate(trainableParams.keys()):
+			thisItem = trainableParams[name]
+			loadedItem = loadedParams[i]
+			if thisItem.shape != loadedItem.shape:
+				raise Exception("Inconsistent parameters: %d vs %d." % (thisItem.shape, loadedItem.shape))
+			with tr.no_grad():
+				thisItem[:] = loadedItem[:].to(device)
+			thisItem.requires_grad_(True)
+		print("Succesfully loaded weights (%d parameters) " % (numLoadedParams))
+
 	# Handles loading weights from a model.
 	def doLoadWeights(self, loadedState):
 		assert "weights" in loadedState
-		params = loadedState["weights"]
-		loadedParams, _ = getNumParams(params)
-		trainableParams = getTrainableParameters(self.model)
-		thisParams, _ = getNumParams(trainableParams)
-		if loadedParams != thisParams:
-			raise Exception("Inconsistent parameters: %d vs %d." % (loadedParams, thisParams))
+		loadedParams = loadedState["weights"]
+		if type(loadedParams) == list:
+			print("Warning! Model was stored with older version (list instead of named parameters dict). " + \
+				"Will attempt to load weights, however having BatchNorm/Dropout will result in .eval() not " + \
+				"working as well as other possible bugs.")
+			self.doLoadWeightsOld(loadedState)
+			return
 
-		for i, item in enumerate(trainableParams):
-			if item.shape != params[i].shape:
-				raise Exception("Inconsistent parameters: %d vs %d." % (item.shape, params[i].shape))
-			with tr.no_grad():
-				item[:] = params[i][:].to(device)
-			item.requires_grad_(True)
-		print("Succesfully loaded weights (%d parameters) " % (loadedParams))
+		trainableParams = getTrainableParameters(self.model)
+		numTrainableParams = _computeNumParams(trainableParams)
+		numLoadedParams = _computeNumParams(loadedParams)
+		assert numLoadedParams == numTrainableParams, "Inconsistent parameters: Loaded: %d vs Model (trainable): %d." \
+			% (numLoadedParams, numTrainableParams)
+
+		self.model.load_state_dict(loadedParams, strict=False)
+		print("Succesfully loaded weights (%d parameters) " % (numLoadedParams))
 
 	def doLoadOptimizer(self, loadedState):
 		assert "optimizer" in loadedState
@@ -182,14 +205,6 @@ class NetworkSerializer:
 		self.model.setOptimizer(optimizerDict["type"], **optimizerDict["kwargs"])
 		self.model.optimizer.load_state_dict(optimizerDict["state"])
 		self.model.optimizer.storedArgs = optimizerDict["kwargs"]
-
-		# Optimizer consistency checks
-		# Not sure if/how we can use this (not always ordered)
-		# l1 = list(model.optimizer.state_dict()["state"].keys())
-		trainableParams = getTrainableParameters(self.model)
-		l2 = self.model.optimizer.state_dict()["param_groups"][0]["params"]
-		l3 = list(map(lambda x : id(x), trainableParams))
-		assert l2 == l3, "Something was wrong with loading optimizer"
 		print("Succesfully loaded optimizer: %s" % (getOptimizerStr(self.model.optimizer)))
 
 		if "scheduler_state" in optimizerDict:

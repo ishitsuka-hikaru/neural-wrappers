@@ -52,17 +52,17 @@ class Edge(NeuralNetworkPyTorch):
 		self.dependencies = dependencies
 		self.setBlockGradients(blockGradients)
 
-	def getInputs(self, allLabels):
+	def getInputs(self, x):
 		inputs = self.inputNode.getMessages()
 		if not self.inputNode.groundTruth is None:
-			inputs["GT"] = self.inputNode.getGroundTruth().unsqueeze(dim=0)
+			inputs["GT"] = self.inputNode.getGroundTruthInput(x).unsqueeze(0)
 		if self.blockGradients:
 			inputs = {k : inputs[k].detach() for k in inputs}
 		return inputs
 
 	def forward(self, x):
-		self.inputs = self.getInputs(x)
-		res = self.forwardFn(self, self.inputs)
+		self.inputs = x
+		res = self.forwardFn(self, x)
 		self.outputs = res
 		self.outputNode.addMessage(self, res)
 		return self.outputs
