@@ -20,6 +20,38 @@ class Model(NeuralNetworkPyTorch):
 		y3 = self.fc3(y2)
 		return y3
 
+class ModelConvWithBatchNormalization(NeuralNetworkPyTorch):
+	def __init__(self, bn=True, dIn=3, numFilters=16):
+		super().__init__()
+		self.dIn = dIn
+		self.numFilters = numFilters
+
+		self.conv1 = ModelConvWithBatchNormalization.conv(dIn=dIn, dOut=numFilters, bn=bn)
+		self.conv2 = ModelConvWithBatchNormalization.conv(dIn=numFilters, dOut=numFilters, bn=bn)
+		self.conv3 = ModelConvWithBatchNormalization.conv(dIn=numFilters, dOut=dIn, bn=bn)
+
+	def forward(self, x):
+		y_1 = self.conv1(x)
+		y_2 = self.conv2(y_1)
+		y_3 = self.conv3(y_2)
+		return y_3
+
+	@staticmethod
+	def conv(dIn, dOut, bn=True, kernel_size=3, padding=1, stride=1, dilation=1):
+		if bn:
+			return nn.Sequential(
+				nn.Conv2d(in_channels=dIn, out_channels=dOut, kernel_size=kernel_size, padding=padding, \
+					stride=stride, dilation=dilation),
+				nn.BatchNorm2d(num_features=dOut),
+				nn.ReLU(inplace=True)
+			)
+		else:
+			return nn.Sequential(
+				nn.Conv2d(in_channels=dIn, out_channels=dOut, kernel_size=kernel_size, padding=padding, \
+					stride=stride, dilation=dilation),
+				nn.ReLU(inplace=True)
+			)
+
 class MyTestCallback(Callback):
 	def __init__(self, **kwargs):
 		super().__init__(**kwargs)
@@ -129,6 +161,70 @@ class TestNetwork:
 		assert len(beforeKeys) == len(afterKeys)
 		for i in range(len(beforeKeys)):
 			assert beforeKeys[i] == afterKeys[i]
+
+	# Model with conv
+	def test_save_model_4(self):
+		N = 30
+		inputs = np.float32(np.random.randn(N, 3, 20, 20))
+		targets = np.float32(np.random.randn(N, 3, 20, 20))
+
+		model = ModelConvWithBatchNormalization(bn=False).to(device)
+		model.setOptimizer(SGD, lr=0.005)
+		model.setCriterion(lambda y, t : tr.sum((y - t)**2))
+		model.setOptimizerScheduler(ReduceLROnPlateau, metric="Loss")
+
+		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=10, printMessage=None)
+		model.saveModel("test_model.pkl")
+		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=20, printMessage=None)
+		assert model.optimizerScheduler.optimizer == model.optimizer
+
+		model_new = ModelConvWithBatchNormalization(bn=False).to(device)
+		model_new.setCriterion(lambda y, t : tr.sum((y - t)**2))
+		model_new.loadModel("test_model.pkl")
+		assert model_new.optimizerScheduler.optimizer == model_new.optimizer
+		model_new.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=20, printMessage=None)
+		assert model.optimizerScheduler.num_bad_epochs == model_new.optimizerScheduler.num_bad_epochs
+
+		weights_model = list(model.parameters())
+		weights_model_new = list(model_new.parameters())
+		assert len(weights_model) == len(weights_model_new)
+		for j in range(len(weights_model)):
+			weight = weights_model[j]
+			weight_new = weights_model_new[j]
+			diff = tr.sum(tr.abs(weight - weight_new)).detach().to("cpu").numpy()
+			assert diff < 1e-5, "%d: Diff: %2.5f.\n %s %s" % (j, diff, weight, weight_new)
+
+	# Model with conv and BN
+	def test_save_model_5(self):
+		N = 30
+		inputs = np.float32(np.random.randn(N, 3, 20, 20))
+		targets = np.float32(np.random.randn(N, 3, 20, 20))
+
+		model = ModelConvWithBatchNormalization(bn=True).to(device)
+		model.setOptimizer(SGD, lr=0.005)
+		model.setCriterion(lambda y, t : tr.sum((y - t)**2))
+		model.setOptimizerScheduler(ReduceLROnPlateau, metric="Loss")
+
+		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=10, printMessage=None)
+		model.saveModel("test_model.pkl")
+		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=20, printMessage=None)
+		assert model.optimizerScheduler.optimizer == model.optimizer
+
+		model_new = ModelConvWithBatchNormalization(bn=True).to(device)
+		model_new.setCriterion(lambda y, t : tr.sum((y - t)**2))
+		model_new.loadModel("test_model.pkl")
+		assert model_new.optimizerScheduler.optimizer == model_new.optimizer
+		model_new.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=20, printMessage=None)
+		assert model.optimizerScheduler.num_bad_epochs == model_new.optimizerScheduler.num_bad_epochs
+
+		weights_model = list(model.parameters())
+		weights_model_new = list(model_new.parameters())
+		assert len(weights_model) == len(weights_model_new)
+		for j in range(len(weights_model)):
+			weight = weights_model[j]
+			weight_new = weights_model_new[j]
+			diff = tr.sum(tr.abs(weight - weight_new)).detach().to("cpu").numpy()
+			assert diff < 1e-5, "%d: Diff: %2.5f.\n %s %s" % (j, diff, weight, weight_new)
 
 	# Adding metrics normally should be fine.
 	def test_add_merics_1(self):
@@ -284,11 +380,13 @@ class TestNetwork:
 			assert model.topologicalKeys[i] == model_new.topologicalKeys[i]
 
 if __name__ == "__main__":
-    pass
+	pass
 	# TestNetwork().test_save_weights_1()
 	# TestNetwork().test_save_model_1()
 	# TestNetwork().test_save_model_2()
 	# TestNetwork().test_save_model_3()
+	# TestNetwork().test_save_model_4()
+	# TestNetwork().test_save_model_5()
 	# TestNetwork().test_add_merics_1()
 	# TestNetwork().test_add_merics_2()
 	# TestNetwork().test_add_merics_3()
