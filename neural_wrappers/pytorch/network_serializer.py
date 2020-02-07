@@ -156,18 +156,21 @@ class NetworkSerializer:
 	def doLoadWeightsOld(self, loadedState):
 		assert "weights" in loadedState
 		loadedParams = loadedState["weights"]
-		trainableParams = getTrainableParameters(self.model)
+		# trainableParams = getTrainableParameters(self.model)
+		trainableParams = dict(filter(lambda x : x[1].requires_grad, self.model.named_parameters()))
 		numTrainableParams = _computeNumParams(trainableParams)
 		numLoadedParams = _computeNumParams({i : x for i, x in zip(range(len(loadedParams)), loadedParams)})
 
 		assert numLoadedParams == numTrainableParams, "Inconsistent parameters: Loaded: %d vs Model (trainable): %d." \
 			% (numLoadedParams, numTrainableParams)
-		for i, item in enumerate(trainableParams):
-			if item.shape != trainableParams[i].shape:
-				raise Exception("Inconsistent parameters: %d vs %d." % (item.shape, trainableParams[i].shape))
+		for i, name in enumerate(trainableParams.keys()):
+			thisItem = trainableParams[name]
+			loadedItem = loadedParams[i]
+			if thisItem.shape != loadedItem.shape:
+				raise Exception("Inconsistent parameters: %d vs %d." % (thisItem.shape, loadedItem.shape))
 			with tr.no_grad():
-				item[:] = trainableParams[i][:].to(device)
-			item.requires_grad_(True)
+				thisItem[:] = loadedItem[:].to(device)
+			thisItem.requires_grad_(True)
 		print("Succesfully loaded weights (%d parameters) " % (numLoadedParams))
 
 	# Handles loading weights from a model.
