@@ -232,7 +232,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.linePrinter = MessagePrinter(printMessage)
 		self.callbacksOnEpochStart(isTraining=False)
 		with StorePrevState(self):
-			# self.eval()
+			self.eval()
 			with tr.no_grad():
 				resultMetrics = self.run_one_epoch(generator, stepsPerEpoch, isTraining=False, isOptimizing=False)
 		self.callbacksOnEpochEnd(isTraining=False)
@@ -309,14 +309,14 @@ class NeuralNetworkPyTorch(nn.Module):
 			#  done on validation set). If no validation set is used, the iteration callbacks are used on train set.
 			# trainCallbacks = [] if validationGenerator != None else callbacks
 			with StorePrevState(self):
-				# self.train()
+				self.train()
 				epochMetrics["Train"] = self.run_one_epoch(generator, stepsPerEpoch, isTraining=True, \
 					isOptimizing=True)
 
 			# Run for validation data and append the results
 			if not validationGenerator is None:
 				with StorePrevState(self):
-					# self.eval()
+					self.eval()
 					with tr.no_grad():
 						validationMetrics = self.run_one_epoch(validationGenerator, validationSteps, \
 							isTraining=True, isOptimizing=False)

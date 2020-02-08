@@ -127,15 +127,15 @@ class NetworkSerializer:
 			Str += "- Diffs:\n"
 			for key in set(list(loaded.keys()) + list(current.keys())):
 				if not key in current:
-					Str += "\t- %s in loaded, not in current\n" % (key)
+					Str += "\t- Key '%s' in loaded model, not in current\n" % (key)
 					continue
 				if not key in loaded:
-					Str += "\t- %s in current, not in loaded\n"% (key)
+					Str += "\t- Key '%s' in current model, not in loaded\n"% (key)
 					continue
 				if(not deepCheckEqual(current[key], loaded[key])):
-					Str += "\t- Key %s is different:\n" % (key)
-					Str += "\t\t- current=%s.\n" % (current[key])
-					Str += "\t\t- loaded=%s.\n" % (loaded[key])
+					Str += "\t- Key '%s' is different:\n" % (str(key))
+					Str += "\t\t- current=%s.\n" % (str(current[key]))
+					Str += "\t\t- loaded=%s.\n" % (str(loaded[key]))
 			raise Exception(Str)
 
 		for key in stateKeys:
