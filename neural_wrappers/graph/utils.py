@@ -54,16 +54,21 @@ def updateRunningMeanNodeGT(node, result):
 		node.setGroundTruth(GT)
 		node.count += 1
 
-def forwardStoreAverageGTNoGTInput(self, x):
+def forwardUseAllStoreAvgGT(self, x):
 	# Single link only to output node
-	res = forwardUseIntermediateResult(self, x)
+	res = forwardUseAll(self, x)
 	for i in range(len(res)):
 		updateRunningMeanNodeGT(self.outputNode, res[i])
 	return res
 
-def forwardStoreAverageGTUsingGTInput(self, x):
-	# Single link only to output node.
+def forwardUseGTStoreAvgGT(self, x):
 	res = forwardUseGT(self, x)
+	for i in range(len(res)):
+		updateRunningMeanNodeGT(self.outputNode, res[i])
+	return res
+
+def forwardUseIntermediateResultStoreAvgGT(self, x):
+	res = forwardUseIntermediateResult(self, x)
 	for i in range(len(res)):
 		updateRunningMeanNodeGT(self.outputNode, res[i])
 	return res
