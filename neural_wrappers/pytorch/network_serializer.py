@@ -190,7 +190,21 @@ class NetworkSerializer:
 		assert numLoadedParams == numTrainableParams, "Inconsistent parameters: Loaded: %d vs Model (trainable): %d." \
 			% (numLoadedParams, numTrainableParams)
 
-		self.model.load_state_dict(loadedParams, strict=False)
+		namedTrainableParams = list(trainableParams.keys())
+		namedLoadedParams = list(loadedParams.keys())
+		# Combines names of trainable params with weights from loaded (should apply to all cases) if the loop down
+		#  works
+		# (Potential bug: RARE CASE WHERE DICT ORDER IS DIFFERENT BUT SAME # OF PARAMS)
+		#  However, same problem could apply to load_state_dict, so it might not be problematic. (to think)
+		newParams = {}
+		for i in range(len(namedTrainableParams)):
+			nameTrainableParam = namedTrainableParams[i]
+			nameLoadedParam = namedLoadedParams[i]
+			trainableParam = trainableParams[nameTrainableParam]
+			loadedParam = loadedParams[nameLoadedParam]
+			assert trainableParam.shape == loadedParam.shape
+			newParams[nameTrainableParam] = loadedParam
+		self.model.load_state_dict(newParams, strict=True)
 		print("Succesfully loaded weights (%d parameters) " % (numLoadedParams))
 
 	def doLoadOptimizer(self, loadedState):
