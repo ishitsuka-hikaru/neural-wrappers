@@ -28,16 +28,30 @@ class StorePrevState:
 		self.prevState()
 
 def getTrainableParameters(model):
+	if not model.training:
+		return {}
+
 	trainableParameters = {}
+	namedParams = dict(model.named_parameters())
 	# Some PyTorch "weird" stuff. Basically this is a hack specifically for BatchNorm (Dropout not supported yet...).
 	# BatchNorm parameters are not stored in named_parameters(), just in state_dict(), however in state_dict() we can't
 	#  know if it's trainable or not. So, in order to keep all trainable parameters, we need to check if it's either
 	#  a BN (we'll also store non-trainable BN, but that's okay) or if it's trainable (in named_params).
-	namedParams = dict(model.named_parameters())
-	nonParametersNames = ["running_mean", "running_var", "num_batches_tracked"]
+	def isBatchNormModuleTrainable(name):
+		nonParametersNames = ["running_mean", "running_var", "num_batches_tracked"]
+		if name.split(".")[-1] in nonParametersNames:
+			# edges.10.model.module.0.conv7.1.running_mean => edges.10.model.module.0.conv7.1.weight is trainable?
+			resName = ".".join(name.split(".")[0 : -1])
+			potentialName = "%s.weight" % (resName)
+			if potentialName in namedParams and namedParams[potentialName].requires_grad:
+				return True
+		return False
+
 	for name in model.state_dict():
-		if name.split(".")[-1] in nonParametersNames \
-			or ((name in namedParams) and (namedParams[name].requires_grad)):
+		if isBatchNormModuleTrainable(name):
+			trainableParameters[name] = model.state_dict()[name]
+
+		if (name in namedParams) and (namedParams[name].requires_grad):
 			trainableParameters[name] = model.state_dict()[name]
 	return trainableParameters
 
