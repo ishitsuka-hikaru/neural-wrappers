@@ -3,7 +3,6 @@ from functools import partial
 from .node import MapNode, VectorNode
 from ..pytorch import NeuralNetworkPyTorch, trModuleWrapper, getTrData
 from ..pytorch.network_serializer import NetworkSerializer
-from .utils import forwardUseAll
 
 # Default loss of this edge goes through all ground truths and all outputs of the output node and computes the
 #  loss between them. This can be updated for a more specific edge algorithm for loss computation.
@@ -122,6 +121,7 @@ class Edge(NeuralNetworkPyTorch):
 
 		# Set the forward/loss functions for this edge as well.
 		if not self.forwardFn:
+			from .utils import forwardUseAll
 			self.forwardFn = forwardUseAll
 		if not self.lossFn:
 			self.lossFn = defaultLossFn

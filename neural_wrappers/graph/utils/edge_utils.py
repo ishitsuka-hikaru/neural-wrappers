@@ -1,5 +1,6 @@
-import torch as tr
 # Various utility functions regarding the concepts graph implementation.
+import torch as tr
+### Forward functions ###
 
 # @brief Use all the possible inputs (GT or precomputed) for forward in edge.
 # @param[in] self The edge object (which can access the model, inputNode, outputNode, edgeID etc.)

@@ -198,7 +198,7 @@ class CarlaH5PathsReader(CarlaH5Reader):
 		path = baseDirectory + os.sep + str(path, "utf8")
 		dph = tryReadImage(path)
 		dphNorm = (dph[..., 0] + dph[..., 1] * 256 + dph[..., 2] * 256 * 256) / (256 * 256 * 256 - 1) * 1000
-		dphNorm = np.float32(dphNorm)
+		dphNorm = np.expand_dims(dphNorm, axis=-1).astype(np.float32)
 		return dphNorm
 
 	@staticmethod
