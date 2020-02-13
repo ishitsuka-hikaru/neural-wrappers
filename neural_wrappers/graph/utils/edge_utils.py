@@ -6,7 +6,7 @@ import torch as tr
 # @param[in] x The input to the input node
 # @return The outputs (which are also stored in self.outputs). This is to preserve PyTorch's interface, while also
 #  storing the intermediate results.
-def forwardUseAll(self, x):
+def forwardUseAll(self, x : tr.Tensor) -> tr.Tensor:
 	outputs = []
 	for key in x:
 		for message in x[key]:
@@ -19,7 +19,7 @@ def forwardUseAll(self, x):
 # @param[in] x The input to the input node
 # @return The outputs (which are also stored in self.outputs). This is to preserve PyTorch's interface, while also
 #  storing the intermediate results.
-def forwardUseGT(self, x):
+def forwardUseGT(self, x : tr.Tensor) -> tr.Tensor:
 	y = self.model.forward(x["GT"][0]).unsqueeze(0)
 	return y
 
@@ -29,7 +29,7 @@ def forwardUseGT(self, x):
 # @param[in] x The input to the input node
 # @return The outputs (which are also stored in self.outputs). This is to preserve PyTorch's interface, while also
 #  storing the intermediate results.
-def forwardUseIntermediateResult(self, x):
+def forwardUseIntermediateResult(self, x : tr.Tensor) -> tr.Tensor:
 	outputs = []
 	for key in x:
 		if key == "GT":

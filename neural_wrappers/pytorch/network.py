@@ -438,6 +438,9 @@ class NeuralNetworkPyTorch(nn.Module):
 			self.optimizer = optimizer
 		else:
 			trainableParams = list(filter(lambda p : p.requires_grad, self.parameters()))
+			if len(trainableParams) == 0:
+				print("[setOptimizer] Warning, number of trainable parameters is 0. Doing nothing.")
+				return
 			self.optimizer = optimizer(trainableParams, **kwargs)
 		self.optimizer.storedArgs = kwargs
 

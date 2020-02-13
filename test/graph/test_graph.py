@@ -66,8 +66,8 @@ class TestGraph:
 		dataStuff = {A : 5, B : 7, C : 10, D : 6, E : 3}
 		nodes = {A : A(), B : B(), C : C(), D : D(), E : E()}
 		edges = [(A, C), (B, C), (C, E), (D, E)]
-		graph = Graph([Edge(nodes[a], nodes[b]) for (a, b) in edges])
-		data = {nodes[a].groundTruthKey : tr.randn(MB, dataStuff[a]) for a in dataStuff}
+		graph = Graph([Edge(nodes[a], nodes[b]) for (a, b) in edges]).to(device)
+		data = {nodes[a].groundTruthKey : tr.randn(MB, dataStuff[a]).to(device) for a in dataStuff}
 		graph.iterationEpilogue(False, False, data)
 
 		expectedOutputsShapes = {
