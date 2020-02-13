@@ -5,17 +5,20 @@ from ..node import Node
 from ...pytorch import trModuleWrapper
 
 ### Some custom edges ###
-class ReduceEdge(Edge):
-	class ReduceNode(Node):
-		def __init__(self, inNode, groundTruthKey):
-			self.inNode = inNode
-			name = "ReduceEdge (Node: %s)" % (inNode.name.split(" ")[0])
-			super().__init__(name=name, groundTruthKey=self.inNode.groundTruthKey)
+class ReduceNode(Edge):
+	def __init__(self, inNode, forwardFn, useGT=True, *args, **kwargs):
+		name = "ReduceNode (%s)" % (inNode.name)
+		outNode = Node(name, inNode.groundTruthKey)
+		self.useGT = useGT
+		super().__init__(inNode, outNode, forwardFn=forwardFn, *args, **kwargs)
 
 	def forward(self, x):
 		# Simply collect all inputs and send it to the default forward function (that will call our callback)
 		res = []
 		for key in x:
+			print(key, self.useGT)
+			if key == "GT" and not self.useGT:
+				continue
 			res.append(x[key])
 		res = tr.cat(res, dim=0)
 		return super().forward(res)
@@ -31,6 +34,16 @@ class ReduceEdge(Edge):
 		if not self.lossFn:
 			self.lossFn = defaultLossFn
 
-	def __init__(self, inNode, forwardFn, *args, **kwargs):
-		benchmarkOutNode = ReduceEdge.ReduceNode(inNode, inNode.groundTruthKey)
-		super().__init__(inNode, benchmarkOutNode, forwardFn=forwardFn, *args, **kwargs)
+class ReduceEdge(ReduceNode):
+	def __init__(self, senderNodes, receiverNode, forwardFn, useGT=True, *args, **kwargs):
+		self.senderNodes = senderNodes
+		super().__init__(receiverNode, forwardFn, useGT, *args, **kwargs)
+
+	def forward(self, x):
+		newX = {}
+		for key in x:
+			if hasattr(key, "inputNode") and key.inputNode in self.senderNodes:
+				newX[key] = x[key]
+			if key == "GT" and self.useGT:
+				newX[key] = x[key]
+		return super().forward(newX)
