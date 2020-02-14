@@ -4,7 +4,7 @@ from ..edge import Edge, defaultLossFn
 from ..node import Node
 from ...pytorch import trModuleWrapper
 
-### Some custom edges ###
+# ReduceNode and ReduceEdge implementations.
 class ReduceNode(Edge):
 	def __init__(self, inNode, forwardFn, useGT=True, *args, **kwargs):
 		name = "ReduceNode (%s)" % (inNode.name)
@@ -16,7 +16,6 @@ class ReduceNode(Edge):
 		# Simply collect all inputs and send it to the default forward function (that will call our callback)
 		res = []
 		for key in x:
-			print(key, self.useGT)
 			if key == "GT" and not self.useGT:
 				continue
 			res.append(x[key])

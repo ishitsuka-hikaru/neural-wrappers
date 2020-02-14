@@ -52,9 +52,7 @@ class Edge(NeuralNetworkPyTorch):
 		self.setBlockGradients(blockGradients)
 
 	def getInputs(self, x):
-		inputs = self.inputNode.getMessages()
-		if not self.inputNode.groundTruth is None:
-			inputs["GT"] = self.inputNode.getGroundTruthInput(x).unsqueeze(0)
+		inputs = self.inputNode.getInputs(x)
 		if self.blockGradients:
 			inputs = {k : inputs[k].detach() for k in inputs}
 		return inputs
@@ -81,7 +79,7 @@ class Edge(NeuralNetworkPyTorch):
 			return A.nodeEncoder
 		else:
 		# If edge-* edge, then instantiate a new encoder for the output node type
-			return A.getEncoder(type(B))
+			return A.getEncoder(B.getType())
 
 	# Creates the encoder for this edge. If the edge is node-node or node-edge, then use the node-spepcific encoder.
 	def getDecoder(self):
@@ -95,7 +93,7 @@ class Edge(NeuralNetworkPyTorch):
 			return B.nodeDecoder
 		else:
 		# If *-node edge, then instantiate a new decoder for the output node type
-			return B.getDecoder(type(A))
+			return B.getDecoder(A.getType())
 
 	def getModel(self):
 		if not self.model:

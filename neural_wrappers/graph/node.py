@@ -19,6 +19,12 @@ class Node:
 		self.nodeEncoder = None
 		self.nodeDecoder = None
 
+	# This function is called for getEncoder/getDecoder. By default we'll return the normal type of this function.
+	#  However, we are free to overwrite what type a node offers to be seen as. A concrete example is a
+	#  ConcatenateNode, which might be more useful to be seen as a MapNode (if it concatenates >=2 MapNodes)
+	def getType(self):
+		return type(self)
+
 	def getEncoder(self, outputNodeType=None):
 		raise Exception("Must be implemented by each node!")
 
@@ -30,6 +36,12 @@ class Node:
 
 	def getCriterion(self):
 		raise Exception("Must be implemented by each node!")
+
+	def getInputs(self, x):
+		inputs = self.getMessages()
+		if not self.groundTruth is None:
+			inputs["GT"] = self.getGroundTruthInput(x).unsqueeze(0)
+		return inputs
 
 	def getMessages(self):
 		return {k : getTrData(self.messages[k]) for k in self.messages}
