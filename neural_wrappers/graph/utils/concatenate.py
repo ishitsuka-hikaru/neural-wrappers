@@ -16,6 +16,15 @@ class ConcatenateNode(Node):
 		self.concatenateFn = concatenateFn
 		super().__init__(name, groundTruthKey=groundTruthKeys, *args, **kwargs)
 
+	def getDecoder(self, inputNodeType=None):
+		raise Exception("Concatenate Node mustn't be used as target node in any edge. ")
+
+	def getMetrics(self):
+		raise Exception("Concatenate Node mustn't be used as target node in any edge. ")
+
+	def getCriterion(self):
+		raise Exception("Concatenate Node mustn't be used as target node in any edge. ")
+
 	@staticmethod
 	def gatherGroundTruthKeys(nodes):
 		groundTruthKeys = [node.groundTruthKey for node in nodes]
