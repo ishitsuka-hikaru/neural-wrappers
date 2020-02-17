@@ -148,18 +148,7 @@ class Graph(NeuralNetworkPyTorch):
 		# If the ground truth key is "*", then all items are provided to the node and it's expected that the node will
 		#  manage the labels accordingly.
 		for node in self.nodes:
-			if node.groundTruthKey is None:
-				labels = None
-			elif node.groundTruthKey == "*":
-				labels = trLabels
-			elif (type(node.groundTruthKey) is str) and (node.groundTruthKey != "*"):
-				labels = trLabels[node.groundTruthKey]
-			elif type(node.groundTruthKey) in (list, tuple):
-				labels = {k : trLabels[k] for k in node.groundTruthKey}
-			else:
-				raise Exception("Key %s required from GT data not in labels %s" % (list(trLabels.keys())))
-			node.setGroundTruth(getTrData(labels))
-			node.messages = {}
+			node.setGroundTruth(trLabels)
 
 	def draw(self, fileName, cleanup=True, view=False):
 		drawGraph(self.nodes, self.edges, fileName, cleanup, view)
