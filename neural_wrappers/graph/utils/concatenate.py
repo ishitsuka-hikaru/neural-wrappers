@@ -14,7 +14,7 @@ class ConcatenateNode(Node):
 		self.nodes = nodes
 		groundTruthKeys = ConcatenateNode.gatherGroundTruthKeys(nodes)
 		self.concatenateFn = concatenateFn
-		super().__init__(name, groundTruthKey=groundTruthKeys)
+		super().__init__(name, groundTruthKey=groundTruthKeys, *args, **kwargs)
 
 	@staticmethod
 	def gatherGroundTruthKeys(nodes):

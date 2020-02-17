@@ -4,7 +4,7 @@ class Node:
 	# A dictionary that gives a unique tag to all nodes by appending an increasing number to name.
 	lastNodeID = 0
 
-	def __init__(self, name, groundTruthKey, hyperParameters={}):
+	def __init__(self, name, groundTruthKey, nodeEncoder=None, nodeDecoder=None, hyperParameters={}):
 		assert not name is "GT", "GT is a reserved keyword"
 		self.name = Node.getUniqueName(name)
 		self.groundTruthKey = groundTruthKey
@@ -16,8 +16,8 @@ class Node:
 		self.messages = {}
 
 		# Node-specific encoder and decoder instances. By default they are not instancicated.
-		self.nodeEncoder = None
-		self.nodeDecoder = None
+		self.nodeEncoder = nodeEncoder
+		self.nodeDecoder = nodeDecoder
 
 	# This function is called for getEncoder/getDecoder. By default we'll return the normal type of this function.
 	#  However, we are free to overwrite what type a node offers to be seen as. A concrete example is a
@@ -26,9 +26,13 @@ class Node:
 		return type(self)
 
 	def getEncoder(self, outputNodeType=None):
+		if not self.nodeEncoder is None:
+			return self.nodeEncoder
 		raise Exception("Must be implemented by each node!")
 
 	def getDecoder(self, inputNodeType=None):
+		if not self.getDecoder is None:
+			return self.nodeDecoder
 		raise Exception("Must be implemented by each node!")
 
 	def getMetrics(self):
