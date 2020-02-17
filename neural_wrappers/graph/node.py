@@ -11,7 +11,7 @@ class Node:
 
 		# Set up hyperparameters for this node (used for saving/loading identical node)
 		self.hyperParameters = self.getHyperParameters(hyperParameters)
-		self.setGroundTruth(None)
+		self.groundTruth = None
 		# Messages are the items received at this node via all its incoming edges.
 		self.messages = {}
 
@@ -53,10 +53,22 @@ class Node:
 	def addMessage(self, edgeID, message):
 		self.messages[edgeID] = message
 
-	def setGroundTruth(self, groundTruth):
+	def setGroundTruth(self, labels):
+		# Combination of two functions. To be refactored :)
+		if self.groundTruthKey is None:
+			labels = None
+		elif self.groundTruthKey == "*":
+			labels = labels
+		elif (type(self.groundTruthKey) is str) and (self.groundTruthKey != "*"):
+			labels = labels[self.groundTruthKey]
+		elif type(node.groundTruthKey) in (list, tuple):
+			labels = {k : labels[k] for k in node.groundTruthKey}
+		else:
+			raise Exception("Key %s required from GT data not in labels %s" % (list(labels.keys())))
+
 		# Ground truth is always detached from the graph, so we don't optimize both sides of the graph, if the GT of
 		#  one particular node was generated from other side.
-		self.groundTruth = groundTruth
+		self.groundTruth = labels
 		if type(self.groundTruth) in (dict, ):
 			self.groundTruth = {k : self.groundTruth[k].detach() for k in self.groundTruth}
 		elif not self.groundTruth is None:
@@ -95,6 +107,8 @@ class Node:
 
 	def __repr__(self):
 		return self.name.split(" ")[0]
+
+
 
 class VectorNode(Node): pass
 class MapNode(Node): pass
