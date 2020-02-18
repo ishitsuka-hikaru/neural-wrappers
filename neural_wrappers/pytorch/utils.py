@@ -92,48 +92,44 @@ def getOptimizerStr(optimizer):
 	return "%s. %s" % (optimizerType, params)
 
 # Results come in torch format, but callbacks require numpy, so convert the results back to numpy format
-def getNpData(results):
-	npResults = None
-	if results is None:
+def getNpData(data):
+	if data is None:
 		return None
-
-	if type(results) in (list, tuple):
-		npResults = []
-		for result in results:
-			npResult = getNpData(result)
-			npResults.append(npResult)
-	elif type(results) in (dict, OrderedDict):
-		npResults = {}
-		for key in results:
-			npResults[key] = getNpData(results[key])
-	elif type(results) == tr.Tensor:
-		 npResults = results.detach().to("cpu").numpy()
-	elif type(results) == np.ndarray:
-		npResults = results
-	else:
-		assert False, "Got type %s" % (type(results))
-	return npResults
+	elif type(data) in (list, tuple):
+		return [getNpData(x) for x in data]
+	elif type(data) in (dict, OrderedDict):
+		return {k : getNpData(data[k]) for k in data}
+	elif type(data) == tr.Tensor:
+		return data.detach().to("cpu").numpy()
+	elif type(data) == np.ndarray:
+		return data
+	assert False, "Got type %s" % (type(data))
 
 # Equivalent of the function above, but using the data from generator (which comes in numpy format)
 def getTrData(data):
-	trData = None
 	if data is None:
 		return None
-
 	elif type(data) in (list, tuple):
-		trData = []
-		for item in data:
-			trItem = getTrData(item)
-			trData.append(trItem)
+		return [getTrData(x) for x in data]
 	elif type(data) in (dict, OrderedDict):
-		trData = {}
-		for key in data:
-			trData[key] = getTrData(data[key])
+		return {k : getTrData(data[k]) for k in data}
 	elif type(data) is np.ndarray:
-		trData = tr.from_numpy(data).to(device)
+		return tr.from_numpy(data).to(device)
 	elif type(data) is tr.Tensor:
-		trData = data.to(device)
-	return trData
+		return data.to(device)
+	assert False, "Got type %s" % (type(data))
+
+# Equivalent of function above but does detach()
+def trDetachData(data):
+	if data is None:
+		return None
+	elif type(data) in (list, tuple):
+		return [trDetachData(x) for x in data]
+	elif type(data) in (dict, OrderedDict):
+		return {k : trDetachData(data[k]) for k in data}
+	elif type(data) is tr.Tensor:
+		return data.detach()
+	assert False, "Got type %s" % (type(data))
 
 def plotModelMetricHistory(metric, trainHistory, plotBestBullet, dpi=120):
 	assert metric in trainHistory[0]["Train"], \

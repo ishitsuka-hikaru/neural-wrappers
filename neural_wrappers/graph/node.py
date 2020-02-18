@@ -1,4 +1,4 @@
-from ..pytorch import getTrData
+from ..pytorch import getTrData, trDetachData
 
 class Node:
 	# A dictionary that gives a unique tag to all nodes by appending an increasing number to name.
@@ -53,26 +53,24 @@ class Node:
 	def addMessage(self, edgeID, message):
 		self.messages[edgeID] = message
 
-	def setGroundTruth(self, labels):
+	def getNodeLabelOnly(self, labels):
 		# Combination of two functions. To be refactored :)
 		if self.groundTruthKey is None:
-			labels = None
+			return None
 		elif self.groundTruthKey == "*":
-			labels = labels
+			return labels
 		elif (type(self.groundTruthKey) is str) and (self.groundTruthKey != "*"):
-			labels = labels[self.groundTruthKey]
-		elif type(node.groundTruthKey) in (list, tuple):
-			labels = {k : labels[k] for k in node.groundTruthKey}
-		else:
-			raise Exception("Key %s required from GT data not in labels %s" % (list(labels.keys())))
+			return labels[self.groundTruthKey]
+		elif type(self.groundTruthKey) in (list, tuple):
+			return {k : self.getNodeLabelOnly(labels[k]) for k in self.groundTruthKey}
+		raise Exception("Key %s required from GT data not in labels %s" % (list(labels.keys())))
 
+	def setGroundTruth(self, labels):
+		labels = self.getNodeLabelOnly(labels)
 		# Ground truth is always detached from the graph, so we don't optimize both sides of the graph, if the GT of
 		#  one particular node was generated from other side.
+		labels = trDetachData(labels)
 		self.groundTruth = labels
-		if type(self.groundTruth) in (dict, ):
-			self.groundTruth = {k : self.groundTruth[k].detach() for k in self.groundTruth}
-		elif not self.groundTruth is None:
-			self.groundTruth = self.groundTruth.detach()
 
 	def getGroundTruth(self):
 		return self.groundTruth
