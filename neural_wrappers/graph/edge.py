@@ -52,6 +52,7 @@ class Edge(NeuralNetworkPyTorch):
 		self.setBlockGradients(blockGradients)
 
 	def getInputs(self, x):
+		# print("[Edge::getInputs]", type(self.inputNode), type(self.inputNode).mro(), self.inputNode.getInputs(x))
 		inputs = self.inputNode.getInputs(x)
 		if self.blockGradients:
 			inputs = {k : inputs[k].detach() for k in inputs}

@@ -81,6 +81,7 @@ def rgbRenorm(x, rgbNormalization):
 	return x.astype(np.int32)
 
 def computeDistances(positions, numNeighbours):
+	return # TODO
 	if numNeighbours == 0:
 		return None
 	N = positions.shape[0]

@@ -39,18 +39,3 @@ def h5ReadDict(data, N=None):
 		assert False, "Unexpected type %s" % (type(data))
 	return res
 
-def h5ReadSmartIndexing(data, indexes):
-	# Flatten the indexes [[1, 3], [15, 13]] => [1, 3, 15, 13]
-	indexes = np.array(indexes, dtype=np.uint32)
-	flattenedIndexes = indexes.flatten()
-	N = len(flattenedIndexes)
-
-	flattenedShape = (N, *data.shape[1 : ])
-	finalShape = (*indexes.shape, *data.shape[1 : ])
-	# Retrieve the items 1 by 1 from the flattened version of the indexes
-	result = np.zeros(flattenedShape, data.dtype)
-	for i in range(N):
-		result[i] = data[flattenedIndexes[i]]
-	# Reshape the data accordingly
-	result = result.reshape(finalShape)
-	return result

@@ -8,12 +8,13 @@ from itertools import product
 
 # ReduceNode and ReduceEdge implementations.
 class ConcatenateNode(Node):
-	def __init__(self, nodes, concatenateFn, name=None, *args, **kwargs):
+	def __init__(self, nodes, concatenateFn, name=None, combineGTWithInputs=True, *args, **kwargs):
 		if not name:
 			name = "ConcatenateNode (%s)" % (", ".join(map(lambda x : x.name, nodes)))
 		self.nodes = nodes
 		groundTruthKeys = ConcatenateNode.gatherGroundTruthKeys(nodes)
 		self.concatenateFn = concatenateFn
+		self.combineGTWithInputs = combineGTWithInputs
 		super().__init__(name, groundTruthKey=groundTruthKeys, *args, **kwargs)
 
 	def getDecoder(self, inputNodeType=None):
@@ -86,10 +87,9 @@ class ConcatenateNode(Node):
 	# We need to build the cartesian product for each In-Edge of all nodes. So, the first input that gets sent to
 	#  the concatenate function is [RGB (from Wireframe) + Depth (GT) + Halftone (from Wireframe)].
 	# All the results are put under the "Concatenation" In-Edge.
-	def getInputs(self, x):
-		inputs = {node : node.getInputs(x) for node in self.nodes}
-		Keys = {node : list(inputs[node].keys()) for node in self.nodes}
-		numKeys = {node : range(len(Keys[node])) for node in self.nodes}
+	def cartesianProductOfInputs(inputs, concatenateFn):
+		Keys = {node : list(inputs[node].keys()) for node in inputs}
+		numKeys = {node : range(len(Keys[node])) for node in inputs}
 		cartesianProduct = product(*numKeys.values())
 		newInputs = []
 		for item in cartesianProduct:
@@ -99,6 +99,20 @@ class ConcatenateNode(Node):
 				Key = Keys[node][item[i]]
 				thisNodeInput = inputs[node][Key]
 				thisInputs[node] = thisNodeInput
-			concatFunctionResult = self.concatenateFn(thisInputs)
+			concatFunctionResult = concatenateFn(thisInputs)
 			newInputs.append(concatFunctionResult)
-		return {self : tr.cat(newInputs, dim=0)}
+		return tr.cat(newInputs, dim=0)
+
+	def getInputs(self, x):
+		inputs = {node : node.getInputs(x) for node in self.nodes}
+		cartesianOfAll = {self : ConcatenateNode.cartesianProductOfInputs(inputs, self.concatenateFn)}
+
+		Keys = {node : list(inputs[node].keys()) for node in inputs}
+		# Check if all nodes have GT and if so, add the GT as well to the list of inputs. This also needs to be done
+		#  via the cartesian product procedure, since, in theory, the GT can also have multiple mesages...
+		allHaveGT = len(list(filter(lambda x : x.index("GT") != -1, Keys.values())))
+		if allHaveGT == len(self.nodes):
+			inputsGT = {k : {"GT" : inputs[k]["GT"]} for k in self.nodes}
+			cartesianOfAll["GT"] = ConcatenateNode.cartesianProductOfInputs(inputsGT, self.concatenateFn)
+
+		return cartesianOfAll
