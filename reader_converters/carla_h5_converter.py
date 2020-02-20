@@ -71,7 +71,9 @@ def getPaths(baseDir):
 		return rgbItem.replace("rgb", "halftone")
 
 	def flowFunc(rgbItem):
-		return rgbItem.replace("rgb", "flow")
+		# X and Y vectors are stored in 2 different files
+		a = [rgbItem.replace("rgb", "flow2"), rgbItem.replace("rgb", "flow3")]
+		return a
 
 	rgbList = sorted(list(filter(lambda x : x.find("rgb_") != -1, os.listdir(baseDir))))
 	N = len(rgbList)
@@ -86,7 +88,7 @@ def getPaths(baseDir):
 		"cameranormal" : np.array(list(map(cameraNormalFunc, rgbList)), "S"),
 		"wireframe" : np.array(list(map(wireframeFunc, rgbList)), "S"),
 		"halftone" : np.array(list(map(halftoneFunc, rgbList)), "S"),
-		"flow" : np.array(list(map(flowFunc, rgbList)), "S"),
+		"optical_flow" : np.array(list(map(flowFunc, rgbList)), "S")
 	}
 
 	# Sort entries by IDs

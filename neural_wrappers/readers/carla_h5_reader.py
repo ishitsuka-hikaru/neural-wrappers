@@ -203,6 +203,14 @@ class CarlaH5PathsReader(CarlaH5Reader):
 		return dphNorm
 
 	@staticmethod
+	def doOpticalFlow(path, baseDirectory):
+		flow_x, flow_y = path
+		flowXNorm = CarlaH5PathsReader.doDepth(flow_x, baseDirectory)
+		flowYNorm = CarlaH5PathsReader.doDepth(flow_y, baseDirectory)
+		flow = np.concatenate([flowXNorm, flowYNorm], axis=-1) / 1000
+		return flow
+
+	@staticmethod
 	def doSemantic(path, baseDirectory):
 		item = CarlaH5PathsReader.doPng(path, baseDirectory)
 		labels = {
@@ -265,3 +273,6 @@ class CarlaH5PathsReader(CarlaH5Reader):
 		self.dimGetter["rgbDomain2"] = lambda dataset, dim, startIndex, endIndex: \
 			np.array([CarlaH5PathsReader.doPng(path, baseDirectory) \
 			for path in dataset["rgbDomain2"][startIndex : endIndex]])
+		self.dimGetter["optical_flow"] = lambda dataset, dim, startIndex, endIndex: \
+			np.array([CarlaH5PathsReader.doOpticalFlow(path, baseDirectory) \
+			for path in dataset["optical_flow"][startIndex : endIndex]])
