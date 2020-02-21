@@ -14,30 +14,43 @@ def getArgs():
 	parser.add_argument("resultFile")
 	parser.add_argument("storeMethod")
 	parser.add_argument("--N", type=int, default=None)
-	parser.add_argument("--test_export", default=0, type=int)
+	parser.add_argument("--export_type", default="regular")
 	parser.add_argument("--splits", default="80,20")
 	parser.add_argument("--split_keys", default="train,validation")
 	parser.add_argument("--statistics_file")
 	parser.add_argument("--max_depth_meters", default=300, type=int)
 
 	args = parser.parse_args()
-	args.test_export = bool(args.test_export)
 	assert args.storeMethod in ("h5", "paths")
-	if args.test_export:
-		print("Test export. Setting --randomize_order=False, --split_keys=test and --splits=1")
+	assert args.export_type in ("regular", "regular_norandom", "test")
+	if args.export_type == "regular":
+		args.randomize_order = True
+		args.split_keys = args.split_keys.split(",")
+		args.splits = list(map(lambda x : float(x) / 100, args.splits.split(",")))
+	elif args.export_type == "regular_norandom":
+		args.randomize_order = False
+		args.split_keys = args.split_keys.split(",")
+		args.splits = list(map(lambda x : float(x) / 100, args.splits.split(",")))
+	elif args.export_type == "test":
 		args.randomize_order = False
 		args.split_keys = ["test"]
 		args.splits = [1]
 		assert not args.statistics_file is None, \
 			"For test export, we need the path to the train set, so we can copy its statistics"
-	else:
-		args.randomize_order = True
-		args.split_keys = args.split_keys.split(",")
-		args.splits = list(map(lambda x : float(x) / 100, args.splits.split(",")))
+	print("Export type: %s. Split keys: %s. Splits: %s. Randomize: %s. Stats file: %s" \
+		% (args.export_type, args.split_keys, args.splits, args.randomize_order, args.statistics_file))
 
 	assert abs(sum(args.splits) - 1) < 1e-5
 	assert len(args.splits) == len(args.split_keys)
 	return args
+
+def checkPaths(baseDir, result):
+	for key in result:
+		if not result[key].dtype.char in {"S", "U"}:
+			continue
+		paths = list(map(lambda x : baseDir + str(x, "utf8"), result[key].flatten()))
+		for path in paths:
+			assert os.path.isfile(path), path
 
 def getPaths(baseDir):
 	def positionFunc(rgbItem):
@@ -100,6 +113,7 @@ def getPaths(baseDir):
 	mask = np.abs(sortedPos - right).sum(axis=-1) > 0.1
 	print("Removed %d duplicate entries" % (len(mask) - mask.sum()))
 	result = {k : result[k][mask] for k in result}
+	checkPaths(baseDir, result)
 	return result
 
 def getTrainValPaths(paths, splits, splitKeys, keepN=None, randomizeOrder=True):
@@ -215,7 +229,7 @@ def doWork(args, file, paths):
 		doWorkPaths(file, paths)
 
 	# This is here so the dataset reader works as intended.
-	if args.test_export:
+	if args.export_type == "test":
 		file["train"] = file["test"]
 		file["validation"] = file["test"]
 	return file

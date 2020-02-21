@@ -87,6 +87,7 @@ class ConcatenateNode(Node):
 	# We need to build the cartesian product for each In-Edge of all nodes. So, the first input that gets sent to
 	#  the concatenate function is [RGB (from Wireframe) + Depth (GT) + Halftone (from Wireframe)].
 	# All the results are put under the "Concatenation" In-Edge.
+	@staticmethod
 	def cartesianProductOfInputs(inputs, concatenateFn):
 		Keys = {node : list(inputs[node].keys()) for node in inputs}
 		numKeys = {node : range(len(Keys[node])) for node in inputs}
