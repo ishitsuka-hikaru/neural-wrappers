@@ -4,7 +4,7 @@ from functools import partial
 from collections import OrderedDict
 
 from ..utilities import standardizeData, minMaxNormalizeData, resize_batch, \
-	identity, makeList
+	identity, makeList, smartIndexWrapper
 
 def minMaxNormalizer(data, dim, obj):
 	min = obj.minimums[dim]
@@ -251,11 +251,15 @@ class DatasetReader:
 
 		return summaryStr
 
-	# def dimGetterSmartIndex(self, data, dim, indexes):
-	# 	f = lambda data, index : self.dimGetter[dim](data, dim, index, index + 1)
-	# 	return smartIndexWrapper(data, indexes, f)
+	def dimGetterSmartIndex(self, data, dim, indexes):
+		f = lambda data, index : self.dimGetter[dim](data, dim, index, index + 1)
+		return smartIndexWrapper(data, indexes, f)
 
-	# def retrieveItemSmartIndex(self, data, dim):
+	def retrieveItemSmartIndex(self, dataset, dim, indexes):
+		item = self.dimGetterSmartIndex(dataset, dim, indexes)
+		item = self.dimTransform[dim](item)
+		item = self.normalizer[dim][1](item, dim=dim)
+		return item
 
 	# Flatten the indexes array, create a resulting array of shape and type according to resizer.
 	# Equivalent of smart-indexing for np.array, but for H5 Dataset

@@ -36,8 +36,6 @@ def poseNorm(positions, poseRepresentation, positionsExtremes, poseNormalization
 		result = np.concatenate([translation, rotation], axis=-1)
 	# [-1 : 1] representation all over the spectre (rotation + 4 quaternion values)
 	elif poseRepresentation == "6dof-quat":
-		# Move rotation from [-1 : 1] to [0 : 2*pi]
-		roll, pitch, yaw = (rotation.T + 1) * np.pi
 		# quat::MBx4 which is already in [-1 : 1]
 		quat = getQuatFromRotation(rotation)
 		result = np.concatenate([translation, quat], axis=-1)

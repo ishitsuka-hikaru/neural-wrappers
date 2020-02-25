@@ -22,23 +22,17 @@ def getArgs():
 
 	args = parser.parse_args()
 	assert args.storeMethod in ("h5", "paths")
-	assert args.export_type in ("regular", "regular_norandom", "test")
-	if args.export_type == "regular":
-		args.randomize_order = True
-		args.split_keys = args.split_keys.split(",")
-		args.splits = list(map(lambda x : float(x) / 100, args.splits.split(",")))
-	elif args.export_type == "regular_norandom":
-		args.randomize_order = False
+	assert args.export_type in ("regular", "regular_random_after_split", "test")
+	if args.export_type in ("regular", "regular_random_after_split"):
 		args.split_keys = args.split_keys.split(",")
 		args.splits = list(map(lambda x : float(x) / 100, args.splits.split(",")))
 	elif args.export_type == "test":
-		args.randomize_order = False
 		args.split_keys = ["test"]
 		args.splits = [1]
 		assert not args.statistics_file is None, \
 			"For test export, we need the path to the train set, so we can copy its statistics"
-	print("Export type: %s. Split keys: %s. Splits: %s. Randomize: %s. Stats file: %s" \
-		% (args.export_type, args.split_keys, args.splits, args.randomize_order, args.statistics_file))
+	print("Export type: %s. Split keys: %s. Splits: %s. Stats file: %s" \
+		% (args.export_type, args.split_keys, args.splits, args.statistics_file))
 
 	assert abs(sum(args.splits) - 1) < 1e-5
 	assert len(args.splits) == len(args.split_keys)
@@ -116,46 +110,63 @@ def getPaths(baseDir):
 	checkPaths(baseDir, result)
 	return result
 
-def getTrainValPaths(paths, splits, splitKeys, keepN=None, randomizeOrder=True):
+def getTrainValPaths(paths, splits, splitKeys, exportType, keepN=None):
+	def getDataIndexes(splits, splitKeys):
+		dataIx, lastIx = {}, 0
+		for i in range(len(splitKeys) - 1):
+			nK = int(splits[i] * N)
+			dataIx[splitKeys[i]] = (lastIx, lastIx + nK)
+			lastIx += nK
+		dataIx[splitKeys[-1]] = (lastIx, N)
+		return dataIx
+
+	# Return a dict of type
+	# 	{
+	# 		"train" : {"rgb" : [a, b), "depth" : [a, b), ...},
+	#		"test" : {"rgb" : [b, c), "depth" : [b, c), ...},
+	#		...
+	# 	}
+	def getSplitPaths(paths, splitKeys, pathKey, dattaIx, keepN):
+		# Now, take the paths for all the keys as defined by indexes above
+		newPaths = {}
+		for k in splitKeys:
+			startIx, endIx = dataIx[k]
+			thisPaths = {pathKey : paths[pathKey][startIx : endIx] for pathKey in pathKeys}
+			newPaths[k] = thisPaths
+
+		if not keepN is None:
+			for k in splitKeys:
+				newPaths[k] = {pathKey : newPaths[k][pathKey][0 : keepN] for pathKey in pathKeys}
+
+		for splitKey in splitKeys:
+			N = dataIx[splitKey][1] - dataIx[splitKey][0]
+			print("Key: %s. Range: %s. N=%d" % (splitKey, dataIx[splitKey], N))
+
+		return newPaths
+
+	np.random.seed(42)
 	N = len(paths["rgb"])
 	# rgb, depth, semantic etc.
 	pathKeys = paths.keys()
-	
-	# Randomize order
-	if randomizeOrder:
-		np.random.seed(42)
+	# Get (startIndex, endIndex) tuple for each key
+	dataIx = getDataIndexes(splits, splitKeys)
+	print(dataIx)
+
+	# Randomize order BEFORE splitting
+	if exportType == "regular":
 		perm = np.random.permutation(N)
 		paths = {k : paths[k][perm] for k in pathKeys}
 
-	# Get (startIndex, endIndex) tuple for each key
-	dataIx, lastIx = {}, 0
-	for i in range(len(splitKeys) - 1):
-		nK = int(splits[i] * N)
-		dataIx[splitKeys[i]] = (lastIx, lastIx + nK)
-		lastIx += nK
-	dataIx[splitKeys[-1]] = (lastIx, N)
+	splitPaths = getSplitPaths(paths, splitKeys, pathKeys, dataIx, keepN)
+	# Randomize order AFTER splitting
+	if exportType == "regular_random_after_split":
+		for splitKey in splitKeys:
+			N = dataIx[splitKey][1] - dataIx[splitKey][0]
+			perm = np.random.permutation(N)
+			for pathKey in pathKeys:
+				splitPaths[splitKey][pathKey] = splitPaths[splitKey][pathKey][perm]
 
-	# Now, take the paths for all the keys as defined by indexes above
-	newPaths = {}
-	for k in splitKeys:
-		startIx, endIx = dataIx[k]
-		thisPaths = {pathKey : paths[pathKey][startIx : endIx] for pathKey in pathKeys}
-		newPaths[k] = thisPaths
-		print(k)
-		for pathKey in pathKeys:
-			print(" - %s : %d" % (pathKey, len(thisPaths[pathKey])))
-
-	if not keepN is None:
-		for k in splitKeys:
-			newPaths[k] = {pathKey : newPaths[k][pathKey][0 : keepN] for pathKey in pathKeys}
-
-	for k in splitKeys:
-		thisPaths = newPaths[k]
-		print(k, "=>", end="")
-		for pathKey in pathKeys:
-			print(" %s : %d |" % (pathKey, len(thisPaths[pathKey])), end="")
-		print("")
-	return newPaths
+	return splitPaths
 
 def plotPaths(paths):
 	for k in paths:
@@ -239,7 +250,7 @@ def main():
 	paths = getPaths(args.baseDir)
 	print("Got %d paths. Keys: %s" % (len(paths["rgb"]), list(paths.keys())))
 
-	paths = getTrainValPaths(paths, args.splits, args.split_keys, keepN=args.N, randomizeOrder=args.randomize_order)
+	paths = getTrainValPaths(paths, args.splits, args.split_keys, exportType=args.export_type, keepN=args.N)
 	plotPaths(paths)
 
 	file = h5py.File(args.resultFile, "w")
