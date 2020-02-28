@@ -160,12 +160,10 @@ def plotModelMetricHistory(metric, trainHistory, plotBestBullet, dpi=120):
 	assert plotBestBullet in ("none", "min", "max")
 	if plotBestBullet == "min":
 		minX, minValue = np.argmin(usedValues), np.min(usedValues)
-		offset = minValue // 2
 		plt.annotate("Epoch %d\nMin %2.2f" % (minX + 1, minValue), xy=(minX + 1, minValue))
 		plt.plot([minX + 1], [minValue], "o")
 	elif plotBestBullet == "max":
 		maxX, maxValue = np.argmax(usedValues), np.max(usedValues)
-		offset = maxValue // 2
 		plt.annotate("Epoch %d\nMax %2.2f" % (maxX + 1, maxValue), xy=(maxX + 1, maxValue))
 		plt.plot([maxX + 1], [maxValue], "o")
 

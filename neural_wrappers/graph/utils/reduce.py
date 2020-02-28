@@ -6,9 +6,12 @@ from ...pytorch import trModuleWrapper
 
 # ReduceNode and ReduceEdge implementations.
 class ReduceNode(Edge):
-	def __init__(self, inNode, forwardFn, useGT=True, *args, **kwargs):
+	def __init__(self, inNode, forwardFn = lambda self, x : x, useGT=True, *args, **kwargs):
 		name = "ReduceNode (%s)" % (inNode.name)
 		outNode = Node(name, inNode.groundTruthKey)
+		# outNode.getType = lambda : inNode.getType()
+		# outNode.getMetrics = lambda : inNode.getMetrics()
+		# outNode.getCriterion = lambda : inNode.getCriterion()
 		self.useGT = useGT
 		super().__init__(inNode, outNode, forwardFn=forwardFn, *args, **kwargs)
 
@@ -34,7 +37,7 @@ class ReduceNode(Edge):
 			self.lossFn = defaultLossFn
 
 class ReduceEdge(ReduceNode):
-	def __init__(self, senderNodes, receiverNode, forwardFn, useGT=True, *args, **kwargs):
+	def __init__(self, senderNodes, receiverNode, forwardFn = lambda self, x : x, useGT=True, *args, **kwargs):
 		self.senderNodes = senderNodes
 		super().__init__(receiverNode, forwardFn, useGT, *args, **kwargs)
 

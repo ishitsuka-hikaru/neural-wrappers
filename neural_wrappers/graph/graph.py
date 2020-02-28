@@ -149,6 +149,7 @@ class Graph(NeuralNetworkPyTorch):
 		#  manage the labels accordingly.
 		for node in self.nodes:
 			node.setGroundTruth(trLabels)
+			node.messages = {}
 
 	def draw(self, fileName, cleanup=True, view=False):
 		drawGraph(self.nodes, self.edges, fileName, cleanup, view)
