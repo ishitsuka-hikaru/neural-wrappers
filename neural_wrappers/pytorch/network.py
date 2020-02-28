@@ -355,9 +355,7 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	def computeIterPrintMessage(self, i, stepsPerEpoch, metricResults, iterFinishTime):
 		messages = []
-		message = "Iteration: %d/%d." % (i + 1, stepsPerEpoch)
-		if self.optimizer:
-			message += " LR: %2.5f." % (self.optimizer.state_dict()["param_groups"][0]["lr"])
+		message = "Epoch: %d. Iteration: %d/%d." % (self.currentEpoch, i + 1, stepsPerEpoch)
 		# iterFinishTime / (i + 1) is the current estimate per iteration. That value times stepsPerEpoch is
 		#  the current estimation per epoch. That value minus current time is the current estimation for
 		#  time remaining for this epoch. It can also go negative near end of epoch, so use abs.
@@ -365,8 +363,12 @@ class NeuralNetworkPyTorch(nn.Module):
 		message += " ETA: %s" % (ETA)
 		messages.append(message)
 
+		if self.optimizer:
+			messages.append("  - Optimizer: %s" % (getOptimizerStr(self.optimizer)))
+
 		message = "  - Metrics."
-		for key in sorted(metricResults):
+		Keys = sorted(list(set(metricResults.keys())))
+		for key in Keys:
 			if not key in self.iterPrintMessageKeys:
 				continue
 			message += " %s: %2.3f." % (key, metricResults[key].get())
@@ -379,11 +381,11 @@ class NeuralNetworkPyTorch(nn.Module):
 	def computePrintMessage(self, trainMetrics, validationMetrics, numEpochs, duration):
 		messages = []
 		done = self.currentEpoch / numEpochs * 100
-		message = "Epoch %d/%d. Done: %2.2f%%." % (self.currentEpoch, numEpochs, done)
-		if self.optimizer:
-			message += " LR: %2.5f." % (self.optimizer.state_dict()["param_groups"][0]["lr"])
-		message += " Took: %s." % (duration)
+		message = "Epoch %d/%d. Done: %2.2f%%. Took: %s." % (self.currentEpoch, numEpochs, done, duration)
 		messages.append(message)
+
+		if self.optimizer:
+			messages.append("  - Optimizer: %s" % (getOptimizerStr(self.optimizer)))
 
 		trainMessage, validationMessage = "", ""
 		for metric in sorted(trainMetrics):
