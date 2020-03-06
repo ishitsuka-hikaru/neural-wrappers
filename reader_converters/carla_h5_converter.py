@@ -22,8 +22,8 @@ def getArgs():
 
 	args = parser.parse_args()
 	assert args.storeMethod in ("h5", "paths")
-	assert args.export_type in ("regular", "regular_random_after_split", "test")
-	if args.export_type in ("regular", "regular_random_after_split"):
+	assert args.export_type in ("regular_old", "regular", "test")
+	if args.export_type in ("regular_old", "regular"):
 		args.split_keys = args.split_keys.split(",")
 		args.splits = list(map(lambda x : float(x) / 100, args.splits.split(",")))
 	elif args.export_type == "test":
@@ -153,13 +153,13 @@ def getTrainValPaths(paths, splits, splitKeys, exportType, keepN=None):
 	print(dataIx)
 
 	# Randomize order BEFORE splitting
-	if exportType == "regular":
+	if exportType == "regular_old":
 		perm = np.random.permutation(N)
 		paths = {k : paths[k][perm] for k in pathKeys}
 
 	splitPaths = getSplitPaths(paths, splitKeys, pathKeys, dataIx, keepN)
 	# Randomize order AFTER splitting
-	if exportType == "regular_random_after_split":
+	if exportType == "regular":
 		for splitKey in splitKeys:
 			N = dataIx[splitKey][1] - dataIx[splitKey][0]
 			perm = np.random.permutation(N)
