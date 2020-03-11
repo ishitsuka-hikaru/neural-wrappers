@@ -17,6 +17,8 @@ def trModuleWrapper(module):
 			return self.module(x)
 	return Model(module)
 
+# Used by NeuralNetworkPyTorch so that we enter a block, we can apply train/eval and when we leave it, we restore the
+#  previous state.
 class StorePrevState:
 	def __init__(self, moduleObj):
 		self.moduleObj = moduleObj

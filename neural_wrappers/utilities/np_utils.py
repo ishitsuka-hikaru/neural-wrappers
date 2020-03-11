@@ -2,7 +2,11 @@ import numpy as np
 
 # Equality check between two arrays
 def npCloseEnough(a, b, eps=1e-5):
-	return np.sum(np.abs(a - b)) < eps
+	assert a.dtype == b.dtype
+	if np.issubdtype(a.dtype, np.number):
+		return np.sum(np.abs(a - b)) < eps
+	else:
+		return np.sum(a != b) < eps
 
 # @brief A more detailed printer about numpy arrays.
 def npGetInfo(data):

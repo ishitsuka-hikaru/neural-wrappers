@@ -6,5 +6,11 @@ class Metric:
 		assert direction in ("min", "max")
 		self.direction = direction
 
+	def getDirection(self) -> str:
+		return self.direction
+
+	def reduceFunction(self, results):
+		return results
+
 	def __call__(self, results, labels, **kwargs):
 		raise NotImplementedError("Should have implemented this")
