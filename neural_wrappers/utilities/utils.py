@@ -72,10 +72,11 @@ def isSubsetOf(subset, set):
 			return False
 	return True
 
-def changeDirectory(Dir, expectExist):
-	assert os.path.exists(Dir) == expectExist
+def changeDirectory(Dir, expectExist=None):
+	if expectExist in (True, False):
+		assert os.path.exists(Dir) == expectExist
 	print("Changing to working directory:", Dir)
-	if expectExist == False:
+	if expectExist == False or (expectExist == None and not os.path.isdir(Dir)):
 		os.makedirs(Dir)
 	os.chdir(Dir)
 
@@ -206,3 +207,22 @@ def isPicklable(item):
 	except Exception as e:
 		print("Item is not pickable: %s" % (e))
 		return False
+
+# Flatten the indexes [[1, 3], [15, 13]] => [1, 3, 15, 13] and then calls f(data, 1), f(data, 3), ..., step by step
+def smartIndexWrapper(data, indexes, f):
+	# Flatten the indexes [[1, 3], [15, 13]] => [1, 3, 15, 13]
+	indexes = np.array(indexes, dtype=np.uint32)
+	flattenedIndexes = indexes.flatten()
+	N = len(flattenedIndexes)
+	assert N > 0
+
+	# Get the first element to infer shape
+	firstResult = f(data, flattenedIndexes[0])
+	flattenedShape = (N, *firstResult.shape)
+	finalShape = (*indexes.shape, *firstResult.shape)
+
+	result = np.zeros(flattenedShape, firstResult.dtype)
+	result[0] = firstResult
+	for i in range(1, N):
+		result[i] = f(data, flattenedIndexes[i])
+	return result.reshape(finalShape)

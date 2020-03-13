@@ -1,68 +1,92 @@
+from ..pytorch import getTrData, trDetachData
+
 class Node:
 	# A dictionary that gives a unique tag to all nodes by appending an increasing number to name.
 	lastNodeID = 0
 
-	def __init__(self, name, groundTruthKey, hyperParameters={}):
+	def __init__(self, name, groundTruthKey, nodeEncoder=None, nodeDecoder=None, hyperParameters={}):
 		assert not name is "GT", "GT is a reserved keyword"
 		self.name = Node.getUniqueName(name)
 		self.groundTruthKey = groundTruthKey
 
 		# Set up hyperparameters for this node (used for saving/loading identical node)
 		self.hyperParameters = self.getHyperParameters(hyperParameters)
-		self.groundTruth = self.setGroundTruth(None)
+		self.groundTruth = None
 		# Messages are the items received at this node via all its incoming edges.
 		self.messages = {}
 
 		# Node-specific encoder and decoder instances. By default they are not instancicated.
-		self.nodeEncoder = None
-		self.nodeDecoder = None
+		self.nodeEncoder = nodeEncoder
+		self.nodeDecoder = nodeDecoder
+
+	# This function is called for getEncoder/getDecoder. By default we'll return the normal type of this function.
+	#  However, we are free to overwrite what type a node offers to be seen as. A concrete example is a
+	#  ConcatenateNode, which might be more useful to be seen as a MapNode (if it concatenates >=2 MapNodes)
+	def getType(self):
+		return type(self)
 
 	def getEncoder(self, outputNodeType=None):
+		if not self.nodeEncoder is None:
+			return self.nodeEncoder
 		raise Exception("Must be implemented by each node!")
 
 	def getDecoder(self, inputNodeType=None):
+		if not self.getDecoder is None:
+			return self.nodeDecoder
 		raise Exception("Must be implemented by each node!")
 
 	def getMetrics(self):
 		raise Exception("Must be implemented by each node!")
 
-	# This node's inputs based on whatever GT data we receive (inputs dict + self.groundTruthKey) as well as whatever
-	#  intermediate messages we recieved. This is programmable for every node. By default, we return all GTs and all
-	#  received messages as possible inputs to the node's forward function
-	def getInputs(self, blockGradients=False):
-		items, edgeKeys = [], []
-		# Add GT first, if it exist
+	def getCriterion(self):
+		raise Exception("Must be implemented by each node!")
+
+	def getInputs(self, x):
+		inputs = self.getMessages()
 		if not self.groundTruth is None:
-			items.append(self.groundTruth)
-			edgeKeys.append("GT")
+			inputs["GT"] = self.getGroundTruthInput(x).unsqueeze(0)
+		return inputs
 
-		# All the messages are received from incoming edges to this node.
-		for key in self.messages.keys():
-			edgeMessages = self.messages[key]
-			items.extend(edgeMessages)
-			edgeKeys.extend([key] * len(edgeMessages))
+	def getMessages(self):
+		return {k : getTrData(self.messages[k]) for k in self.messages}
 
-		# If the edge that required this inputs wishes to prune the history of the inputs, detach them.
-		# For debugging: Add a print here before and after detach for all items' grad_fn and requires_grad
-		if blockGradients:
-			items = [x.detach() for x in items]
-		return items, edgeKeys
+	def addMessage(self, edgeID, message):
+		self.messages[edgeID] = message
 
-	def setGroundTruth(self, groundTruth):
+	def getNodeLabelOnly(self, labels):
+		# Combination of two functions. To be refactored :)
+		if self.groundTruthKey is None:
+			return None
+		elif self.groundTruthKey == "*":
+			return labels
+		elif (type(self.groundTruthKey) is str) and (self.groundTruthKey != "*"):
+			return labels[self.groundTruthKey]
+		elif type(self.groundTruthKey) in (list, tuple):
+			return {k : self.getNodeLabelOnly(labels[k]) for k in self.groundTruthKey}
+		raise Exception("Key %s required from GT data not in labels %s" % (list(labels.keys())))
+
+	def setGroundTruth(self, labels):
+		labels = self.getNodeLabelOnly(labels)
 		# Ground truth is always detached from the graph, so we don't optimize both sides of the graph, if the GT of
 		#  one particular node was generated from other side.
-		self.groundTruth = groundTruth
-		if type(self.groundTruth) in (dict, ):
-			self.groundTruth = {k : self.groundTruth[k].detach() for k in self.groundTruth}
-		elif not self.groundTruth is None:
-			self.groundTruth = self.groundTruth.detach()
+		labels = trDetachData(labels)
+		self.groundTruth = labels
 
 	def getGroundTruth(self):
 		return self.groundTruth
 
+	def getGroundTruthInput(self, inputs):
+		assert not self.groundTruthKey is None
+		if type(self.groundTruthKey) is str:
+			return inputs[self.groundTruthKey]
+		elif type(self.groundTruthKey) in (list, tuple):
+			return [inputs[key] for key in self.groundTruthKey]
+		assert False
+
 	def clearNodeOutputs(self):
 		self.outputs = {}
 
+	@staticmethod
 	def getUniqueName(name):
 		name = "%s (ID: %d)" % (name, Node.lastNodeID)
 		Node.lastNodeID += 1

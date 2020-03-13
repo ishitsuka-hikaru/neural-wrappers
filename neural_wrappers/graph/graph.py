@@ -1,5 +1,5 @@
 import torch.nn as nn
-from ..pytorch import NeuralNetworkPyTorch, getNpData
+from ..pytorch import NeuralNetworkPyTorch, getNpData, getTrData
 from ..utilities import MultiLinePrinter
 from functools import partial
 from copy import copy
@@ -37,11 +37,8 @@ class Graph(NeuralNetworkPyTorch):
 		# For now, the execution is synchronous and linear as defined by the list of edges
 		for edge in self.edges:
 			edgeID = str(edge)
-			edgeOutput = edge.forward(trInputs)
-
-			# Set the edge outputs inside the node as well, so we can access them when calling getInputs()
-			edge.outputNode.messages[edgeID] = edgeOutput
-
+			edgeInputs = edge.getInputs(trInputs)
+			edgeOutput = edge.forward(edgeInputs)
 			# Update the outputs of the whole graph as well
 			trResults[edgeID] = edgeOutput
 		return trResults
@@ -151,17 +148,7 @@ class Graph(NeuralNetworkPyTorch):
 		# If the ground truth key is "*", then all items are provided to the node and it's expected that the node will
 		#  manage the labels accordingly.
 		for node in self.nodes:
-			if node.groundTruthKey is None:
-				labels = None
-			elif node.groundTruthKey == "*":
-				labels = trLabels
-			elif (type(node.groundTruthKey) is str) and (node.groundTruthKey != "*"):
-				labels = trLabels[node.groundTruthKey]
-			elif type(node.groundTruthKey) in (list, tuple):
-				labels = {k : trLabels[k] for k in node.groundTruthKey}
-			else:
-				raise Exception("Key %s required from GT data not in labels %s" % (list(trLabels.keys())))
-			node.setGroundTruth(labels)
+			node.setGroundTruth(trLabels)
 			node.messages = {}
 
 	def draw(self, fileName, cleanup=True, view=False):

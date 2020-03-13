@@ -1,9 +1,8 @@
 import torch.nn as nn
 from functools import partial
 from .node import MapNode, VectorNode
-from ..pytorch import NeuralNetworkPyTorch, trModuleWrapper
+from ..pytorch import NeuralNetworkPyTorch, trModuleWrapper, getTrData
 from ..pytorch.network_serializer import NetworkSerializer
-from .utils import forwardUseAll
 
 # Default loss of this edge goes through all ground truths and all outputs of the output node and computes the
 #  loss between them. This can be updated for a more specific edge algorithm for loss computation.
@@ -42,7 +41,9 @@ class Edge(NeuralNetworkPyTorch):
 		# Model stuff
 		self.edgeID = str(self)
 		self.model = None
-		self.setupModel(forwardFn, lossFn)
+		self.forwardFn = forwardFn
+		self.lossFn = lossFn
+		self.setupModel()
 
 		self.inputs = []
 		self.outputs = []
@@ -50,8 +51,19 @@ class Edge(NeuralNetworkPyTorch):
 		self.dependencies = dependencies
 		self.setBlockGradients(blockGradients)
 
+	def getInputs(self, x):
+		# print("[Edge::getInputs]", type(self.inputNode), type(self.inputNode).mro(), self.inputNode.getInputs(x))
+		inputs = self.inputNode.getInputs(x)
+		if self.blockGradients:
+			inputs = {k : inputs[k].detach() for k in inputs}
+		return inputs
+
 	def forward(self, x):
-		return self.forwardFn(self, x)
+		self.inputs = x
+		res = self.forwardFn(self, x)
+		self.outputs = res
+		self.outputNode.addMessage(self, res)
+		return self.outputs
 
 	def loss(self, y, t):
 		return self.lossFn(self, y, t)
@@ -68,7 +80,7 @@ class Edge(NeuralNetworkPyTorch):
 			return A.nodeEncoder
 		else:
 		# If edge-* edge, then instantiate a new encoder for the output node type
-			return A.getEncoder(type(B))
+			return A.getEncoder(B.getType())
 
 	# Creates the encoder for this edge. If the edge is node-node or node-edge, then use the node-spepcific encoder.
 	def getDecoder(self):
@@ -82,7 +94,7 @@ class Edge(NeuralNetworkPyTorch):
 			return B.nodeDecoder
 		else:
 		# If *-node edge, then instantiate a new decoder for the output node type
-			return B.getDecoder(type(A))
+			return B.getDecoder(A.getType())
 
 	def getModel(self):
 		if not self.model:
@@ -92,7 +104,7 @@ class Edge(NeuralNetworkPyTorch):
 	# Default model for this edge is just a sequential mapping between the A's encoder and B's decoder.
 	#  Other edges may requires additional edge-specific parameters or some more complicated views to convert the
 	#   output of A's encoder to the input of B's decoder.
-	def setupModel(self, forwardFn, lossFn):
+	def setupModel(self):
 		assert self.model is None
 		self.model = trModuleWrapper(nn.Sequential(self.getEncoder(), self.getDecoder()))
 		metrics = self.outputNode.getMetrics()
@@ -107,12 +119,11 @@ class Edge(NeuralNetworkPyTorch):
 			newMetrics[newName] = metrics[key]
 
 		# Set the forward/loss functions for this edge as well.
-		if not forwardFn:
-			forwardFn = forwardUseAll
-		if not lossFn:
-			lossFn = defaultLossFn
-		self.forwardFn = forwardFn
-		self.lossFn = lossFn
+		if not self.forwardFn:
+			from .utils import forwardUseAll
+			self.forwardFn = forwardUseAll
+		if not self.lossFn:
+			self.lossFn = defaultLossFn
 		self.addMetrics(newMetrics)
 		self.setCriterion(criterion)
 

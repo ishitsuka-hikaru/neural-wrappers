@@ -5,7 +5,7 @@ import numpy as np
 import torch.optim as optim
 
 from .network import NeuralNetworkPyTorch
-from neural_wrappers.utilities import LinePrinter, RunningMean
+from neural_wrappers.utilities import MessagePrinter, RunningMean
 from datetime import datetime
 from functools import partial
 
@@ -92,10 +92,8 @@ class GenerativeAdversarialNetwork(NeuralNetworkPyTorch):
 
 		return summaryStr
 
-	def epochPrologue(self, epochMetrics, printMessage):
-		if printMessage:
-			sys.stdout.write(epochMetrics["message"] + "\n")
-			sys.stdout.flush()
+	def epochPrologue(self, epochMetrics):
+		self.linePrinter(epochMetrics["message"])
 
 		generatorEpochMetrics = {"Train" : epochMetrics["Train"]["generator"], "message" : epochMetrics["message"], \
 			"duration" : epochMetrics["duration"]}
@@ -116,8 +114,8 @@ class GenerativeAdversarialNetwork(NeuralNetworkPyTorch):
 				"discriminator" : discriminatorEpochMetrics["Validation"]
 			})
 
-		self.generator.epochPrologue(generatorEpochMetrics, printMessage=False)
-		self.discriminator.epochPrologue(discriminatorEpochMetrics, printMessage=False)
+		self.generator.epochPrologue(generatorEpochMetrics)
+		self.discriminator.epochPrologue(discriminatorEpochMetrics)
 
 		# Combine Train/val from generator/discriminator
 		self.trainHistory.append(ganEpochMetrics)
@@ -126,7 +124,7 @@ class GenerativeAdversarialNetwork(NeuralNetworkPyTorch):
 			self.optimizerScheduler.step()
 		self.currentEpoch += 1
 
-	def run_one_epoch(self, generator, stepsPerEpoch, isTraining, isOptimizing, printMessage=False):
+	def run_one_epoch(self, generator, stepsPerEpoch, isTraining, isOptimizing):
 		assert stepsPerEpoch > 0
 		# No sense to call this of a GAN if not training, use each model separately.
 		assert isTraining == True
@@ -135,6 +133,8 @@ class GenerativeAdversarialNetwork(NeuralNetworkPyTorch):
 			"generator" : {metric : RunningMean() for metric in self.generator.callbacks.keys()},
 			"discriminator" : {metric : RunningMean() for metric in self.discriminator.callbacks.keys()}
 		}
+		self.generator.linePrinter = MessagePrinter(None)
+		self.discriminator.linePrinter = MessagePrinter(None)
 
 		startTime = datetime.now()
 		for i, items in enumerate(generator):
@@ -143,7 +143,7 @@ class GenerativeAdversarialNetwork(NeuralNetworkPyTorch):
 
 			(gNoise, gLabels), ((trueData, dNoise), dLabels) = items
 			# First, we call the generator's methods (including callbacks and all), using the provided noise.
-			metrics = self.generator.run_one_epoch(makeGenerator(gNoise, gLabels), 1, True, isOptimizing, False)
+			metrics = self.generator.run_one_epoch(makeGenerator(gNoise, gLabels), 1, True, isOptimizing)
 			for k in metricResults["generator"]:
 				metricResults["generator"][k].update(metrics[k], 1)
 
@@ -154,17 +154,16 @@ class GenerativeAdversarialNetwork(NeuralNetworkPyTorch):
 			trueLabels = np.ones(MB)
 			fakeLabels = np.zeros(MB)
 			trueGenerator = makeGenerator(trueData, trueLabels)
-			trueMetrics = self.discriminator.run_one_epoch(trueGenerator, 1, True, isOptimizing, False)
+			trueMetrics = self.discriminator.run_one_epoch(trueGenerator, 1, True, isOptimizing)
 			fakeGenerator = makeGenerator(fakeData, fakeLabels)
-			fakeMetrics = self.discriminator.run_one_epoch(fakeGenerator, 1, True, isOptimizing, False)
+			fakeMetrics = self.discriminator.run_one_epoch(fakeGenerator, 1, True, isOptimizing)
 			for k in metricResults["discriminator"]:
 				metricResults["discriminator"][k].update(trueMetrics[k], 1)
 				metricResults["discriminator"][k].update(fakeMetrics[k], 1)
 
 			iterFinishTime = (datetime.now() - startTime)
-			if printMessage:
-				message = self.computeIterPrintMessage(i, stepsPerEpoch, metricResults, iterFinishTime)
-				self.linePrinter.print(message)
+			message = self.computeIterPrintMessage(i, stepsPerEpoch, metricResults, iterFinishTime)
+			self.linePrinter.print(message)
 
 		# Get the values at end of epoch.
 		for k in ["generator", "discriminator"]:

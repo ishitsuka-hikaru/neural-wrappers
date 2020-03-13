@@ -14,30 +14,37 @@ def getArgs():
 	parser.add_argument("resultFile")
 	parser.add_argument("storeMethod")
 	parser.add_argument("--N", type=int, default=None)
-	parser.add_argument("--test_export", default=0, type=int)
+	parser.add_argument("--export_type", default="regular")
 	parser.add_argument("--splits", default="80,20")
 	parser.add_argument("--split_keys", default="train,validation")
 	parser.add_argument("--statistics_file")
 	parser.add_argument("--max_depth_meters", default=300, type=int)
 
 	args = parser.parse_args()
-	args.test_export = bool(args.test_export)
 	assert args.storeMethod in ("h5", "paths")
-	if args.test_export:
-		print("Test export. Setting --randomize_order=False, --split_keys=test and --splits=1")
-		args.randomize_order = False
+	assert args.export_type in ("regular_old", "regular", "test")
+	if args.export_type in ("regular_old", "regular"):
+		args.split_keys = args.split_keys.split(",")
+		args.splits = list(map(lambda x : float(x) / 100, args.splits.split(",")))
+	elif args.export_type == "test":
 		args.split_keys = ["test"]
 		args.splits = [1]
 		assert not args.statistics_file is None, \
 			"For test export, we need the path to the train set, so we can copy its statistics"
-	else:
-		args.randomize_order = True
-		args.split_keys = args.split_keys.split(",")
-		args.splits = list(map(lambda x : float(x) / 100, args.splits.split(",")))
+	print("Export type: %s. Split keys: %s. Splits: %s. Stats file: %s" \
+		% (args.export_type, args.split_keys, args.splits, args.statistics_file))
 
 	assert abs(sum(args.splits) - 1) < 1e-5
 	assert len(args.splits) == len(args.split_keys)
 	return args
+
+def checkPaths(baseDir, result):
+	for key in result:
+		if not result[key].dtype.char in {"S", "U"}:
+			continue
+		paths = list(map(lambda x : baseDir + str(x, "utf8"), result[key].flatten()))
+		for path in paths:
+			assert os.path.isfile(path), path
 
 def getPaths(baseDir):
 	def positionFunc(rgbItem):
@@ -71,7 +78,9 @@ def getPaths(baseDir):
 		return rgbItem.replace("rgb", "halftone")
 
 	def flowFunc(rgbItem):
-		return rgbItem.replace("rgb", "flow")
+		# X and Y vectors are stored in 2 different files
+		a = [rgbItem.replace("rgb", "flow2"), rgbItem.replace("rgb", "flow3")]
+		return a
 
 	rgbList = sorted(list(filter(lambda x : x.find("rgb_") != -1, os.listdir(baseDir))))
 	N = len(rgbList)
@@ -86,7 +95,7 @@ def getPaths(baseDir):
 		"cameranormal" : np.array(list(map(cameraNormalFunc, rgbList)), "S"),
 		"wireframe" : np.array(list(map(wireframeFunc, rgbList)), "S"),
 		"halftone" : np.array(list(map(halftoneFunc, rgbList)), "S"),
-		"flow" : np.array(list(map(flowFunc, rgbList)), "S"),
+		"optical_flow" : np.array(list(map(flowFunc, rgbList)), "S")
 	}
 
 	# Sort entries by IDs
@@ -98,48 +107,66 @@ def getPaths(baseDir):
 	mask = np.abs(sortedPos - right).sum(axis=-1) > 0.1
 	print("Removed %d duplicate entries" % (len(mask) - mask.sum()))
 	result = {k : result[k][mask] for k in result}
+	checkPaths(baseDir, result)
 	return result
 
-def getTrainValPaths(paths, splits, splitKeys, keepN=None, randomizeOrder=True):
+def getTrainValPaths(paths, splits, splitKeys, exportType, keepN=None):
+	def getDataIndexes(splits, splitKeys):
+		dataIx, lastIx = {}, 0
+		for i in range(len(splitKeys) - 1):
+			nK = int(splits[i] * N)
+			dataIx[splitKeys[i]] = (lastIx, lastIx + nK)
+			lastIx += nK
+		dataIx[splitKeys[-1]] = (lastIx, N)
+		return dataIx
+
+	# Return a dict of type
+	# 	{
+	# 		"train" : {"rgb" : [a, b), "depth" : [a, b), ...},
+	#		"test" : {"rgb" : [b, c), "depth" : [b, c), ...},
+	#		...
+	# 	}
+	def getSplitPaths(paths, splitKeys, pathKey, dattaIx, keepN):
+		# Now, take the paths for all the keys as defined by indexes above
+		newPaths = {}
+		for k in splitKeys:
+			startIx, endIx = dataIx[k]
+			thisPaths = {pathKey : paths[pathKey][startIx : endIx] for pathKey in pathKeys}
+			newPaths[k] = thisPaths
+
+		if not keepN is None:
+			for k in splitKeys:
+				newPaths[k] = {pathKey : newPaths[k][pathKey][0 : keepN] for pathKey in pathKeys}
+
+		for splitKey in splitKeys:
+			N = dataIx[splitKey][1] - dataIx[splitKey][0]
+			print("Key: %s. Range: %s. N=%d" % (splitKey, dataIx[splitKey], N))
+
+		return newPaths
+
+	np.random.seed(42)
 	N = len(paths["rgb"])
 	# rgb, depth, semantic etc.
 	pathKeys = paths.keys()
-	
-	# Randomize order
-	if randomizeOrder:
-		np.random.seed(42)
+	# Get (startIndex, endIndex) tuple for each key
+	dataIx = getDataIndexes(splits, splitKeys)
+	print(dataIx)
+
+	# Randomize order BEFORE splitting
+	if exportType == "regular_old":
 		perm = np.random.permutation(N)
 		paths = {k : paths[k][perm] for k in pathKeys}
 
-	# Get (startIndex, endIndex) tuple for each key
-	dataIx, lastIx = {}, 0
-	for i in range(len(splitKeys) - 1):
-		nK = int(splits[i] * N)
-		dataIx[splitKeys[i]] = (lastIx, lastIx + nK)
-		lastIx += nK
-	dataIx[splitKeys[-1]] = (lastIx, N)
+	splitPaths = getSplitPaths(paths, splitKeys, pathKeys, dataIx, keepN)
+	# Randomize order AFTER splitting
+	if exportType == "regular":
+		for splitKey in splitKeys:
+			N = dataIx[splitKey][1] - dataIx[splitKey][0]
+			perm = np.random.permutation(N)
+			for pathKey in pathKeys:
+				splitPaths[splitKey][pathKey] = splitPaths[splitKey][pathKey][perm]
 
-	# Now, take the paths for all the keys as defined by indexes above
-	newPaths = {}
-	for k in splitKeys:
-		startIx, endIx = dataIx[k]
-		thisPaths = {pathKey : paths[pathKey][startIx : endIx] for pathKey in pathKeys}
-		newPaths[k] = thisPaths
-		print(k)
-		for pathKey in pathKeys:
-			print(" - %s : %d" % (pathKey, len(thisPaths[pathKey])))
-
-	if not keepN is None:
-		for k in splitKeys:
-			newPaths[k] = {pathKey : newPaths[k][pathKey][0 : keepN] for pathKey in pathKeys}
-
-	for k in splitKeys:
-		thisPaths = newPaths[k]
-		print(k, "=>", end="")
-		for pathKey in pathKeys:
-			print(" %s : %d |" % (pathKey, len(thisPaths[pathKey])), end="")
-		print("")
-	return newPaths
+	return splitPaths
 
 def plotPaths(paths):
 	for k in paths:
@@ -213,7 +240,7 @@ def doWork(args, file, paths):
 		doWorkPaths(file, paths)
 
 	# This is here so the dataset reader works as intended.
-	if args.test_export:
+	if args.export_type == "test":
 		file["train"] = file["test"]
 		file["validation"] = file["test"]
 	return file
@@ -223,7 +250,7 @@ def main():
 	paths = getPaths(args.baseDir)
 	print("Got %d paths. Keys: %s" % (len(paths["rgb"]), list(paths.keys())))
 
-	paths = getTrainValPaths(paths, args.splits, args.split_keys, keepN=args.N, randomizeOrder=args.randomize_order)
+	paths = getTrainValPaths(paths, args.splits, args.split_keys, exportType=args.export_type, keepN=args.N)
 	plotPaths(paths)
 
 	file = h5py.File(args.resultFile, "w")

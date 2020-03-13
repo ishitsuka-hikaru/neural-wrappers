@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from models import ModelFC
 from neural_wrappers.readers import Cifar10Reader
-from neural_wrappers.pytorch import maybeCuda
+from neural_wrappers.pytorch import device
 from neural_wrappers.callbacks import SaveModels, SaveHistory, ConfusionMatrix, PlotMetricsCallback
 from neural_wrappers.metrics import Accuracy
 from argparse import ArgumentParser
@@ -45,9 +45,9 @@ def main():
 	valSteps = reader.getNumIterations("test", miniBatchSize=5)
 
 	if args.model_type == "model_fc":
-		model = maybeCuda(ModelFC(inputShape=(32, 32, 3), outputNumClasses=10))
+		model = ModelFC(inputShape=(32, 32, 3), outputNumClasses=10).to(device)
 	# elif args.model_type == "model_conv":
-		# model = maybeCuda(ModelConv(inputShape=(32, 32, 3), outputNumClasses=10))
+		# model = ModelConv(inputShape=(32, 32, 3), outputNumClasses=10).to(device)
 	print(model.summary())
 	model.setCriterion(lossFn)
 	model.setMetrics({"Accuracy" : Accuracy(categoricalLabels=True)})

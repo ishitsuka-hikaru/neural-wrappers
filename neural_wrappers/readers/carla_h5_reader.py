@@ -36,8 +36,6 @@ def poseNorm(positions, poseRepresentation, positionsExtremes, poseNormalization
 		result = np.concatenate([translation, rotation], axis=-1)
 	# [-1 : 1] representation all over the spectre (rotation + 4 quaternion values)
 	elif poseRepresentation == "6dof-quat":
-		# Move rotation from [-1 : 1] to [0 : 2*pi]
-		roll, pitch, yaw = (rotation.T + 1) * np.pi
 		# quat::MBx4 which is already in [-1 : 1]
 		quat = getQuatFromRotation(rotation)
 		result = np.concatenate([translation, quat], axis=-1)
@@ -81,6 +79,7 @@ def rgbRenorm(x, rgbNormalization):
 	return x.astype(np.int32)
 
 def computeDistances(positions, numNeighbours):
+	return # TODO
 	if numNeighbours == 0:
 		return None
 	N = positions.shape[0]
@@ -198,8 +197,16 @@ class CarlaH5PathsReader(CarlaH5Reader):
 		path = baseDirectory + os.sep + str(path, "utf8")
 		dph = tryReadImage(path)
 		dphNorm = (dph[..., 0] + dph[..., 1] * 256 + dph[..., 2] * 256 * 256) / (256 * 256 * 256 - 1) * 1000
-		dphNorm = np.float32(dphNorm)
+		dphNorm = np.expand_dims(dphNorm, axis=-1).astype(np.float32)
 		return dphNorm
+
+	@staticmethod
+	def doOpticalFlow(path, baseDirectory):
+		flow_x, flow_y = path
+		flowXNorm = CarlaH5PathsReader.doDepth(flow_x, baseDirectory)
+		flowYNorm = CarlaH5PathsReader.doDepth(flow_y, baseDirectory)
+		flow = np.concatenate([flowXNorm, flowYNorm], axis=-1) / 1000
+		return flow
 
 	@staticmethod
 	def doSemantic(path, baseDirectory):
@@ -264,3 +271,6 @@ class CarlaH5PathsReader(CarlaH5Reader):
 		self.dimGetter["rgbDomain2"] = lambda dataset, dim, startIndex, endIndex: \
 			np.array([CarlaH5PathsReader.doPng(path, baseDirectory) \
 			for path in dataset["rgbDomain2"][startIndex : endIndex]])
+		self.dimGetter["optical_flow"] = lambda dataset, dim, startIndex, endIndex: \
+			np.array([CarlaH5PathsReader.doOpticalFlow(path, baseDirectory) \
+			for path in dataset["optical_flow"][startIndex : endIndex]])

@@ -2,7 +2,7 @@ import torch as tr
 import numpy as np
 
 from .network import NeuralNetworkPyTorch
-from .utils import maybeCuda, maybeCpu
+from .utils import device
 from inspect import signature
 from datetime import datetime
 
@@ -49,12 +49,12 @@ class RecurrentNeuralNetworkPyTorch(NeuralNetworkPyTorch):
 			sequenceSize = npData.shape[1]
 
 			# Do the first timestamp separate, so we can infer the result shape
-			data = maybeCuda(trData[:, 0])
-			labels = maybeCuda(trLabels[:, 0])
+			data = trData[:, 0].to(device)
+			labels = trLabels[:, 0].to(device)
 			# For the hiden states, use a list of Nones, expecting the signature to be: (x, hidden1, ..., hiddenN)
 			initialHiddenState = [None] * (len(signature(self.forward).parameters) - 1)
 			results, hiddenState = self.forward(data, *initialHiddenState)
-			npResult = maybeCpu(results.detach()).numpy()
+			npResult = results.detach().to("cpu").numpy()
 			npResults = np.zeros((npData.shape[0], npData.shape[1], *npResult.shape[1 : ]))
 			npResults[:, 0] = npResult
 			loss = self.criterion(results, labels)
@@ -62,15 +62,15 @@ class RecurrentNeuralNetworkPyTorch(NeuralNetworkPyTorch):
 			# Then the next N - 1 timesteps are done assuming that the shape of the result doensn't change.
 			for t in range(1, sequenceSize):
 				# Slicing the data as: MB x 1 x dataShape, sending each sequence one by one.
-				data = maybeCuda(trData[:, t])
-				labels = maybeCuda(trLabels[:, t])
+				data = trData[:, t].to(device)
+				labels = trLabels[:, t].to(device)
 
 				results, hiddenState = self.forward(data, hiddenState)
-				result = maybeCpu(results.detach()).numpy()
+				result = results.detach().to("cpu").numpy()
 				npResults[:, t] = result
 
 				loss += self.criterion(results, labels)
-			npLoss = maybeCpu(loss.detach()).numpy()
+			npLoss = loss.detach().to("cpu").numpy()
 			optimizeCallback(self.optimizer, loss)
 
 			# Iteration callbacks are called here (i.e. for plotting results!)

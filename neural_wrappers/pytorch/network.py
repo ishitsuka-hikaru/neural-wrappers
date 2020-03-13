@@ -6,12 +6,13 @@ import numpy as np
 from datetime import datetime
 from copy import deepcopy
 from collections import OrderedDict
-
-from ..utilities import makeGenerator, MessagePrinter, isBaseOf, RunningMean, topologicalSort, deepCheckEqual
-from ..callbacks import Callback, MetricAsCallback
+from typing import List, Union
 
 from .network_serializer import NetworkSerializer
 from .utils import getNumParams, getOptimizerStr, getNpData, getTrData, StorePrevState
+from ..utilities import makeGenerator, MessagePrinter, isBaseOf, RunningMean, topologicalSort, deepCheckEqual
+from ..callbacks import Callback, MetricAsCallback
+from ..metrics import Metric
 
 # Wrapper on top of the PyTorch model. Added methods for saving and loading a state. To completly implement a PyTorch
 #  model, one must define layers in the object's constructor, call setOptimizer, setCriterion and implement the
@@ -46,10 +47,18 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.hyperParameters = hyperParameters
 		super(NeuralNetworkPyTorch, self).__init__()
 
-	##### Metrics and callbacks #####
+	##### Metrics, callbacks and hyperparameters #####
+
+	# @brief Adds hyperparameters to the dictionary. Only works if the model has not been trained yet (so we don't)
+	#  update the hyperparameters post-training as it would invalidate the whole principle.
+	def addHyperParameters(self, hyperParameters):
+		assert self.currentEpoch == 1, "Can only add hyperparameters before training"
+		for key in hyperParameters:
+			assert not key in self.hyperParameters
+			self.hyperParameters[key] = hyperParameters[key]
 
 	# Sets the user provided list of metrics as callbacks and adds them to the callbacks list.
-	def addMetrics(self, metrics):
+	def addMetrics(self, metrics : List[Union[Metric, MetricAsCallback]]):
 		assert not "Loss" in metrics, "Cannot overwrite Loss metric. This is added by default for all networks."
 		assert isBaseOf(metrics, dict), "Metrics must be provided as Str=>Callback dictionary"
 
@@ -61,7 +70,7 @@ class NeuralNetworkPyTorch(nn.Module):
 			metricAsCallback = metrics[key]
 			# There may be cases where the metric is already a MetricAsCallback (i.e. graph metrics inherited from each
 			#  edges or simply creating the MetricAsCallback object yourself), so there is no need to wrap it twice.
-			if not type(metricAsCallback) == MetricAsCallback:
+			if not isBaseOf(metricAsCallback, MetricAsCallback):
 				metricAsCallback = MetricAsCallback(metricName=key, metric=metricAsCallback)
 			self.callbacks[key] = metricAsCallback
 			self.iterPrintMessageKeys.append(key)
@@ -194,7 +203,7 @@ class NeuralNetworkPyTorch(nn.Module):
 			assert not self.optimizer is None, "Set optimizer before training"
 		assert not self.criterion is None, "Set criterion before training or testing"
 
-		metricResults = {metric : RunningMean() for metric in self.callbacks.keys()}
+		metricResults = {metric : RunningMean() for metric in self.getMetrics()}
 
 		# The protocol requires the generator to have 2 items, inputs and labels (both can be None). If there are more
 		#  inputs, they can be packed together (stacked) or put into a list, in which case the ntwork will receive the
@@ -214,9 +223,10 @@ class NeuralNetworkPyTorch(nn.Module):
 			self.linePrinter(("Warning! Number of iterations (%d) does not match expected ") + \
 				("iterations in reader (%d)") % (i, stepsPerEpoch - 1))
 
-		# Get the values at end of epoch.
+		# Get the values at end of epoch. Also, apply the reduceFunction for complex MetricAsCallbacks.
 		for metric in metricResults:
-			metricResults[metric] = metricResults[metric].get()
+			result = metricResults[metric].get()
+			metricResults[metric] = self.callbacks[metric].reduceFunction(result)
 		return metricResults
 
 	def test_generator(self, generator, stepsPerEpoch, printMessage=None):
@@ -224,7 +234,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.linePrinter = MessagePrinter(printMessage)
 		self.callbacksOnEpochStart(isTraining=False)
 		with StorePrevState(self):
-			# self.eval()
+			self.eval()
 			with tr.no_grad():
 				resultMetrics = self.run_one_epoch(generator, stepsPerEpoch, isTraining=False, isOptimizing=False)
 		self.callbacksOnEpochEnd(isTraining=False)
@@ -301,25 +311,22 @@ class NeuralNetworkPyTorch(nn.Module):
 			#  done on validation set). If no validation set is used, the iteration callbacks are used on train set.
 			# trainCallbacks = [] if validationGenerator != None else callbacks
 			with StorePrevState(self):
-				# self.train()
+				self.train()
 				epochMetrics["Train"] = self.run_one_epoch(generator, stepsPerEpoch, isTraining=True, \
 					isOptimizing=True)
 
 			# Run for validation data and append the results
+			epochMetrics["Validation"] = None
 			if not validationGenerator is None:
 				with StorePrevState(self):
-					# self.eval()
+					self.eval()
 					with tr.no_grad():
-						validationMetrics = self.run_one_epoch(validationGenerator, validationSteps, \
+						epochMetrics["Validation"] = self.run_one_epoch(validationGenerator, validationSteps, \
 							isTraining=True, isOptimizing=False)
-				epochMetrics["Validation"] = validationMetrics
-			else:
-				validationMetrics = None
 
-			duration = datetime.now() - now
-
-			epochMetrics["duration"] = duration
-			message = self.computePrintMessage(epochMetrics["Train"], validationMetrics, numEpochs, duration)
+			epochMetrics["duration"] = datetime.now() - now
+			message = self.computePrintMessage(epochMetrics["Train"], epochMetrics["Validation"], \
+				numEpochs, epochMetrics["duration"])
 			epochMetrics["message"] = message
 			self.epochPrologue(epochMetrics)
 
@@ -347,9 +354,7 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	def computeIterPrintMessage(self, i, stepsPerEpoch, metricResults, iterFinishTime):
 		messages = []
-		message = "Iteration: %d/%d." % (i + 1, stepsPerEpoch)
-		if self.optimizer:
-			message += " LR: %2.5f." % (self.optimizer.state_dict()["param_groups"][0]["lr"])
+		message = "Epoch: %d. Iteration: %d/%d." % (self.currentEpoch, i + 1, stepsPerEpoch)
 		# iterFinishTime / (i + 1) is the current estimate per iteration. That value times stepsPerEpoch is
 		#  the current estimation per epoch. That value minus current time is the current estimation for
 		#  time remaining for this epoch. It can also go negative near end of epoch, so use abs.
@@ -357,11 +362,17 @@ class NeuralNetworkPyTorch(nn.Module):
 		message += " ETA: %s" % (ETA)
 		messages.append(message)
 
+		if self.optimizer:
+			messages.append("  - Optimizer: %s" % (getOptimizerStr(self.optimizer)))
+
 		message = "  - Metrics."
-		for key in sorted(metricResults):
-			if not key in self.iterPrintMessageKeys:
-				continue
-			message += " %s: %2.3f." % (key, metricResults[key].get())
+		metricKeys = sorted(list(set(metricResults.keys())))
+		Keys = filter(lambda x : x in self.iterPrintMessageKeys, metricKeys)
+		for key in Keys:
+			try:
+				message += " %s: %2.3f." % (key, metricResults[key].get())
+			except Exception:
+				pass
 		messages.append(message)
 		return messages
 
@@ -371,29 +382,32 @@ class NeuralNetworkPyTorch(nn.Module):
 	def computePrintMessage(self, trainMetrics, validationMetrics, numEpochs, duration):
 		messages = []
 		done = self.currentEpoch / numEpochs * 100
-		message = "Epoch %d/%d. Done: %2.2f%%." % (self.currentEpoch, numEpochs, done)
-		if self.optimizer:
-			message += " LR: %2.5f." % (self.optimizer.state_dict()["param_groups"][0]["lr"])
-		message += " Took: %s." % (duration)
+		message = "Epoch %d/%d. Done: %2.2f%%. Took: %s." % (self.currentEpoch, numEpochs, done, duration)
 		messages.append(message)
 
-		trainMessage, validationMessage = "", ""
-		for metric in sorted(trainMetrics):
-			if not metric in self.iterPrintMessageKeys:
-				continue
-			trainMessage += "%s: %2.3f. " % (metric, trainMetrics[metric])
+		if self.optimizer:
+			messages.append("  - Optimizer: %s" % (getOptimizerStr(self.optimizer)))
+
+		if len(trainMetrics) == 0:
+			return messages
+
+		messages.append("  - Metrics:")
+		printableMetrics = filter(lambda x : x in self.iterPrintMessageKeys, sorted(trainMetrics))
+		trainMessage, validationMessage = "    - [Train]", "    - [Validation]"
+		for metric in printableMetrics:
+			trainMessage += " %s: %2.3f." % (metric, trainMetrics[metric])
 			if not validationMetrics is None:
-				validationMessage += "%s: %2.3f. " % (metric, validationMetrics[metric])
-		if message != "":
-			metricsMessage = "  -Metrics. [Train] %s| [Validation] %s" % (trainMessage, validationMessage)
-			messages.append(metricsMessage)
+				validationMessage += " %s: %2.3f." % (metric, validationMetrics[metric])
+		messages.append(trainMessage)
+		if not validationMetrics is None:
+			messages.append(validationMessage)
 		return messages
 
 	def summary(self):
 		summaryStr = "[Model summary]\n"
 		summaryStr += self.__str__() + "\n"
 
-		numParams, numTrainable = getNumParams(self.parameters())
+		numParams, numTrainable = getNumParams(self)
 		summaryStr += "Parameters count: %d. Trainable parameters: %d.\n" % (numParams, numTrainable)
 
 		summaryStr += "Hyperparameters:\n"
@@ -430,6 +444,9 @@ class NeuralNetworkPyTorch(nn.Module):
 			self.optimizer = optimizer
 		else:
 			trainableParams = list(filter(lambda p : p.requires_grad, self.parameters()))
+			if len(trainableParams) == 0:
+				print("[setOptimizer] Warning, number of trainable parameters is 0. Doing nothing.")
+				return
 			self.optimizer = optimizer(trainableParams, **kwargs)
 		self.optimizer.storedArgs = kwargs
 

@@ -4,8 +4,7 @@ import torch.nn as nn
 import torch as tr
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.autograd import Variable
-from neural_wrappers.pytorch import RecurrentNeuralNetworkPyTorch, maybeCuda, maybeCpu
+from neural_wrappers.pytorch import RecurrentNeuralNetworkPyTorch, device
 from neural_wrappers.callbacks import SaveModels, Callback
 from neural_wrappers.models.resnet50_notop import ResNet50NoTop
 from neural_wrappers.utilities import minMaxNormalizeData
@@ -71,7 +70,7 @@ def make_frame(t, model, video):
 	npFrame = video[t]
 	plot_image(npFrame)
 	npFrame = np.expand_dims(np.float32(npFrame), axis=0)
-	trFrame = maybeCuda(tr.from_numpy(npFrame))
+	trFrame = tr.from_numpy(npFrame).to(device)
 
 	# Reset hidden state every N values
 	if t == 0:
@@ -94,7 +93,7 @@ def main():
 	assert len(video) == len(label)
 	numFrames = len(video) // 2
 	sequenceSize = 15
-	model = maybeCuda(RecurrentCNN(inputSize=video.frame_shape, hiddenSize=10, outputSize=label.frame_shape))
+	model = RecurrentCNN(inputSize=video.frame_shape, hiddenSize=10, outputSize=label.frame_shape).to(device)
 	model.setCriterion(lambda x, y : tr.sum((x - y)**2))
 
 	if sys.argv[1] == "train":
