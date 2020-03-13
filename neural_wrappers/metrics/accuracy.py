@@ -28,3 +28,8 @@ class Accuracy(ThresholdAccuracy):
 	def __call__(self, results : np.ndarray, labels : np.ndarray,**kwargs) -> float:
 		Max = results.max(axis=-1, keepdims=True)
 		return super().__call__(results, labels, Max)
+
+class ThresholdSoftmaxAccuracy(ThresholdAccuracy):
+	def __call__(self, results : np.ndarray, labels : np.ndarray, threshold : np.ndarray=0.5, **kwargs) -> float:
+		results = softmax(results, axis=-1)
+		return super().__call__(results, labels, threshold)

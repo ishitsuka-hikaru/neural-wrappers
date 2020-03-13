@@ -9,10 +9,10 @@ from scipy.special import softmax
 from functools import partial
 from models import ModelFC, ModelConv
 from neural_wrappers.readers import MNISTReader
-from neural_wrappers.callbacks import SaveModels, SaveHistory, ConfusionMatrix, PlotMetrics, EarlyStopping
+from neural_wrappers.callbacks import SaveModels, SaveHistory, ConfusionMatrix, PlotMetrics, EarlyStopping, MetricThresholder
 from neural_wrappers.schedulers import ReduceLROnPlateau
 from neural_wrappers.utilities import getGenerators
-from neural_wrappers.metrics import Accuracy
+from neural_wrappers.metrics import Accuracy, ThresholdAccuracy, ThresholdSoftmaxAccuracy
 from neural_wrappers.pytorch import device
 
 from argparse import ArgumentParser
@@ -63,14 +63,10 @@ def main():
 		model = ModelConv(inputShape=(28, 28, 1), outputNumClasses=10).to(device)
 	model.setCriterion(lossFn)
 	model.addMetrics({"Accuracy" : Accuracy(), "StrongAccuracy" : partial(StrongAccuracy, threshold=0.9)})
-	# model.addMetrics({"Accuracy" : Accuracy(), "F1" : F1Score()})
 	model.setOptimizer(optim.SGD, momentum=0.5, lr=0.1)
 	model.setOptimizerScheduler(ReduceLROnPlateau, metric="Loss")
 	callbacks = [SaveHistory("history.txt"), PlotMetrics(["Loss", "Accuracy"]), EarlyStopping(patience=5), \
-		SaveModels("best")]
-
-	# callbacks = [SaveHistory("history.txt"), PlotMetrics(["Loss", "Accuracy"]), \
-	# 	ConfusionMatrix(numClasses=10), EarlyStopping(patience=5), SaveModels("best"), MetricThresholder("ThresholdAcc", ThresholdAccuracy(), np.linspace(0, 1, 20)), PrecisionRecallCurve(np.linspace(0, 1, 10))]
+		SaveModels("best"), MetricThresholder("ThresholdAcc", ThresholdSoftmaxAccuracy(), np.linspace(0, 1, 20))]
 	model.addCallbacks(callbacks)
 	print(model.summary())
 
