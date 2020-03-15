@@ -4,15 +4,13 @@ import torch as tr
 import torch.optim as optim
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.optim.lr_scheduler import CosineAnnealingLR
-from scipy.special import softmax
 from functools import partial
 from models import ModelFC, ModelConv
 from neural_wrappers.readers import MNISTReader
-from neural_wrappers.callbacks import SaveModels, SaveHistory, ConfusionMatrix, PlotMetrics, EarlyStopping, MetricThresholder
+from neural_wrappers.callbacks import SaveModels, SaveHistory, ConfusionMatrix, PlotMetrics, EarlyStopping
 from neural_wrappers.schedulers import ReduceLROnPlateau
 from neural_wrappers.utilities import getGenerators
-from neural_wrappers.metrics import Accuracy, ThresholdAccuracy, ThresholdSoftmaxAccuracy
+from neural_wrappers.metrics import Accuracy
 from neural_wrappers.pytorch import device
 
 from argparse import ArgumentParser
@@ -36,13 +34,6 @@ def getArgs():
 		assert not args.num_epochs is None
 	return args
 
-def StrongAccuracy(results, labels, threshold, **kwargs):
-	results = softmax(results, axis=-1)
-	results = results >= threshold
-	whereCorrect = labels == 1
-	results = results[whereCorrect]
-	return results.mean()
-
 def lossFn(y, t):
 	# Negative log-likeklihood (used for softmax+NLL for classification), expecting targets are one-hot encoded
 	y = F.softmax(y, dim=1)
@@ -57,16 +48,16 @@ def main():
 	trainGenerator, trainSteps, valGenerator, valSteps = getGenerators(reader, \
 		miniBatchSize=args.batch_size, keys=["train", "test"])
 
-	if args.model_type == "model_fc":
-		model = ModelFC(inputShape=(28, 28, 1), outputNumClasses=10).to(device)
-	elif args.model_type == "model_conv":
-		model = ModelConv(inputShape=(28, 28, 1), outputNumClasses=10).to(device)
+	model = {
+		"model_fc" : ModelFC(inputShape=(28, 28, 1), outputNumClasses=10),
+		"model_conv" : ModelConv(inputShape=(28, 28, 1), outputNumClasses=10)
+	}[args.model_type].to(device)
 	model.setCriterion(lossFn)
-	model.addMetrics({"Accuracy" : Accuracy(), "StrongAccuracy" : partial(StrongAccuracy, threshold=0.9)})
+	model.addMetrics({"Accuracy" : Accuracy()})
 	model.setOptimizer(optim.SGD, momentum=0.5, lr=0.1)
 	model.setOptimizerScheduler(ReduceLROnPlateau, metric="Loss")
-	callbacks = [SaveHistory("history.txt"), PlotMetrics(["Loss", "Accuracy"]), EarlyStopping(patience=5), \
-		SaveModels("best"), MetricThresholder("ThresholdAcc", ThresholdSoftmaxAccuracy(), np.linspace(0, 1, 20))]
+	callbacks = [SaveHistory("history.txt"), PlotMetrics(["Loss", "Accuracy"]), \
+		EarlyStopping(patience=5), SaveModels("best")]
 	model.addCallbacks(callbacks)
 	print(model.summary())
 
