@@ -17,7 +17,7 @@ class ThresholdAccuracy(MetricWithThreshold):
 	#  maximinzing metric). Then, we can get a bunch of such activations for each result, but we're only interested
 	#  in the one that corresponds to the correct class, as said by label (result[labels == 1] == 1?). We sum those
 	#  and divide by the number of items to get the thresholded accuracy.
-	def __call__(self, results : np.ndarray, labels : np.ndarray, threshold : np.ndarray=0.5, **kwargs) -> float:
+	def __call__(self, results : np.ndarray, labels : np.ndarray, threshold : np.ndarray, **kwargs) -> float:
 		results = results >= threshold
 		whereCorrect = labels == 1
 		results = results[whereCorrect]
@@ -31,12 +31,10 @@ class Accuracy(ThresholdAccuracy):
 		Max = results.max(axis=-1, keepdims=True)
 		return super().__call__(results, labels, Max)
 
-# class ThresholdSoftmaxAccuracy(ThresholdAccuracy):
-# 	def __call__(self, results : np.ndarray, labels : np.ndarray, **kwargs) -> float:
-# 		threshold = kwargs["threshold"] if "threshold" in kwargs else 0.5
-# 		results = softmax(results, axis=-1)
-# 		return super().__call__(results, labels, threshold)
-
+class ThresholdSoftmaxAccuracy(ThresholdAccuracy):
+	def __call__(self, results : np.ndarray, labels : np.ndarray, threshold : np.ndarray, **kwargs) -> float:
+		results = softmax(results, axis=-1)
+		return super().__call__(results, labels, threshold)
 
 # class InterClassAccuracy(MetricAsCallback):
 	# pass

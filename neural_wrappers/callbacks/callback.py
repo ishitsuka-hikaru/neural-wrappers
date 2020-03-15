@@ -1,8 +1,14 @@
+from typing import Union, Optional
+Number = Union[int, float]
+
 class Callback:
-	def __init__(self, name=None):
+	def __init__(self, name : str=None):
 		if name is None:
 			name = str(self)
 		self.name = name
+
+	def reduceFunction(self, results) -> Number:
+		return results
 
 	def onEpochStart(self, **kwargs):
 		pass

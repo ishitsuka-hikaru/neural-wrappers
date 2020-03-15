@@ -87,6 +87,8 @@ class NeuralNetworkPyTorch(nn.Module):
 			assert callback.name not in self.callbacks, "Callback %s already in callbacks list." % (callback.name)
 			self.callbacks[callback.name] = callback
 
+			if isBaseOf(callback, MetricAsCallback):
+				self.iterPrintMessageKeys.append(callback.name)
 		# See warning for add Metrics
 		self.topologicalSort = np.arange(len(self.callbacks))
 		self.topologicalKeys = np.array(list(self.callbacks.keys()))[self.topologicalSort]
@@ -157,9 +159,10 @@ class NeuralNetworkPyTorch(nn.Module):
 		iterResults = {}
 		for key in self.topologicalKeys:
 			# iterResults is updated at each step in the order of topological sort
-			iterResults[key] = self.callbacks[key].onIterationEnd(results, labels, data=data, loss=loss, \
+			result = self.callbacks[key].onIterationEnd(results, labels, data=data, loss=loss, \
 				iteration=iteration, numIterations=numIterations, iterResults=iterResults, \
 				metricResults=metricResults, isTraining=isTraining, isOptimizing=isOptimizing)
+			iterResults[key] = self.callbacks[key].reduceFunction(result)
 
 			# Add it to running mean only if it's numeric
 			try:
@@ -369,10 +372,10 @@ class NeuralNetworkPyTorch(nn.Module):
 		metricKeys = sorted(list(set(metricResults.keys())))
 		Keys = filter(lambda x : x in self.iterPrintMessageKeys, metricKeys)
 		for key in Keys:
-			try:
-				message += " %s: %2.3f." % (key, metricResults[key].get())
-			except Exception:
-				pass
+			# try:
+			message += " %s: %2.3f." % (key, metricResults[key].get())
+			# except Exception:
+				# pass
 		messages.append(message)
 		return messages
 

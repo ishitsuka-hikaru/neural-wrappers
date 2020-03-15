@@ -22,5 +22,5 @@ class Metric:
 		return results
 
 	# @brief The main method that must be implemented by a metric
-	def __call__(self, results : Number, labels : Number, threshold : Optional[Number]=None, **kwargs):
+	def __call__(self, results : Number, labels : Number, **kwargs):
 		raise NotImplementedError("Should have implemented this")
