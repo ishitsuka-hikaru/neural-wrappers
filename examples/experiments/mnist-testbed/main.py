@@ -11,7 +11,7 @@ from neural_wrappers.callbacks import SaveModels, SaveHistory, ConfusionMatrix, 
 	MetricWithThresholdWrapper, InterClassAccuracy
 from neural_wrappers.schedulers import ReduceLROnPlateau
 from neural_wrappers.utilities import getGenerators
-from neural_wrappers.metrics import Accuracy, ThresholdSoftmaxAccuracy
+from neural_wrappers.metrics import Accuracy, ThresholdSoftmaxAccuracy, Precision, Recall, F1Score
 from neural_wrappers.pytorch import device
 
 from argparse import ArgumentParser
@@ -54,7 +54,7 @@ def main():
 		"model_conv" : ModelConv(inputShape=(28, 28, 1), outputNumClasses=10)
 	}[args.model_type].to(device)
 	model.setCriterion(lossFn)
-	model.addMetrics({"Accuracy" : Accuracy()})
+	model.addMetrics({"Accuracy" : Accuracy(), "F1Score" : F1Score()})
 	model.setOptimizer(optim.SGD, momentum=0.5, lr=0.1)
 	model.setOptimizerScheduler(ReduceLROnPlateau, metric="Loss")
 	callbacks = [SaveHistory("history.txt"), PlotMetrics(["Loss", "Accuracy"]), \

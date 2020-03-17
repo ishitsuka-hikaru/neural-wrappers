@@ -4,7 +4,8 @@ import numpy as np
 def npCloseEnough(a, b, eps=1e-5):
 	assert a.dtype == b.dtype
 	if np.issubdtype(a.dtype, np.number):
-		return np.sum(np.abs(a - b)) < eps
+		whereNotNaN = a == a
+		return np.sum(np.abs(a[whereNotNaN] - b[whereNotNaN])) < eps
 	else:
 		return np.sum(a != b) < eps
 

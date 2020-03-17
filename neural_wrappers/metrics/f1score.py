@@ -1,63 +1,44 @@
 import numpy as np
+from .metric_with_threshold import MetricWithThreshold
 from .metric import Metric
-from scipy.special import softmax
+from .precision import ThresholdPrecision
+from .recall import ThresholdRecall
 
-class F1Score(Metric):
-	def __init__(self, categoricalLabels=True):
-		super().__init__("max")
-		self.categoricalLabels = categoricalLabels
-
-	@staticmethod
-	def classF1Score(results, labels):
-		TP = np.logical_and(results==True, labels==True).sum()
-		FP = np.logical_and(results==True, labels==False).sum()
-		FN = np.logical_and(results==False, labels==True).sum()
-
-		P = TP / (TP + FP + 1e-5)
-		R = TP / (TP + FN + 1e-5)
-		F1 = 2 * P * R / (P + R + 1e-5)
-		return F1
-
-	def __call__(self, results, labels, **kwargs):
-		numClasses = results.shape[-1]
-		argMaxResults = np.argmax(results, axis=-1)
-
-		if self.categoricalLabels:
-			argMaxLabels = np.argmax(labels, axis=-1)
-		else:
-			argMaxLabels = labels
-
-		f1 = 0
-		for i in range(numClasses):
-			classF1 = F1Score.classF1Score(argMaxResults==i, argMaxLabels==i)
-			if classF1 == 0:
-				numClasses -= 1
-			f1 += classF1
-		if numClasses > 0:
-			f1 /= numClasses
-
-		return f1
-
-# @brief The thresholded variant of F1Score (not argmax, but rather correct and higher than some threshold value). To
-#  be used mostly in corroboration with MetricThresholder Callback.
-class ThresholdF1Score(Metric):
+# Based on https://towardsdatascience.com/multi-class-metrics-made-simple-part-i-f1Score-and-f1Score-9250280bddc2
+class ThresholdF1Score(MetricWithThreshold):
 	def __init__(self):
 		super().__init__("max")
 
-	def __call__(self, results, labels, threshold=0.5, **kwargs):
-		numClasses = results.shape[-1]
-		results = softmax(results, axis=-1)
-		results = results >= threshold
-		labels = labels.astype(np.bool)
+	def computeF1Score(results: np.ndarray, labels : np.ndarray) -> np.ndarray:
+		precision = ThresholdPrecision.computePrecision(results, labels)
+		recall = ThresholdRecall.computeRecall(results, labels)
+		f1Score = 2 * precision * recall / (precision + recall + 1e-8)
+		return f1Score
+		
+	def __call__(self, results : np.ndarray, labels : np.ndarray, threshold : np.ndarray, **kwargs) -> float:
+		results = np.uint8(results >= threshold)
+		# Nans are used to specify classes with no labels for this batch
+		f1Score = ThresholdF1Score.computeF1Score(results, labels)
+		# Keep only position where f1Score is not nan.
+		whereNotNaN = ~np.isnan(f1Score)
+		f1Score = f1Score[whereNotNaN]
+		# Mean over those valid classes.
+		# return f1Score.mean()
 
-		f1 = 0
-		for i in range(numClasses):
-			classF1 = F1Score.classF1Score(results[..., i], labels[..., i])
-			if classF1 == 0:
-				numClasses -= 1
-			# print(i, results[..., i].shape, labels[..., i].shape, classF1)
-			f1 += classF1
+		# It's better to compute the weighted mean of these predictions, instead of treating each element in this
+		#  MB equally.
+		whereOk = labels.sum(axis=0)
+		whereOk = whereOk[whereNotNaN]
+		return (f1Score * whereOk).sum() / whereOk.sum()
 
-		if numClasses > 0:
-			f1 /= numClasses
-		return f1
+class F1Score(Metric):
+	def __init__(self):
+		super().__init__("max")
+		self.thresholdF1Score = ThresholdF1Score()
+
+	# @brief Since we don't care about a particular threshold, just to get the highest activation for each prediction,
+	#  we can compute the max on the last axis (classes axis) and send this as threshold to the ThresholdAccuracy
+	#  class.
+	def __call__(self, results : np.ndarray, labels : np.ndarray, **kwargs) -> float:
+		Max = results.max(axis=-1, keepdims=True)
+		return self.thresholdF1Score(results, labels, Max)
