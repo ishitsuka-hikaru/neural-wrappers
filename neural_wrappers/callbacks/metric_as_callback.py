@@ -1,6 +1,8 @@
+import numpy as np
 from .callback import Callback
 from ..metrics import Metric
-from typing import Optional
+from typing import Optional, Union
+Number = Union[int, float]
 
 # This class is used to convert metrics to callbacks which are called at each iteration. This is done so we unify
 #  metrics and callbacks in one way. Stats and iteration messages can be computed for both cases thanks to this.
@@ -18,21 +20,20 @@ class MetricAsCallback(Callback):
 		except Exception:
 			return "min"
 
-	# This is used by complex MetricAsCallbacks where we do some stateful computation at every iteration and we want
-	#  to reduce it gracefully at the end of the epoch, so it can be stored in trainHistory, as well as for other
-	#  callbacks to work nicely with it (SaveModels, PlotCallbacks, etc.). So, we apply a reduction function (default
-	#  is identity, which might or might not work depending on algorithm).
-	def reduceFunction(self, results):
+	def reduceFunction(self, results : np.ndarray) -> Number:
 		return results
 
+	def defaultValue(self) -> Number:
+		return 0
+
 	def onEpochEnd(self, **kwargs):
-		return None
+		pass
 
 	def onEpochStart(self, **kwargs):
-		return None
+		pass
 
 	def onIterationStart(self, **kwargs):
-		return None
+		pass
 
 	def onIterationEnd(self, results, labels, **kwargs):
 		return self.metric(results, labels, **kwargs)

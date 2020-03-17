@@ -21,6 +21,9 @@ class Metric:
 	def reduceFunction(self, results) -> Number:
 		return results
 
+	def defaultValue(self) -> Number:
+		return 0
+
 	# @brief The main method that must be implemented by a metric
 	def __call__(self, results : Number, labels : Number, **kwargs):
 		raise NotImplementedError("Should have implemented this")

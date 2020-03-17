@@ -55,7 +55,7 @@ def main():
 	}[args.model_type].to(device)
 	model.setCriterion(lossFn)
 	# a = partial(ThresholdSoftmaxAccuracy, threshold=0.9)
-	a = MetricWithThresholdWrapper("ThresholdSoftMaxAccuracy", ThresholdSoftmaxAccuracy(), 0.9)
+	a = MetricWithThresholdWrapper("ThresholdSoftMaxAccuracy", ThresholdSoftmaxAccuracy(), {"0:5" : 0.5, "0.9" :0.9})
 	print(a)
 	model.addMetrics({"Accuracy" : Accuracy()})
 	model.setOptimizer(optim.SGD, momentum=0.5, lr=0.1)

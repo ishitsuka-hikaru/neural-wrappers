@@ -1,10 +1,9 @@
 import numpy as np
 import os
-import sys
 import pickle
-from scipy.ndimage import gaussian_filter
 from collections import OrderedDict
 from .np_utils import npCloseEnough
+from .type_utils import Number, Dict, Sequence, Union
 
 def standardizeData(data, mean, std):
 	data -= mean
@@ -79,26 +78,6 @@ def changeDirectory(Dir, expectExist=None):
 	if expectExist == False or (expectExist == None and not os.path.isdir(Dir)):
 		os.makedirs(Dir)
 	os.chdir(Dir)
-
-class RunningMean:
-	def __init__(self, initValue=0):
-		self.value = initValue
-		self.count = 0
-
-	def update(self, value, count):
-		if not value is None:
-			assert count > 0
-			self.value += value
-			self.count += count
-
-	def get(self):
-		return self.value / (self.count + 1e-5)
-
-	def __repr__(self):
-		return str(self.get())
-
-	def __str__(self):
-		return str(self.get())
 
 # Given a graph as a dict {Node : [Dependencies]}, returns a list [Node] ordered with a correct topological sort order
 # Applies Kahn's algorithm: https://ocw.cs.pub.ro/courses/pa/laboratoare/laborator-07
@@ -226,3 +205,13 @@ def smartIndexWrapper(data, indexes, f):
 	for i in range(1, N):
 		result[i] = f(data, flattenedIndexes[i])
 	return result.reshape(finalShape)
+
+def getFormattedStr(item : Union[np.ndarray, Number, Sequence, Dict], precision : int) -> str:
+	formatStr = "%%2.%df" % (precision)
+	if type(item) in Number.__args__:
+		return formatStr % (item)
+	elif type(item) in Sequence.__args__:
+		return [formatStr % (x) for x in item]
+	elif type(item) in Dict.__args__:
+		return {k : formatStr % (item[k]) for k in item}
+	assert False, "Unknown type: %s" % (type(item))

@@ -1,5 +1,4 @@
 from typing import Union, Optional
-Number = Union[int, float]
 
 class Callback:
 	def __init__(self, name : str=None):
@@ -7,7 +6,11 @@ class Callback:
 			name = str(self)
 		self.name = name
 
-	def reduceFunction(self, results) -> Number:
+	# This is used by complex MetricAsCallbacks where we do some stateful computation at every iteration and we want
+	#  to reduce it gracefully at the end of the epoch, so it can be stored in trainHistory, as well as for other
+	#  callbacks to work nicely with it (SaveModels, PlotCallbacks, etc.). So, we apply a reduction function (default
+	#  is identity, which might or might not work depending on algorithm).
+	def reduceFunction(self, results):
 		return results
 
 	def onEpochStart(self, **kwargs):

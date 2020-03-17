@@ -10,9 +10,12 @@ from typing import List, Union
 
 from .network_serializer import NetworkSerializer
 from .utils import getNumParams, getOptimizerStr, getNpData, getTrData, StorePrevState
-from ..utilities import makeGenerator, MessagePrinter, isBaseOf, RunningMean, topologicalSort, deepCheckEqual
+from ..utilities import makeGenerator, MessagePrinter, isBaseOf, RunningMean, \
+	topologicalSort, deepCheckEqual, getFormattedStr
 from ..callbacks import Callback, MetricAsCallback
 from ..metrics import Metric
+
+np.set_printoptions(precision=3, suppress=True)
 
 # Wrapper on top of the PyTorch model. Added methods for saving and loading a state. To completly implement a PyTorch
 #  model, one must define layers in the object's constructor, call setOptimizer, setCriterion and implement the
@@ -206,7 +209,8 @@ class NeuralNetworkPyTorch(nn.Module):
 			assert not self.optimizer is None, "Set optimizer before training"
 		assert not self.criterion is None, "Set criterion before training or testing"
 
-		metricResults = {metric : RunningMean() for metric in self.getMetrics()}
+		metrics = self.getMetrics()
+		metricResults = {metric : RunningMean(initValue=metrics[metric].defaultValue()) for metric in metrics}
 
 		# The protocol requires the generator to have 2 items, inputs and labels (both can be None). If there are more
 		#  inputs, they can be packed together (stacked) or put into a list, in which case the ntwork will receive the
@@ -371,11 +375,10 @@ class NeuralNetworkPyTorch(nn.Module):
 		message = "  - Metrics."
 		metricKeys = sorted(list(set(metricResults.keys())))
 		Keys = filter(lambda x : x in self.iterPrintMessageKeys, metricKeys)
+
 		for key in Keys:
-			# try:
-			message += " %s: %2.3f." % (key, metricResults[key].get())
-			# except Exception:
-				# pass
+			formattedStr = getFormattedStr(metricResults[key].get(), precision=3)
+			message += " %s: %s." % (key, formattedStr)
 		messages.append(message)
 		return messages
 
@@ -398,9 +401,11 @@ class NeuralNetworkPyTorch(nn.Module):
 		printableMetrics = filter(lambda x : x in self.iterPrintMessageKeys, sorted(trainMetrics))
 		trainMessage, validationMessage = "    - [Train]", "    - [Validation]"
 		for metric in printableMetrics:
-			trainMessage += " %s: %2.3f." % (metric, trainMetrics[metric])
+			formattedStr = getFormattedStr(trainMetrics[metric], precision=3)
+			trainMessage += " %s: %s." % (metric, formattedStr)
 			if not validationMetrics is None:
-				validationMessage += " %s: %2.3f." % (metric, validationMetrics[metric])
+				formattedStr = getFormattedStr(validationMetrics[metric], precision=3)
+				validationMessage += " %s: %s." % (metric, formattedStr)
 		messages.append(trainMessage)
 		if not validationMetrics is None:
 			messages.append(validationMessage)
