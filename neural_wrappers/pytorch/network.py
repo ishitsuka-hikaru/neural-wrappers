@@ -165,7 +165,7 @@ class NeuralNetworkPyTorch(nn.Module):
 			result = self.callbacks[key].onIterationEnd(results, labels, data=data, loss=loss, \
 				iteration=iteration, numIterations=numIterations, iterResults=iterResults, \
 				metricResults=metricResults, isTraining=isTraining, isOptimizing=isOptimizing)
-			iterResults[key] = self.callbacks[key].reduceFunction(result)
+			iterResults[key] = self.callbacks[key].iterationReduceFunction(result)
 
 			# Add it to running mean only if it's numeric
 			try:
@@ -233,7 +233,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		# Get the values at end of epoch. Also, apply the reduceFunction for complex MetricAsCallbacks.
 		for metric in metricResults:
 			result = metricResults[metric].get()
-			metricResults[metric] = self.callbacks[metric].reduceFunction(result)
+			metricResults[metric] = self.callbacks[metric].epochReduceFunction(result)
 		return metricResults
 
 	def test_generator(self, generator, stepsPerEpoch, printMessage=None):

@@ -20,7 +20,10 @@ class MetricAsCallback(Callback):
 		except Exception:
 			return "min"
 
-	def reduceFunction(self, results : np.ndarray) -> Number:
+	def epochReduceFunction(self, results) -> Number:
+		return results
+
+	def iterationReduceFunction(self, results):
 		return results
 
 	def defaultValue(self) -> Number:

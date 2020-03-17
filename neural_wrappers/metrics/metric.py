@@ -18,7 +18,10 @@ class Metric:
 
 	# @brief The reduce function, used by complex callbacks to transform at epoch and a callback into a metric that
 	#  can be stored and used safely by other callbacks (i.e. SaveModels or PlotMetrics).
-	def reduceFunction(self, results) -> Number:
+	def epochReduceFunction(self, results) -> Number:
+		return results
+
+	def iterationReduceFunction(self, results) -> Number:
 		return results
 
 	def defaultValue(self) -> Number:

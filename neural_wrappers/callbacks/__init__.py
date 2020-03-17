@@ -10,3 +10,5 @@ from .early_stopping import EarlyStopping
 
 # from .metric_thresholder import MetricThresholder
 # from .precision_recall_curve import PrecisionRecallCurve
+
+from .inter_class_accuracy import InterClassAccuracy

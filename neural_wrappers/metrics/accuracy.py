@@ -1,8 +1,6 @@
 import numpy as np
-from functools import reduce
 from .metric_with_threshold import MetricWithThreshold
-# from .metric import Metric
-# from ..callbacks.metric_as_callback import MetricAsCallback
+from .metric import Metric
 from scipy.special import softmax
 
 class ThresholdAccuracy(MetricWithThreshold):
@@ -23,34 +21,19 @@ class ThresholdAccuracy(MetricWithThreshold):
 		results = results[whereCorrect]
 		return results.mean()
 
-class Accuracy(ThresholdAccuracy):
+class Accuracy(Metric):
+	def __init__(self):
+		super().__init__("max")
+		self.thresholdAccuracy = ThresholdAccuracy()
+
 	# @brief Since we don't care about a particular threshold, just to get the highest activation for each prediction,
 	#  we can compute the max on the last axis (classes axis) and send this as threshold to the ThresholdAccuracy
 	#  class.
 	def __call__(self, results : np.ndarray, labels : np.ndarray, **kwargs) -> float:
 		Max = results.max(axis=-1, keepdims=True)
-		return super().__call__(results, labels, Max)
+		return self.thresholdAccuracy(results, labels, Max)
 
 class ThresholdSoftmaxAccuracy(ThresholdAccuracy):
 	def __call__(self, results : np.ndarray, labels : np.ndarray, threshold : np.ndarray, **kwargs) -> float:
 		results = softmax(results, axis=-1)
 		return super().__call__(results, labels, threshold)
-
-# class InterClassAccuracy(MetricAsCallback):
-	# pass
-# 	def __init__(self):
-# 		super().__init__("InterClassAccuracy")
-
-# 	def getDirection(self):
-# 		return "max"
-
-# 	def reduceFunction(self, results):
-# 		return results.mean()
-
-# 	def onIterationEnd(self, results, labels, **kwargs):
-# 		# labels = np.uint8(labels["intent"])
-# 		# results = np.uint8(results > 0.5)
-# 		# XOR = 1 - np.logical_xor(labels, results)
-# 		# Mean just the batch, so we have a mean PER class
-# 		# XOR = XOR.mean(axis=0)
-# 		# return XOR

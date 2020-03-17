@@ -10,7 +10,10 @@ class Callback:
 	#  to reduce it gracefully at the end of the epoch, so it can be stored in trainHistory, as well as for other
 	#  callbacks to work nicely with it (SaveModels, PlotCallbacks, etc.). So, we apply a reduction function (default
 	#  is identity, which might or might not work depending on algorithm).
-	def reduceFunction(self, results):
+	def epochReduceFunction(self, results):
+		return results
+
+	def iterationReduceFunction(self, results):
 		return results
 
 	def onEpochStart(self, **kwargs):
