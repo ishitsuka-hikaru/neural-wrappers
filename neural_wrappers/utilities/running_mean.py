@@ -8,9 +8,9 @@ class RunningMean:
 
 	def setupFns(self, initValue):
 		if type(initValue) in Number.__args__:
-			return lambda a, b : a + b, lambda a, b : a / b
+			return lambda a, b : a + b, lambda a, b : a / (b + 1e-5)
 		elif type(initValue) in Sequence.__args__:
-			return lambda a, b : a + b, lambda a, b : a / b
+			return lambda a, b : a + b, lambda a, b : a / (b + 1e-5)
 		elif type(initValue) in Dict.__args__:
 			return lambda a, b : {k : a[k] + b[k] for k in a}, lambda a, b : {k : a[k] / (b + 1e-5) for k in a}
 		assert False, "Unknown type: %s" % (type(item))

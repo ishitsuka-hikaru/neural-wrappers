@@ -3,7 +3,7 @@ import os
 import pickle
 from collections import OrderedDict
 from .np_utils import npCloseEnough
-from .type_utils import Number, Dict, Sequence, Union
+from .type_utils import Number, Dict, Sequence, Union, isBaseOf
 
 def standardizeData(data, mean, std):
 	data -= mean
@@ -39,15 +39,6 @@ def makeGenerator(data, labels, batchSize):
 def NoneAssert(conndition, noneCheck, message=""):
 	if noneCheck:
 		assert conndition, message
-
-# @brief Returns true if whatType is subclass of baseType. The parameters can be instantiated objects or types. In the
-#  first case, the parameters are converted to their type and then the check is done.
-def isBaseOf(whatType, baseType):
-	if type(whatType) != type:
-		whatType = type(whatType)
-	if type(baseType) != type:
-		baseType = type(baseType)
-	return baseType in type(object).mro(whatType)
 
 # Stubs for identity functions, first is used for 1 parameter f(x) = x, second is used for more than one parameter,
 #  such as f(x, y, z) = (x, y, z)
@@ -147,18 +138,6 @@ def tryReadImage(path, count=5, imgLib="opencv"):
 
 			if i == count:
 				raise Exception
-
-# Given a Type and a dictionary of {Type : Item}, returns the first Item that matches any ancestor of Type (assumed in
-#  order of importance!)
-# Example: B (extends) A (extends) Base (extends) Object
-# pickTypeFromMRO(B, {Base: "msg1", A: "msg2", Object: "msg3"}) will return msg2 because that's how mro() works.
-def pickTypeFromMRO(Type, switchType):
-	Type = type(Type) if type(Type) != type else Type
-	typeMRO = Type.mro()
-	for Type in typeMRO:
-		if Type in switchType:
-			return switchType[Type]
-	assert False, "%s not in %s" % (typeMRO, switchType)
 
 # Deep check if two items are equal. Dicts are checked value by value and numpy array are compared using "closeEnough"
 #  method
