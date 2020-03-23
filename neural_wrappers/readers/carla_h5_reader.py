@@ -187,6 +187,11 @@ class CarlaH5Reader(DatasetReader):
 
 class CarlaH5PathsReader(CarlaH5Reader):
 	@staticmethod
+	def unrealFloatFronPng(x):
+		x = (x[..., 0] + x[..., 1] * 256 + x[..., 2] * 256 * 256) / (256 * 256 * 256 - 1)
+		return np.expand_dims(x, axis=-1).astype(np.float32)
+
+	@staticmethod
 	def doPng(path, baseDirectory):
 		path = baseDirectory + os.sep + str(path, "utf8")
 		npImg = tryReadImage(path).astype(np.uint8)
@@ -196,16 +201,27 @@ class CarlaH5PathsReader(CarlaH5Reader):
 	def doDepth(path, baseDirectory):
 		path = baseDirectory + os.sep + str(path, "utf8")
 		dph = tryReadImage(path)
-		dphNorm = (dph[..., 0] + dph[..., 1] * 256 + dph[..., 2] * 256 * 256) / (256 * 256 * 256 - 1) * 1000
-		dphNorm = np.expand_dims(dphNorm, axis=-1).astype(np.float32)
-		return dphNorm
+		return CarlaH5PathsReader.unrealFloatFronPng(dph) * 1000
 
 	@staticmethod
+	# TODO: When flow works properly, update constants, negative sign etc.
 	def doOpticalFlow(path, baseDirectory):
-		flow_x, flow_y = path
-		flowXNorm = CarlaH5PathsReader.doDepth(flow_x, baseDirectory)
-		flowYNorm = CarlaH5PathsReader.doDepth(flow_y, baseDirectory)
-		flow = np.concatenate([flowXNorm, flowYNorm], axis=-1) / 1000
+		def readFlow(path):
+			x = tryReadImage(path)
+			# x :: [0 : 1]
+			x = CarlaH5PathsReader.unrealFloatFronPng(x)
+			# x :: [-0.5 : 0.5]
+			x = (x - 0.5)
+			# x :: [-0.2 : 0.2]
+			x = x * 0.4
+			return x
+
+		path_u, path_v = path
+		path_u = "%s/%s" % (baseDirectory, str(path_u, "utf8"))
+		path_v = "%s/%s" % (baseDirectory, str(path_v, "utf8"))
+		flow_u = readFlow(path_u)
+		flow_v = -readFlow(path_v)
+		flow = np.concatenate([flow_u, flow_v], axis=-1) / 1000
 		return flow
 
 	@staticmethod
