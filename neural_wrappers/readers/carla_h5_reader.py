@@ -221,7 +221,7 @@ class CarlaH5PathsReader(CarlaH5Reader):
 		path_v = "%s/%s" % (baseDirectory, str(path_v, "utf8"))
 		flow_u = readFlow(path_u)
 		flow_v = -readFlow(path_v)
-		flow = np.concatenate([flow_u, flow_v], axis=-1) / 1000
+		flow = np.concatenate([flow_u, flow_v], axis=-1)
 		return flow
 
 	@staticmethod
