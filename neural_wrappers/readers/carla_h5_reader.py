@@ -210,10 +210,6 @@ class CarlaH5PathsReader(CarlaH5Reader):
 			x = tryReadImage(path)
 			# x :: [0 : 1]
 			x = CarlaH5PathsReader.unrealFloatFronPng(x)
-			# x :: [-0.5 : 0.5]
-			x = (x - 0.5)
-			# x :: [-0.2 : 0.2]
-			x = x * 0.4
 			return x
 
 		path_u, path_v = path
