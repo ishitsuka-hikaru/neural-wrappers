@@ -5,7 +5,7 @@ from copy import deepcopy
 from collections import OrderedDict
 
 from .utils import getNumParams, getOptimizerStr, getTrainableParameters, _computeNumParams, device
-from ..utilities import isBaseOf, deepCheckEqual, isPicklable
+from ..utilities import isBaseOf, deepCheckEqual, isPicklable, npCloseEnough
 from ..callbacks import MetricAsCallback
 
 class NetworkSerializer:
@@ -48,8 +48,7 @@ class NetworkSerializer:
 	# @return A list of all the parameters (converted to CPU) so they are pickle-able
 	def doSaveWeights(self):
 		trainableParams = getTrainableParameters(self.model)
-		# cpuTrainableParams = {k : trainableParams[k].cpu() for k in trainableParams}
-		parametersState = {x : self.model.state_dict()[x] for x in trainableParams.keys()}
+		parametersState = {x : self.model.state_dict()[x] for x in sorted(list(trainableParams.keys()))}
 		return parametersState
 
 	# @brief Handles saving the optimizer of the model
@@ -173,6 +172,22 @@ class NetworkSerializer:
 			thisItem.requires_grad_(True)
 		print("Succesfully loaded weights (%d parameters) " % (numLoadedParams))
 
+	def doLoadWeightsOld2(self, namedTrainableParams, namedLoadedParams, trainableParams, loadedParams):
+		print("Loading in old way, where we hope/assume that the order of the keys is identical loaded one")
+		# Combines names of trainable params with weights from loaded (should apply to all cases) if the loop down
+		#  works (Potential bug: RARE CASE WHERE DICT ORDER IS DIFFERENT BUT SAME # OF PARAMS)
+		newParams = {}
+		for i in range(len(namedTrainableParams)):
+			nameTrainableParam = namedTrainableParams[i]
+			nameLoadedParam = namedLoadedParams[i]
+			trainableParam = trainableParams[nameTrainableParam]
+			loadedParam = loadedParams[nameLoadedParam]
+			assert trainableParam.shape == loadedParam.shape, "This: %s:%s. Loaded:%s" % \
+				(nameLoadedParam, str(trainableParam.shape), str(loadedParam.shape))
+			newParams[nameTrainableParam] = loadedParam
+		return newParams
+
+
 	# Handles loading weights from a model.
 	def doLoadWeights(self, loadedState):
 		assert "weights" in loadedState
@@ -190,20 +205,16 @@ class NetworkSerializer:
 		assert numLoadedParams == numTrainableParams, "Inconsistent parameters: Loaded: %d vs Model (trainable): %d." \
 			% (numLoadedParams, numTrainableParams)
 
-		namedTrainableParams = list(trainableParams.keys())
-		namedLoadedParams = list(loadedParams.keys())
-		# Combines names of trainable params with weights from loaded (should apply to all cases) if the loop down
-		#  works
-		# (Potential bug: RARE CASE WHERE DICT ORDER IS DIFFERENT BUT SAME # OF PARAMS)
-		#  However, same problem could apply to load_state_dict, so it might not be problematic. (to think)
-		newParams = {}
-		for i in range(len(namedTrainableParams)):
-			nameTrainableParam = namedTrainableParams[i]
-			nameLoadedParam = namedLoadedParams[i]
-			trainableParam = trainableParams[nameTrainableParam]
-			loadedParam = loadedParams[nameLoadedParam]
-			assert trainableParam.shape == loadedParam.shape
-			newParams[nameTrainableParam] = loadedParam
+		namedTrainableParams = sorted(list(trainableParams.keys()))
+		namedLoadedParams = sorted(list(loadedParams.keys()))
+		# Loading in natural way, because keys are identical
+		if namedTrainableParams == namedLoadedParams:
+			for key in namedTrainableParams:
+				assert trainableParams[key].shape == loadedParams[key].shape, "This: %s:%s. Loaded:%s" % \
+					(nameLoadedParam, str(trainableParam.shape), str(loadedParam.shape))
+			newParams = loadedParams
+		else:
+			newParams = self.doLoadWeightsOld2(namedTrainableParams, namedLoadedParams, trainableParams, loadedParams)
 		self.model.load_state_dict(newParams, strict=True)
 		print("Succesfully loaded weights (%d parameters) " % (numLoadedParams))
 
