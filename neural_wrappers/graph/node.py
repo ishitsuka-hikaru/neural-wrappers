@@ -1,11 +1,14 @@
-from ..pytorch import getTrData, trDetachData
+from __future__ import annotations
+from ..pytorch import getTrData, trDetachData, NeuralNetworkPyTorch
+from typing import Optional
 
 class Node:
 	# A dictionary that gives a unique tag to all nodes by appending an increasing number to name.
 	lastNodeID = 0
 
-	def __init__(self, name, groundTruthKey, nodeEncoder=None, nodeDecoder=None, hyperParameters={}):
-		assert not name is "GT", "GT is a reserved keyword"
+	def __init__(self, name : str, groundTruthKey : str, nodeEncoder : Optional[NeuralNetworkPyTorch]=None, \
+		nodeDecoder : Optional[NeuralNetworkPyTorch]=None, hyperParameters : dict={}):
+		assert name != "GT", "GT is a reserved keyword"
 		self.name = Node.getUniqueName(name)
 		self.groundTruthKey = groundTruthKey
 
@@ -22,38 +25,41 @@ class Node:
 	# This function is called for getEncoder/getDecoder. By default we'll return the normal type of this function.
 	#  However, we are free to overwrite what type a node offers to be seen as. A concrete example is a
 	#  ConcatenateNode, which might be more useful to be seen as a MapNode (if it concatenates >=2 MapNodes)
-	def getType(self):
+	def getType(self) -> Node:
 		return type(self)
 
-	def getEncoder(self, outputNodeType=None):
+	def getEncoder(self, outputNodeType : Optional[Node]=None):
 		if not self.nodeEncoder is None:
 			return self.nodeEncoder
 		raise Exception("Must be implemented by each node!")
 
-	def getDecoder(self, inputNodeType=None):
+	def getDecoder(self, inputNodeType : Optional[Nde]=None) ->Nod:
 		if not self.getDecoder is None:
 			return self.nodeDecoder
 		raise Exception("Must be implemented by each node!")
 
-	def getMetrics(self):
+	# TODO type
+	def getMetrics(self) -> dict:
 		raise Exception("Must be implemented by each node!")
 
+	# TODO: Return callable
 	def getCriterion(self):
 		raise Exception("Must be implemented by each node!")
 
-	def getInputs(self, x):
+	def getInputs(self, x : tr.Tensor) -> Dict[str, tr.Tensor]:
 		inputs = self.getMessages()
 		if not self.groundTruth is None:
 			inputs["GT"] = self.getGroundTruthInput(x).unsqueeze(0)
 		return inputs
 
-	def getMessages(self):
+	def getMessages(self) -> Dict[str, tr.Tensor]:
 		return {k : getTrData(self.messages[k]) for k in self.messages}
 
-	def addMessage(self, edgeID, message):
+	def addMessage(self, edgeID : str, message : tr.Tensor) -> None:
 		self.messages[edgeID] = message
 
-	def getNodeLabelOnly(self, labels):
+	# TODO return type
+	def getNodeLabelOnly(self, labels : dict):
 		# Combination of two functions. To be refactored :)
 		if self.groundTruthKey is None:
 			return None
@@ -65,14 +71,15 @@ class Node:
 			return {k : self.getNodeLabelOnly(labels[k]) for k in self.groundTruthKey}
 		raise Exception("Key %s required from GT data not in labels %s" % (list(labels.keys())))
 
-	def setGroundTruth(self, labels):
+	# TODO: labels type
+	def setGroundTruth(self, labels : dict):
 		labels = self.getNodeLabelOnly(labels)
 		# Ground truth is always detached from the graph, so we don't optimize both sides of the graph, if the GT of
 		#  one particular node was generated from other side.
 		labels = trDetachData(labels)
 		self.groundTruth = labels
 
-	def getGroundTruth(self):
+	def getGroundTruth(self) -> tr.Tensor:
 		return self.groundTruth
 
 	def getGroundTruthInput(self, inputs):
@@ -83,16 +90,16 @@ class Node:
 			return [inputs[key] for key in self.groundTruthKey]
 		assert False
 
-	def clearNodeOutputs(self):
+	def clearNodeOutputs(self) -> None:
 		self.outputs = {}
 
 	@staticmethod
-	def getUniqueName(name):
+	def getUniqueName(name : str) -> str:
 		name = "%s (ID: %d)" % (name, Node.lastNodeID)
 		Node.lastNodeID += 1
 		return name
 
-	def getHyperParameters(self, hyperParameters):
+	def getHyperParameters(self, hyperParameters : dict) -> dict:
 		# This is some weird bug. If i leave the same hyperparameters coming (here I make a shallow copy),
 		#  making two instances of the same class results in having same hyperparameters.
 		hyperParameters = {k : hyperParameters[k] for k in hyperParameters.keys()}
@@ -100,10 +107,10 @@ class Node:
 		hyperParameters["groundTruthKey"] = self.groundTruthKey
 		return hyperParameters
 
-	def __str__(self):
+	def __str__(self) -> str:
 		return self.name
 
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return self.name.split(" ")[0]
 
 class VectorNode(Node): pass
