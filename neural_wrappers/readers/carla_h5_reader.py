@@ -188,9 +188,9 @@ class CarlaH5Reader(DatasetReader):
 class CarlaH5PathsReader(CarlaH5Reader):
 	@staticmethod
 	def unrealFloatFronPng(x):
-		x = x.astype(np.float32)
+		x
 		x = (x[..., 0] + x[..., 1] * 256 + x[..., 2] * 256 * 256) / (256 * 256 * 256 - 1)
-		return x
+		return x.astype(np.float32)
 
 	@staticmethod
 	def doPng(path, baseDirectory):
