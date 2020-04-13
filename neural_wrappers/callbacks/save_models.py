@@ -29,30 +29,31 @@ class SaveModels(Callback):
 		else:
 			Key = "Validation"
 		score = trainHistory[Key][self.metric]
+		strMetric = str(self.metric)
 
-		fileName = "model_weights_%d_%s_%2.2f.pkl" % (kwargs["epoch"], self.metric, score)
+		fileName = "model_weights_%d_%s_%2.2f.pkl" % (kwargs["epoch"], strMetric, score)
 		if self.type == "improvements":
 			# nan != nan is True
 			if self.best != self.best or metricFunc(score, self.best):
-				self.best = score
 				kwargs["model"].saveModel(fileName)
 				print("[SaveModels] Epoch %d. Improvement (%s) from %2.2f to %2.2f" % \
-					(kwargs["epoch"], self.metric, self.best, score))
+					(kwargs["epoch"], strMetric, self.best, score))
+				self.best = score
 			else:
 				print("Epoch %d did not improve best metric (%s: %2.2f)" % \
-					(kwargs["epoch"], self.emtric, self.best))
+					(kwargs["epoch"], strMetric, self.best))
 			sys.stdout.flush()
 		elif self.type == "all":
 			kwargs["model"].saveModel(fileName)
 		elif self.type == "last":
-			kwargs["model"].saveModel("model_last_%s.pkl" % (self.metric))
+			kwargs["model"].saveModel("model_last_%s.pkl" % (strMetric))
 		elif self.type == "best":
 			# nan != nan is True
 			if self.best != self.best or metricFunc(score, self.best):
-				self.best = score
-				kwargs["model"].saveModel("model_best_%s.pkl" % (self.metric))
+				kwargs["model"].saveModel("model_best_%s.pkl" % (strMetric))
 				print("[SaveModels] Epoch %d. Improvement (%s) from %2.2f to %2.2f" % \
-					(kwargs["epoch"], self.metric, self.best, score))
+					(kwargs["epoch"], strMetric, self.best, score))
+				self.best = score
 
 	def __str__(self):
-		return "SaveModels (Metric: %s. Type: %s)" % (self.metric, self.type)
+		return "SaveModels (Metric: %s. Type: %s)" % (str(self.metric), self.type)

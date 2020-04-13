@@ -33,7 +33,7 @@ class Node:
 			return self.nodeEncoder
 		raise Exception("Must be implemented by each node!")
 
-	def getDecoder(self, inputNodeType : Optional[Nde]=None) ->Nod:
+	def getDecoder(self, inputNodeType : Optional[Node]=None) ->Node:
 		if not self.getDecoder is None:
 			return self.nodeDecoder
 		raise Exception("Must be implemented by each node!")

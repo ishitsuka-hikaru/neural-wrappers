@@ -173,7 +173,7 @@ class NetworkSerializer:
 		print("Succesfully loaded weights (%d parameters) " % (numLoadedParams))
 
 	def doLoadWeightsOld2(self, namedTrainableParams, namedLoadedParams, trainableParams, loadedParams):
-		print("Loading in old way, where we hope/assume that the order of the keys is identical loaded one")
+		print("Loading in old way, where we hope/assume that the order of the keys is identical to the loaded one")
 		# Combines names of trainable params with weights from loaded (should apply to all cases) if the loop down
 		#  works (Potential bug: RARE CASE WHERE DICT ORDER IS DIFFERENT BUT SAME # OF PARAMS)
 		newParams = {}
@@ -186,7 +186,6 @@ class NetworkSerializer:
 				(nameLoadedParam, str(trainableParam.shape), str(loadedParam.shape))
 			newParams[nameTrainableParam] = loadedParam
 		return newParams
-
 
 	# Handles loading weights from a model.
 	def doLoadWeights(self, loadedState):

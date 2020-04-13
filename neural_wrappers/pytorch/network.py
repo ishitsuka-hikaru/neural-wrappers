@@ -96,6 +96,9 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.topologicalSort = np.arange(len(self.callbacks))
 		self.topologicalKeys = np.array(list(self.callbacks.keys()))[self.topologicalSort]
 
+	# TODO: Add clearMetrics. Store dependencies, so we can call topological sort before/after clearCallbacks.
+	# Store dependenceis on model store. Make clearCallbacks clear only callbacks, not metrics as well.
+
 	# Returns only the callbacks that are of subclass Callback (not metrics)
 	def getCallbacks(self):
 		callbacks = {k : v for k, v in self.callbacks.items() if not isBaseOf(v, MetricAsCallback)}
@@ -318,7 +321,7 @@ class NeuralNetworkPyTorch(nn.Module):
 			#  done on validation set). If no validation set is used, the iteration callbacks are used on train set.
 			# trainCallbacks = [] if validationGenerator != None else callbacks
 			with StorePrevState(self):
-				self.train()
+				# self.train()
 				epochMetrics["Train"] = self.run_one_epoch(generator, stepsPerEpoch, isTraining=True, \
 					isOptimizing=True)
 
