@@ -66,7 +66,8 @@ class Edge(NeuralNetworkPyTorch):
 		return self.outputs
 
 	def loss(self, y, t):
-		return self.lossFn(self, y, t)
+		ret = self.lossFn(self, y, t)
+		return ret
 
 	# Creates the encoder for this edge. If the edge is node-node or node-edge, then use the node-spepcific encoder.
 	def getEncoder(self):

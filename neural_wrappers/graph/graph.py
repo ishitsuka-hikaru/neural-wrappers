@@ -26,10 +26,10 @@ class Graph(NeuralNetworkPyTorch):
 		loss = 0
 		for edge in self.edges:
 			edgeID = str(edge)
-			print(edgeID)
 			edgeLoss = edge.loss(y, t)
-			self.edgeLoss[edgeID] = getNpData(edgeLoss)
-			loss += edgeLoss
+			if not edgeLoss is None:
+				self.edgeLoss[edgeID] = getNpData(edgeLoss)
+				loss += edgeLoss
 		return loss
 
 	def forward(self, trInputs):
