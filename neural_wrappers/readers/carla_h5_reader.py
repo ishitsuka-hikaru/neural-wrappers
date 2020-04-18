@@ -1,3 +1,8 @@
+#TODO : Refactor this code so it doesn't assume some dimensions are always present. This code was originally written
+#  for pose2rgbd project, which assumed "rgb", "position" and "depth" keys ALWAYS.
+# The more correct way is to provide a generic way to read data from h5/paths h5 file and then do more project
+#  specific stuff with a custom reader, like in cycleconcepts project.
+
 import numpy as np
 import h5py
 import os
