@@ -108,8 +108,8 @@ def getGenerators(reader, miniBatchSize, maxPrefetch=1, keys=["train", "validati
 		items.extend([generator, numIters])
 	return items
 
-def tryReadImage(path, count=5, imgLib="opencv"):
-	assert imgLib in ("opencv", "PIL")
+def tryReadImage(path, count=5, imgLib="lycon"):
+	assert imgLib in ("opencv", "PIL", "lycon")
 
 	def readImageOpenCV(path):
 		import cv2
@@ -123,10 +123,16 @@ def tryReadImage(path, count=5, imgLib="opencv"):
 		image = np.array(Image.open(path), dtype=np.float32)[..., 0 : 3]
 		return image
 
-	if imgLib == "opencv":
-		f = readImageOpenCV
-	elif imgLib == "PIL":
-		f = readImagePIL
+	def readImageLycon(path):
+		from lycon import load
+		image = load(path)[..., 0 : 3].astype(np.float32)
+		return image
+
+	f = {
+		"opencv" : readImageOpenCV,
+		"PIL" : readImagePIL,
+		"lycon" : readImageLycon
+	}[imgLib]
 
 	i = 0
 	while True:
