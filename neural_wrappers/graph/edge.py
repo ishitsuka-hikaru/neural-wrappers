@@ -149,9 +149,12 @@ class Edge(NeuralNetworkPyTorch):
 		relevantKeys = list(filter(lambda x : x.find("->") != -1, pklFile["model_state"].keys()))
 		relevantKeys = list(map(lambda x : x.split("->"), relevantKeys))
 		assert len(relevantKeys) == len(list(filter(lambda x : len(x) == 2, relevantKeys)))
-		relevantKeys = list(map(lambda x : (x[0].split(" ")[0], x[1][1 : ].split(" ")[0]), relevantKeys))
-		check2 = list(filter(lambda x : x[0] == thisInputNode and x[1] == thisOutputNode, relevantKeys))
-		assert len(check2) == 1, "More than 1 %s->%s edges were found: %s" % (thisInputNode, thisOutputNode, check2)
+		relevantKeys = list(map(lambda x : (x[0].split(" ")[0], x[1][1 : ].split(" ")[0]), relevantKeys))[0]
+		assert len(relevantKeys) == 2
+		if relevantKeys[0] != thisInputNode:
+			print("Warning! Input node is different. Expected: %s. Got: %s." % (relevantKeys[0], thisInputNode))
+		if relevantKeys[1] != thisOutputNode:
+			print("Warning! Output node is different. Expected: %s. Got: %s." % (relevantKeys[1], thisOutputNode))
 		self.serializer.doLoadWeights(pklFile)
 		self.setTrainableWeights(trainable)
 

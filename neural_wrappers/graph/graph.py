@@ -111,7 +111,8 @@ class Graph(NeuralNetworkPyTorch):
 				continue
 			message = "    - [%s] " % (edge)
 			for metric in printableMetrics:
-				message += " %s: %s." % (metric, getFormattedStr(metricResults[metric].get(), precision=3))
+				# metric is a tuple of (edge, metricName) for graphs.
+				message += " %s: %s." % (metric[1], getFormattedStr(metricResults[metric].get(), precision=3))
 			messages.append(message)
 		return messages
 
@@ -133,9 +134,10 @@ class Graph(NeuralNetworkPyTorch):
 			if len(printableMetrics) == 0:
 				continue
 			for metric in printableMetrics:
-				trainMessage += " %s: %s." % (metric, getFormattedStr(trainMetrics[metric], precision=3))
+				trainMessage += " %s: %s." % (metric[1], getFormattedStr(trainMetrics[metric], precision=3))
 				if not validationMetrics is None:
-					validationMessage += " %s: %s." % (metric, getFormattedStr(validationMetrics[metric], precision=3))
+					validationMessage += " %s: %s." % (metric[1], getFormattedStr(validationMetrics[metric], \
+						precision=3))
 			messages.append("    - [%s] " % (edge))
 			messages.append(trainMessage)
 			if not validationMetrics is None:
