@@ -108,7 +108,7 @@ def getGenerators(reader, miniBatchSize, maxPrefetch=1, keys=["train", "validati
 		items.extend([generator, numIters])
 	return items
 
-def tryReadImage(path, count=5, imgLib="lycon"):
+def tryReadImage(path, count=5, imgLib="opencv"):
 	assert imgLib in ("opencv", "PIL", "lycon")
 
 	def readImageOpenCV(path):
