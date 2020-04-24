@@ -3,7 +3,8 @@ import os
 import pickle
 from collections import OrderedDict
 from .np_utils import npCloseEnough
-from .type_utils import Number, Dict, Sequence, Union, isBaseOf
+from .type_utils import Number, Dict, Sequence, Union, isBaseOf, List, T
+from functools import reduce
 
 def standardizeData(data, mean, std):
 	data -= mean
@@ -200,3 +201,6 @@ def getFormattedStr(item : Union[np.ndarray, Number, Sequence, Dict], precision 
 	elif type(item) in Dict.__args__:
 		return {k : formatStr % (item[k]) for k in item}
 	assert False, "Unknown type: %s" % (type(item))
+
+def flattenList(x : List[List[T]]) -> List[T]:
+	return reduce(lambda a, b : a + b, x)

@@ -1,5 +1,7 @@
-from .nyudepth_reader import NYUDepthReader
 from .dataset_reader import DatasetReader, ClassificationDatasetReader
+from .dataset_reader_v2 import DatasetReaderV2
+
+from .nyudepth_reader import NYUDepthReader
 from .citysim_reader import CitySimReader
 from .mnist_reader import MNISTReader
 from .cityscapes_reader import CityScapesReader

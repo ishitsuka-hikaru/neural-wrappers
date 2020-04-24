@@ -1,10 +1,11 @@
 import numpy as np
-from typing import Union, _GenericAlias
+from typing import Union, _GenericAlias, TypeVar, List
 from collections import OrderedDict
 
 Number = Union[float, int, np.number, np.float64]
 Dict = Union[dict, OrderedDict]
 Sequence = Union[list, tuple, set, np.ndarray]
+T = TypeVar("T")
 
 # @brief Returns true if whatType is subclass of baseType. The parameters can be instantiated objects or types. In the
 #  first case, the parameters are converted to their type and then the check is done.
