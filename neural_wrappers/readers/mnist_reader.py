@@ -1,6 +1,6 @@
 import h5py
 import numpy as np
-from .dataset_reader import ClassificationDatasetReader
+from .classification_dataset_reader import ClassificationDatasetReader
 from neural_wrappers.utilities import toCategorical
 
 class MNISTReader(ClassificationDatasetReader):

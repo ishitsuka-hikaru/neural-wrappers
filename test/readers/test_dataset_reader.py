@@ -1,32 +1,54 @@
+from neural_wrappers.readers import DatasetReader as Reader
 import numpy as np
-from neural_wrappers.readers import DatasetReader
-
-class BasicReader(DatasetReader):
-	def __init__(self, dataDims, labelDims, dimTransform={}, normalizer={}, resizer={}):
-		super().__init__(None, dataDims=dataDims, labelDims=labelDims, dimTransform=dimTransform, \
-			normalizer=normalizer, resizer=resizer)
-
-def double(x):
-	return x * 2
 
 class TestDatasetReader:
-	def test_construct_1(self):
-		reader = BasicReader(["rgb"], ["classes"])
-		keys = list(reader.dimTransform.keys())
-		assert "rgb" in keys
-		assert "classes" in keys
+	def test_constructor_1(self):
+		reader = Reader(
+			allDims = {
+				"data" : ["rgb", "depth"],
+				"labels" : ["depth", "semantic"]
+			},
+			dimGetter = {
+				"rgb" : lambda a, b: None,
+				"depth" : lambda a, b: None,
+				"semantic" : lambda a, b: None
+			},
+			dimTransform = {
+				"data" : {
+					"rgb" : lambda x : x,
+					"depth" : lambda x : x
+				},
+				"labels" : {
+					"depth" : lambda x : x,
+					"semantic" : lambda x : x
+				}
+			}
+		)
 
-		reader = BasicReader(dataDims=["rgb"], labelDims=["classes"], dimTransform={"rgb" : double})
-		assert reader.dimTransform["rgb"] == double
+	def test_constructor_2(self):
+		reader = Reader(
+			allDims = {
+				"data" : ["rgb", "depth"],
+				"labels" : ["depth", "semantic"]
+			},
+			dimGetter = {
+				"rgb" : lambda a, b: None,
+				"depth" : lambda a, b: None,
+				"semantic" : lambda a, b: None
+			},
+			dimTransform = {
+				"data" : {
+					"rgb" : lambda x : x,
+				},
+				"labels" : {
+					"semantic" : lambda x : x
+				}
+			}
+		)
 
-	def test_construct_2(self):
-		reader = BasicReader(dataDims=["rgb"], labelDims=["classes"], dimTransform={"rgb" : double}, \
-			normalizer={"rgb" : "min_max_normalization"})
-		assert len(reader.normalizer) == 2
-		assert reader.normalizer["rgb"][0] == "min_max_normalization"
+def main():
+	TestDatasetReader().test_constructor_1()
+	TestDatasetReader().test_constructor_2()
 
-		reader = BasicReader(dataDims=["rgb", "depth"], labelDims=["classes"], dimTransform={"rgb" : double}, \
-			normalizer={"rgb": "min_max_normalization"})
-		assert len(reader.normalizer) == 3
-		assert reader.normalizer["rgb"][0] == "min_max_normalization"
-		assert reader.normalizer["depth"][0] == "identity"
+if __name__ == "__main__":
+	main()
