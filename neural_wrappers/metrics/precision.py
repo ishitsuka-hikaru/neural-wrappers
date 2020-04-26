@@ -22,7 +22,7 @@ class ThresholdPrecision(MetricWithThreshold):
 		res = res * whereOk
 		return res
 
-	def __call__(self, results : np.ndarray, labels : np.ndarray, threshold : np.ndarray, **kwargs) -> float:
+	def __call__(self, results : np.ndarray, labels : np.ndarray, threshold : np.ndarray, **kwargs) -> float: #type: ignore[override]
 		results = np.uint8(results >= threshold)
 		# Nans are used to specify classes with no labels for this batch
 		precision = ThresholdPrecision.computePrecision(results, labels)
@@ -46,6 +46,6 @@ class Precision(Metric):
 	# @brief Since we don't care about a particular threshold, just to get the highest activation for each prediction,
 	#  we can compute the max on the last axis (classes axis) and send this as threshold to the ThresholdAccuracy
 	#  class.
-	def __call__(self, results : np.ndarray, labels : np.ndarray, **kwargs) -> float:
+	def __call__(self, results : np.ndarray, labels : np.ndarray, **kwargs) -> float: #type: ignore[override]
 		Max = results.max(axis=-1, keepdims=True)
 		return self.thresholdPrecision(results, labels, Max)

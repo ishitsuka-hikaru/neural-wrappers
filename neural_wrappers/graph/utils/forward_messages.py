@@ -7,7 +7,7 @@ class ForwardMessagesEdge(Edge):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 	
-	def forward(self, x : dict) -> dict:
+	def forward(self, x : dict) -> dict: #type: ignore[override]
 		assert type(x) == dict
 		# Redirect all messags as is.
 		for k in x:

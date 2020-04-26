@@ -1,8 +1,8 @@
 import numpy as np
+from typing import List, Union, Dict, Optional
 from .callback import Callback
 from ..metrics import Metric
-from typing import Optional, Union
-Number = Union[int, float]
+from ..utilities import NWNumber
 
 # This class is used to convert metrics to callbacks which are called at each iteration. This is done so we unify
 #  metrics and callbacks in one way. Stats and iteration messages can be computed for both cases thanks to this.
@@ -20,13 +20,13 @@ class MetricAsCallback(Callback):
 		except Exception:
 			return "min"
 
-	def epochReduceFunction(self, results) -> Number:
+	def epochReduceFunction(self, results) -> NWNumber:
 		return results
 
 	def iterationReduceFunction(self, results):
 		return results
 
-	def defaultValue(self) -> Number:
+	def defaultValue(self) -> NWNumber:
 		return 0
 
 	def onEpochEnd(self, **kwargs):
