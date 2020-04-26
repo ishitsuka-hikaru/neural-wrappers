@@ -1,9 +1,9 @@
-from neural_wrappers.readers import DatasetReader as Reader
+from neural_wrappers.readers import DatasetReader
 import numpy as np
 
 class TestDatasetReader:
 	def test_constructor_1(self):
-		reader = Reader(
+		reader = DatasetReader(
 			allDims = {
 				"data" : ["rgb", "depth"],
 				"labels" : ["depth", "semantic"]
@@ -26,7 +26,7 @@ class TestDatasetReader:
 		)
 
 	def test_constructor_2(self):
-		reader = Reader(
+		reader = DatasetReader(
 			allDims = {
 				"data" : ["rgb", "depth"],
 				"labels" : ["depth", "semantic"]

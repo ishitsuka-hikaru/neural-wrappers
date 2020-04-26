@@ -85,22 +85,22 @@ def rgbRenorm(x, rgbNormalization):
 
 def computeDistances(positions, numNeighbours):
 	return # TODO
-	if numNeighbours == 0:
-		return None
-	N = positions.shape[0]
-	result = np.zeros((N, numNeighbours), dtype=np.int32) - 1
-	for i in range(N):
-		transDistances = np.linalg.norm(positions[i, 0 : 3] - positions[:, 0 : 3], axis=-1)
-		rotDistances = np.linalg.norm(positions[i, 3 : ] - positions[:, 3 : ], axis=-1)
-		# Put more weight on where they're watching rather than the actual position.
-		allDistances = transDistances + 2 * rotDistances
-		# Avoid first as it's always the distance to itself.
-		allDistances[i] = np.inf
-		argSortedDistances = np.argsort(allDistances)
-		result[i] = argSortedDistances[0 : numNeighbours]
-	# Enusre all values were filled.
-	assert (result == -1).sum() == 0
-	return result
+	# if numNeighbours == 0:
+	# 	return None
+	# N = positions.shape[0]
+	# result = np.zeros((N, numNeighbours), dtype=np.int32) - 1
+	# for i in range(N):
+	# 	transDistances = np.linalg.norm(positions[i, 0 : 3] - positions[:, 0 : 3], axis=-1)
+	# 	rotDistances = np.linalg.norm(positions[i, 3 : ] - positions[:, 3 : ], axis=-1)
+	# 	# Put more weight on where they're watching rather than the actual position.
+	# 	allDistances = transDistances + 2 * rotDistances
+	# 	# Avoid first as it's always the distance to itself.
+	# 	allDistances[i] = np.inf
+	# 	argSortedDistances = np.argsort(allDistances)
+	# 	result[i] = argSortedDistances[0 : numNeighbours]
+	# # Enusre all values were filled.
+	# assert (result == -1).sum() == 0
+	# return result
 
 def computeDepthSlices(depth, numSlices, depthNormalization):
 	if depthNormalization == "min_max_-1_1":

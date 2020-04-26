@@ -3,7 +3,8 @@ import os
 import pickle
 from collections import OrderedDict
 from .np_utils import npCloseEnough
-from .type_utils import Number, Dict, Sequence, Union, isBaseOf, List, T
+from .type_utils import NWNumber, NWSequence, NWDict, isBaseOf, T
+from typing import Dict, Sequence, Union, Iterable, List
 from functools import reduce
 
 def standardizeData(data, mean, std):
@@ -192,15 +193,16 @@ def smartIndexWrapper(data, indexes, f):
 		result[i] = f(data, flattenedIndexes[i])
 	return result.reshape(finalShape)
 
-def getFormattedStr(item : Union[np.ndarray, Number, Sequence, Dict], precision : int) -> str:
+def getFormattedStr(item : Union[np.ndarray, NWNumber, NWSequence, NWDict], precision : int) -> str: \
+	# type: ignore
 	formatStr = "%%2.%df" % (precision)
-	if type(item) in Number.__args__:
-		return formatStr % (item)
-	elif type(item) in Sequence.__args__:
-		return [formatStr % (x) for x in item]
-	elif type(item) in Dict.__args__:
-		return {k : formatStr % (item[k]) for k in item}
+	if type(item) in NWNumber.__args__: # type: ignore
+		return formatStr % (item) # type: ignore
+	elif type(item) in NWSequence.__args__: # type: ignore
+		return [formatStr % (x) for x in item] # type: ignore
+	elif type(item) in NWDict.__args__: # type: ignore
+		return {k : formatStr % (item[k]) for k in item} # type: ignore
 	assert False, "Unknown type: %s" % (type(item))
 
-def flattenList(x : List[List[T]]) -> List[T]:
+def flattenList(x : Iterable[List[T]]) -> List[T]:
 	return reduce(lambda a, b : a + b, x)

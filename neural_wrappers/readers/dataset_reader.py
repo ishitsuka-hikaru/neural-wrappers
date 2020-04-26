@@ -1,6 +1,9 @@
 import numpy as np
-from typing import Dict, List, Callable
+from typing import Dict, List, Callable, Any
+from .internal import DatasetIndex
 from ..utilities import flattenList
+
+DimGetterCallable = Callable[[str, DatasetIndex], Any]
 
 class DatasetReader:
 	# @param[in] allDims A dictionary with all available top level names (data, label etc.) and, for each name, a list
@@ -11,20 +14,19 @@ class DatasetReader:
 	# @param[in] dimTransform The transformations for each dimension of each top-level name. Some dimensions may
 	#  overlap and if this happens we duplicate the data to ensure consistency. This may be needed for cases where
 	#  the same dimension may be required in 2 formats (i.e. position as quaternions as well as unnormalized 6DoF).
-	def __init__(self, allDims : Dict[str, List[str]], dimGetter : Dict[str, Callable], \
+	def __init__(self, allDims : Dict[str, List[str]], dimGetter : Dict[str, DimGetterCallable], \
 		dimTransform : Dict[str, Dict[str, Callable]]):
 		self.allDims = allDims
 		self.dimGetter = self.sanitizeDimGetter(dimGetter)
 		self.dimTransform = self.sanitizeDimTransform(dimTransform)
 
 	def sanitizeDimGetter(self, dimGetter : Dict[str, Callable]):
-		allDims = list(set(flattenList(self.allDims.values())))
+		allDims : List[str] = list(set(flattenList(self.allDims.values())))
 		for key in allDims:
 			assert key in dimGetter
 		return dimGetter
 
 	def sanitizeDimTransform(self, dimTransform : Dict[str, Dict[str, Callable]]):
-		# allDims = list(set(flattenList(self.allDims.values())))
 		allTopLevels = self.allDims.keys()
 		for topLevel in allTopLevels:
 			if not topLevel in dimTransform:
@@ -37,5 +39,4 @@ class DatasetReader:
 					print((("[DatasetReader::sanitizeDimTransform] Dim %s:%s not present in ") + \
 						("dimTransforms. Adding identity")) % (topLevel, dim))
 					dimTransform[topLevel][dim] = lambda x : x
-
 		return dimTransform

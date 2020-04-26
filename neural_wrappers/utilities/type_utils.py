@@ -1,10 +1,11 @@
 import numpy as np
-from typing import Union, _GenericAlias, TypeVar, List
+from typing import Union, _GenericAlias, TypeVar, List, Sequence # type: ignore
+
 from collections import OrderedDict
 
-Number = Union[float, int, np.number, np.float64]
-Dict = Union[dict, OrderedDict]
-Sequence = Union[list, tuple, set, np.ndarray]
+NWNumber = Union[float, int, np.number, np.float64]
+NWDict = Union[dict, OrderedDict]
+NWSequence = Union[list, tuple, set, np.ndarray]
 T = TypeVar("T")
 
 # @brief Returns true if whatType is subclass of baseType. The parameters can be instantiated objects or types. In the
@@ -32,9 +33,9 @@ def pickTypeFromMRO(Type, switchType):
 #  well, by checking __args__, which works on Unions.
 # @param[in] item The item whose type is checked
 # @param[in] Type The type 
-def isType(item, Type : Union[type, _GenericAlias]) -> bool:
+def isType(item, Type : Union[type, _GenericAlias]) -> bool: # type: ignore
 	itemType = type(item) if type(item) != type else item
-	if hasattr("__args__", Type):
-		return itemType in Type.__args__
+	if hasattr("__args__", Type): # type: ignore
+		return itemType in Type.__args__ # type: ignore
 	else:
-		return itemType is Type
+		return itemType is Type # type: ignore
