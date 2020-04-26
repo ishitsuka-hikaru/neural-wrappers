@@ -4,10 +4,13 @@ from neural_wrappers.readers import MNISTReader
 # This path must be supplied manually in order to pass these tests
 MNIST_READER_PATH = "/home/mihai/Public/Datasets/mnist/mnist.h5"
 
+class TestMNISTReader:
+	def test_mnist_construct_1(self):
+		reader = MNISTReader(MNIST_READER_PATH)
+		assert reader.allDims == {"data" : ["rgb"], "labels" : ["labels"]}
 
-# class TestMNISTReader:
-# 	def test_mnist_construct_1(self):
-# 		reader = MNISTReader(MNIST_READER_PATH)
+	# def test_mnist_construct_12self):
+		# reader = MNISTReader(MNIST_READER_PATH)
 # 		generator = reader.iterate_once("train", miniBatchSize=5)
 # 		assert reader.dataset["images"]["train"].shape == (60000, 28, 28)
 # 		assert reader.dataset["images"]["test"].shape == (10000, 28, 28)

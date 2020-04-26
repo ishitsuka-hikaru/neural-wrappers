@@ -1,58 +1,71 @@
-import h5py
-import numpy as np
-from .classification_dataset_reader import ClassificationDatasetReader
-from neural_wrappers.utilities import toCategorical
+# import h5py
+# import numpy as np
+# from .classification_dataset_reader import ClassificationDatasetReader
+# from neural_wrappers.utilities import toCategorical
 
-class MNISTReader(ClassificationDatasetReader):
-	def __init__(self, datasetPath, dataDims=["images"], labelDims=["labels"], normalizer={}, \
-		dimTransform={
-			"images" : np.float32,
-			"labels" : lambda x : toCategorical(x, numClasses=10)
-		}):
+from .h5_dataset_reader import H5DatasetReader
 
-		super().__init__(datasetPath, dataDims=dataDims, labelDims=labelDims, \
-			dimTransform=dimTransform, normalizer=normalizer)
-		self.dataset = h5py.File(self.datasetPath, "r")
-		self.numData = {
+class MNISTReader(H5DatasetReader):
+	def __init__(self, datasetPath : str):
+		super().__init__(datasetPath, allDims = {"data" : ["rgb"], "labels" : ["labels"]}, \
+			dimGetter = {}, dimTransform = {})
+
+	def getNumData(self, topLevel : str) -> int:
+		return {
 			"train" : 60000,
 			"test" : 10000
-		}
+		}[topLevel]
 
-		self.means = {
-			"images" : np.array([33.318421449829934])
-		}
+# class MNISTReader(ClassificationDatasetReader):
+# 	def __init__(self, datasetPath, dataDims=["images"], labelDims=["labels"], normalizer={}, \
+# 		dimTransform={
+# 			"images" : np.float32,
+# 			"labels" : lambda x : toCategorical(x, numClasses=10)
+# 		}):
 
-		self.stds = {
-			"images" : np.array([78.56748998339798])
-		}
+# 		super().__init__(datasetPath, dataDims=dataDims, labelDims=labelDims, \
+# 			dimTransform=dimTransform, normalizer=normalizer)
+# 		self.dataset = h5py.File(self.datasetPath, "r")
+# 		self.numData = {
+# 			"train" : 60000,
+# 			"test" : 10000
+# 		}
 
-		self.minimums = {
-			"images" : np.array([0])
-		}
+# 		self.means = {
+# 			"images" : np.array([33.318421449829934])
+# 		}
 
-		self.maximums = {
-			"images" : np.array([255])
-		}
+# 		self.stds = {
+# 			"images" : np.array([78.56748998339798])
+# 		}
 
-		print("[MNIST Reader] Setup complete")
+# 		self.minimums = {
+# 			"images" : np.array([0])
+# 		}
 
-	def iterate_once(self, type, miniBatchSize):
-		assert type in ("train", "test")
+# 		self.maximums = {
+# 			"images" : np.array([255])
+# 		}
 
-		dataset = self.dataset[type]
-		numIterations = self.getNumIterations(type, miniBatchSize, accountTransforms=False)
+# 		print("[MNIST Reader] Setup complete")
 
-		for i in range(numIterations):
-			startIndex = i * miniBatchSize
-			endIndex = min((i + 1) * miniBatchSize, self.numData[type])
-			assert startIndex < endIndex, "startIndex < endIndex. Got values: %d %d" % (startIndex, endIndex)
-			numData = endIndex - startIndex
+# 	def iterate_once(self, type, miniBatchSize):
+# 		assert type in ("train", "test")
 
-			data, labels = self.getData(dataset, startIndex, endIndex)
-			yield data["images"], labels["labels"]
+# 		dataset = self.dataset[type]
+# 		numIterations = self.getNumIterations(type, miniBatchSize, accountTransforms=False)
 
-	def getNumberOfClasses(self):
-		return 10
+# 		for i in range(numIterations):
+# 			startIndex = i * miniBatchSize
+# 			endIndex = min((i + 1) * miniBatchSize, self.numData[type])
+# 			assert startIndex < endIndex, "startIndex < endIndex. Got values: %d %d" % (startIndex, endIndex)
+# 			numData = endIndex - startIndex
 
-	def getClasses(self):
-		return ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+# 			data, labels = self.getData(dataset, startIndex, endIndex)
+# 			yield data["images"], labels["labels"]
+
+# 	def getNumberOfClasses(self):
+# 		return 10
+
+# 	def getClasses(self):
+# 		return ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]

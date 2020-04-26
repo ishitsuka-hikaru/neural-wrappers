@@ -1,1 +1,1 @@
-from .dataset_index import DatasetIndex
+from .dataset_index import DatasetIndex, DatasetRange, DatasetRandomIndex
