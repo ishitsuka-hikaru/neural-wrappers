@@ -19,17 +19,17 @@ class DatasetReader:
 	def __init__(self, dataBuckets : Dict[str, List[str]], dimGetter : Dict[str, DimGetterCallable], \
 		dimTransform : Dict[str, Dict[str, Callable]]):
 		self.dataBuckets = dataBuckets
+		# allDims is a list of all dimensions, irregardless of their data bucket
+		self.allDims = list(set(flattenList(self.dataBuckets.values())))
 		self.dimGetter = self.sanitizeDimGetter(dimGetter)
 		self.dimTransform = self.sanitizeDimTransform(dimTransform)
 
 	def sanitizeDimGetter(self, dimGetter : Dict[str, Callable]) -> Dict[str, Callable]:
-		allDims : List[str] = list(set(flattenList(self.dataBuckets.values())))
-		for key in allDims:
+		for key in self.allDims:
 			assert key in dimGetter
 		return dimGetter
 
 	def sanitizeDimTransform(self, dimTransform : Dict[str, Dict[str, Callable]]):
-		# data = self.allDims.keys()
 		for dataBucket in self.dataBuckets:
 			if not dataBucket in dimTransform:
 				print("[DatasetReader::sanitizeDimTransform] Data bucket '%s' not present in dimTransforms" % \
@@ -65,12 +65,37 @@ class DatasetReader:
 	# @param[in] batchSize The size of a batch that is yielded at each iteration
 	# @return A generator that cna be used to iterate over the dataset for one epoch
 	def iterateOneEpoch(self, topLevel : str, batchSize : int) -> Iterator[Dict[str, np.ndarray]]:
-		# dataset = self.getDataset(topLevel)
-		# N = self.getNumIterations(topLevel, batchSize)
-		# result = {}
-		# for i in range(N):
-		# 	for dataBucket in self.dataBucket
-		pass
+		dataset = self.getDataset(topLevel)
+		N = self.getNumIterations(topLevel, batchSize)
+		for i in range(N):
+			# Get the logical index in the dataset
+			index = self.getBatchDatasetIndex(i, topLevel, batchSize)
+			# Get the data before bucketing, as there could be overlapping items in each bucket, just
+			#  normalized differently, so we shouldn't read from disk more times.
+			items, copyDims = {}, {}
+			for dim in self.allDims:
+				items[dim] = self.dimGetter[dim](dataset, index)
+				copyDims[dim] = False
+
+			result : Dict[str, np.ndarray] = {}
+			# Go through all data buckets (data/labels etc.)
+			for dataBucket in self.dataBuckets:
+				result[dataBucket] = {}
+				# For each bucket, go through all dims (rgb/semantic/depth etc.)
+				for dim in self.dataBuckets[dataBucket]:
+					item = items[dim]
+					# We're making sure that if this item was in other bucket as well, it's copied so we don't alter
+					#  same data memory with multiple transforms
+					if copyDims[dim]:
+						item = item.copy()
+					copyDims[dim] = True
+
+					# Apply this item's data transform
+					item = self.dimTransform[dataBucket][dim](item)
+
+					# Store it in this batch
+					result[dataBucket][dim] = item
+			yield result
 
 	# @brief A conceptual wrapper for the dataset, given a top level. It should permit indexing w.r.t data buckets and
 	#  dimenions. The low level implementation (h5/paths/web service) is left for each class as long as
@@ -84,6 +109,11 @@ class DatasetReader:
 	# @param[in] topLevel The top-level dimension that is iterated over (example: train, validation, test, etc.)
 	# @return The number of items in a given top level name
 	def getNumData(self, topLevel : str) -> int:
+		raise NotImplementedError("Should have implemented this")
+
+	# @brief Returns the index object specific to this dataset for a requested batch index. This is used to logically
+	#  iterate through a dataset
+	def getBatchDatasetIndex(self, batchIndex : int, topLevel : str, batchSize : int) -> DatasetIndex:
 		raise NotImplementedError("Should have implemented this")
 
 	# @brief Return the number of iterations in an epoch for a top level name, given a batch size.
