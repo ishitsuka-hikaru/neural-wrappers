@@ -109,7 +109,8 @@ class TestDatasetReader:
 def main():
 	# TestDatasetReader().test_constructor_1()
 	# TestDatasetReader().test_constructor_2()
-	TestDatasetReader().test_iterate_1()
+	# TestDatasetReader().test_iterate_1()
+	pass
 
 if __name__ == "__main__":
 	main()

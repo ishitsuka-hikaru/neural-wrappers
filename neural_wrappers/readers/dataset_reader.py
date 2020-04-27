@@ -113,7 +113,11 @@ class DatasetReader:
 
 	# @brief Returns the index object specific to this dataset for a requested batch index. This is used to logically
 	#  iterate through a dataset
-	def getBatchDatasetIndex(self, batchIndex : int, topLevel : str, batchSize : int) -> DatasetIndex:
+	# @param[in] i The index of the epoch we're trying to get dataset indexes for
+	# @param[in] topLevel The top-level dimension that is iterated over (example: train, validation, test, etc.)
+	# @param[in] batchSize The size of a batch that is yielded at each iteration
+	# @return A DatasetIndex object with the indexes of this iteration for a specific dimension
+	def getBatchDatasetIndex(self, i : int, topLevel : str, batchSize : int) -> DatasetIndex:
 		raise NotImplementedError("Should have implemented this")
 
 	# @brief Return the number of iterations in an epoch for a top level name, given a batch size.

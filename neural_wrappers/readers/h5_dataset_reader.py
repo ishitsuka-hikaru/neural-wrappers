@@ -1,13 +1,13 @@
 import h5py
 from functools import partial
-from typing import Dict, List, Callable
+from typing import Dict, List, Callable, Union
 from .dataset_reader import DatasetReader, DimGetterCallable
 from .internal import DatasetIndex, DatasetRange, DatasetRandomIndex
 from ..utilities import isType, flattenList
 
-def defaultH5DimGetter(dim : str, index : DatasetIndex, dataset : h5py._hl.files.File):
+def defaultH5DimGetter(dataset : h5py._hl.group.Group, index : DatasetIndex, dim : str):
 	if isType(index, DatasetRange):
-		return dataset[dim][index.start : index.end] #type: ignore
+		return dataset[dim][index.start : index.end][:] #type: ignore
 	assert False
 
 class H5DatasetReader(DatasetReader):
@@ -22,5 +22,18 @@ class H5DatasetReader(DatasetReader):
 		for key in allDims:
 			if not key in dimGetter:
 				print("[H5DatasetReader::sanitizeDimGetter] Adding default dimGetter for '%s'" % key)
-				dimGetter[key] = partial(defaultH5DimGetter, dataset=self.dataset)
+				dimGetter[key] = partial(defaultH5DimGetter, dim=key)
 		return dimGetter
+
+	def getDataset(self, topLevel : str) -> h5py._hl.group.Group:
+		return self.dataset[topLevel]
+
+	def getBatchDatasetIndex(self, i : int, topLevel : str, batchSize : int) -> DatasetIndex:
+		startIndex = i * batchSize
+		endIndex = min((i + 1) * batchSize, self.getNumData(topLevel))
+		assert startIndex < endIndex, "startIndex < endIndex. Got values: %d %d" % (startIndex, endIndex)
+		return DatasetRange(startIndex, endIndex)
+
+	def getNumData(self, topLevel : str) -> int:
+		firstKey = self.dataBuckets[topLevel][0]
+		return len(self.dataset[topLevel][firstKey])

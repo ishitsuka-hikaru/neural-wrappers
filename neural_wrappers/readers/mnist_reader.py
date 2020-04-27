@@ -3,12 +3,16 @@
 # from .classification_dataset_reader import ClassificationDatasetReader
 # from neural_wrappers.utilities import toCategorical
 
-from .h5_dataset_reader import H5DatasetReader
+from functools import partial
+from .h5_dataset_reader import H5DatasetReader, defaultH5DimGetter
 
 class MNISTReader(H5DatasetReader):
 	def __init__(self, datasetPath : str):
-		super().__init__(datasetPath, dataBuckets = {"data" : ["rgb"], "labels" : ["labels"]}, \
-			dimGetter = {}, dimTransform = {})
+		super().__init__(datasetPath, 
+			dataBuckets = {"data" : ["rgb"], "labels" : ["labels"]}, \
+			dimGetter = {"rgb" : partial(defaultH5DimGetter, dim="images")}, \
+			dimTransform = {}
+		)
 
 	def getNumData(self, topLevel : str) -> int:
 		return {

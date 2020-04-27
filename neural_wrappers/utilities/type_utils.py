@@ -35,7 +35,7 @@ def pickTypeFromMRO(Type, switchType):
 # @param[in] Type The type 
 def isType(item, Type : Union[type, _GenericAlias]) -> bool: # type: ignore
 	itemType = type(item) if type(item) != type else item
-	if hasattr("__args__", Type): # type: ignore
+	if hasattr(Type, "__args__"): # type: ignore
 		return itemType in Type.__args__ # type: ignore
 	else:
 		return itemType is Type # type: ignore
