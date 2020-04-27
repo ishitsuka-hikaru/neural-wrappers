@@ -1,5 +1,6 @@
 import numpy as np
 from neural_wrappers.readers import MNISTReader
+from neural_wrappers.utilities import getGenerators, npCloseEnough
 
 # This path must be supplied manually in order to pass these tests
 MNIST_READER_PATH = "/home/mihai/Public/Datasets/mnist/mnist.h5"
@@ -41,3 +42,40 @@ class TestMNISTReader:
 		labels = labels["labels"]
 		assert rgb.shape == (MB, 28, 28, 1)
 		assert labels.shape == (MB, )
+
+	def test_iterate_2(self):
+		reader = MNISTReader(MNIST_READER_PATH)
+		numIters = reader.getNumIterations("train", 30)
+		generator = reader.iterateOneEpoch("train", 30)
+		for _ in range(numIters):
+			_ = next(generator)
+		try:
+			_ = next(generator)
+			assert False
+		except StopIteration:
+			pass
+
+	def test_iterate_3(self):
+		reader = MNISTReader(MNIST_READER_PATH)
+		generator, numIters = getGenerators(reader, 30, keys=["train"])
+		firstItem = next(generator)
+		for _ in range(numIters - 1):
+			_ = next(generator)
+		firstItemEpoch2 = next(generator)
+
+		assert npCloseEnough(firstItem["data"]["rgb"], firstItemEpoch2["data"]["rgb"])
+		assert npCloseEnough(firstItem["labels"]["labels"], firstItemEpoch2["labels"]["labels"])
+
+	def test_normalization_1(self):
+		reader = MNISTReader(MNIST_READER_PATH, normalization="none")
+		generator, numIters = getGenerators(reader, 30, keys=["train"])
+		firstRGBs = next(generator)["data"]["rgb"]
+
+		assert firstRGBs.dtype == np.uint8 and firstRGBs.min() == 0 and firstRGBs.max() == 255
+
+	def test_normalization_2(self):
+		reader = MNISTReader(MNIST_READER_PATH, normalization="min_max_0_1")
+		generator, numIters = getGenerators(reader, 30, keys=["train"])
+		firstRGBs = next(generator)["data"]["rgb"]
+
+		assert firstRGBs.dtype == np.float32 and firstRGBs.min() == 0 and firstRGBs.max() == 1
