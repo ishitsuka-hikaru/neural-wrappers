@@ -4,6 +4,7 @@ from .classification_dataset_reader import ClassificationDatasetReader
 # from .dataset_reader_old import ClassificationDatasetReader
 
 from .internal import *
+from .datasets import *
 
 from .corrupter_reader import CorrupterReader
 from .combined_dataset_reader import CombinedDatasetReader
