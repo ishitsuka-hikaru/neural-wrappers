@@ -9,6 +9,10 @@ class TestMNISTReader:
 		reader = MNISTReader(MNIST_READER_PATH)
 		assert reader.allDims == {"data" : ["rgb"], "labels" : ["labels"]}
 
+	def test_get_num_data_1(self):
+		reader = MNISTReader(MNIST_READER_PATH)
+		assert reader.getNumData("train") == 60000 and reader.getNumData("test") == 10000
+
 	# def test_mnist_construct_12self):
 		# reader = MNISTReader(MNIST_READER_PATH)
 # 		generator = reader.iterate_once("train", miniBatchSize=5)
