@@ -7,7 +7,7 @@ from .h5_dataset_reader import H5DatasetReader
 
 class MNISTReader(H5DatasetReader):
 	def __init__(self, datasetPath : str):
-		super().__init__(datasetPath, allDims = {"data" : ["rgb"], "labels" : ["labels"]}, \
+		super().__init__(datasetPath, dataBuckets = {"data" : ["rgb"], "labels" : ["labels"]}, \
 			dimGetter = {}, dimTransform = {})
 
 	def getNumData(self, topLevel : str) -> int:
