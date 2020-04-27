@@ -63,7 +63,7 @@ class DatasetReader:
 	# @brief The main iterator of a dataset. It will run over the data for one logical epoch.
 	# @param[in] topLevel The top-level dimension that is iterated over (example: train, validation, test, etc.)
 	# @param[in] batchSize The size of a batch that is yielded at each iteration
-	# @return A generator that cna be used to iterate over the dataset for one epoch
+	# @return A generator that can be used to iterate over the dataset for one epoch
 	def iterateOneEpoch(self, topLevel : str, batchSize : int) -> Iterator[Dict[str, np.ndarray]]:
 		dataset = self.getDataset(topLevel)
 		N = self.getNumIterations(topLevel, batchSize)
