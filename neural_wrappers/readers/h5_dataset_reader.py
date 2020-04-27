@@ -7,7 +7,7 @@ from ..utilities import isType, flattenList
 
 def defaultH5DimGetter(dataset : h5py._hl.group.Group, index : DatasetIndex, dim : str):
 	if isType(index, DatasetRange):
-		return dataset[dim][index.start : index.end][:] #type: ignore
+		return dataset[dim][index.start : index.end][()] #type: ignore
 	assert False
 
 class H5DatasetReader(DatasetReader):
@@ -35,5 +35,5 @@ class H5DatasetReader(DatasetReader):
 		return DatasetRange(startIndex, endIndex)
 
 	def getNumData(self, topLevel : str) -> int:
-		firstKey = self.dataBuckets[topLevel][0]
+		firstKey = list(self.dimGetter.keys())[0]
 		return len(self.dataset[topLevel][firstKey])
