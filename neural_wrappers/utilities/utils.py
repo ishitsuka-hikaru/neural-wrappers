@@ -175,7 +175,7 @@ def isPicklable(item):
 		return False
 
 # Flatten the indexes [[1, 3], [15, 13]] => [1, 3, 15, 13] and then calls f(data, 1), f(data, 3), ..., step by step
-def smartIndexWrapper(data, indexes, f):
+def smartIndexWrapper(data, indexes, f = lambda data, index : data[index]):
 	# Flatten the indexes [[1, 3], [15, 13]] => [1, 3, 15, 13]
 	indexes = np.array(indexes, dtype=np.uint32)
 	flattenedIndexes = indexes.flatten()
