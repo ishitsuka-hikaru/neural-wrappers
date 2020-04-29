@@ -1,16 +1,17 @@
 import h5py
 import numpy as np
-from typing import Dict, Callable, List
+from typing import Dict, Callable, List, Tuple
 from functools import partial
 from ...internal import DatasetIndex
 from ...h5_dataset_reader import H5DatasetReader, defaultH5DimGetter
 from ....utilities import tryReadImage, smartIndexWrapper
 
-from .normalizers import rgbNorm, depthNorm, positionNorm
+from .normalizers import rgbNorm, depthNorm, positionNorm, opticalFlowNorm, \
+	normalNorm, semanticSegmentationNorm, positionQuatNorm
 from .utils import unrealFloatFromPng
 
 class CarlaH5PathsReader(H5DatasetReader):
-	def __init__(self, datasetPath : str, dataBuckets : Dict[str, List[str]]):
+	def __init__(self, datasetPath : str, dataBuckets : Dict[str, List[str]], desiredShape : Tuple[int, int]):
 		dimGetter = {
 			"rgb" : partial(pathsReader, readerObj=self, readFunction=rgbReader, dim="rgb"),
 			"depth" : partial(pathsReader, readerObj=self, readFunction=depthReader, dim="depth"),
@@ -20,19 +21,27 @@ class CarlaH5PathsReader(H5DatasetReader):
 				dim="semantic_segmentation"),
 			"wireframe" : partial(pathsReader, readerObj=self, readFunction=rgbReader, dim="wireframe"),
 			"halftone" : partial(pathsReader, readerObj=self, readFunction=rgbReader, dim="halftone"),
-			"normal" : partial(pathsReader, readerObj=self, readFunction=normalsReader, dim="normal"),
-			"cameranormal" : partial(pathsReader, readerObj=self, readFunction=normalsReader, dim="cameranormal"),
+			"normal" : partial(pathsReader, readerObj=self, readFunction=rgbReader, dim="normal"),
+			"cameranormal" : partial(pathsReader, readerObj=self, readFunction=rgbReader, dim="cameranormal"),
 			"rgbDomain2" : partial(pathsReader, readerObj=self, readFunction=rgbReader, dim="rgbDomain2"),
+			"rgbNeighbour" : partial(rgbNeighbourReader, readerObj=self),
+			"position_quat" : partial(defaultH5DimGetter, dim="position"),
 		}
 
 		dimTransform ={
 			"data" : {
-				"rgb" : rgbNorm,
+				"rgb" : partial(rgbNorm, readerObj=self),
 				"depth" : partial(depthNorm, readerObj=self),
-				"position" : partial(positionNorm, readerObj=self)
-			},
-			"labels" : {
-				"position" : lambda x : x
+				"position" : partial(positionNorm, readerObj=self),
+				"optical_flow" : partial(opticalFlowNorm, readerObj=self),
+				"semantic_segmentation" : partial(semanticSegmentationNorm, readerObj=self),
+				"wireframe" : partial(rgbNorm, readerObj=self),
+				"halftone" : partial(rgbNorm, readerObj=self),
+				"normal" : partial(normalNorm, readerObj=self),
+				"cameranormal" : partial(normalNorm, readerObj=self),
+				"rgbDomain2" : partial(rgbNorm, readerObj=self),
+				"rgbNeighbour" : partial(rgbNorm, readerObj=self),
+				"position_quat" : partial(positionQuatNorm, readerObj=self)
 			}
 		}
 		super().__init__(datasetPath, dataBuckets, dimGetter, dimTransform)
@@ -91,8 +100,6 @@ def opticalFlowReader(dataset : h5py._hl.group.Group, index : DatasetIndex, read
 		path_x, path_y = "%s/%s" % (baseDirectory, str(path_x, "utf8")), "%s/%s" % (baseDirectory, str(path_y, "utf8"))
 		flow_x, flow_y = unrealFloatFromPng(tryReadImage(path_x)), unrealFloatFromPng(tryReadImage(path_y))
 		flow = np.array([flow_x, flow_y]).transpose(1, 2, 0)
-		# Move the flow in [-1 : 1] from [0 : 1]
-		flow = (flow - 0.5) * 2
 		results.append(flow)
 	return np.array(results)
 
@@ -120,11 +127,22 @@ def semanticSegmentationReader(path : str) -> np.ndarray:
 		newItem[newItem == labelKeys[i]] = i
 	return newItem.astype(np.uint8)
 
-# Normals are stored as [0 - 255] on 3 channels, representing orientation of the 3 axes. We move them to [-1 : 1].
-def normalsReader(path : str) -> np.ndarray:
-	normal = tryReadImage(path)
-	normal = ((np.float32(normal) / 255) - 0.5) * 2
-	return normal
+def rgbNeighbourReader(dataset : h5py._hl.group.Group, index : DatasetIndex, \
+	readerObj : H5DatasetReader) -> np.ndarray:
+	baseDirectory = readerObj.dataset["others"]["baseDirectory"][()]
+
+	# For optical flow we have the problem that the flow data for t->t+1 is stored at index t+1, which isn't
+	#  necessarily 1 index to the right (trian set may be randomized beforehand). Thus, we need to get the indexes
+	#  of the next neighbours of this top level (train/test etc.), and then read the paths at those indexes.
+	topLevel = readerObj.getActiveTopLevel()
+	neighbourIds = readerObj.idOfNeighbour[topLevel][index.start : index.end]
+	paths = smartIndexWrapper(dataset["rgb"], neighbourIds)
+
+	results = []
+	for path in paths:
+		path = "%s/%s" % (baseDirectory, str(path, "utf8"))
+		results.append(rgbReader(path))
+	return np.array(results)
 
 # Append base directory to all paths read from the h5, and then call the reading function for each full path.
 def pathsReader(dataset : h5py._hl.group.Group, index : DatasetIndex, readerObj : H5DatasetReader,

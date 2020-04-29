@@ -182,16 +182,12 @@ def smartIndexWrapper(data, indexes, f = lambda data, index : data[index]):
 	N = len(flattenedIndexes)
 	assert N > 0
 
-	# Get the first element to infer shape
-	firstResult = f(data, flattenedIndexes[0])
-	flattenedShape = (N, *firstResult.shape)
-	finalShape = (*indexes.shape, *firstResult.shape)
-
-	result = np.zeros(flattenedShape, firstResult.dtype)
-	result[0] = firstResult
-	for i in range(1, N):
-		result[i] = f(data, flattenedIndexes[i])
-	return result.reshape(finalShape)
+	result = []
+	for i in range(N):
+		result.append(f(data, flattenedIndexes[i]))
+	finalShape = (*indexes.shape, *result[0].shape)
+	result = np.array(result).reshape(finalShape)
+	return result
 
 def getFormattedStr(item : Union[np.ndarray, NWNumber, NWSequence, NWDict], precision : int) -> str: \
 	# type: ignore
