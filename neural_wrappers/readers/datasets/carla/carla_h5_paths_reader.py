@@ -15,7 +15,14 @@ class CarlaH5PathsReader(H5DatasetReader):
 			"rgb" : partial(pathsReader, readerObj=self, readFunction=rgbReader, dim="rgb"),
 			"depth" : partial(pathsReader, readerObj=self, readFunction=depthReader, dim="depth"),
 			"position" : partial(defaultH5DimGetter, dim="position"),
-			"optical_flow" : partial(opticalFlowReader, readerObj=self)
+			"optical_flow" : partial(opticalFlowReader, readerObj=self),
+			"semantic_segmentation" : partial(pathsReader, readerObj=self, readFunction=semanticSegmentationReader, \
+				dim="semantic_segmentation"),
+			"wireframe" : partial(pathsReader, readerObj=self, readFunction=rgbReader, dim="wireframe"),
+			"halftone" : partial(pathsReader, readerObj=self, readFunction=rgbReader, dim="halftone"),
+			"normal" : partial(pathsReader, readerObj=self, readFunction=normalsReader, dim="normal"),
+			"cameranormal" : partial(pathsReader, readerObj=self, readFunction=normalsReader, dim="cameranormal"),
+			"rgbDomain2" : partial(pathsReader, readerObj=self, readFunction=rgbReader, dim="rgbDomain2"),
 		}
 
 		dimTransform ={
@@ -88,6 +95,36 @@ def opticalFlowReader(dataset : h5py._hl.group.Group, index : DatasetIndex, read
 		flow = (flow - 0.5) * 2
 		results.append(flow)
 	return np.array(results)
+
+def semanticSegmentationReader(path : str) -> np.ndarray:
+	labelKeys = list({
+		(0, 0, 0): "Unlabeled",
+		(70, 70, 70): "Building",
+		(153, 153, 190): "Fence",
+		(160, 170, 250): "Other",
+		(60, 20, 220): "Pedestrian",
+		(153, 153, 153): "Pole",
+		(50, 234, 157): "Road line",
+		(128, 64, 128): "Road",
+		(232, 35, 244): "Sidewalk",
+		(35, 142, 107): "Vegetation",
+		(142, 0, 0): "Car",
+		(156, 102, 102): "Wall",
+		(0, 220, 220): "Traffic sign"
+	}.keys())
+	item = tryReadImage(path).astype(np.uint32)
+
+	newItem = item[..., 0] + item[..., 1] * 256 + item[..., 2] * 256 * 256
+	labelKeys = list(map(lambda x : x[0] + x[1] * 256 + x[2] * 256 * 256, labelKeys))
+	for i in range(len(labelKeys)):
+		newItem[newItem == labelKeys[i]] = i
+	return newItem.astype(np.uint8)
+
+# Normals are stored as [0 - 255] on 3 channels, representing orientation of the 3 axes. We move them to [-1 : 1].
+def normalsReader(path : str) -> np.ndarray:
+	normal = tryReadImage(path)
+	normal = ((np.float32(normal) / 255) - 0.5) * 2
+	return normal
 
 # Append base directory to all paths read from the h5, and then call the reading function for each full path.
 def pathsReader(dataset : h5py._hl.group.Group, index : DatasetIndex, readerObj : H5DatasetReader,
