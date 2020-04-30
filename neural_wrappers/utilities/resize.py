@@ -8,8 +8,6 @@ from functools import partial
 # @param[in] interpolation method. Valid options are specific to the library used for the actual resizing.
 # @return Resized image.
 def resize(data, height, width, interpolation, resizeLib="opencv"):
-	global RESIZE_LIB
-
 	# Early return.
 	if data.shape[0] == height and data.shape[1] == width:
 		return data.copy()

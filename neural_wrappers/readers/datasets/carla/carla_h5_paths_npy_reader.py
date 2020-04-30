@@ -4,13 +4,25 @@ from typing import Dict, Callable, List, Tuple
 from functools import partial
 from ...internal import DatasetIndex
 from ...h5_dataset_reader import H5DatasetReader, defaultH5DimGetter
-from ....utilities import tryReadImage, smartIndexWrapper
+from ....utilities import smartIndexWrapper
 
 from .normalizers import rgbNorm, depthNorm, positionNorm, opticalFlowNorm, \
 	normalNorm, semanticSegmentationNorm, positionQuatNorm
 from .utils import unrealFloatFromPng
 
-class CarlaH5PathsReader(H5DatasetReader):
+def tryReadNpy(path, count=5):
+	i = 0
+	while True:
+		try:
+			return np.load(path, allow_pickle=False)
+		except Exception as e:
+			print("Path: %s. Exception: %s" % (path, e))
+			i += 1
+
+			if i == count:
+				raise Exception
+
+class CarlaH5PathsNpyReader(H5DatasetReader):
 	def __init__(self, datasetPath : str, dataBuckets : Dict[str, List[str]], \
 	desiredShape : Tuple[int, int], opticalFlowPercentage : Tuple[int, int]):
 		dimGetter = {
@@ -79,11 +91,10 @@ class CarlaH5PathsReader(H5DatasetReader):
 		return "[CarlaH5PathsReader] H5 File: %s" % (self.datasetPath)
 
 def rgbReader(path : str) -> np.ndarray:
-	return tryReadImage(path)
+	return tryReadNpy(path)
 
 def depthReader(path : str) -> np.ndarray:
-	dph = tryReadImage(path)
-	dph = unrealFloatFromPng(dph) * 1000
+	dph = tryReadNpy(path) * 1000
 	return np.expand_dims(dph, axis=-1)
 
 def opticalFlowReader(dataset : h5py._hl.group.Group, index : DatasetIndex, readerObj : H5DatasetReader) -> np.ndarray:
@@ -101,7 +112,7 @@ def opticalFlowReader(dataset : h5py._hl.group.Group, index : DatasetIndex, read
 	for path in paths:
 		path_x, path_y = path
 		path_x, path_y = "%s/%s" % (baseDirectory, str(path_x, "utf8")), "%s/%s" % (baseDirectory, str(path_y, "utf8"))
-		flow_x, flow_y = unrealFloatFromPng(tryReadImage(path_x)), unrealFloatFromPng(tryReadImage(path_y))
+		flow_x, flow_y = tryReadNpy(path_x), tryReadNpy(path_y)
 		flow = np.array([flow_x, flow_y]).transpose(1, 2, 0)
 		results.append(flow)
 	return np.array(results)
@@ -122,7 +133,7 @@ def semanticSegmentationReader(path : str) -> np.ndarray:
 		(156, 102, 102): "Wall",
 		(0, 220, 220): "Traffic sign"
 	}.keys())
-	item = tryReadImage(path).astype(np.uint32)
+	item = tryReadNpy(path).astype(np.uint32)
 
 	newItem = item[..., 0] + item[..., 1] * 256 + item[..., 2] * 256 * 256
 	labelKeys = list(map(lambda x : x[0] + x[1] * 256 + x[2] * 256 * 256, labelKeys))

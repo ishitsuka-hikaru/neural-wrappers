@@ -9,14 +9,14 @@ from ...dataset_reader import DatasetReader
 
 def rgbNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
 	# x [MBx854x854x3] => [MBx256x256x3] :: [0 : 255]
-	x = resize_batch(x, height=256, width=256)
+	x = resize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="skimage")
 	# x :: [0 : 255] => [0: 1]
 	x = x.astype(np.float32) / 255
 	return x
 
 def depthNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
 	depthStats = h5ReadDict(readerObj.dataset["others"]["dataStatistics"]["depth"])
-	x = resize_batch(x, height=256, width=256)
+	x = resize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="skimage")
 	x = np.clip(x, depthStats["min"], depthStats["max"])
 	x = (x - depthStats["min"]) / (depthStats["max"] - depthStats["min"])
 	return x
@@ -52,15 +52,42 @@ def positionQuatNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.nda
 	return position
 
 def opticalFlowNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
-	x = resize_batch(x, height=256, width=256)
+	# Optical flow is in [-1:1] and 100% of percentage. Result is in [0:1] using only [-x%:x%] of data.
+	def opticalFlowPercentageTransform(x, opticalFlowPercentage):
+		# x :: [0 : 1], centered in 0
+		x = (x - 0.5) * 2
+		# x :: [-1 : 1], centered in 0
+		opticalFlowPercentage = np.array(opticalFlowPercentage) / 100
+		flow_x = np.expand_dims(x[..., 0], axis=-1)
+		flow_y = np.expand_dims(x[..., 1], axis=-1)
+		# flow_x :: [-x% : x%], flow_y :: [-y% : y%]
+		flow_x = np.clip(flow_x, -opticalFlowPercentage[0], opticalFlowPercentage[0])
+		flow_y = np.clip(flow_y, -opticalFlowPercentage[1], opticalFlowPercentage[1])
+		## flow_x in [0 : 2*x%], flow_y :: [0 : 2*y%]
+		flow_x += opticalFlowPercentage[0]
+		flow_y += opticalFlowPercentage[1]
+		## flow_x :: [0 : 1], flow_y :: [0 : 1]
+		flow_x *= 1 / (2 * opticalFlowPercentage[0])
+		flow_y *= 1 / (2 * opticalFlowPercentage[1])
+		## flow :: [0 : 1]
+		flow = np.concatenate([flow_x, flow_y], axis=-1).astype(np.float32)
+		return flow
+
+	# Data in [0 : 1]
+	x = resize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="skimage")
+
+	if readerObj.opticalFlowPercentage != (100, 100):
+		x = opticalFlowPercentageTransform(x, readerObj.opticalFlowPercentage)
+
 	return x
 
 def normalNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
-	x = resize_batch(x, height=256, width=256)
+	x = resize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="skimage")
 	# Normals are stored as [0 - 255] on 3 channels, representing orientation of the 3 axes.
 	x = x.astype(np.float32) / 255
 	return x
 
 def semanticSegmentationNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
-	x = resize_batch(x, height=256, width=256, interpolation="nearest")
+	x = resize_batch(x, interpolation="nearest", height=readerObj.desiredShape[0], \
+		width=readerObj.desiredShape[1], resizeLib="skimage")
 	return x

@@ -5,7 +5,6 @@ import h5py
 import matplotlib.pyplot as plt
 from PIL import Image
 from neural_wrappers.utilities import h5StoreDict, h5ReadDict
-from neural_wrappers.readers.carla_h5_reader import CarlaH5PathsReader
 from argparse import ArgumentParser
 
 def getArgs():
@@ -176,6 +175,7 @@ def plotPaths(paths):
 		plt.savefig("%s_points.png" % (k))
 
 def storeToH5File(baseDir, file, data):
+	# from neural_wrappers.readers.carla_h5_reader import CarlaH5PathsReader #TODO
 	N = len(data["rgb"])
 	funcs = {
 		"rgb" : CarlaH5PathsReader.doPng,

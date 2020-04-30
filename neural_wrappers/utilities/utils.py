@@ -117,17 +117,17 @@ def tryReadImage(path, count=5, imgLib="opencv"):
 		import cv2
 		bgr_image = cv2.imread(path)
 		b, g, r = cv2.split(bgr_image)
-		image = cv2.merge([r, g, b]).astype(np.float32)
+		image = cv2.merge([r, g, b]).astype(np.uint8)
 		return image
 
 	def readImagePIL(path):
 		from PIL import Image
-		image = np.array(Image.open(path), dtype=np.float32)[..., 0 : 3]
+		image = np.array(Image.open(path), dtype=np.uint8)[..., 0 : 3]
 		return image
 
 	def readImageLycon(path):
 		from lycon import load
-		image = load(path)[..., 0 : 3].astype(np.float32)
+		image = load(path)[..., 0 : 3].astype(np.uint8)
 		return image
 
 	f = {
