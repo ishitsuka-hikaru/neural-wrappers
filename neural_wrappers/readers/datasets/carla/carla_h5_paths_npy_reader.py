@@ -88,7 +88,7 @@ class CarlaH5PathsNpyReader(H5DatasetReader):
 		return result
 
 	def __str__(self) -> str:
-		return "[CarlaH5PathsReader] H5 File: %s" % (self.datasetPath)
+		return "[CarlaH5PathsNpyReader] H5 File: %s" % (self.datasetPath)
 
 def rgbReader(path : str) -> np.ndarray:
 	return tryReadNpy(path)
