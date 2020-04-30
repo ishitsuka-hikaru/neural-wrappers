@@ -109,46 +109,49 @@ def getPaths(baseDir):
 	checkPaths(baseDir, result)
 	return result
 
-def getTrainValPaths(paths, splits, splitKeys, exportType, keepN=None):
-	def getDataIndexes(splits, splitKeys):
-		dataIx, lastIx = {}, 0
-		for i in range(len(splitKeys) - 1):
-			nK = int(splits[i] * N)
-			dataIx[splitKeys[i]] = (lastIx, lastIx + nK)
-			lastIx += nK
-		dataIx[splitKeys[-1]] = (lastIx, N)
-		return dataIx
+def getDataIndexes(splits, splitKeys, N):
+	dataIx, lastIx = {}, 0
+	for i in range(len(splitKeys) - 1):
+		nK = int(splits[i] * N)
+		dataIx[splitKeys[i]] = (lastIx, lastIx + nK)
+		lastIx += nK
+	dataIx[splitKeys[-1]] = (lastIx, N)
+	return dataIx
 
-	# Return a dict of type
-	# 	{
-	# 		"train" : {"rgb" : [a, b), "depth" : [a, b), ...},
-	#		"test" : {"rgb" : [b, c), "depth" : [b, c), ...},
-	#		...
-	# 	}
-	def getSplitPaths(paths, splitKeys, pathKey, dattaIx, keepN):
-		# Now, take the paths for all the keys as defined by indexes above
-		newPaths = {}
+# Return a dict of type
+# 	{
+# 		"train" : {"rgb" : [a, b), "depth" : [a, b), ...},
+#		"test" : {"rgb" : [b, c), "depth" : [b, c), ...},
+#		...
+# 	}
+def getSplitPaths(paths, splitKeys, pathKeys, dataIx, keepN):
+	# Now, take the paths for all the keys as defined by indexes above
+	newPaths = {}
+	for k in splitKeys:
+		startIx, endIx = dataIx[k]
+		thisPaths = {pathKey : paths[pathKey][startIx : endIx] for pathKey in pathKeys}
+		newPaths[k] = thisPaths
+
+	if not keepN is None:
 		for k in splitKeys:
-			startIx, endIx = dataIx[k]
-			thisPaths = {pathKey : paths[pathKey][startIx : endIx] for pathKey in pathKeys}
-			newPaths[k] = thisPaths
+			newPaths[k] = {pathKey : newPaths[k][pathKey][0 : keepN] for pathKey in pathKeys}
 
-		if not keepN is None:
-			for k in splitKeys:
-				newPaths[k] = {pathKey : newPaths[k][pathKey][0 : keepN] for pathKey in pathKeys}
+	for splitKey in splitKeys:
+		thisData = newPaths[splitKey]
+		firstValues = list(thisData.values())[0]
+		N = len(firstValues)
 
-		for splitKey in splitKeys:
-			N = dataIx[splitKey][1] - dataIx[splitKey][0]
-			print("Key: %s. Range: %s. N=%d" % (splitKey, dataIx[splitKey], N))
+		print("Key: %s. Range: %s. N=%d" % (splitKey, dataIx[splitKey], N))
 
-		return newPaths
+	return newPaths
 
+def getTrainValPaths(paths, splits, splitKeys, exportType, keepN=None):
 	np.random.seed(42)
 	N = len(paths["rgb"])
 	# rgb, depth, semantic etc.
 	pathKeys = paths.keys()
 	# Get (startIndex, endIndex) tuple for each key
-	dataIx = getDataIndexes(splits, splitKeys)
+	dataIx = getDataIndexes(splits, splitKeys, N)
 	print(dataIx)
 
 	# Randomize order BEFORE splitting
