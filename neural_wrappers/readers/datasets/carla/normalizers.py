@@ -1,7 +1,7 @@
 import numpy as np
 from typing import Dict, Union
 from .utils import getQuatFromRotation
-from ....utilities import resize_batch, h5ReadDict
+from ....utilities import resize_batch, h5ReadDict, npGetInfo
 from ...dataset_reader import DatasetReader
 
 # TODO: All norms now put data in [0 : 1]. We should look at the rederObj and if some dims want other range, transform
@@ -80,6 +80,14 @@ def opticalFlowNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndar
 		x = opticalFlowPercentageTransform(x, readerObj.opticalFlowPercentage)
 
 	return x
+
+# def opticalFlowNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
+# 	# Data in [0 : 1]
+# 	width, height = readerObj.desiredShape
+# 	x = resize_batch(x, height=height, width=width, resizeLib="opencv")
+# 	x[..., 0] = np.float32(np.int32(x[..., 0] * width))
+# 	x[..., 1] = np.float32(np.int32(x[..., 1] * height))
+# 	return x
 
 def normalNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
 	x = resize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
