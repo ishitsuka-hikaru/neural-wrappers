@@ -9,14 +9,14 @@ from ...dataset_reader import DatasetReader
 
 def rgbNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
 	# x [MBx854x854x3] => [MBx256x256x3] :: [0 : 255]
-	x = resize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="skimage")
+	x = resize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
 	# x :: [0 : 255] => [0: 1]
 	x = x.astype(np.float32) / 255
 	return x
 
 def depthNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
 	depthStats = h5ReadDict(readerObj.dataset["others"]["dataStatistics"]["depth"])
-	x = resize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="skimage")
+	x = resize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
 	x = np.clip(x, depthStats["min"], depthStats["max"])
 	x = (x - depthStats["min"]) / (depthStats["max"] - depthStats["min"])
 	return x
@@ -74,7 +74,7 @@ def opticalFlowNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndar
 		return flow
 
 	# Data in [0 : 1]
-	x = resize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="skimage")
+	x = resize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
 
 	if readerObj.opticalFlowPercentage != (100, 100):
 		x = opticalFlowPercentageTransform(x, readerObj.opticalFlowPercentage)
@@ -82,12 +82,12 @@ def opticalFlowNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndar
 	return x
 
 def normalNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
-	x = resize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="skimage")
+	x = resize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
 	# Normals are stored as [0 - 255] on 3 channels, representing orientation of the 3 axes.
 	x = x.astype(np.float32) / 255
 	return x
 
 def semanticSegmentationNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
 	x = resize_batch(x, interpolation="nearest", height=readerObj.desiredShape[0], \
-		width=readerObj.desiredShape[1], resizeLib="skimage")
+		width=readerObj.desiredShape[1], resizeLib="opencv")
 	return x
