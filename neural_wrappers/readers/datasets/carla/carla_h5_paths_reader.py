@@ -4,7 +4,7 @@ from typing import Dict, Callable, List, Tuple
 from functools import partial
 from ...internal import DatasetIndex
 from ...h5_dataset_reader import H5DatasetReader, defaultH5DimGetter
-from ....utilities import tryReadImage, smartIndexWrapper
+from ....utilities import tryReadImage, smartIndexWrapper, toCategorical
 
 from .normalizers import rgbNorm, depthNorm, positionNorm, opticalFlowNorm, \
 	normalNorm, semanticSegmentationNorm, positionQuatNorm
@@ -128,7 +128,7 @@ def semanticSegmentationReader(path : str) -> np.ndarray:
 	labelKeys = list(map(lambda x : x[0] + x[1] * 256 + x[2] * 256 * 256, labelKeys))
 	for i in range(len(labelKeys)):
 		newItem[newItem == labelKeys[i]] = i
-	return newItem.astype(np.uint8)
+	return np.eye(13)[newItem].astype(np.float32)
 
 def rgbNeighbourReader(dataset : h5py._hl.group.Group, index : DatasetIndex, \
 	readerObj : H5DatasetReader) -> np.ndarray:
