@@ -63,23 +63,36 @@ def opticalFlowNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndar
 		# flow_x :: [-x% : x%], flow_y :: [-y% : y%]
 		flow_x = np.clip(flow_x, -opticalFlowPercentage[0], opticalFlowPercentage[0])
 		flow_y = np.clip(flow_y, -opticalFlowPercentage[1], opticalFlowPercentage[1])
-		## flow_x in [0 : 2*x%], flow_y :: [0 : 2*y%]
+		# flow_x in [0 : 2*x%], flow_y :: [0 : 2*y%]
 		flow_x += opticalFlowPercentage[0]
 		flow_y += opticalFlowPercentage[1]
-		## flow_x :: [0 : 1], flow_y :: [0 : 1]
+		# flow_x :: [0 : 1], flow_y :: [0 : 1]
 		flow_x *= 1 / (2 * opticalFlowPercentage[0])
 		flow_y *= 1 / (2 * opticalFlowPercentage[1])
-		## flow :: [0 : 1]
+		# flow :: [0 : 1]
 		flow = np.concatenate([flow_x, flow_y], axis=-1).astype(np.float32)
 		return flow
+
+	def opticalFlowMagnitude(x):
+		# flow :: [0 : 1] => [-1 : 1]
+		x = (x - 0.5) * 2
+		# norm :: [0 : sqrt(2)] => [0 : 1]
+		norm = np.hypot(x[..., 0], x[..., 1]) / np.sqrt(2)
+		return np.expand_dims(norm, axis=-1)
 
 	# Data in [0 : 1]
 	x = resize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
 
-	if readerObj.opticalFlowPercentage != (100, 100):
-		x = opticalFlowPercentageTransform(x, readerObj.opticalFlowPercentage)
+	if readerObj.hyperParameters["opticalFlowPercentage"] != (100, 100):
+		x = opticalFlowPercentageTransform(x, readerObj.hyperParameters["opticalFlowPercentage"])
 
-	return x
+	if readerObj.hyperParameters["opticalFlowMode"] == "xy":
+		return x
+	elif readerObj.hyperParameters["opticalFlowMode"] == "magnitude":
+		return opticalFlowMagnitude(x)
+	elif readerObj.hyperParameters["opticalFlowMode"] == "xy_plus_magnitude":
+		return np.concatenate([x, opticalFlowMagnitude(x)], axis=-1)
+	assert False
 
 # def opticalFlowNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
 # 	# Data in [0 : 1]

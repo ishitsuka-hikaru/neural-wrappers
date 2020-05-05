@@ -1,6 +1,6 @@
 import h5py
 import numpy as np
-from typing import Dict, Callable, List, Tuple
+from typing import Dict, Callable, List, Tuple, Any
 from functools import partial
 from ...internal import DatasetIndex
 from ...h5_dataset_reader import H5DatasetReader, defaultH5DimGetter
@@ -12,7 +12,7 @@ from .utils import unrealFloatFromPng
 
 class CarlaH5PathsReader(H5DatasetReader):
 	def __init__(self, datasetPath : str, dataBuckets : Dict[str, List[str]], \
-	desiredShape : Tuple[int, int], opticalFlowPercentage : Tuple[int, int]):
+	desiredShape : Tuple[int, int], hyperParameters : Dict[str, Any]):
 		dimGetter = {
 			"rgb" : partial(pathsReader, readerObj=self, readFunction=rgbReader, dim="rgb"),
 			"depth" : partial(pathsReader, readerObj=self, readFunction=depthReader, dim="depth"),
@@ -49,7 +49,7 @@ class CarlaH5PathsReader(H5DatasetReader):
 
 		self.idOfNeighbour = self.getIdsOfNeighbour()
 		self.desiredShape = desiredShape
-		self.opticalFlowPercentage = opticalFlowPercentage
+		self.hyperParameters = hyperParameters
 
 	# For each top level (train/tet/val) create a new array with the index of the frame at time t + 1.
 	# For example result["train"][0] = 2550 means that, after randomization the frame at time=1 is at id 2550.
