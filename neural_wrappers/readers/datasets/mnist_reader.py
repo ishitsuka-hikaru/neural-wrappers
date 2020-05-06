@@ -1,7 +1,7 @@
 import numpy as np
 from functools import partial
-from .h5_dataset_reader import H5DatasetReader, defaultH5DimGetter
-from neural_wrappers.utilities import toCategorical
+from ..h5_dataset_reader import H5DatasetReader, defaultH5DimGetter
+from ...utilities import toCategorical
 from typing import Iterator, Dict
 
 class MNISTReader(H5DatasetReader):
