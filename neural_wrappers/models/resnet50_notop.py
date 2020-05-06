@@ -1,9 +1,9 @@
-from torchvision.models import ResNet
-from torchvision.models.resnet import Bottleneck, model_urls
+#from torchvision.models import ResNet
+#from torchvision.models.resnet import Bottleneck, model_urls
 import torch.utils.model_zoo as model_zoo
 
 # Class that loads a ResNet-50 module from torchvision and deletes the FC layer at the end, to use just as extractor
-class ResNet50NoTop(ResNet):
+class ResNet50NoTop():
 	def __init__(self, pretrained=True):
 		super().__init__(Bottleneck, [3, 4, 6, 3])
 		if pretrained:

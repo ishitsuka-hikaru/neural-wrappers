@@ -1,6 +1,6 @@
 import numpy as np
 from .metric_as_callback import MetricAsCallback
-from ..utilities import Number
+from ..utilities import NWNumber
 
 class InterClassAccuracy(MetricAsCallback):
 	def __init__(self):
@@ -9,7 +9,7 @@ class InterClassAccuracy(MetricAsCallback):
 	def getDirection(self):
 		return "max"
 
-	def epochReduceFunction(self, results) -> Number:
+	def epochReduceFunction(self, results) -> NWNumber:
 		return results.mean()
 
 	def iterationReduceFunction(self, results):

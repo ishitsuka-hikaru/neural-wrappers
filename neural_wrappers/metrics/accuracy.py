@@ -15,7 +15,7 @@ class ThresholdAccuracy(MetricWithThreshold):
 	#  maximinzing metric). Then, we can get a bunch of such activations for each result, but we're only interested
 	#  in the one that corresponds to the correct class, as said by label (result[labels == 1] == 1?). We sum those
 	#  and divide by the number of items to get the thresholded accuracy.
-	def __call__(self, results : np.ndarray, labels : np.ndarray, threshold : np.ndarray, **kwargs) -> float:
+	def __call__(self, results : np.ndarray, labels : np.ndarray, threshold : np.ndarray, **kwargs) -> float: #type: ignore[override]
 		results = results >= threshold
 		whereCorrect = labels == 1
 		results = results[whereCorrect]
@@ -29,11 +29,11 @@ class Accuracy(Metric):
 	# @brief Since we don't care about a particular threshold, just to get the highest activation for each prediction,
 	#  we can compute the max on the last axis (classes axis) and send this as threshold to the ThresholdAccuracy
 	#  class.
-	def __call__(self, results : np.ndarray, labels : np.ndarray, **kwargs) -> float:
+	def __call__(self, results : np.ndarray, labels : np.ndarray, **kwargs) -> float: #type: ignore[override]
 		Max = results.max(axis=-1, keepdims=True)
 		return self.thresholdAccuracy(results, labels, Max)
 
 class ThresholdSoftmaxAccuracy(ThresholdAccuracy):
-	def __call__(self, results : np.ndarray, labels : np.ndarray, threshold : np.ndarray, **kwargs) -> float:
+	def __call__(self, results : np.ndarray, labels : np.ndarray, threshold : np.ndarray, **kwargs) -> float: #type: ignore[override]
 		results = softmax(results, axis=-1)
 		return super().__call__(results, labels, threshold)

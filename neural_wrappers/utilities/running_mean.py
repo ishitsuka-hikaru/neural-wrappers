@@ -1,4 +1,4 @@
-from .utils import Number, Sequence, Dict
+from .utils import NWNumber, NWSequence, NWDict
 
 class RunningMean:
 	def __init__(self, initValue=0):
@@ -7,11 +7,11 @@ class RunningMean:
 		self.sumFn, self.getFn = self.setupFns(initValue)
 
 	def setupFns(self, initValue):
-		if type(initValue) in Number.__args__:
+		if type(initValue) in NWNumber.__args__: # type: ignore
 			return lambda a, b : a + b, lambda a, b : a / (b + 1e-5)
-		elif type(initValue) in Sequence.__args__:
+		elif type(initValue) in NWSequence.__args__: # type: ignore
 			return lambda a, b : a + b, lambda a, b : a / (b + 1e-5)
-		elif type(initValue) in Dict.__args__:
+		elif type(initValue) in NWDict.__args__: # type: ignore
 			return lambda a, b : {k : a[k] + b[k] for k in a}, lambda a, b : {k : a[k] / (b + 1e-5) for k in a}
 		assert False, "Unknown type: %s" % (type(item))
 

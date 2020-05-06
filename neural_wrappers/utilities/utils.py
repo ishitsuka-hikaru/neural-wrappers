@@ -3,7 +3,9 @@ import os
 import pickle
 from collections import OrderedDict
 from .np_utils import npCloseEnough
-from .type_utils import Number, Dict, Sequence, Union, isBaseOf
+from .type_utils import NWNumber, NWSequence, NWDict, isBaseOf, T
+from typing import Dict, Sequence, Union, Iterable, List
+from functools import reduce
 
 def standardizeData(data, mean, std):
 	data -= mean
@@ -100,11 +102,11 @@ def topologicalSort(depGraph):
 			raise Exception("Graph is not acyclical")
 	return L
 
-def getGenerators(reader, miniBatchSize, maxPrefetch=1, keys=["train", "validation"]):
+def getGenerators(reader, batchSize, maxPrefetch=1, keys=["train", "validation"]):
 	items = []
 	for key in keys:
-		generator = reader.iterate(key, miniBatchSize=miniBatchSize, maxPrefetch=maxPrefetch)
-		numIters = reader.getNumIterations(key, miniBatchSize=miniBatchSize)
+		generator = reader.iterate(key, batchSize=batchSize, maxPrefetch=maxPrefetch)
+		numIters = reader.getNumIterations(key, batchSize=batchSize)
 		items.extend([generator, numIters])
 	return items
 
@@ -115,17 +117,17 @@ def tryReadImage(path, count=5, imgLib="opencv"):
 		import cv2
 		bgr_image = cv2.imread(path)
 		b, g, r = cv2.split(bgr_image)
-		image = cv2.merge([r, g, b]).astype(np.float32)
+		image = cv2.merge([r, g, b]).astype(np.uint8)
 		return image
 
 	def readImagePIL(path):
 		from PIL import Image
-		image = np.array(Image.open(path), dtype=np.float32)[..., 0 : 3]
+		image = np.array(Image.open(path), dtype=np.uint8)[..., 0 : 3]
 		return image
 
 	def readImageLycon(path):
 		from lycon import load
-		image = load(path)[..., 0 : 3].astype(np.float32)
+		image = load(path)[..., 0 : 3].astype(np.uint8)
 		return image
 
 	f = {
@@ -173,30 +175,30 @@ def isPicklable(item):
 		return False
 
 # Flatten the indexes [[1, 3], [15, 13]] => [1, 3, 15, 13] and then calls f(data, 1), f(data, 3), ..., step by step
-def smartIndexWrapper(data, indexes, f):
+def smartIndexWrapper(data, indexes, f = lambda data, index : data[index]):
 	# Flatten the indexes [[1, 3], [15, 13]] => [1, 3, 15, 13]
 	indexes = np.array(indexes, dtype=np.uint32)
 	flattenedIndexes = indexes.flatten()
 	N = len(flattenedIndexes)
 	assert N > 0
 
-	# Get the first element to infer shape
-	firstResult = f(data, flattenedIndexes[0])
-	flattenedShape = (N, *firstResult.shape)
-	finalShape = (*indexes.shape, *firstResult.shape)
+	result = []
+	for i in range(N):
+		result.append(f(data, flattenedIndexes[i]))
+	finalShape = (*indexes.shape, *result[0].shape)
+	result = np.array(result).reshape(finalShape)
+	return result
 
-	result = np.zeros(flattenedShape, firstResult.dtype)
-	result[0] = firstResult
-	for i in range(1, N):
-		result[i] = f(data, flattenedIndexes[i])
-	return result.reshape(finalShape)
-
-def getFormattedStr(item : Union[np.ndarray, Number, Sequence, Dict], precision : int) -> str:
+def getFormattedStr(item : Union[np.ndarray, NWNumber, NWSequence, NWDict], precision : int) -> str: \
+	# type: ignore
 	formatStr = "%%2.%df" % (precision)
-	if type(item) in Number.__args__:
-		return formatStr % (item)
-	elif type(item) in Sequence.__args__:
-		return [formatStr % (x) for x in item]
-	elif type(item) in Dict.__args__:
-		return {k : formatStr % (item[k]) for k in item}
+	if type(item) in NWNumber.__args__: # type: ignore
+		return formatStr % (item) # type: ignore
+	elif type(item) in NWSequence.__args__: # type: ignore
+		return [formatStr % (x) for x in item] # type: ignore
+	elif type(item) in NWDict.__args__: # type: ignore
+		return {k : formatStr % (item[k]) for k in item} # type: ignore
 	assert False, "Unknown type: %s" % (type(item))
+
+def flattenList(x : Iterable[List[T]]) -> List[T]:
+	return reduce(lambda a, b : a + b, x)

@@ -2,7 +2,7 @@ import numpy as np
 
 # Equality check between two arrays
 def npCloseEnough(a, b, eps=1e-5):
-	assert a.dtype == b.dtype
+	assert a.dtype == b.dtype, "%s vs %s" % (a.dtype, b.dtype)
 	if np.issubdtype(a.dtype, np.number):
 		whereNotNaN = a == a
 		return np.sum(np.abs(a[whereNotNaN] - b[whereNotNaN])) < eps

@@ -6,7 +6,7 @@ import numpy as np
 from datetime import datetime
 from copy import deepcopy
 from collections import OrderedDict
-from typing import List, Union
+from typing import List, Union, Dict
 
 from .network_serializer import NetworkSerializer
 from .utils import getNumParams, getOptimizerStr, getNpData, getTrData, StorePrevState
@@ -61,20 +61,19 @@ class NeuralNetworkPyTorch(nn.Module):
 			self.hyperParameters[key] = hyperParameters[key]
 
 	# Sets the user provided list of metrics as callbacks and adds them to the callbacks list.
-	def addMetrics(self, metrics : List[Union[Metric, MetricAsCallback]]):
+	def addMetrics(self, metrics : Dict[str, Union[Metric, MetricAsCallback]]):
 		assert not "Loss" in metrics, "Cannot overwrite Loss metric. This is added by default for all networks."
 		assert isBaseOf(metrics, dict), "Metrics must be provided as Str=>Callback dictionary"
 
 		for key in metrics:
-			# assert type(key) == str, "The key of the metric must be a string"
-			assert hasattr(metrics[key], "__call__"), "The user provided metric %s must be callable" % (key)
+			# assert hasattr(metrics[key], "__call__"), "The user provided metric %s must be callable" % (key)
 			assert key not in self.callbacks, "Metric %s already in callbacks list." % (key)
 
 			metricAsCallback = metrics[key]
 			# There may be cases where the metric is already a MetricAsCallback (i.e. graph metrics inherited from each
 			#  edges or simply creating the MetricAsCallback object yourself), so there is no need to wrap it twice.
 			if not isBaseOf(metricAsCallback, MetricAsCallback):
-				metricAsCallback = MetricAsCallback(metricName=key, metric=metricAsCallback)
+				metricAsCallback = MetricAsCallback(metricName=key, metric=metricAsCallback) # type: ignore
 			self.callbacks[key] = metricAsCallback
 			self.iterPrintMessageKeys.append(key)
 		# Warning, calling addMetrics might invalidat topological sort as we reset the indexes here. If there are

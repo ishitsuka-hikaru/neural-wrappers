@@ -1,6 +1,7 @@
 from __future__ import annotations
+import torch as tr
 from ..pytorch import getTrData, trDetachData, NeuralNetworkPyTorch
-from typing import Optional
+from typing import Optional, Dict, Type, Union
 
 class Node:
 	# A dictionary that gives a unique tag to all nodes by appending an increasing number to name.
@@ -16,7 +17,7 @@ class Node:
 		self.hyperParameters = self.getHyperParameters(hyperParameters)
 		self.groundTruth = None
 		# Messages are the items received at this node via all its incoming edges.
-		self.messages = {}
+		self.messages : Dict[str, tr.Tensor] = {}
 
 		# Node-specific encoder and decoder instances. By default they are not instancicated.
 		self.nodeEncoder = nodeEncoder
@@ -25,7 +26,7 @@ class Node:
 	# This function is called for getEncoder/getDecoder. By default we'll return the normal type of this function.
 	#  However, we are free to overwrite what type a node offers to be seen as. A concrete example is a
 	#  ConcatenateNode, which might be more useful to be seen as a MapNode (if it concatenates >=2 MapNodes)
-	def getType(self) -> Node:
+	def getType(self) -> Type[Node]:
 		return type(self)
 
 	def getEncoder(self, outputNodeType : Optional[Node]=None):
@@ -33,7 +34,7 @@ class Node:
 			return self.nodeEncoder
 		raise Exception("Must be implemented by each node!")
 
-	def getDecoder(self, inputNodeType : Optional[Node]=None) ->Node:
+	def getDecoder(self, inputNodeType : Optional[Node]=None) -> NeuralNetworkPyTorch:
 		if not self.getDecoder is None:
 			return self.nodeDecoder
 		raise Exception("Must be implemented by each node!")
@@ -48,7 +49,8 @@ class Node:
 
 	def getInputs(self, x : tr.Tensor) -> Dict[str, tr.Tensor]:
 		inputs = self.getMessages()
-		if not self.groundTruth is None:
+		GT : Optional[tr.Tensor] = self.groundTruth
+		if not GT is None:
 			inputs["GT"] = self.getGroundTruthInput(x).unsqueeze(0)
 		return inputs
 
@@ -59,7 +61,7 @@ class Node:
 		self.messages[edgeID] = message
 
 	# TODO return type
-	def getNodeLabelOnly(self, labels : dict):
+	def getNodeLabelOnly(self, labels : dict): #type: ignore
 		# Combination of two functions. To be refactored :)
 		if self.groundTruthKey is None:
 			return None
@@ -69,11 +71,11 @@ class Node:
 			return labels[self.groundTruthKey]
 		elif type(self.groundTruthKey) in (list, tuple):
 			return {k : self.getNodeLabelOnly(labels[k]) for k in self.groundTruthKey}
-		raise Exception("Key %s required from GT data not in labels %s" % (list(labels.keys())))
+		raise Exception("Key %s required from GT data not in labels %s" % (self.groundTruthKey, list(labels.keys())))
 
 	# TODO: labels type
-	def setGroundTruth(self, labels : dict):
-		labels = self.getNodeLabelOnly(labels)
+	def setGroundTruth(self, labels : Optional[Union[Dict[str, tr.Tensor], tr.Tensor]]):
+		labels = self.getNodeLabelOnly(labels) #type: ignore
 		# Ground truth is always detached from the graph, so we don't optimize both sides of the graph, if the GT of
 		#  one particular node was generated from other side.
 		labels = trDetachData(labels)
@@ -89,9 +91,6 @@ class Node:
 		elif type(self.groundTruthKey) in (list, tuple):
 			return [inputs[key] for key in self.groundTruthKey]
 		assert False
-
-	def clearNodeOutputs(self) -> None:
-		self.outputs = {}
 
 	@staticmethod
 	def getUniqueName(name : str) -> str:
