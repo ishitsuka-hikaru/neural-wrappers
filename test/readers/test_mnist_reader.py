@@ -37,11 +37,9 @@ class TestMNISTReader:
 		items = next(generator)
 		assert not items is None
 
-		data, labels = items.values()
-		rgb = data["rgb"]
-		labels = labels["labels"]
+		rgb, labels = items
 		assert rgb.shape == (MB, 28, 28, 1)
-		assert labels.shape == (MB, )
+		assert labels.shape == (MB, 10)
 
 	def test_iterate_2(self):
 		reader = MNISTReader(MNIST_READER_PATH)
@@ -58,24 +56,24 @@ class TestMNISTReader:
 	def test_iterate_3(self):
 		reader = MNISTReader(MNIST_READER_PATH)
 		generator, numIters = getGenerators(reader, 30, keys=["train"])
-		firstItem = next(generator)
+		firstRgb, firstLabels = next(generator)
 		for _ in range(numIters - 1):
 			_ = next(generator)
-		firstItemEpoch2 = next(generator)
+		firstRgbEpoch2, firstLabelsEpoch2 = next(generator)
 
-		assert npCloseEnough(firstItem["data"]["rgb"], firstItemEpoch2["data"]["rgb"])
-		assert npCloseEnough(firstItem["labels"]["labels"], firstItemEpoch2["labels"]["labels"])
+		assert npCloseEnough(firstRgb, firstRgbEpoch2)
+		assert npCloseEnough(firstLabels, firstLabelsEpoch2)
 
 	def test_normalization_1(self):
 		reader = MNISTReader(MNIST_READER_PATH, normalization="none")
 		generator, numIters = getGenerators(reader, 30, keys=["train"])
-		firstRGBs = next(generator)["data"]["rgb"]
+		firstRGBs = next(generator)[0]
 
 		assert firstRGBs.dtype == np.uint8 and firstRGBs.min() == 0 and firstRGBs.max() == 255
 
 	def test_normalization_2(self):
 		reader = MNISTReader(MNIST_READER_PATH, normalization="min_max_0_1")
 		generator, numIters = getGenerators(reader, 30, keys=["train"])
-		firstRGBs = next(generator)["data"]["rgb"]
+		firstRGBs = next(generator)[0]
 
 		assert firstRGBs.dtype == np.float32 and firstRGBs.min() == 0 and firstRGBs.max() == 1
