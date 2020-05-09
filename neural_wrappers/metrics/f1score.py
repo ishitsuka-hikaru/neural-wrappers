@@ -4,6 +4,8 @@ from .metric import Metric
 from .precision import ThresholdPrecision
 from .recall import ThresholdRecall
 
+from ..utilities import npGetInfo
+
 # Based on https://towardsdatascience.com/multi-class-metrics-made-simple-part-i-f1Score-and-f1Score-9250280bddc2
 class ThresholdF1Score(MetricWithThreshold):
 	def __init__(self):
