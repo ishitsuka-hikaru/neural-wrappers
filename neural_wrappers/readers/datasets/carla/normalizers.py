@@ -16,10 +16,12 @@ def rgbNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
 
 def depthNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
 	depthStats = h5ReadDict(readerObj.dataset["others"]["dataStatistics"]["depth"])
+
 	x = resize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
-	x = np.clip(x, depthStats["min"], depthStats["max"])
+	# Depth is stored in [0 : 1] representing up to 1000m from simulator
+	x = np.clip(x * 1000, depthStats["min"], depthStats["max"])
 	x = (x - depthStats["min"]) / (depthStats["max"] - depthStats["min"])
-	return x
+	return np.expand_dims(x, axis=-1)
 
 def positionNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
 	positionStats = h5ReadDict(readerObj.dataset["others"]["dataStatistics"]["position"])
@@ -109,6 +111,31 @@ def normalNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
 	return x
 
 def semanticSegmentationNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
+	labelKeys = list({
+		(0, 0, 0): "Unlabeled",
+		(70, 70, 70): "Building",
+		(153, 153, 190): "Fence",
+		(160, 170, 250): "Other",
+		(60, 20, 220): "Pedestrian",
+		(153, 153, 153): "Pole",
+		(50, 234, 157): "Road line",
+		(128, 64, 128): "Road",
+		(232, 35, 244): "Sidewalk",
+		(35, 142, 107): "Vegetation",
+		(142, 0, 0): "Car",
+		(156, 102, 102): "Wall",
+		(0, 220, 220): "Traffic sign"
+	}.keys())
+	numClasses = len(labelKeys)
+	labelKeys = list(map(lambda x : x[0] + x[1] * 256 + x[2] * 256 * 256, labelKeys))
+
+	x = x.astype(np.uint32)
+	x = x[..., 0] + x[..., 1] * 256 + x[..., 2] * 256 * 256
+	for i in range(len(labelKeys)):
+		x[x == labelKeys[i]] = i
+	x = x.astype(np.uint8)
 	x = resize_batch(x, interpolation="nearest", height=readerObj.desiredShape[0], \
 		width=readerObj.desiredShape[1], resizeLib="opencv")
-	return x
+
+	# Some fancy way of doing one-hot encoding.
+	return np.eye(numClasses)[x].astype(np.float32)

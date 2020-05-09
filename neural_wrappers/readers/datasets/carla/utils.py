@@ -1,6 +1,10 @@
 import numpy as np
 import transforms3d.euler as txe
+import h5py
+from typing import Callable
 from ....utilities import npCloseEnough, npGetInfo
+from ...internal import DatasetIndex
+from ...h5_dataset_reader import H5DatasetReader
 
 def unrealFloatFromPng(x : np.ndarray) -> np.ndarray:
 	x = x.astype(np.float32)
