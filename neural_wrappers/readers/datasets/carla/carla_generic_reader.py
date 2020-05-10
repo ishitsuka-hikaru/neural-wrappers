@@ -9,17 +9,12 @@ from ...h5_dataset_reader import H5DatasetReader, defaultH5DimGetter
 from ...internal import DatasetIndex
 from ....utilities import smartIndexWrapper
 
-def opticalFlowReader(dataset : h5py._hl.group.Group, index : DatasetIndex, readerObj : H5DatasetReader) -> np.ndarray:
+def opticalFlowReader(dataset : h5py._hl.group.Group, index : DatasetIndex, \
+	skip : int, readerObj : H5DatasetReader) -> np.ndarray:
 	baseDirectory = readerObj.dataset["others"]["baseDirectory"][()]
+	dim = "optical_flow(t+%d)" % (skip)
+	paths = dataset[dim][index.start : index.end]
 
-	# For optical flow we have the problem that the flow data for t->t+1 is stored at index t+1, which isn't
-	#  necessarily 1 index to the right (trian set may be randomized beforehand). Thus, we need to get the indexes
-	#  of the next neighbours of this top level (train/test etc.), and then read the paths at those indexes.
-	topLevel = readerObj.getActiveTopLevel()
-	neighbourIds = readerObj.idOfNeighbour[topLevel][index.start : index.end]
-	paths = smartIndexWrapper(dataset["optical_flow"], neighbourIds)
-
-	# Also, there are two optical flow images for each index, so we need to read both.
 	results = []
 	for path in paths:
 		path_x, path_y = path
@@ -30,14 +25,15 @@ def opticalFlowReader(dataset : h5py._hl.group.Group, index : DatasetIndex, read
 	return np.array(results)
 
 def rgbNeighbourReader(dataset : h5py._hl.group.Group, index : DatasetIndex, \
-	readerObj : H5DatasetReader) -> np.ndarray:
+	skip : int, readerObj : H5DatasetReader) -> np.ndarray:
 	baseDirectory = readerObj.dataset["others"]["baseDirectory"][()]
 
 	# For optical flow we have the problem that the flow data for t->t+1 is stored at index t+1, which isn't
 	#  necessarily 1 index to the right (trian set may be randomized beforehand). Thus, we need to get the indexes
 	#  of the next neighbours of this top level (train/test etc.), and then read the paths at those indexes.
 	topLevel = readerObj.getActiveTopLevel()
-	neighbourIds = readerObj.idOfNeighbour[topLevel][index.start : index.end]
+	key = "t+%d" % (skip)
+	neighbourIds = readerObj.idOfNeighbour[topLevel][key][index.start : index.end]
 	paths = smartIndexWrapper(dataset["rgb"], neighbourIds)
 
 	results = []
@@ -63,8 +59,9 @@ def pathsReader(dataset : h5py._hl.group.Group, index : DatasetIndex, readerObj 
 
 class CarlaGenericReader(H5DatasetReader):
 	def __init__(self, datasetPath : str, dataBuckets : Dict[str, List[str]], \
-		rawReadFunction : Callable[[str], np.ndarray], \
-		desiredShape : Tuple[int, int], hyperParameters : Dict[str, Any]):
+		rawReadFunction : Callable[[str], np.ndarray], desiredShape : Tuple[int, int], \
+		numNeighboursAhead : int, hyperParameters : Dict[str, Any]):
+		assert numNeighboursAhead >= 0
 
 		dimGetter = {
 			"rgb" : partial(pathsReader, readerObj=self, readFunction=rawReadFunction, dim="rgb"),
@@ -79,7 +76,6 @@ class CarlaGenericReader(H5DatasetReader):
 			"normal" : partial(pathsReader, readerObj=self, readFunction=rawReadFunction, dim="normal"),
 			"cameranormal" : partial(pathsReader, readerObj=self, readFunction=rawReadFunction, dim="cameranormal"),
 			"rgbDomain2" : partial(pathsReader, readerObj=self, readFunction=rawReadFunction, dim="rgbDomain2"),
-			"rgbNeighbour" : partial(rgbNeighbourReader, readerObj=self),
 			"position_quat" : partial(defaultH5DimGetter, dim="position"),
 		}
 
@@ -88,33 +84,40 @@ class CarlaGenericReader(H5DatasetReader):
 				"rgb" : partial(rgbNorm, readerObj=self),
 				"depth" : partial(depthNorm, readerObj=self),
 				"position" : partial(positionNorm, readerObj=self),
-				"optical_flow" : partial(opticalFlowNorm, readerObj=self),
 				"semantic_segmentation" : partial(semanticSegmentationNorm, readerObj=self),
 				"wireframe" : partial(rgbNorm, readerObj=self),
 				"halftone" : partial(rgbNorm, readerObj=self),
 				"normal" : partial(normalNorm, readerObj=self),
 				"cameranormal" : partial(normalNorm, readerObj=self),
 				"rgbDomain2" : partial(rgbNorm, readerObj=self),
-				"rgbNeighbour" : partial(rgbNorm, readerObj=self),
 				"position_quat" : partial(positionQuatNorm, readerObj=self)
 			}
 		}
 
+		for i in range(numNeighboursAhead):
+			key = "rgbNeighbour(t+%d)" % (i + 1)
+			dimGetter[key] = partial(rgbNeighbourReader, skip=i + 1, readerObj=self)
+			dimTransform["data"][key] = partial(rgbNorm, readerObj=self)
+
+			flowKey = "optical_flow(t+%d)" % (i + 1)
+			dimGetter[flowKey] = partial(opticalFlowReader, skip = i + 1, readerObj=self, dim=flowKey)
+			dimTransform["data"][flowKey] = partial(opticalFlowNorm, readerObj=self)
+
 		super().__init__(datasetPath, dataBuckets, dimGetter, dimTransform)
 		self.rawReadFunction = rawReadFunction
+		self.numNeighboursAhead = numNeighboursAhead
 		self.idOfNeighbour = self.getIdsOfNeighbour()
 		self.desiredShape = desiredShape
 		self.hyperParameters = hyperParameters
 
-
-	# For each top level (train/tet/val) create a new array with the index of the frame at time t + 1.
+	# For each top level (train/tet/val) create a new array with the index of the frame at time t + skipFrames.
 	# For example result["train"][0] = 2550 means that, after randomization the frame at time=1 is at id 2550.
 	def getIdsOfNeighbour(self):
-		def f(ids):
+		def f(ids, skipFrames):
 			N = len(ids)
 			closest = np.zeros(N, dtype=np.uint32)
 			for i in range(N):
-				where = np.where(ids == ids[i] + 1)[0]
+				where = np.where(ids == ids[i] + skipFrames)[0]
 				if len(where) == 0:
 					where = [i]
 				assert len(where) == 1
@@ -127,8 +130,11 @@ class CarlaGenericReader(H5DatasetReader):
 			if not "ids" in self.dataset[topLevel]:
 				continue
 			ids = self.dataset[topLevel]["ids"][()]
-			neighbours = f(ids)
-			result[topLevel] = neighbours
+			result[topLevel] = {}
+			# Store the ids up to the number of neighbours we are interested in (for optical flow with skip mostly)
+			for i in range(self.numNeighboursAhead):
+				key = "t+%d" % (i + 1)
+				result[topLevel][key] = f(ids, i + 1)
 		return result
 
 	def __str__(self) -> str:

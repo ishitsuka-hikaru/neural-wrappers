@@ -18,7 +18,7 @@ def tryReadNpy(path, count=5):
 
 class CarlaH5PathsNpyReader(CarlaGenericReader):
 	def __init__(self, datasetPath : str, dataBuckets : Dict[str, List[str]], \
-	desiredShape : Tuple[int, int], hyperParameters : Dict[str, Any]):
+	desiredShape : Tuple[int, int], numNeighboursAhead : int, hyperParameters : Dict[str, Any]):
 		self.rawDepthReadFunction = tryReadNpy
 		self.rawFlowReadFunction = tryReadNpy
-		super().__init__(datasetPath, dataBuckets, tryReadNpy, desiredShape, hyperParameters)
+		super().__init__(datasetPath, dataBuckets, tryReadNpy, desiredShape, numNeighboursAhead, hyperParameters)
