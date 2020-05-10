@@ -15,7 +15,7 @@ def rgbNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
 	return x
 
 def depthNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
-	depthStats = h5ReadDict(readerObj.dataset["others"]["dataStatistics"]["depth"])
+	depthStats = {"min" : 0, "max" : readerObj.hyperParameters["maxDepthMeters"]}
 
 	x = resize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
 	# Depth is stored in [0 : 1] representing up to 1000m from simulator

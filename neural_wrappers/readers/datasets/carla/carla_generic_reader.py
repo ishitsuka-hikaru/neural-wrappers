@@ -10,9 +10,8 @@ from ...internal import DatasetIndex
 from ....utilities import smartIndexWrapper
 
 def opticalFlowReader(dataset : h5py._hl.group.Group, index : DatasetIndex, \
-	skip : int, readerObj : H5DatasetReader) -> np.ndarray:
+	dim : str, readerObj : H5DatasetReader) -> np.ndarray:
 	baseDirectory = readerObj.dataset["others"]["baseDirectory"][()]
-	dim = "optical_flow(t+%d)" % (skip)
 	paths = dataset[dim][index.start : index.end]
 
 	results = []
@@ -100,7 +99,7 @@ class CarlaGenericReader(H5DatasetReader):
 			dimTransform["data"][key] = partial(rgbNorm, readerObj=self)
 
 			flowKey = "optical_flow(t+%d)" % (i + 1)
-			dimGetter[flowKey] = partial(opticalFlowReader, skip = i + 1, readerObj=self, dim=flowKey)
+			dimGetter[flowKey] = partial(opticalFlowReader, readerObj=self, dim=flowKey)
 			dimTransform["data"][flowKey] = partial(opticalFlowNorm, readerObj=self)
 
 		super().__init__(datasetPath, dataBuckets, dimGetter, dimTransform)

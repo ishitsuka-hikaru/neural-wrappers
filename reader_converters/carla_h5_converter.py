@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 from neural_wrappers.utilities import h5StoreDict, h5ReadDict
 from argparse import ArgumentParser
+from functools import partial
 
 def getArgs():
 	parser = ArgumentParser()
@@ -17,7 +18,6 @@ def getArgs():
 	parser.add_argument("--splits", default="80,20")
 	parser.add_argument("--split_keys", default="train,validation")
 	parser.add_argument("--statistics_file")
-	parser.add_argument("--max_depth_meters", default=300, type=int)
 
 	args = parser.parse_args()
 	assert args.storeMethod in ("h5", "paths")
@@ -76,9 +76,9 @@ def getPaths(baseDir):
 	def halftoneFunc(rgbItem):
 		return rgbItem.replace("rgb", "halftone")
 
-	def flowFunc(rgbItem):
+	def flowFunc(rgbItem, skip):
 		# X and Y vectors are stored in 2 different files
-		a = [rgbItem.replace("rgb", "flow2"), rgbItem.replace("rgb", "flow3")]
+		a = [rgbItem.replace("rgb", "flowx%d" % (skip)), rgbItem.replace("rgb", "flowy%d" % (skip))]
 		return a
 
 	rgbList = sorted(list(filter(lambda x : x.find("rgb_") != -1, os.listdir(baseDir))))
@@ -94,7 +94,10 @@ def getPaths(baseDir):
 		"cameranormal" : np.array(list(map(cameraNormalFunc, rgbList)), "S"),
 		"wireframe" : np.array(list(map(wireframeFunc, rgbList)), "S"),
 		"halftone" : np.array(list(map(halftoneFunc, rgbList)), "S"),
-		"optical_flow" : np.array(list(map(flowFunc, rgbList)), "S")
+		"optical_flow(t+1)" : np.array(list(map(partial(flowFunc, skip=1), rgbList)), "S"),
+		"optical_flow(t+2)" : np.array(list(map(partial(flowFunc, skip=2), rgbList)), "S"),
+		"optical_flow(t+3)" : np.array(list(map(partial(flowFunc, skip=3), rgbList)), "S"),
+		"optical_flow(t+4)" : np.array(list(map(partial(flowFunc, skip=4), rgbList)), "S")
 	}
 
 	# Sort entries by IDs
@@ -204,13 +207,12 @@ def storeToH5File(baseDir, file, data):
 	print("")
 
 def doStatistics(args, file):
-	def computeStatistics(file, maxDepthMeters):
+	def computeStatistics(file):
 		statistics = {}
 		dataKeys = list(file)
 		positions = {k : file[k]["position"][0 : ] for k in dataKeys}
 		posConcat = np.concatenate([positions[k] for k in positions])
 		statistics["position"] = {"min" : posConcat.min(axis=0), "max" : posConcat.max(axis=0)}
-		statistics["depth"] = {"min" : 0, "max" : maxDepthMeters}
 		return statistics
 
 	print("[doStatistics] Storing statistics!")
@@ -220,7 +222,7 @@ def doStatistics(args, file):
 		statistics = h5ReadDict(statisticsFile["others"]["dataStatistics"])
 	else:
 		print("[doStatistics] Computing statistics (positions extremes, depth max) using this dataset.")
-		statistics = computeStatistics(file, maxDepthMeters=args.max_depth_meters)
+		statistics = computeStatistics(file)
 
 	others = {"dataStatistics" : statistics, "baseDirectory" : os.path.abspath(args.baseDir)}
 	h5StoreDict(file, {"others" : others})
