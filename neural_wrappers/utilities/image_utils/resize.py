@@ -9,6 +9,7 @@ from functools import partial
 # @return Resized image.
 def resize(data, height, width, interpolation, resizeLib="opencv"):
 	# Early return.
+	height, width = int(height), int(width)
 	if data.shape[0] == height and data.shape[1] == width:
 		return data.copy()
 
@@ -63,7 +64,7 @@ def resize_skimage(data, height, width, interpolation):
 		"biquartic" : 4,
 		"biquintic" : 5
 	}[interpolation]
-	return resize(data, output_shape=(height, width), order=order, preserve_range=True)
+	return resize(data.copy(), output_shape=(height, width), order=order, preserve_range=True)
 
 # @brief Lycon based image resizing function
 # @param[in] height Desired resulting height
