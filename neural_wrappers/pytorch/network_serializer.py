@@ -108,15 +108,7 @@ class NetworkSerializer:
 		return loadedState
 
 	# Loads a stored binary model
-	def loadModel(self, path, stateKeys):
-		assert len(stateKeys) > 0
-		loadedState = NetworkSerializer.readPkl(path)
-
-		print("Loading model from %s" % (path))
-		if not "model_state" in loadedState:
-			print("Warning, no model state dictionary for this model (obsolete behaviour). Ignoring.")
-			loadedState["model_state"] = None
-
+	def checkModelState(self, loadedState):
 		if not self.model.onModelLoad(loadedState["model_state"]):
 			loaded = loadedState["model_state"]
 			current = self.model.onModelSave()
@@ -136,6 +128,17 @@ class NetworkSerializer:
 					Str += "\t\t- current=%s.\n" % (str(current[key]))
 					Str += "\t\t- loaded=%s.\n" % (str(loaded[key]))
 			raise Exception(Str)
+
+
+	def loadModel(self, path, stateKeys):
+		assert len(stateKeys) > 0
+		loadedState = NetworkSerializer.readPkl(path)
+
+		print("Loading model from %s" % (path))
+		if not "model_state" in stateKeys:
+			print("YOLO MODE")
+		else:
+			self.checkModelState(loadedState)
 
 		for key in stateKeys:
 			if key == "weights":

@@ -1,6 +1,6 @@
 def writeImageOpenCV(file, path):
 	import cv2
-	cv2.imwrite(path, file)
+	cv2.imwrite(path, file[..., ::-1])
 
 def writeImagePIL(file, path):
 	assert False, "TODO"

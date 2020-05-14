@@ -496,8 +496,11 @@ class NeuralNetworkPyTorch(nn.Module):
 	def saveWeights(self, path):
 		return self.serializer.saveModel(path, stateKeys=["weights", "model_state"])
 
-	def loadWeights(self, path):
-		self.serializer.loadModel(path, stateKeys=["weights", "model_state"])
+	def loadWeights(self, path, yolo=False):
+		stateKeys = ["weights"]
+		if yolo == False:
+			stateKeys.append("model_state")
+		self.serializer.loadModel(path, stateKeys=stateKeys)
 
 	def saveModel(self, path):
 		return self.serializer.saveModel(path, stateKeys=["weights", "optimizer", \
