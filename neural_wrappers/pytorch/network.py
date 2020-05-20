@@ -376,12 +376,12 @@ class NeuralNetworkPyTorch(nn.Module):
 
 		message = "  - Metrics."
 		metricKeys = sorted(list(set(metricResults.keys())))
-		Keys = filter(lambda x : x in self.iterPrintMessageKeys, metricKeys)
-
+		Keys = list(filter(lambda x : x in self.iterPrintMessageKeys, metricKeys))
 		for key in Keys:
 			formattedStr = getFormattedStr(metricResults[key].get(), precision=3)
 			message += " %s: %s." % (key, formattedStr)
-		messages.append(message)
+		if len(Keys) > 0:
+			messages.append(message)
 		return messages
 
 	# Computes the message that is printed to the stdout. This method is also called by SaveHistory callback.

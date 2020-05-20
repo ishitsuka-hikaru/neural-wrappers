@@ -102,18 +102,24 @@ class Graph(NeuralNetworkPyTorch):
 		strMetricResults = {k : metricResults[k] for k in filter(lambda x : type(x) == str, metricResults.keys())}
 		messages = super().computeIterPrintMessage(i, stepsPerEpoch, strMetricResults, iterFinishTime)
 
-		messages.append("  - Edge metrics:")
+		edgesMessages = []
 		for edge in self.edges:
-			# edgeMetrics = map(lambda x : x[1], edge.getMetrics())
-			printableMetrics = filter(lambda x : x in self.iterPrintMessageKeys and (x != "Loss"), edge.getMetrics())
-			printableMetrics = sorted(printableMetrics)
+			condition = lambda x : (x in self.iterPrintMessageKeys) and (x != "Loss")
+			printableMetrics = sorted(filter(condition, edge.getMetrics()))
 			if len(printableMetrics) == 0:
 				continue
 			message = "    - [%s] " % (edge)
 			for metric in printableMetrics:
 				# metric is a tuple of (edge, metricName) for graphs.
-				message += " %s: %s." % (metric[1], getFormattedStr(metricResults[metric].get(), precision=3))
-			messages.append(message)
+				formattedStr = getFormattedStr(metricResults[metric].get(), precision=3)
+				metricName = metric[1]
+				message += " %s: %s." % (metricName, formattedStr)
+			edgesMessages.append(message)
+
+		if len(edgesMessages) > 0:
+			messages.append("  - Edge metrics:")
+			messages.extend(edgesMessages)
+
 		return messages
 
 	# Computes the message that is printed to the stdout. This method is also called by SaveHistory callback.
