@@ -133,6 +133,12 @@ def trDetachData(data):
 		return data.detach()
 	assert False, "Got type %s" % (type(data))
 
+def trNpCall(fn, *args, **kwargs):
+	return getNpData(fn(*getTrData(args), **getTrData(kwargs)))
+
+def npTrCall(fn, *args, **kwargs):
+	return getTrData(fn(*getNpData(args), **getNpData(kwargs)))
+
 def plotModelMetricHistory(metric, trainHistory, plotBestBullet, dpi=120):
 	assert metric in trainHistory[0]["Train"], \
 		"Metric %s not found in trainHistory, use setMetrics accordingly" % (metric)
