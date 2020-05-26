@@ -105,6 +105,8 @@ def getNpData(data):
 		return data.detach().to("cpu").numpy()
 	elif type(data) == np.ndarray:
 		return data
+	elif callable(data):
+		return data
 	assert False, "Got type %s" % (type(data))
 
 # Equivalent of the function above, but using the data from generator (which comes in numpy format)
@@ -115,10 +117,12 @@ def getTrData(data):
 		return [getTrData(x) for x in data]
 	elif type(data) in (dict, OrderedDict):
 		return {k : getTrData(data[k]) for k in data}
-	elif type(data) is np.ndarray:
+	elif type(data) == np.ndarray:
 		return tr.from_numpy(data).to(device)
-	elif type(data) is tr.Tensor:
+	elif type(data) == tr.Tensor:
 		return data.to(device)
+	elif callable(data):
+		return data
 	assert False, "Got type %s" % (type(data))
 
 # Equivalent of function above but does detach()

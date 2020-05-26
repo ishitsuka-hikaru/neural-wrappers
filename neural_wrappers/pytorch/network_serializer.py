@@ -217,7 +217,12 @@ class NetworkSerializer:
 			newParams = loadedParams
 		else:
 			newParams = self.doLoadWeightsOld2(namedTrainableParams, namedLoadedParams, trainableParams, loadedParams)
-		self.model.load_state_dict(newParams, strict=True)
+
+		missing, unexpected = self.model.load_state_dict(newParams, strict=False)
+		if len(missing) > 0:
+			print("Loaded partial model. Missing %d keys (got %d keys)" % (len(missing), len(newParams)))
+		if len(unexpected):
+			print("Unexpected %d keys in the loaded model" % (len(unexpected)))
 		print("Succesfully loaded weights (%d parameters) " % (numLoadedParams))
 
 	def doLoadOptimizer(self, loadedState):
