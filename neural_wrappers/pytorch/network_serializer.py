@@ -218,6 +218,7 @@ class NetworkSerializer:
 		else:
 			newParams = self.doLoadWeightsOld2(namedTrainableParams, namedLoadedParams, trainableParams, loadedParams)
 
+		# TODO: Make strict=True and add fake params in the if above (including BN/Dropout).
 		missing, unexpected = self.model.load_state_dict(newParams, strict=False)
 		if len(missing) > 0:
 			print("Loaded partial model. Missing %d keys (got %d keys)" % (len(missing), len(newParams)))

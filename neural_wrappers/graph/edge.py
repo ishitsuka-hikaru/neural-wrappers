@@ -6,12 +6,12 @@ from ..pytorch.network_serializer import NetworkSerializer
 
 # Default loss of this edge goes through all ground truths and all outputs of the output node and computes the
 #  loss between them. This can be updated for a more specific edge algorithm for loss computation.
-def defaultLossFn(self, y, t):
-	B = self.outputNode
+def defaultLossFn(y, t, obj):
+	B = obj.outputNode
 	L = 0
 	t = B.getGroundTruth()
-	for y in self.outputs:
-		L += self.criterion(y, t)
+	for y in obj.outputs:
+		L += obj.criterion(y, t)
 	return L
 
 # @param[in] inputNode Instance of the input node of this edge
@@ -66,8 +66,7 @@ class Edge(NeuralNetworkPyTorch):
 		return self.outputs
 
 	def loss(self, y, t):
-		ret = self.lossFn(self, y, t)
-		return ret
+		return self.lossFn(y, t)
 
 	# Creates the encoder for this edge. If the edge is node-node or node-edge, then use the node-spepcific encoder.
 	def getEncoder(self):
@@ -102,6 +101,9 @@ class Edge(NeuralNetworkPyTorch):
 			self.setupModel()
 		return self.model
 
+	def getNodes(self):
+		return [self.inputNode, self.outputNode]
+
 	# Default model for this edge is just a sequential mapping between the A's encoder and B's decoder.
 	#  Other edges may requires additional edge-specific parameters or some more complicated views to convert the
 	#   output of A's encoder to the input of B's decoder.
@@ -124,7 +126,7 @@ class Edge(NeuralNetworkPyTorch):
 			from .utils import forwardUseAll
 			self.forwardFn = forwardUseAll
 		if not self.lossFn:
-			self.lossFn = defaultLossFn
+			self.lossFn = partial(defaultLossFn, obj=self)
 		self.addMetrics(newMetrics)
 		self.setCriterion(criterion)
 

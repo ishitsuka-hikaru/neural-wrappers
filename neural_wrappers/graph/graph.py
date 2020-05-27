@@ -8,21 +8,21 @@ from .draw_graph import drawGraph
 
 class Graph(NeuralNetworkPyTorch):
 	def __init__(self, edges, hyperParameters={}):
-		self.nodes = Graph.getNodes(edges)
-		hyperParameters = self.getHyperParameters(hyperParameters, edges)
+		self.edges =edges
+		self.nodes = self.getNodes()
+		hyperParameters = self.getHyperParameters(hyperParameters)
 		super().__init__(hyperParameters=hyperParameters)
 
-		self.edges = nn.ModuleList(edges)
+		self.edges = nn.ModuleList(self.getEdges())
 		self.edgeIDsToEdges = {str(edge) : edge for edge in self.edges}
 		self.edgeLoss = {}
 		self.linePrinter = MultiLinePrinter()
 
 		# Add metrics
 		self.addMetrics(self.getEdgesMetrics())
-		self.setCriterion(partial(Graph.lossFn, self=self))
+		self.setCriterion(self.loss)
 
-	@staticmethod
-	def lossFn(y, t, self):
+	def loss(self, y, t):
 		loss = 0
 		for edge in self.edges:
 			edgeID = str(edge)
@@ -31,6 +31,9 @@ class Graph(NeuralNetworkPyTorch):
 				self.edgeLoss[edgeID] = getNpData(edgeLoss)
 				loss += edgeLoss
 		return loss
+
+	def getInputs(self, trInputs):
+		return trInputs
 
 	def forward(self, trInputs):
 		trResults = {}
@@ -54,12 +57,21 @@ class Graph(NeuralNetworkPyTorch):
 				metrics[metric] = edgeMetrics[metric]
 		return metrics
 
-	@staticmethod
-	def getNodes(edges):
+	def getEdges(self):
+		edges = []
+		for edge in self.edges:
+			try:
+				edges.extend(edge.getEdges())
+			except Exception:
+				edges.append(edge)
+		return edges
+
+	def getNodes(self):
 		nodes = set()
-		for edge in edges:
-			nodes.add(edge.inputNode)
-			nodes.add(edge.outputNode)
+		for edge in self.edges:
+			# edge can be an actual Graph.
+			for node in edge.getNodes():
+				nodes.add(node)
 		return nodes
 
 	### Some updates to original NeuralNetworkPyTorch to work seamlessly with graphs (mostly printing)
@@ -164,12 +176,12 @@ class Graph(NeuralNetworkPyTorch):
 	def draw(self, fileName, cleanup=True, view=False):
 		drawGraph(self.nodes, self.edges, fileName, cleanup, view)
 
-	def getHyperParameters(self, hyperParameters, edges):
+	def getHyperParameters(self, hyperParameters):
 		# Set up hyperparameters for every node
 		hyperParameters = {k : hyperParameters[k] for k in hyperParameters}
 		for node in self.nodes:
 			hyperParameters[node.name] = node.hyperParameters
-		for edge in edges:
+		for edge in self.edges:
 			hyperParameters[str(edge)] = edge.hyperParameters
 		return hyperParameters
 
