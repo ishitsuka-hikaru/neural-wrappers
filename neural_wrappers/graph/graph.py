@@ -57,9 +57,6 @@ class Graph(NeuralNetworkPyTorch):
 	def getEdges(self):
 		edges = []
 		for edge in self.edges:
-			# try:
-			# 	edges.extend(edge.getEdges())
-			# except Exception:
 			edges.append(edge)
 		return edges
 

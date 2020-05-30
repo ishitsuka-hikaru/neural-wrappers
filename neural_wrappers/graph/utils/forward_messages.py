@@ -29,3 +29,14 @@ class ForwardMessagesEdge(Edge):
 			
 	def getEncoder(self):
 		return trModuleWrapper(lambda x : x)
+
+	def loss(self, y, t):
+		return None
+
+	def setupModel(self):
+		assert self.model is None
+		self.model = trModuleWrapper(lambda x : x)
+		self.lossFn = lambda y, t : None
+
+	def getMetrics(self):
+		return {}
