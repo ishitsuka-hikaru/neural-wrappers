@@ -5,7 +5,7 @@ from scipy.special import softmax
 
 class ThresholdAccuracy(MetricWithThreshold):
 	def __init__(self):
-		super().__init__("max")
+		super().__init__(direction="max")
 
 	# @brief results and labels are two arrays of shape: (MB, N, C), where N is a variable shape (images, or just
 	#  numbers), while C is the number of classes. The number of classes must coincide to both cases. We assume that
@@ -23,7 +23,7 @@ class ThresholdAccuracy(MetricWithThreshold):
 
 class Accuracy(Metric):
 	def __init__(self):
-		super().__init__("max")
+		super().__init__(direction="max")
 		self.thresholdAccuracy = ThresholdAccuracy()
 
 	# @brief Since we don't care about a particular threshold, just to get the highest activation for each prediction,

@@ -170,10 +170,12 @@ class NeuralNetworkPyTorch(nn.Module):
 			iterResults[key] = self.callbacks[key].iterationReduceFunction(result)
 
 			# Add it to running mean only if it's numeric
-			try:
-				metricResults[key].update(iterResults[key], 1)
-			except Exception:
-				continue
+			# try:
+			print(key, iterResults[key])
+			metricResults[key].update(iterResults[key], 1)
+			# except Exception:
+				# continue
+		return metricResults
 
 	##### Traiming / testing functions
 
@@ -413,6 +415,13 @@ class NeuralNetworkPyTorch(nn.Module):
 			messages.append(validationMessage)
 		return messages
 
+	def metricsSummary(self):
+		metrics = self.getMetrics()
+		summaryStr = ""
+		for metric in metrics:
+			summaryStr += "\t- %s (%s)\n" % (metric, metrics[metric].getDirection())
+		return summaryStr
+
 	def summary(self):
 		summaryStr = "[Model summary]\n"
 		summaryStr += self.__str__() + "\n"
@@ -424,10 +433,8 @@ class NeuralNetworkPyTorch(nn.Module):
 		for hyperParameter in self.hyperParameters:
 			summaryStr += "\t- %s: %s\n" % (hyperParameter, self.hyperParameters[hyperParameter])
 
-		summaryStr += "Metrics:\n"
-		metrics = self.getMetrics()
-		for metric in metrics:
-			summaryStr += "\t- %s (%s)\n" % (metric, metrics[metric].getDirection())
+		summaryStr = "Metrics:\n"
+		summaryStr += self.metricsSummary()
 
 		strCallbacks = str(list(self.getCallbacks().keys()))[1 : -1]
 		summaryStr += "Callbacks: %s\n" % ("None" if len(strCallbacks) == 0 else strCallbacks)
@@ -535,3 +542,9 @@ class NeuralNetworkPyTorch(nn.Module):
 	def setTrainableWeights(self, value):
 		for param in self.parameters():
 		    param.requires_grad = value
+	
+	def isTrainable(self):
+		for param in self.parameters():
+			if param.requires_grad == True:
+				return True
+		return False

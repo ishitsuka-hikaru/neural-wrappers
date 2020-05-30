@@ -1,5 +1,5 @@
 import torch.nn as nn
-from ..pytorch import NeuralNetworkPyTorch, getNpData, getTrData
+from ..pytorch import NeuralNetworkPyTorch, getNpData, getTrData, npTrCall, trNpCall
 from ..utilities import MultiLinePrinter, getFormattedStr
 from functools import partial
 from copy import copy
@@ -14,12 +14,11 @@ class Graph(NeuralNetworkPyTorch):
 		super().__init__(hyperParameters=hyperParameters)
 
 		self.edges = nn.ModuleList(self.getEdges())
-		self.edgeIDsToEdges = {str(edge) : edge for edge in self.edges}
+		self.edgeIDsToEdges = self.getStrMapping()
 		self.edgeLoss = {}
 		self.linePrinter = MultiLinePrinter()
 
 		# Add metrics
-		self.addMetrics(self.getEdgesMetrics())
 		self.setCriterion(self.loss)
 
 	def loss(self, y, t):
@@ -27,11 +26,21 @@ class Graph(NeuralNetworkPyTorch):
 		for edge in self.edges:
 			edgeID = str(edge)
 			edgeLoss = edge.loss(y, t)
-			if not edgeLoss is None:
-				self.edgeLoss[edgeID] = getNpData(edgeLoss)
-				loss += edgeLoss
+			self.edgeLoss[edgeID] = getNpData(edgeLoss)
+	
+			# If this edge has no loss, ignore it.
+			if edgeLoss is None:
+				continue
+			# If this edge is not trainable, also ignore it (? To think if this is correct ?)
+			# TODO: see how to fast check if edge is trainable (perhaps not an issue at all to add untrainable ones)
+
+			# Otherwise, just add it to the loss of the entire graph
+			loss += edgeLoss
 		return loss
 
+	# Graphs and subgraphs use all the possible inputs.
+	# TODO: Perhaps it'd be better to check what inputs the edges require beforehand, but that might be just too
+	#  and redundant, since the forward of the subgraphs will call getInputs of each edge anyway.
 	def getInputs(self, trInputs):
 		return trInputs
 
@@ -47,24 +56,27 @@ class Graph(NeuralNetworkPyTorch):
 			trResults[edgeID] = edgeOutput
 		return trResults
 
-	def getEdgesMetrics(self):
-		metrics = {}
-		for edge in self.edges:
-			edgeMetrics = edge.getMetrics()
-			for metric in edgeMetrics:
-				if metric == "Loss":
-					continue
-				metrics[metric] = edgeMetrics[metric]
-		return metrics
-
 	def getEdges(self):
 		edges = []
 		for edge in self.edges:
-			try:
-				edges.extend(edge.getEdges())
-			except Exception:
-				edges.append(edge)
+			# try:
+			# 	edges.extend(edge.getEdges())
+			# except Exception:
+			edges.append(edge)
 		return edges
+
+	def getStrMapping(self):
+		res = {}
+		for edge in self.edges:
+			edgeMapping = edge.getStrMapping()
+			# This adds graphs too
+			res[str(edge)] = edge
+			if type(edgeMapping) == str:
+				res[edgeMapping] = edge
+			else:
+				for k in edgeMapping:
+					res[k] = edgeMapping[k]
+		return res
 
 	def getNodes(self):
 		nodes = set()
@@ -76,39 +88,71 @@ class Graph(NeuralNetworkPyTorch):
 
 	### Some updates to original NeuralNetworkPyTorch to work seamlessly with graphs (mostly printing)
 
+	def getGroundTruth(self, x):
+		return x
+
 	def callbacksOnIterationEnd(self, data, labels, results, loss, iteration, numIterations, \
 		metricResults, isTraining, isOptimizing):
-		iterResults = {}
-		for key in self.topologicalKeys:
-			# Hack the args so we only use relevant results and labels. Make a list (of all edge outputs), but also
-			#  for regular metrics.
-			results, iterLoss = [results], loss
+		a = super().callbacksOnIterationEnd(data, labels, results, loss, iteration, numIterations, \
+				metricResults, isTraining, isOptimizing)
+		print(a)
 
-			if type(key) == tuple:
-				edgeID = key[0]
-				edge = self.edgeIDsToEdges[edgeID]
-				B = edge.outputNode
-				labels = getNpData(B.getGroundTruth())
-				results = getNpData(edge.outputs)
-				# Some edges may have no loss (are pre-trained, for example)
-				iterLoss = None
-				if edgeID in self.edgeLoss:
-					iterLoss = self.edgeLoss[edgeID]
+		for edge in self.edges:
+			a = edge.callbacksOnIterationEnd(data, edge.getGroundTruth(labels), results[str(edge)], loss, iteration, numIterations, \
+				metricResults, isTraining, isOptimizing)
+			print(edge, a)
+		exit()
+		# iterResults = {}
+		# print(self.topologicalKeys)
+		# exit()
+		# for key in self.topologicalKeys:
+		# 	# Hack the args so we only use relevant results and labels. Make a list (of all edge outputs), but also
+		# 	#  for regular metrics.
+		# 	results, iterLoss = [results], loss
 
-			metricKwArgs = {"data" : data, "loss" : iterLoss, "iteration" : iteration, \
-				"numIterations" : numIterations, "iterResults" : iterResults, \
-				"metricResults" : metricResults, "isTraining" : isTraining, "isOptimizing" : isOptimizing
-			}
+		# 	if type(key) == tuple:
+		# 		edgeID = key[0]
+		# 		edge = self.edgeIDsToEdges[edgeID]
+		# 		B = edge.outputNode
+		# 		labels = getNpData(B.getGroundTruth())
+		# 		results = getNpData(edge.outputs)
+		# 		# Some edges may have no loss (are pre-trained, for example)
+		# 		iterLoss = None
+		# 		if edgeID in self.edgeLoss:
+		# 			iterLoss = self.edgeLoss[edgeID]
 
-			# Loop through all edge outputs and average results.
-			for result in results:
-				# iterResults is updated at each step in the order of topological sort
-				iterResults[key] = self.callbacks[key].onIterationEnd(result, labels, **metricKwArgs)
-				# Add it to running mean only if it's numeric
-				try:
-					metricResults[key].update(iterResults[key], 1)
-				except Exception:
-					continue
+		# 	metricKwArgs = {"data" : data, "loss" : iterLoss, "iteration" : iteration, \
+		# 		"numIterations" : numIterations, "iterResults" : iterResults, \
+		# 		"metricResults" : metricResults, "isTraining" : isTraining, "isOptimizing" : isOptimizing
+		# 	}
+
+		# 	# Loop through all edge outputs and average results.
+		# 	for result in results:
+		# 		# iterResults is updated at each step in the order of topological sort
+		# 		iterResults[key] = self.callbacks[key].onIterationEnd(result, labels, **metricKwArgs)
+		# 		# Add it to running mean only if it's numeric
+		# 		try:
+		# 			metricResults[key].update(iterResults[key], 1)
+		# 		except Exception:
+		# 			continue
+
+	def metricsSummary(self):
+		metrics = self.getMetrics()
+		edges = self.edges
+		summaryStr = ""
+		for metric in metrics:
+			if not metric in self.edgeIDsToEdges:
+				summaryStr += "\t- %s (%s)\n" % (metric, metrics[metric].getDirection())
+			else:
+				edge = self.edgeIDsToEdges[metric]
+				summaryStr += edge.metricsSummary()
+		return summaryStr
+
+	def getMetrics(self):
+		thisCallbacks = super().getMetrics()
+		for edge in self.edges:
+			thisCallbacks[str(edge)] = edge.getMetrics()
+		return thisCallbacks
 
 	def computeIterPrintMessage(self, i, stepsPerEpoch, metricResults, iterFinishTime):
 		strMetricResults = {k : metricResults[k] for k in filter(lambda x : type(x) == str, metricResults.keys())}
