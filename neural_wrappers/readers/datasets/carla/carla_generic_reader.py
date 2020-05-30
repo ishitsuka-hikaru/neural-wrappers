@@ -4,7 +4,7 @@ from typing import Callable, Any, Dict, List, Tuple
 from functools import partial
 
 from .normalizers import rgbNorm, depthNorm, positionNorm, opticalFlowNorm, \
-	normalNorm, semanticSegmentationNorm, positionQuatNorm
+	normalNorm, semanticSegmentationNorm, positionQuatNorm, positionDotTranslationOnlyNorm
 from ...h5_dataset_reader import H5DatasetReader, defaultH5DimGetter
 from ...internal import DatasetIndex
 from ....utilities import smartIndexWrapper
@@ -76,6 +76,7 @@ class CarlaGenericReader(H5DatasetReader):
 			"cameranormal" : partial(pathsReader, readerObj=self, readFunction=rawReadFunction, dim="cameranormal"),
 			"rgbDomain2" : partial(pathsReader, readerObj=self, readFunction=rawReadFunction, dim="rgbDomain2"),
 			"position_quat" : partial(defaultH5DimGetter, dim="position"),
+			"position_dot_translation_only" : partial(defaultH5DimGetter, dim="position"),
 		}
 
 		dimTransform ={
@@ -89,7 +90,8 @@ class CarlaGenericReader(H5DatasetReader):
 				"normal" : partial(normalNorm, readerObj=self),
 				"cameranormal" : partial(normalNorm, readerObj=self),
 				"rgbDomain2" : partial(rgbNorm, readerObj=self),
-				"position_quat" : partial(positionQuatNorm, readerObj=self)
+				"position_quat" : partial(positionQuatNorm, readerObj=self),
+				"position_dot_translation_only" : partial(positionDotTranslationOnlyNorm, readerObj=self)
 			}
 		}
 

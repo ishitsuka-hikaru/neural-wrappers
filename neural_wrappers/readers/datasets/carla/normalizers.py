@@ -1,4 +1,5 @@
 import numpy as np
+import cv2
 from typing import Dict, Union
 from .utils import getQuatFromRotation
 from ....utilities import resize_batch, h5ReadDict, npGetInfo
@@ -52,6 +53,29 @@ def positionQuatNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.nda
 	position = np.concatenate([translation, quatRotation], axis=-1)
 
 	return position
+
+def positionDotTranslationOnlyNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
+	positionStats = h5ReadDict(readerObj.dataset["others"]["dataStatistics"]["position"])
+	radius = readerObj.hyperParameters["dotRadius"]
+	assert not radius is None
+
+	minPos, maxPos = positionStats["min"][0 : 3], positionStats["max"][0 : 3]
+	translation = x[:, 0 : 3]
+	# Now, just for [0 : 1]
+	# Translation is easy, just min max it
+	translation = (translation - minPos) / (maxPos - minPos)
+	translation = translation[:, 0 : 2]
+	MB = translation.shape[0]
+	positionDot = np.zeros((MB, readerObj.desiredShape[0], readerObj.desiredShape[1]), dtype=np.float32)
+
+	for i in range(MB):
+		translation_x, translation_y = translation[i]
+		center_x = int(translation_x * readerObj.desiredShape[1])
+		center_y = int(translation_y * readerObj.desiredShape[0])
+		positionDot[i] = cv2.circle(positionDot[i], (center_x, center_y), radius=radius, color=1, thickness=-1)
+
+	positionDot = np.expand_dims(positionDot, axis=-1)
+	return positionDot
 
 def opticalFlowNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
 	# Optical flow is in [-1:1] and 100% of percentage. Result is in [0:1] using only [-x%:x%] of data.
