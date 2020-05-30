@@ -110,12 +110,6 @@ class Edge(NeuralNetworkPyTorch):
 	def getNodes(self):
 		return [self.inputNode, self.outputNode]
 
-	def getMetrics(self):
-		return self.outputNode.getMetrics()
-
-	def getCriterion(self):
-		return self.outputNode.getCriterion()
-
 	# Default model for this edge is just a sequential mapping between the A's encoder and B's decoder.
 	#  Other edges may requires additional edge-specific parameters or some more complicated views to convert the
 	#   output of A's encoder to the input of B's decoder.
@@ -129,8 +123,8 @@ class Edge(NeuralNetworkPyTorch):
 			self.forwardFn = forwardUseAll
 		if not self.lossFn:
 			self.lossFn = partial(defaultLossFn, obj=self)
-		self.addMetrics(self.getMetrics())
-		self.setCriterion(self.getCriterion())
+		self.addMetrics(self.outputNode.getMetrics())
+		self.setCriterion(self.outputNode.getCriterion())
 
 	def setBlockGradients(self, value):
 		self.blockGradients = value

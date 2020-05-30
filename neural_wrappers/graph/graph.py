@@ -17,8 +17,6 @@ class Graph(NeuralNetworkPyTorch):
 		self.edgeIDsToEdges = self.getStrMapping()
 		self.edgeLoss = {}
 		self.linePrinter = MultiLinePrinter()
-
-		# Add metrics
 		self.setCriterion(self.loss)
 
 	def loss(self, y, t):
@@ -86,6 +84,12 @@ class Graph(NeuralNetworkPyTorch):
 				nodes.add(node)
 		return nodes
 
+	def initializeEpochMetrics(self):
+		res = super().initializeEpochMetrics()
+		for edge in self.edges:
+			res[edge] = edge.initializeEpochMetrics()
+		return res
+
 	### Some updates to original NeuralNetworkPyTorch to work seamlessly with graphs (mostly printing)
 
 	def getGroundTruth(self, x):
@@ -137,22 +141,20 @@ class Graph(NeuralNetworkPyTorch):
 		# 			continue
 
 	def metricsSummary(self):
-		metrics = self.getMetrics()
-		edges = self.edges
-		summaryStr = ""
-		for metric in metrics:
-			if not metric in self.edgeIDsToEdges:
-				summaryStr += "\t- %s (%s)\n" % (metric, metrics[metric].getDirection())
-			else:
-				edge = self.edgeIDsToEdges[metric]
-				summaryStr += edge.metricsSummary()
+		summaryStr = super().metricsSummary()
+		for edge in self.edges:
+			lines = edge.metricsSummary().split("\n")[0 : -1]
+			if len(lines) > 0:
+				summaryStr += "\t- %s:\n" % (str(edge))
+				for line in lines:
+					summaryStr += "\t%s\n" % (line)
 		return summaryStr
 
-	def getMetrics(self):
-		thisCallbacks = super().getMetrics()
-		for edge in self.edges:
-			thisCallbacks[str(edge)] = edge.getMetrics()
-		return thisCallbacks
+	# def getMetrics(self):
+	# 	thisMetrics = super().getMetrics()
+	# 	for edge in self.edges:
+	# 		thisMetrics[str(edge)] = edge.getMetrics()
+	# 	return thisMetrics
 
 	def computeIterPrintMessage(self, i, stepsPerEpoch, metricResults, iterFinishTime):
 		strMetricResults = {k : metricResults[k] for k in filter(lambda x : type(x) == str, metricResults.keys())}
