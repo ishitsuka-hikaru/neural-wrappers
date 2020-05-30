@@ -65,8 +65,6 @@ class NeuralNetworkPyTorch(nn.Module):
 		assert not "Loss" in metrics, "Cannot overwrite Loss metric. This is added by default for all networks."
 		assert isBaseOf(metrics, dict), "Metrics must be provided as Str=>Callback dictionary"
 
-		print(self, metrics)
-
 		for key in metrics:
 			# assert hasattr(metrics[key], "__call__"), "The user provided metric %s must be callable" % (key)
 			assert key not in self.callbacks, "Metric %s already in callbacks list." % (key)
@@ -164,6 +162,7 @@ class NeuralNetworkPyTorch(nn.Module):
 	def callbacksOnIterationEnd(self, data, labels, results, loss, iteration, numIterations, \
 		metricResults, isTraining, isOptimizing):
 		iterResults = {}
+		metrics = self.getMetrics()
 		for key in self.topologicalKeys:
 			# iterResults is updated at each step in the order of topological sort
 			result = self.callbacks[key].onIterationEnd(results, labels, data=data, loss=loss, \
@@ -172,10 +171,8 @@ class NeuralNetworkPyTorch(nn.Module):
 			iterResults[key] = self.callbacks[key].iterationReduceFunction(result)
 
 			# Add it to running mean only if it's numeric
-			# try:
-			metricResults[key].update(iterResults[key], 1)
-			# except Exception:
-				# continue
+			if key in metrics:
+				metricResults[key].update(iterResults[key], 1)
 		return metricResults
 
 	##### Traiming / testing functions
@@ -439,7 +436,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		for hyperParameter in self.hyperParameters:
 			summaryStr += "\t- %s: %s\n" % (hyperParameter, self.hyperParameters[hyperParameter])
 
-		summaryStr = "Metrics:\n"
+		summaryStr += "Metrics:\n"
 		summaryStr += self.metricsSummary()
 
 		strCallbacks = str(list(self.getCallbacks().keys()))[1 : -1]
