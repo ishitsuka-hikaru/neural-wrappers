@@ -130,51 +130,21 @@ class Graph(NeuralNetworkPyTorch):
 
 		edgesMessages = []
 		for edge in self.edges:
-			condition = lambda x : (x in self.iterPrintMessageKeys) and (x != "Loss")
-			printableMetrics = sorted(filter(condition, edge.getMetrics()))
-			if len(printableMetrics) == 0:
-				continue
-			message = "    - [%s] " % (edge)
-			for metric in printableMetrics:
-				# metric is a tuple of (edge, metricName) for graphs.
-				formattedStr = getFormattedStr(metricResults[metric].get(), precision=3)
-				metricName = metric[1]
-				message += " %s: %s." % (metricName, formattedStr)
-			edgesMessages.append(message)
-
-		if len(edgesMessages) > 0:
-			messages.append("  - Edge metrics:")
-			messages.extend(edgesMessages)
-
+			edgeMessages = [str(edge)]
+			edgeMessages.extend(edge.computeIterPrintMessage(i, stepsPerEpoch, \
+				metricResults[str(edge)], iterFinishTime)[1 : ])
+			messages.extend(edgeMessages)
 		return messages
 
 	# Computes the message that is printed to the stdout. This method is also called by SaveHistory callback.
 	# @param[in] kwargs The arguments sent to any regular callback.
 	# @return A string that contains the one-line message that is printed at each end of epoch.
 	def computePrintMessage(self, trainMetrics, validationMetrics, numEpochs, duration):
-		# Keep the non-edge metrics for the default printer.
-		strTrainMetrics = {k : trainMetrics[k] for k in filter(lambda x : type(x) == str, trainMetrics.keys())}
-		strValMetrics = None if not validationMetrics else \
-			{k : validationMetrics[k] for k in filter(lambda x : type(x) == str, validationMetrics.keys())}
-		messages = super().computePrintMessage(strTrainMetrics, strValMetrics, numEpochs, duration)
-
-		messages.append("  - Edge metrics:")
+		messages = super().computePrintMessage(trainMetrics, validationMetrics, numEpochs, duration)
 		for edge in self.edges:
-			trainMessage, validationMessage = "      - [Train]", "      - [Validation]"
-			printableMetrics = filter(lambda x : x in self.iterPrintMessageKeys and (x != "Loss"), edge.getMetrics())
-			printableMetrics = sorted(printableMetrics)
-			if len(printableMetrics) == 0:
-				continue
-			for metric in printableMetrics:
-				trainMessage += " %s: %s." % (metric[1], getFormattedStr(trainMetrics[metric], precision=3))
-				if not validationMetrics is None:
-					validationMessage += " %s: %s." % (metric[1], getFormattedStr(validationMetrics[metric], \
-						precision=3))
-			messages.append("    - [%s] " % (edge))
-			messages.append(trainMessage)
-			if not validationMetrics is None:
-				messages.append(validationMessage)
-
+			messages.append(str(edge))
+			messages.extend(edge.computePrintMessage(trainMetrics[str(edge)], validationMetrics[str(edge)], \
+				numEpochs, duration)[1 : ])
 		return messages
 
 	def iterationEpilogue(self, isTraining, isOptimizing, trLabels):

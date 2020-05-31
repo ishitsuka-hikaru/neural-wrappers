@@ -143,25 +143,32 @@ def trNpCall(fn, *args, **kwargs):
 def npTrCall(fn, *args, **kwargs):
 	return getTrData(fn(*getNpData(args), **getNpData(kwargs)))
 
-def plotModelMetricHistory(metric, trainHistory, plotBestBullet, dpi=120):
-	assert metric in trainHistory[0]["Train"], \
-		"Metric %s not found in trainHistory, use setMetrics accordingly" % (metric)
-
+def plotModelMetricHistory(trainHistory, metricName, plotBestBullet, dpi=120):
 	# Aggregate all the values from trainHistory into a list and plot them
 	numEpochs = len(trainHistory)
-	trainValues = np.array([trainHistory[i]["Train"][metric] for i in range(numEpochs)])
+	# trainValues = np.array([trainHistory[i]["Train"][metric] for i in range(numEpochs)])
 
-	hasValidation = "Validation" in trainHistory[0]
-	if hasValidation:
-		validationValues = [trainHistory[i]["Validation"][metric] for i in range(numEpochs)]
+	def getScore(trainHistory, name):
+		score = trainHistory
+		for k in name:
+			score = score[k]
+		return score
+
+	trainValues, validationValues = np.zeros((2, numEpochs), dtype=np.float32)
+	hasValidation = ("Validation" in trainHistory[0]) and (not trainHistory[0]["Validation"] is None)
+	for i in range(numEpochs):
+		trainValues[i] = getScore(trainHistory[i]["Train"], metricName)
+		if hasValidation:
+			validationValues[i] = getScore(trainHistory[i]["Validation"], metricName)
 
 	x = np.arange(len(trainValues)) + 1
+	metricName = str(metricName)
 	plt.gcf().clf()
 	plt.gca().cla()
-	plt.plot(x, trainValues, label="Train %s" % (str(metric)))
+	plt.plot(x, trainValues, label="Train %s" % (metricName))
 
 	if hasValidation:
-		plt.plot(x, validationValues, label="Val %s" % (str(metric)))
+		plt.plot(x, validationValues, label="Val %s" % (metricName))
 		usedValues = np.array(validationValues)
 	else:
 		usedValues = trainValues
@@ -187,9 +194,9 @@ def plotModelMetricHistory(metric, trainHistory, plotBestBullet, dpi=120):
 
 	# Finally, save the figure with the name of the metric
 	plt.xlabel("Epoch")
-	plt.ylabel(metric)
+	plt.ylabel(metricName)
 	plt.legend()
-	plt.savefig("%s.png" % (str(metric)), dpi=dpi)
+	plt.savefig("%s.png" % (metricName), dpi=dpi)
 
 def getModelHistoryMessage(model):
 		Str = model.summary() + "\n"

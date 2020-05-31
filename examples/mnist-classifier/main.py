@@ -56,7 +56,7 @@ def main():
 	model.addMetrics({"Accuracy" : Accuracy()})
 	model.setOptimizer(optim.SGD, momentum=0.5, lr=0.1)
 	model.setOptimizerScheduler(ReduceLROnPlateau, metric="Loss")
-	callbacks = [SaveHistory("history.txt"), PlotMetrics(["Loss", "Accuracy"]), \
+	callbacks = [SaveHistory("history.txt"), PlotMetrics(["Loss", "Accuracy"], ["min", "max"]), \
 		EarlyStopping(patience=5), SaveModels("best")]
 	model.addCallbacks(callbacks)
 	print(model.summary())
