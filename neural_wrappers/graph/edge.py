@@ -136,6 +136,13 @@ class Edge(NeuralNetworkPyTorch):
 		hyperParameters["blockGradients"] = blockGradients
 		return hyperParameters
 
+	def callbacksOnIterationEnd(self, data, labels, results, loss, iteration, numIterations, \
+		metricResults, isTraining, isOptimizing):
+		for i in range(len(results)):
+			metricResults = super().callbacksOnIterationEnd(data, labels, results[i], loss, iteration, \
+				numIterations, metricResults, isTraining, isOptimizing)
+		return metricResults
+
 	# TODO: Remove this and fix loadModel for partial edges.
 	def loadPretrainedEdge(self, path):
 		thisInputNode = self.inputNode.name.split("(")[0][0 : -1]

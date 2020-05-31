@@ -170,7 +170,8 @@ class NeuralNetworkPyTorch(nn.Module):
 				metricResults=metricResults, isTraining=isTraining, isOptimizing=isOptimizing)
 			iterResults[key] = self.callbacks[key].iterationReduceFunction(result)
 
-			# Add it to running mean only if it's numeric
+			# Add it to running mean only if it's numeric. Here's why the metrics differ for different batch size
+			#  values. There's no way for us to infer the batch of each iteration, so we assume it's 1.
 			if key in metrics:
 				metricResults[key].update(iterResults[key], 1)
 		return metricResults

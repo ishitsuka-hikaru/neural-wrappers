@@ -87,6 +87,12 @@ class Graph(NeuralNetworkPyTorch):
 			res[str(edge)] = edge.initializeEpochMetrics()
 		return res
 
+	def reduceEpochMetrics(self, metricResults):
+		results = super().reduceEpochMetrics(metricResults)
+		for edge in self.edges:
+			results[str(edge)] = edge.reduceEpochMetrics(metricResults[str(edge)])
+		return results
+
 	### Some updates to original NeuralNetworkPyTorch to work seamlessly with graphs (mostly printing)
 
 	def getGroundTruth(self, x):
@@ -193,8 +199,16 @@ class Graph(NeuralNetworkPyTorch):
 			hyperParameters[str(edge)] = edge.hyperParameters
 		return hyperParameters
 
-	def __str__(self):
+	def graphStr(self, depth=1):
 		Str = "Graph:"
+		pre = "\t" * depth
 		for edge in self.edges:
-			Str += "\n\t-%s" % (str(edge))
+			if type(edge) == Graph:
+				edgeStr = edge.graphStr(depth + 1)
+			else:
+				edgeStr = str(edge)
+			Str += "\n%s-%s" % (pre, edgeStr)
 		return Str
+
+	def __str__(self):
+		return self.graphStr()

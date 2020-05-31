@@ -19,7 +19,7 @@ class ForwardMessagesEdge(Edge):
 			self.outputNode.messages[k] = x[k]
 			res[k] = x[k]
 		# Also return the inputs for further use in the graph.
-		return res
+		return [res]
 
 	def loss(self, y, t):
 		return None
@@ -40,3 +40,6 @@ class ForwardMessagesEdge(Edge):
 
 	def getMetrics(self):
 		return {}
+
+	def __str__(self):
+		return "ForwardMessages %s -> %s" % (str(self.inputNode), str(self.outputNode))

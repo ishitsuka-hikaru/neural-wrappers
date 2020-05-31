@@ -33,4 +33,7 @@ class ReduceNode(Edge):
 	def getEncoder(self):
 		return trModuleWrapper(lambda x : x)
 
+	def __str__(self):
+		return "ReduceNode %s" % (str(self.inputNode))
+
 class ReduceEdge: pass
