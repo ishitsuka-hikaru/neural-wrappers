@@ -107,8 +107,9 @@ class Graph(NeuralNetworkPyTorch):
 			edgeResults = results[str(edge)]
 			edgeLabels = edge.getGroundTruth(labels)
 			edgeMetricResults = metricResults[str(edge)]
+			edgeLoss = self.edgeLoss[str(edge)]
 			thisResults[str(edge)] = edge.callbacksOnIterationEnd(data, edgeLabels, \
-				edgeResults, loss, iteration, numIterations, edgeMetricResults, isTraining, isOptimizing)
+				edgeResults, edgeLoss, iteration, numIterations, edgeMetricResults, isTraining, isOptimizing)
 		return thisResults
 
 	def metricsSummary(self):
@@ -125,15 +126,20 @@ class Graph(NeuralNetworkPyTorch):
 		return summaryStr
 
 	def computeIterPrintMessage(self, i, stepsPerEpoch, metricResults, iterFinishTime):
-		strMetricResults = {k : metricResults[k] for k in filter(lambda x : type(x) == str, metricResults.keys())}
-		messages = super().computeIterPrintMessage(i, stepsPerEpoch, strMetricResults, iterFinishTime)
+		messages = super().computeIterPrintMessage(i, stepsPerEpoch, metricResults, iterFinishTime)
 
-		edgesMessages = []
 		for edge in self.edges:
-			edgeMessages = [str(edge)]
-			edgeMessages.extend(edge.computeIterPrintMessage(i, stepsPerEpoch, \
-				metricResults[str(edge)], iterFinishTime)[1 : ])
-			messages.extend(edgeMessages)
+			if type(edge) == Graph:
+				strEdge = "SubGraph"
+			else:
+				strEdge = str(edge)
+			edgeMetrics = metricResults[str(edge)]
+			if len(edgeMetrics) == 0:
+				continue
+			edgeIterPrintMessage = edge.computeIterPrintMessage(i, stepsPerEpoch, \
+				metricResults[str(edge)], iterFinishTime)[1 :]
+			messages.append(strEdge)
+			messages.extend(edgeIterPrintMessage)
 		return messages
 
 	# Computes the message that is printed to the stdout. This method is also called by SaveHistory callback.
@@ -142,9 +148,16 @@ class Graph(NeuralNetworkPyTorch):
 	def computePrintMessage(self, trainMetrics, validationMetrics, numEpochs, duration):
 		messages = super().computePrintMessage(trainMetrics, validationMetrics, numEpochs, duration)
 		for edge in self.edges:
-			messages.append(str(edge))
-			messages.extend(edge.computePrintMessage(trainMetrics[str(edge)], validationMetrics[str(edge)], \
-				numEpochs, duration)[1 : ])
+			if type(edge) == Graph:
+				strEdge = "SubGraph"
+			else:
+				strEdge = str(edge)
+			if len(edgeMetrics) == 0:
+				continue
+			edgePrintMessage = edge.computePrintMessage(trainMetrics[str(edge)], validationMetrics[str(edge)], \
+				numEpochs, duration)[1 : ]
+			messages.append(strEdge)
+			messages.extend(edgePrintMessage)
 		return messages
 
 	def iterationEpilogue(self, isTraining, isOptimizing, trLabels):
