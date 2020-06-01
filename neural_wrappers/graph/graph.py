@@ -136,8 +136,7 @@ class Graph(NeuralNetworkPyTorch):
 			edgeMetrics = metricResults[str(edge)]
 			if len(edgeMetrics) == 0:
 				continue
-			edgeIterPrintMessage = edge.computeIterPrintMessage(i, stepsPerEpoch, \
-				metricResults[str(edge)], iterFinishTime)[1 :]
+			edgeIterPrintMessage = edge.computeIterPrintMessage(i, stepsPerEpoch, edgeMetrics, iterFinishTime)[1 :]
 			messages.append(strEdge)
 			messages.extend(edgeIterPrintMessage)
 		return messages
@@ -152,10 +151,11 @@ class Graph(NeuralNetworkPyTorch):
 				strEdge = "SubGraph"
 			else:
 				strEdge = str(edge)
-			if len(edgeMetrics) == 0:
+			edgeTrainMetrics = trainMetrics[str(edge)]
+			edgeValMetrics = validationMetrics[str(edge)]
+			if len(edgeTrainMetrics) == 0:
 				continue
-			edgePrintMessage = edge.computePrintMessage(trainMetrics[str(edge)], validationMetrics[str(edge)], \
-				numEpochs, duration)[1 : ]
+			edgePrintMessage = edge.computePrintMessage(edgeTrainMetrics, edgeValMetrics, numEpochs, duration)[1 : ]
 			messages.append(strEdge)
 			messages.extend(edgePrintMessage)
 		return messages
