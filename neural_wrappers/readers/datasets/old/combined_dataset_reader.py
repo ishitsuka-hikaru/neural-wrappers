@@ -12,7 +12,7 @@ class CombinedDatasetReader(DatasetReader):
 
 	def setup(self):
 		assert isBaseOf(self.readers[0], DatasetReader), \
-			"Expected type of reader to be a base of DatasetReader, got %s at index %0" % (type(reader))
+			"Expected type of reader to be a base of DatasetReader, got %s at index %d" % (type(reader))
 		for i, reader in enumerate(self.readers[1 :]):
 			assert isBaseOf(reader, DatasetReader), \
 				"Expected type of reader to be a base of DatasetReader, got %s at index %d" % (type(reader), i)

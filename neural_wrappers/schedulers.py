@@ -10,8 +10,9 @@ class ReduceLROnPlateau:
 
 	def step(self, epoch=None):
 		assert not self.model is None
-		Key = "Validation" if "Validation" in self.model.trainHistory[-1] else "Train"
-		metric = self.model.trainHistory[-1][Key][self.metric]
+		history = self.model.trainHistory[-1]
+		Key = "Validation" if "Validation" in history and not history["Validation"] is None else "Train"
+		metric = history[Key][self.metric]
 		self.baseModel.step(metric)
 
 	def state_dict(self):

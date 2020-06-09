@@ -1,5 +1,5 @@
 from typing import Union, Optional
-Number = Union[int, float]
+from ..utilities import NWNumber
 
 # @brief Base Class for all metrics. It defines a direction, which represents whether the metric is minimized or
 #  maximized.
@@ -18,15 +18,15 @@ class Metric:
 
 	# @brief The reduce function, used by complex callbacks to transform at epoch and a callback into a metric that
 	#  can be stored and used safely by other callbacks (i.e. SaveModels or PlotMetrics).
-	def epochReduceFunction(self, results) -> Number:
+	def epochReduceFunction(self, results) -> NWNumber:
 		return results
 
-	def iterationReduceFunction(self, results) -> Number:
+	def iterationReduceFunction(self, results) -> NWNumber:
 		return results
 
-	def defaultValue(self) -> Number:
+	def defaultValue(self) -> NWNumber:
 		return 0
 
 	# @brief The main method that must be implemented by a metric
-	def __call__(self, results : Number, labels : Number, **kwargs):
+	def __call__(self, results : NWNumber, labels : NWNumber, **kwargs):
 		raise NotImplementedError("Should have implemented this")

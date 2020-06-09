@@ -5,8 +5,8 @@ import h5py
 import matplotlib.pyplot as plt
 from PIL import Image
 from neural_wrappers.utilities import h5StoreDict, h5ReadDict
-from neural_wrappers.readers.carla_h5_reader import CarlaH5PathsReader
 from argparse import ArgumentParser
+from functools import partial
 
 def getArgs():
 	parser = ArgumentParser()
@@ -18,7 +18,6 @@ def getArgs():
 	parser.add_argument("--splits", default="80,20")
 	parser.add_argument("--split_keys", default="train,validation")
 	parser.add_argument("--statistics_file")
-	parser.add_argument("--max_depth_meters", default=300, type=int)
 
 	args = parser.parse_args()
 	assert args.storeMethod in ("h5", "paths")
@@ -77,9 +76,9 @@ def getPaths(baseDir):
 	def halftoneFunc(rgbItem):
 		return rgbItem.replace("rgb", "halftone")
 
-	def flowFunc(rgbItem):
+	def flowFunc(rgbItem, skip):
 		# X and Y vectors are stored in 2 different files
-		a = [rgbItem.replace("rgb", "flow2"), rgbItem.replace("rgb", "flow3")]
+		a = [rgbItem.replace("rgb", "flowx%d" % (skip)), rgbItem.replace("rgb", "flowy%d" % (skip))]
 		return a
 
 	rgbList = sorted(list(filter(lambda x : x.find("rgb_") != -1, os.listdir(baseDir))))
@@ -95,7 +94,10 @@ def getPaths(baseDir):
 		"cameranormal" : np.array(list(map(cameraNormalFunc, rgbList)), "S"),
 		"wireframe" : np.array(list(map(wireframeFunc, rgbList)), "S"),
 		"halftone" : np.array(list(map(halftoneFunc, rgbList)), "S"),
-		"optical_flow" : np.array(list(map(flowFunc, rgbList)), "S")
+		"optical_flow(t+1)" : np.array(list(map(partial(flowFunc, skip=1), rgbList)), "S"),
+		"optical_flow(t+2)" : np.array(list(map(partial(flowFunc, skip=2), rgbList)), "S"),
+		"optical_flow(t+3)" : np.array(list(map(partial(flowFunc, skip=3), rgbList)), "S"),
+		"optical_flow(t+4)" : np.array(list(map(partial(flowFunc, skip=4), rgbList)), "S")
 	}
 
 	# Sort entries by IDs
@@ -110,46 +112,49 @@ def getPaths(baseDir):
 	checkPaths(baseDir, result)
 	return result
 
-def getTrainValPaths(paths, splits, splitKeys, exportType, keepN=None):
-	def getDataIndexes(splits, splitKeys):
-		dataIx, lastIx = {}, 0
-		for i in range(len(splitKeys) - 1):
-			nK = int(splits[i] * N)
-			dataIx[splitKeys[i]] = (lastIx, lastIx + nK)
-			lastIx += nK
-		dataIx[splitKeys[-1]] = (lastIx, N)
-		return dataIx
+def getDataIndexes(splits, splitKeys, N):
+	dataIx, lastIx = {}, 0
+	for i in range(len(splitKeys) - 1):
+		nK = int(splits[i] * N)
+		dataIx[splitKeys[i]] = (lastIx, lastIx + nK)
+		lastIx += nK
+	dataIx[splitKeys[-1]] = (lastIx, N)
+	return dataIx
 
-	# Return a dict of type
-	# 	{
-	# 		"train" : {"rgb" : [a, b), "depth" : [a, b), ...},
-	#		"test" : {"rgb" : [b, c), "depth" : [b, c), ...},
-	#		...
-	# 	}
-	def getSplitPaths(paths, splitKeys, pathKey, dattaIx, keepN):
-		# Now, take the paths for all the keys as defined by indexes above
-		newPaths = {}
+# Return a dict of type
+# 	{
+# 		"train" : {"rgb" : [a, b), "depth" : [a, b), ...},
+#		"test" : {"rgb" : [b, c), "depth" : [b, c), ...},
+#		...
+# 	}
+def getSplitPaths(paths, splitKeys, pathKeys, dataIx, keepN):
+	# Now, take the paths for all the keys as defined by indexes above
+	newPaths = {}
+	for k in splitKeys:
+		startIx, endIx = dataIx[k]
+		thisPaths = {pathKey : paths[pathKey][startIx : endIx] for pathKey in pathKeys}
+		newPaths[k] = thisPaths
+
+	if not keepN is None:
 		for k in splitKeys:
-			startIx, endIx = dataIx[k]
-			thisPaths = {pathKey : paths[pathKey][startIx : endIx] for pathKey in pathKeys}
-			newPaths[k] = thisPaths
+			newPaths[k] = {pathKey : newPaths[k][pathKey][0 : keepN] for pathKey in pathKeys}
 
-		if not keepN is None:
-			for k in splitKeys:
-				newPaths[k] = {pathKey : newPaths[k][pathKey][0 : keepN] for pathKey in pathKeys}
+	for splitKey in splitKeys:
+		thisData = newPaths[splitKey]
+		firstValues = list(thisData.values())[0]
+		N = len(firstValues)
 
-		for splitKey in splitKeys:
-			N = dataIx[splitKey][1] - dataIx[splitKey][0]
-			print("Key: %s. Range: %s. N=%d" % (splitKey, dataIx[splitKey], N))
+		print("Key: %s. Range: %s. N=%d" % (splitKey, dataIx[splitKey], N))
 
-		return newPaths
+	return newPaths
 
+def getTrainValPaths(paths, splits, splitKeys, exportType, keepN=None):
 	np.random.seed(42)
 	N = len(paths["rgb"])
 	# rgb, depth, semantic etc.
 	pathKeys = paths.keys()
 	# Get (startIndex, endIndex) tuple for each key
-	dataIx = getDataIndexes(splits, splitKeys)
+	dataIx = getDataIndexes(splits, splitKeys, N)
 	print(dataIx)
 
 	# Randomize order BEFORE splitting
@@ -176,6 +181,7 @@ def plotPaths(paths):
 		plt.savefig("%s_points.png" % (k))
 
 def storeToH5File(baseDir, file, data):
+	# from neural_wrappers.readers.carla_h5_reader import CarlaH5PathsReader #TODO
 	N = len(data["rgb"])
 	funcs = {
 		"rgb" : CarlaH5PathsReader.doPng,
@@ -201,13 +207,12 @@ def storeToH5File(baseDir, file, data):
 	print("")
 
 def doStatistics(args, file):
-	def computeStatistics(file, maxDepthMeters):
+	def computeStatistics(file):
 		statistics = {}
 		dataKeys = list(file)
 		positions = {k : file[k]["position"][0 : ] for k in dataKeys}
 		posConcat = np.concatenate([positions[k] for k in positions])
 		statistics["position"] = {"min" : posConcat.min(axis=0), "max" : posConcat.max(axis=0)}
-		statistics["depth"] = {"min" : 0, "max" : maxDepthMeters}
 		return statistics
 
 	print("[doStatistics] Storing statistics!")
@@ -217,7 +222,7 @@ def doStatistics(args, file):
 		statistics = h5ReadDict(statisticsFile["others"]["dataStatistics"])
 	else:
 		print("[doStatistics] Computing statistics (positions extremes, depth max) using this dataset.")
-		statistics = computeStatistics(file, maxDepthMeters=args.max_depth_meters)
+		statistics = computeStatistics(file)
 
 	others = {"dataStatistics" : statistics, "baseDirectory" : os.path.abspath(args.baseDir)}
 	h5StoreDict(file, {"others" : others})

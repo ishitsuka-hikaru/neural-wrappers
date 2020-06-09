@@ -1,5 +1,6 @@
 import h5py
 import numpy as np
+from .utils import smartIndexWrapper
 
 def h5Print(data, level=0):
 	if type(data) in (h5py._hl.files.File, h5py._hl.group.Group):
@@ -34,8 +35,7 @@ def h5ReadDict(data, N=None):
 		elif type(N) is int:
 			res = data[0 : N]
 		elif type(N) in (list, np.ndarray):
-			res = h5ReadSmartIndexing(data, N)
+			res = smartIndexWrapper(data, N)
 	else:
 		assert False, "Unexpected type %s" % (type(data))
 	return res
-

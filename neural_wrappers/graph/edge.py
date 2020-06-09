@@ -1,17 +1,17 @@
 import torch.nn as nn
 from functools import partial
 from .node import MapNode, VectorNode
-from ..pytorch import NeuralNetworkPyTorch, trModuleWrapper, getTrData
+from ..pytorch import NeuralNetworkPyTorch, trModuleWrapper, getTrData, getNpData
 from ..pytorch.network_serializer import NetworkSerializer
 
 # Default loss of this edge goes through all ground truths and all outputs of the output node and computes the
 #  loss between them. This can be updated for a more specific edge algorithm for loss computation.
-def defaultLossFn(self, y, t):
-	B = self.outputNode
+def defaultLossFn(y, t, obj):
+	B = obj.outputNode
 	L = 0
 	t = B.getGroundTruth()
-	for y in self.outputs:
-		L += self.criterion(y, t)
+	for y in obj.outputs:
+		L += obj.criterion(y, t)
 	return L
 
 # @param[in] inputNode Instance of the input node of this edge
@@ -66,8 +66,13 @@ class Edge(NeuralNetworkPyTorch):
 		return self.outputs
 
 	def loss(self, y, t):
-		ret = self.lossFn(self, y, t)
-		return ret
+		return self.lossFn(y, t)
+
+	def getStrMapping(self):
+		return str(self)
+
+	def getGroundTruth(self, x):
+		return self.outputNode.getGroundTruthInput(x)
 
 	# Creates the encoder for this edge. If the edge is node-node or node-edge, then use the node-spepcific encoder.
 	def getEncoder(self):
@@ -102,31 +107,24 @@ class Edge(NeuralNetworkPyTorch):
 			self.setupModel()
 		return self.model
 
+	def getNodes(self):
+		return [self.inputNode, self.outputNode]
+
 	# Default model for this edge is just a sequential mapping between the A's encoder and B's decoder.
 	#  Other edges may requires additional edge-specific parameters or some more complicated views to convert the
 	#   output of A's encoder to the input of B's decoder.
 	def setupModel(self):
 		assert self.model is None
 		self.model = trModuleWrapper(nn.Sequential(self.getEncoder(), self.getDecoder()))
-		metrics = self.outputNode.getMetrics()
-		criterion = self.outputNode.getCriterion()
-
-		# Update metrics' name to be a tuple of (edge, originalName)
-		newMetrics = {}
-		for key in metrics:
-			# Very important to use str(self), not self here, otherwise the metric's name is not pickleable (as it'd
-			#  try to store the edge itself, which isn't pickleable)
-			newName = (str(self), key)
-			newMetrics[newName] = metrics[key]
 
 		# Set the forward/loss functions for this edge as well.
 		if not self.forwardFn:
 			from .utils import forwardUseAll
 			self.forwardFn = forwardUseAll
 		if not self.lossFn:
-			self.lossFn = defaultLossFn
-		self.addMetrics(newMetrics)
-		self.setCriterion(criterion)
+			self.lossFn = partial(defaultLossFn, obj=self)
+		self.addMetrics(self.outputNode.getMetrics())
+		self.setCriterion(self.outputNode.getCriterion())
 
 	def setBlockGradients(self, value):
 		self.blockGradients = value
@@ -138,25 +136,30 @@ class Edge(NeuralNetworkPyTorch):
 		hyperParameters["blockGradients"] = blockGradients
 		return hyperParameters
 
-	def loadPretrainedEdge(self, path, trainable=True):
+	def callbacksOnIterationEnd(self, data, labels, results, loss, iteration, numIterations, \
+		metricResults, isTraining, isOptimizing):
+		for i in range(len(results)):
+			metricResults = super().callbacksOnIterationEnd(data, labels, results[i], loss, iteration, \
+				numIterations, metricResults, isTraining, isOptimizing)
+		return metricResults
+
+	# TODO: Remove this and fix loadModel for partial edges.
+	def loadPretrainedEdge(self, path):
 		thisInputNode = self.inputNode.name.split("(")[0][0 : -1]
 		thisOutputNode = self.outputNode.name.split("(")[0][0 : -1]
 
-		print("Attempting to load pretrained edge %s from %s (Trainable: %s)" % (self, path, trainable))
+		print("Attempting to load pretrained edge %s from %s" % (self, path))
 		pklFile = NetworkSerializer.readPkl(path)
 		# Do a sanity check that this loaded model is a single_link containing desired edge
 		# Some parsing to find the relevant edge of the pkl file
 		relevantKeys = list(filter(lambda x : x.find("->") != -1, pklFile["model_state"].keys()))
 		relevantKeys = list(map(lambda x : x.split("->"), relevantKeys))
-		assert len(relevantKeys) == len(list(filter(lambda x : len(x) == 2, relevantKeys)))
 		relevantKeys = list(map(lambda x : (x[0].split(" ")[0], x[1][1 : ].split(" ")[0]), relevantKeys))[0]
-		assert len(relevantKeys) == 2
 		if relevantKeys[0] != thisInputNode:
 			print("Warning! Input node is different. Expected: %s. Got: %s." % (relevantKeys[0], thisInputNode))
 		if relevantKeys[1] != thisOutputNode:
 			print("Warning! Output node is different. Expected: %s. Got: %s." % (relevantKeys[1], thisOutputNode))
 		self.serializer.doLoadWeights(pklFile)
-		self.setTrainableWeights(trainable)
 
 	def __str__(self):
 		return "%s -> %s" % (str(self.inputNode), str(self.outputNode))

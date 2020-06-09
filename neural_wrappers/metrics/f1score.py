@@ -4,6 +4,8 @@ from .metric import Metric
 from .precision import ThresholdPrecision
 from .recall import ThresholdRecall
 
+from ..utilities import npGetInfo
+
 # Based on https://towardsdatascience.com/multi-class-metrics-made-simple-part-i-f1Score-and-f1Score-9250280bddc2
 class ThresholdF1Score(MetricWithThreshold):
 	def __init__(self):
@@ -15,7 +17,7 @@ class ThresholdF1Score(MetricWithThreshold):
 		f1Score = 2 * precision * recall / (precision + recall + 1e-8)
 		return f1Score
 		
-	def __call__(self, results : np.ndarray, labels : np.ndarray, threshold : np.ndarray, **kwargs) -> float:
+	def __call__(self, results : np.ndarray, labels : np.ndarray, threshold : np.ndarray, **kwargs) -> float: #type: ignore[override]
 		results = np.uint8(results >= threshold)
 		# Nans are used to specify classes with no labels for this batch
 		f1Score = ThresholdF1Score.computeF1Score(results, labels)
@@ -39,6 +41,6 @@ class F1Score(Metric):
 	# @brief Since we don't care about a particular threshold, just to get the highest activation for each prediction,
 	#  we can compute the max on the last axis (classes axis) and send this as threshold to the ThresholdAccuracy
 	#  class.
-	def __call__(self, results : np.ndarray, labels : np.ndarray, **kwargs) -> float:
+	def __call__(self, results : np.ndarray, labels : np.ndarray, **kwargs) -> float: #type: ignore[override]
 		Max = results.max(axis=-1, keepdims=True)
 		return self.thresholdF1Score(results, labels, Max)

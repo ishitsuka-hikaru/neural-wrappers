@@ -43,10 +43,10 @@ def lossFn(y, t):
 def main():
 	args = getArgs()
 
-	reader = MNISTReader(args.dataset_path, normalizer={"images" : "standardization"})
+	reader = MNISTReader(args.dataset_path)
 	print(reader.summary())
 	trainGenerator, trainSteps, valGenerator, valSteps = getGenerators(reader, \
-		miniBatchSize=args.batch_size, keys=["train", "test"])
+		batchSize=args.batch_size, keys=["train", "test"])
 
 	model = {
 		"model_fc" : ModelFC(inputShape=(28, 28, 1), outputNumClasses=10),
@@ -56,7 +56,7 @@ def main():
 	model.addMetrics({"Accuracy" : Accuracy()})
 	model.setOptimizer(optim.SGD, momentum=0.5, lr=0.1)
 	model.setOptimizerScheduler(ReduceLROnPlateau, metric="Loss")
-	callbacks = [SaveHistory("history.txt"), PlotMetrics(["Loss", "Accuracy"]), \
+	callbacks = [SaveHistory("history.txt"), PlotMetrics(["Loss", "Accuracy"], ["min", "max"]), \
 		EarlyStopping(patience=5), SaveModels("best")]
 	model.addCallbacks(callbacks)
 	print(model.summary())
