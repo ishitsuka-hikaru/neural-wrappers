@@ -200,3 +200,6 @@ def getFormattedStr(item : Union[np.ndarray, Number, Sequence, Dict], precision 
 	elif type(item) in Dict.__args__:
 		return {k : formatStr % (item[k]) for k in item}
 	assert False, "Unknown type: %s" % (type(item))
+
+def flattenList(x):
+	return sum(x, [])

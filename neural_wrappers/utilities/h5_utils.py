@@ -12,16 +12,16 @@ def h5Print(data, level=0):
 		assert False, "Unexpected type %s" % (type(data))
 
 def h5StoreDict(file, data):
-	if type(data) == dict:
-		for key in data:
-			# If key is int, we need to convert it to Str, so we can store it in h5 file.
-			sKey = str(key) if type(key) == int else key
+	assert type(data) == dict
+	for key in data:
+		# If key is int, we need to convert it to Str, so we can store it in h5 file.
+		sKey = str(key) if type(key) == int else key
 
-			if type(data[key]) == dict:
-				file.create_group(sKey)
-				h5StoreDict(file[sKey], data[key])
-			else:
-				file[sKey] = data[key]
+		if type(data[key]) == dict:
+			file.create_group(sKey)
+			h5StoreDict(file[sKey], data[key])
+		else:
+			file[sKey] = data[key]
 
 def h5ReadDict(data, N=None):
 	if type(data) in (h5py._hl.files.File, h5py._hl.group.Group):

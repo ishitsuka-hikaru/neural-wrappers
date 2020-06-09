@@ -1,12 +1,14 @@
 import numpy as np
 from copy import deepcopy
 from .callback import Callback
+from sklearn.metrics import confusion_matrix
 
 class ConfusionMatrix(Callback):
 	def __init__(self, numClasses, categoricalLabels=True, printMatrix=False, **kwargs):
 		name = "ConfusionMatrix" if not "name" in kwargs else kwargs["name"]
 		super().__init__(name=name)
 		self.numClasses = numClasses
+		self.nClasses = np.arange(self.numClasses)
 		self.categoricalLabels = categoricalLabels
 		self.printMatrix = printMatrix
 		self.epochMatrix = {
@@ -79,5 +81,4 @@ class ConfusionMatrix(Callback):
 		results = np.argmax(results, axis=1)
 		if self.categoricalLabels:
 			labels = np.where(labels == 1)[1]
-		for i in range(len(labels)):
-			self.epochMatrix[Key][labels[i], results[i]] += 1
+		self.epochMatrix[Key] += confusion_matrix(labels, results, self.nClasses)
