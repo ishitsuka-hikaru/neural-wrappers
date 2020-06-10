@@ -44,7 +44,7 @@ class SaveModels(Callback):
 		self.best = score
 
 	def saveModelsLast(self, **kwargs):
-		fileName = "model_weights_best_%s.pkl" % (str(self.metricName))
+		fileName = "model_last.pkl"
 		kwargs["model"].saveModel(fileName)
 		print("[SaveModels] Epoch %d. Saved last model" % (kwargs["epoch"]))
 
