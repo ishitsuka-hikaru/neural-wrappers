@@ -1,5 +1,4 @@
 import numpy as np
-import cv2
 from typing import Dict, Union
 from .utils import getQuatFromRotation
 from ....utilities import resize_batch, h5ReadDict, npGetInfo
@@ -55,6 +54,7 @@ def positionQuatNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.nda
 	return position
 
 def positionDotTranslationOnlyNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
+	import cv2
 	positionStats = h5ReadDict(readerObj.dataset["others"]["dataStatistics"]["position"])
 	radius = readerObj.hyperParameters["dotRadius"]
 	assert not radius is None

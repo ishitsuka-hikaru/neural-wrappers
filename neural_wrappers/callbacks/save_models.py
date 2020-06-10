@@ -43,6 +43,11 @@ class SaveModels(Callback):
 				(kwargs["epoch"], self.metricName, self.best, score))
 		self.best = score
 
+	def saveModelsLast(self, **kwargs):
+		fileName = "model_weights_best_%s.pkl" % (str(self.metricName))
+		kwargs["model"].saveModel(fileName)
+		print("[SaveModels] Epoch %d. Saved last model" % (kwargs["epoch"]))
+
 	# Saving by best train loss is validation is not available, otherwise validation. Nasty situation can occur if one
 	#  epoch there is a validation loss and the next one there isn't, so we need formats to avoid this and error out
 	#  nicely if the format asks for validation loss and there's not validation metric reported.
@@ -64,6 +69,8 @@ class SaveModels(Callback):
 			self.saveModelsImprovements(score, **kwargs)
 		elif self.mode == "best":
 			self.saveModelsBest(score, **kwargs)
+		elif self.mode == "last":
+			self.saveModelsLast(**kwargs)
 		else:
 			assert False
 		# 	# nan != nan is True

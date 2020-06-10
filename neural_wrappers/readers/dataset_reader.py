@@ -31,6 +31,9 @@ class DatasetReader:
 		return dimGetter
 
 	def sanitizeDimTransform(self, dimTransform : Dict[str, Dict[str, Callable]]):
+		for key in dimTransform:
+			assert key in self.dataBuckets, "Key '%s' not in data buckets: %s" % (key, self.dataBuckets)
+
 		for dataBucket in self.dataBuckets:
 			if not dataBucket in dimTransform:
 				print("[DatasetReader::sanitizeDimTransform] Data bucket '%s' not present in dimTransforms" % \
