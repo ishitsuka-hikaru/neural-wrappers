@@ -25,22 +25,28 @@ class SfmLearnerVideoReader(SfmLearnerGenericReader):
 	#     T(ti1)T(ti2)T(ti3)..T(tiN)V(vi1)V(vi2)...V(viN) where ti1..tiN, vi1..viN is a randomized order
 
 	def __init__(self, videoPath : str, sequenceSize : int, intrinsics : np.ndarray, \
-		dataSplits : Dict[str, float]={"train" : 1}, dataSplitMode="random"):
+		dataSplits : Dict[str, float]={"train" : 1}, dataSplitMode="random", videoMode="fast"):
 		assert sequenceSize > 1
 		assert dataSplitMode in ("random", "sequential", "sequential_then_random", "random_no_overlap")
 		assert sum(dataSplits.values()) == 1
 		self.videoPath = videoPath
 		self.video = pims.Video(self.videoPath)
+		self.fps = self.video.frame_rate
+		if videoMode == "fast":
+			self.video = self.video.close()
+			self.video = pims.PyAVReaderIndexed(self.videoPath)
+
 		self.intrinsics = intrinsics
 		self.sequenceSize = sequenceSize
 		self.dataSplits = dataSplits
 		self.dataSplitMode = dataSplitMode
 		
 		self.dataSplitIndices = self.computeIndices()
-		super().__init__(dataBuckets={"data" : ["rgb", "intrinsics"], "labels" : ["rgb"]}, \
+		super().__init__(dataBuckets={"data" : ["rgb", "intrinsics"]}, \
 			dimGetter={"rgb" : partial(rgbGetter, sequenceSize=self.sequenceSize), \
 				"intrinsics" : (lambda dataset, index : self.intrinsics)}, \
-			dimTransform={"data" : {"rgb" : rgbNorm}, "labels" : {"rgb" : rgbNorm}})
+			dimTransform={"data" : {"rgb" : rgbNorm}}
+		)
 
 	def getStartAndEndIndex(self):
 		nTotal = len(self.video)
@@ -91,7 +97,7 @@ class SfmLearnerVideoReader(SfmLearnerGenericReader):
 		Str = "[SfmLearnerVideoReader]"
 		Str += "\n - Path: %s" % (self.videoPath)
 		Str += "\n - Num frames: %d. FPS: %2.3f. Frame shape: %s" % \
-			(len(self.video), self.video.frame_rate, self.video.frame_shape)
+			(len(self.video), self.fps, self.video.frame_shape)
 		Str += "\n - Sequence size: %d" % (self.sequenceSize)
 		Str += "\n - Intrinsics: %s" % (self.intrinsics.tolist())
 		Str += "\n - Data splits: %s" % (self.dataSplits)
