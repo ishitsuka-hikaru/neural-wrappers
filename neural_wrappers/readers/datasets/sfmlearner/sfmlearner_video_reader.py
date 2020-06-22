@@ -13,9 +13,10 @@ class SfmLearnerVideoReader(SfmLearnerGenericReader):
 	#     T(ti1)T(ti2)T(ti3)..T(tiN)V(vi1)V(vi2)...V(viN) where ti1..tiN, vi1..viN is a randomized order
 
 	def __init__(self, videoPath : str, sequenceSize : int, intrinsics : np.ndarray, \
-		dataSplits : Dict[str, float]={"train" : 100}, dataSplitMode="random"):
+		dataSplits : Dict[str, float]={"train" : 1}, dataSplitMode="random"):
 		assert sequenceSize > 1
 		assert dataSplitMode in ("random", "sequential", "sequential_then_random", "random_no_overlap")
+		assert sum(dataSplits.values()) == 1
 		self.videoPath = videoPath
 		self.video = pims.Video(self.videoPath)
 		self.intrinsics = intrinsics
@@ -23,14 +24,42 @@ class SfmLearnerVideoReader(SfmLearnerGenericReader):
 		self.dataSplits = dataSplits
 		self.dataSplitMode = dataSplitMode
 		
-		self.indices = self.computeIndices()
+		self.dataSplitIndices = self.computeIndices()
+
+	def getStartAndEndIndex(self):
+		nTotal = len(self.video)
+		# [0, 1, .., 9]. seqSize=2 => [0:8], seqSize=3 => [1:8], seqSize=4 => [1:7], seqSize=5 => [2:7] etc.
+		startIndex = self.sequenceSize // 2 - 1 + (self.sequenceSize % 2 == 1)
+		endIndex = nTotal - (self.sequenceSize // 2) - 1
+		return startIndex, endIndex
+
+	def computeIndicesRandom(self):
+		startIndex, endIndex = self.getStartAndEndIndex()
+		n = endIndex - startIndex
+		permutation = np.random.permutation(n)
+
+		# Now, the permutation is for all the dataset. We need to chop it properly.
+		indices = {}
+		currentStart = 0
+		for k in self.dataSplits:
+			nCurrent = int(self.dataSplits[k] * n)
+			indices[k] = (currentStart, currentStart + nCurrent)
+			currentStart += nCurrent
+		# Last key has the remaining float-to-int error frames as well
+		indices[k] = (indices[k][0], n)
+		return {k : permutation[range(*indices[k])] for k in self.dataSplits}
 
 	def computeIndices(self):
+		assert self.sequenceSize < len(self.video) - 2, "Sequence size: %d. Len video: %d" % \
+			(self.sequenceSize, len(video))
 		assert self.dataSplitMode == "random"
+		np.random.seed(42)
+		return {
+			"random" : self.computeIndicesRandom
+		}[self.dataSplitMode]()
 
 	def getNumData(self, topLevel : str) -> int:
-		print(topLevel)
-		raise NotImplementedError("Should have implemented this")
+		return len(self.dataSplitIndices[topLevel])
 
 	def __str__(self) -> str:
 		Str = "[SfmLearnerVideoReader]"
@@ -40,5 +69,6 @@ class SfmLearnerVideoReader(SfmLearnerGenericReader):
 		Str += "\n - Sequence size: %d" % (self.sequenceSize)
 		Str += "\n - Intrinsics: %s" % (self.intrinsics.tolist())
 		Str += "\n - Data splits: %s" % (self.dataSplits)
+		Str += "\n - Data split counts: %s" % ({k : len(self.dataSplitIndices[k]) for k in self.dataSplits})
 		Str += "\n - Data split mode: %s" % (self.dataSplitMode)
 		return Str
