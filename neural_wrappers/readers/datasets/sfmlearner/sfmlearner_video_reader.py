@@ -1,7 +1,19 @@
 import pims
 import numpy as np
-from typing import Dict
+from functools import partial
+from typing import Dict, Any
 from .sfmlearner_generic_reader import SfmLearnerGenericReader
+from ...internal import DatasetRandomIndex, DatasetIndex
+from ....utilities import smartIndexWrapper
+
+def rgbGetter(dataset, index, sequenceSize):
+	l, r = sequenceSize // 2 - (sequenceSize % 2 == 0), sequenceSize // 2
+	extendedIndices = [list(range(x - l, x + r + 1)) for x in index.sequence]
+	items = smartIndexWrapper(dataset, extendedIndices)
+	return items
+
+def rgbNorm(x):
+	return np.float32(x) / 255
 
 class SfmLearnerVideoReader(SfmLearnerGenericReader):
 	# @param[in] dataSplitMode Three options are available (for let's say 2 groups Train and Validation):
@@ -25,10 +37,15 @@ class SfmLearnerVideoReader(SfmLearnerGenericReader):
 		self.dataSplitMode = dataSplitMode
 		
 		self.dataSplitIndices = self.computeIndices()
+		super().__init__(dataBuckets={"data" : ["rgb", "intrinsics"], "labels" : ["rgb"]}, \
+			dimGetter={"rgb" : partial(rgbGetter, sequenceSize=self.sequenceSize), \
+				"intrinsics" : (lambda dataset, index : self.intrinsics)}, \
+			dimTransform={"data" : {"rgb" : rgbNorm}, "labels" : {"rgb" : rgbNorm}})
 
 	def getStartAndEndIndex(self):
 		nTotal = len(self.video)
-		# [0, 1, .., 9]. seqSize=2 => [0:8], seqSize=3 => [1:8], seqSize=4 => [1:7], seqSize=5 => [2:7] etc.
+		# [0, 1, .., 9]. sequenceSize=2 => [0:8], sequenceSize=3 => [1:8], sequenceSize=4 => [1:7],
+		#  sequenceSize=5 => [2:7] etc.
 		startIndex = self.sequenceSize // 2 - 1 + (self.sequenceSize % 2 == 1)
 		endIndex = nTotal - (self.sequenceSize // 2) - 1
 		return startIndex, endIndex
@@ -60,6 +77,15 @@ class SfmLearnerVideoReader(SfmLearnerGenericReader):
 
 	def getNumData(self, topLevel : str) -> int:
 		return len(self.dataSplitIndices[topLevel])
+
+	def getDataset(self, topLevel : str) -> Any:
+		return self.video
+
+	def getBatchDatasetIndex(self, i : int, topLevel : str, batchSize : int) -> DatasetIndex:
+		startIndex = i * batchSize
+		endIndex = min((i + 1) * batchSize, self.getNumData(topLevel))
+		indices = self.dataSplitIndices[topLevel][startIndex : endIndex]
+		return DatasetRandomIndex(indices)
 
 	def __str__(self) -> str:
 		Str = "[SfmLearnerVideoReader]"
