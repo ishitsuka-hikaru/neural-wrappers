@@ -16,7 +16,7 @@ def defaultRgbGetter(dataset, index):
 # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] => [[0, 1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6], [4, 5, 6, 7],
 #  [5, 6, 7, 8], [6, 7, 8, 9], [7, 8, 9, 10], [8, 9, 10, 11], [9, 10, 11, 12]]
 def sequentialRgbGetter(dataset, index):
-	Min, Max = index.sequence[0, 0], index.sequence[-1, 1] + 1
+	Min, Max = index.sequence[0, 0], index.sequence[-1, -1] + 1
 	indices = np.arange(Min, Max)
 	fastItems = np.array(dataset[indices])
 	sequenceIndices = index.sequence - Min
@@ -54,7 +54,8 @@ class SfmLearnerVideoReader(SfmLearnerGenericReader):
 		self.dataSplitIndices = computeIndices(self.dataSplitMode, self.dataSplits, len(self.video), self.sequenceSize)
 		rgbGetter = {
 			"random" : defaultRgbGetter,
-			"sequential" : sequentialRgbGetter
+			"sequential" : sequentialRgbGetter,
+			"sequential_then_random" : defaultRgbGetter
 		}[self.dataSplitMode]
 		super().__init__(
 			dataBuckets={"data" : ["rgb", "intrinsics"]}, \

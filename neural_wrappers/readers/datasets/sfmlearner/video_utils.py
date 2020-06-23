@@ -40,7 +40,7 @@ def computeIndicesRandom(indices, sequenceSize):
 
 def computeIndicesSequential(indices, sequenceSize):
 	l, r = sequenceSize // 2 - (sequenceSize % 2 == 0), sequenceSize // 2 + 1
-	seqIndices = np.array([list(range(x - l, x + r)) for x in indices], dtype=np.uint32)
+	seqIndices = np.array([list(range(x - l, x + r)) for x in indices], dtype=np.int32)
 	return seqIndices
 
 # Split functions
@@ -60,7 +60,7 @@ def getSequentialSplits(videoLength, dataSplits):
 		startIndex = endIndex
 	# Last split gets all the extra indexes as well
 	indices[k] = (indices[k][0], videoLength)
-	return {k : np.array(range(indices[k][0], indices[k][1]), dtype=np.uint32) for k in dataSplits}
+	return {k : np.array(range(indices[k][0], indices[k][1]), dtype=np.int32) for k in dataSplits}
 
 def computeIndices(dataSplitMode, dataSplits, videoLength, sequenceSize):
 	assert dataSplitMode in ("random", "sequential", "sequential_then_random", "random_no_overlap")
