@@ -3,28 +3,25 @@ import numpy as np
 from functools import partial
 from typing import Dict, Any
 from .sfmlearner_generic_reader import SfmLearnerGenericReader
+from .video_utils import computeIndices
 from ...internal import DatasetRandomIndex, DatasetIndex
 from ....utilities import smartIndexWrapper, npGetInfo
 
-def defaultRgbGetter(dataset, index, sequenceSize):
-	l, r = sequenceSize // 2 - (sequenceSize % 2 == 0), sequenceSize // 2
-	extendedIndices = [list(range(x - l, x + r + 1)) for x in index.sequence]
-	items = smartIndexWrapper(dataset, extendedIndices)
+def defaultRgbGetter(dataset, index):
+	items = smartIndexWrapper(dataset, index.sequence)
 	return items
 
 # Since we know that the index is sequential, there is no need to go the default way, and instead we can read all the
 #  items at once sequentially and then create a smart index in the returned contiguous array
 # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] => [[0, 1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6], [4, 5, 6, 7],
 #  [5, 6, 7, 8], [6, 7, 8, 9], [7, 8, 9, 10], [8, 9, 10, 11], [9, 10, 11, 12]]
-def sequentialRgbGetter(dataset, index, sequenceSize):
-	l, r = sequenceSize // 2 - (sequenceSize % 2 == 0), sequenceSize // 2
-	extendedIndices = np.array([list(range(x - l, x + r + 1)) for x in index.sequence])
-	fastIndex = list(range(index.sequence[0] - l, index.sequence[-1] + r + 1))
-	extendedFastIndices = extendedIndices - index.sequence[0] + l
-	fastItems = np.array(dataset[fastIndex])
-	fastItems = fastItems[extendedFastIndices]
-
-	return fastItems
+def sequentialRgbGetter(dataset, index):
+	Min, Max = index.sequence[0, 0], index.sequence[-1, 1] + 1
+	indices = np.arange(Min, Max)
+	fastItems = np.array(dataset[indices])
+	sequenceIndices = index.sequence - Min
+	items = fastItems[sequenceIndices]
+	return items
 
 def rgbNorm(x):
 	return ((np.float32(x) / 255) - 0.5) * 2
@@ -41,7 +38,6 @@ class SfmLearnerVideoReader(SfmLearnerGenericReader):
 	def __init__(self, videoPath : str, sequenceSize : int, intrinsics : np.ndarray, \
 		dataSplits : Dict[str, float]={"train" : 1}, dataSplitMode="random", videoMode="fast"):
 		assert sequenceSize > 1
-		assert dataSplitMode in ("random", "sequential", "sequential_then_random", "random_no_overlap")
 		assert sum(dataSplits.values()) == 1
 		self.videoPath = videoPath
 		self.video = pims.Video(self.videoPath)
@@ -55,65 +51,16 @@ class SfmLearnerVideoReader(SfmLearnerGenericReader):
 		self.dataSplits = dataSplits
 		self.dataSplitMode = dataSplitMode
 		
-		self.dataSplitIndices = self.computeIndices()
+		self.dataSplitIndices = computeIndices(self.dataSplitMode, self.dataSplits, len(self.video), self.sequenceSize)
 		rgbGetter = {
 			"random" : defaultRgbGetter,
 			"sequential" : sequentialRgbGetter
 		}[self.dataSplitMode]
-		super().__init__(dataBuckets={"data" : ["rgb", "intrinsics"]}, \
-			dimGetter={"rgb" : partial(rgbGetter, sequenceSize=self.sequenceSize), \
-				"intrinsics" : (lambda dataset, index : self.intrinsics)}, \
+		super().__init__(
+			dataBuckets={"data" : ["rgb", "intrinsics"]}, \
+			dimGetter={"rgb" : rgbGetter, "intrinsics" : (lambda dataset, index : self.intrinsics)}, \
 			dimTransform={"data" : {"rgb" : rgbNorm}}
 		)
-
-	def getStartAndEndIndex(self):
-		nTotal = len(self.video)
-		# [0, 1, .., 9]. sequenceSize=2 => [0:8], sequenceSize=3 => [1:8], sequenceSize=4 => [1:7],
-		#  sequenceSize=5 => [2:7] etc.
-		startIndex = self.sequenceSize // 2 - 1 + (self.sequenceSize % 2 == 1)
-		endIndex = nTotal - (self.sequenceSize // 2) - 1
-		return startIndex, endIndex
-
-	def computeIndicesRandom(self):
-		startIndex, endIndex = self.getStartAndEndIndex()
-		n = endIndex - startIndex
-		permutation = np.random.permutation(n)
-
-		# Now, the permutation is for all the dataset. We need to chop it properly.
-		indices = {}
-		currentStart = 0
-		for k in self.dataSplits:
-			nCurrent = int(self.dataSplits[k] * n)
-			indices[k] = (currentStart, currentStart + nCurrent)
-			currentStart += nCurrent
-		# Last key has the remaining float-to-int error frames as well
-		indices[k] = (indices[k][0], n)
-		indices = {k : range(indices[k][0], indices[k][1]) for k in indices}
-		indices = {k : startIndex + permutation[indices[k]] for k in indices}
-		return indices
-
-	def computeIndicesSequential(self):
-		startIndex, endIndex = self.getStartAndEndIndex()
-		n = endIndex - startIndex
-
-		indices = {}
-		currentStart = startIndex
-		for k in self.dataSplits:
-			nCurrent = int(self.dataSplits[k] * n)
-			indices[k] = (currentStart, currentStart + nCurrent)
-			currentStart += nCurrent
-		indices[k] = (indices[k][0], n)
-		indices = {k : range(indices[k][0], indices[k][1]) for k in indices}
-		return indices
-
-	def computeIndices(self):
-		assert self.sequenceSize < len(self.video) - 2, "Sequence size: %d. Len video: %d" % \
-			(self.sequenceSize, len(video))
-		np.random.seed(42)
-		return {
-			"random" : self.computeIndicesRandom,
-			"sequential" : self.computeIndicesSequential
-		}[self.dataSplitMode]()
 
 	def getNumData(self, topLevel : str) -> int:
 		return len(self.dataSplitIndices[topLevel])
