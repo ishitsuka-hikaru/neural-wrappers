@@ -1,36 +1,5 @@
 import numpy as np
 
-# def computeIndicesRandom():
-#     np.random.seed(42)
-#     permutation = np.random.permutation(n)
-
-#     # Now, the permutation is for all the dataset. We need to chop it properly.
-#     indices = {}
-#     currentStart = 0
-#     for k in self.dataSplits:
-#         nCurrent = int(self.dataSplits[k] * n)
-#         indices[k] = (currentStart, currentStart + nCurrent)
-#         currentStart += nCurrent
-#     # Last key has the remaining float-to-int error frames as well
-#     indices[k] = (indices[k][0], n)
-#     indices = {k : range(indices[k][0], indices[k][1]) for k in indices}
-#     indices = {k : startIndex + permutation[indices[k]] for k in indices}
-#     return indices
-
-# def computeIndicesSequential(videoLength, sequenceSize):
-#     startIndex, endIndex = getStartAndEndIndex(videoLength, sequenceSize)
-#     n = endIndex - startIndex
-
-#     indices = {}
-#     currentStart = startIndex
-#     for k in self.dataSplits:
-#         nCurrent = int(self.dataSplits[k] * n)
-#         indices[k] = (currentStart, currentStart + nCurrent)
-#         currentStart += nCurrent
-#     indices[k] = (indices[k][0], n)
-#     indices = {k : range(indices[k][0], indices[k][1]) for k in indices}
-#     return indices
-
 # Indices functions
 def computeIndicesRandom(indices, sequenceSize):
 	seqIndices = computeIndicesSequential(indices, sequenceSize)
@@ -87,5 +56,5 @@ def computeIndices(dataSplitMode, dataSplits, videoLength, sequenceSize):
 	for split in dataSplitIndexes:
 		item = indicesFn(dataSplitIndexes[split], sequenceSize)
 		# Since the sequence sizes could mean we have indices outside the possible range, thus why we clip the result.
-		result[split] = np.clip(item, 0, videoLength)
+		result[split] = np.clip(item, 0, videoLength - 1)
 	return result
