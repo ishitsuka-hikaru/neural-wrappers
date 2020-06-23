@@ -24,7 +24,8 @@ def sequentialRgbGetter(dataset, index):
 	return items
 
 def rgbNorm(x):
-	return ((np.float32(x) / 255) - 0.5) * 2
+	# return ((np.float32(x) / 255) - 0.5) * 2
+	return np.float32(x) / 255
 
 class SfmLearnerVideoReader(SfmLearnerGenericReader):
 	# @param[in] dataSplitMode Three options are available (for let's say 2 groups Train and Validation):
