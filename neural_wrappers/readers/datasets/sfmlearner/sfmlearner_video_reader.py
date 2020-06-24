@@ -27,7 +27,25 @@ def rgbNorm(x):
 	# return ((np.float32(x) / 255) - 0.5) * 2
 	return np.float32(x) / 255
 
+def intrinsicGetter(dataset, index, fieldOfView, nativeResolution, desiredResolution):
+	cy = nativeResolution[0] / 2
+	cx = nativeResolution[1] / 2
+	fy = cy / (np.tan(fieldOfView * np.pi / 360))
+	fx = cx / (np.tan(fieldOfView * np.pi / 360))
+	skew = 0
+
+	sy = desiredResolution[0] / nativeResolution[0]
+	sx = desiredResolution[1] / nativeResolution[1]
+	K = np.array([
+		[fx * sx, skew, cx * sx],
+		[0, fy * sy, cy * sy],
+		[0, 0, 1]
+	], dtype=np.float32)
+	return K
+
 class SfmLearnerVideoReader(SfmLearnerGenericReader):
+	# @param[in] videoPath Path to the video file
+	# @param[in] sequenceSize The length of the sequence (nearby frames) returned at each iteration
 	# @param[in] dataSplitMode Three options are available (for let's say 2 groups Train and Validation):
 	#  - Random: Any index can be either T or V with probability given by dataSplits (T(1)T(2)V(3)T(4)V(5)T(6)..V(N))
 	#  - Random (no overlap): Any index can be either T or V, but if an sequence subindex is in T(so [T-k,..T+k], given
@@ -36,31 +54,36 @@ class SfmLearnerVideoReader(SfmLearnerGenericReader):
 	#  - Sequential then random: Ordered by the order of data split, but inner order is random:
 	#     T(ti1)T(ti2)T(ti3)..T(tiN)V(vi1)V(vi2)...V(viN) where ti1..tiN, vi1..viN is a randomized order
 
-	def __init__(self, videoPath : str, sequenceSize : int, intrinsics : np.ndarray, \
+	def __init__(self, videoPath : str, sequenceSize : int, cameraParams, \
 		dataSplits : Dict[str, float]={"train" : 1}, dataSplitMode="random", videoMode="fast"):
 		assert sequenceSize > 1
 		assert sum(dataSplits.values()) == 1
 		self.videoPath = videoPath
 		self.video = pims.Video(self.videoPath)
 		self.fps = self.video.frame_rate
+		self.frameShape = self.video.frame_shape
 		if videoMode == "fast":
 			self.video = self.video.close()
 			self.video = pims.PyAVReaderIndexed(self.videoPath)
 
-		self.intrinsics = intrinsics
+		self.fieldOfView = cameraParams["fieldOfView"]
+		self.nativeResolution = cameraParams["nativeResolution"]
 		self.sequenceSize = sequenceSize
 		self.dataSplits = dataSplits
 		self.dataSplitMode = dataSplitMode
-		
 		self.dataSplitIndices = computeIndices(self.dataSplitMode, self.dataSplits, len(self.video), self.sequenceSize)
+
 		rgbGetter = {
 			"random" : defaultRgbGetter,
 			"sequential" : sequentialRgbGetter,
 			"sequential_then_random" : defaultRgbGetter
 		}[self.dataSplitMode]
+		fIntrinsicsGetter = partial(intrinsicGetter, fieldOfView=self.fieldOfView, \
+			nativeResolution=self.nativeResolution, desiredResolution=self.frameShape)
+
 		super().__init__(
 			dataBuckets={"data" : ["rgb", "intrinsics"]}, \
-			dimGetter={"rgb" : rgbGetter, "intrinsics" : (lambda dataset, index : self.intrinsics)}, \
+			dimGetter={"rgb" : rgbGetter, "intrinsics" : fIntrinsicsGetter}, \
 			dimTransform={"data" : {"rgb" : rgbNorm}}
 		)
 
@@ -79,10 +102,11 @@ class SfmLearnerVideoReader(SfmLearnerGenericReader):
 	def __str__(self) -> str:
 		Str = "[SfmLearnerVideoReader]"
 		Str += "\n - Path: %s" % (self.videoPath)
-		Str += "\n - Num frames: %d. FPS: %2.3f. Frame shape: %s" % \
-			(len(self.video), self.fps, self.video.frame_shape)
+		Str += "\n - Num frames: %d. FPS: %2.3f. Frame shape: %s" % (len(self.video), self.fps, self.frameShape)
 		Str += "\n - Sequence size: %d" % (self.sequenceSize)
-		Str += "\n - Intrinsics: %s" % (self.intrinsics.tolist())
+		Str += "\n - FoV: %d. Native resolution: %s" % (self.fieldOfView, self.nativeResolution)
+		K = intrinsicGetter(None, None, self.fieldOfView, self.nativeResolution, self.frameShape)
+		Str += "\n - Intrinsic camera: %s" % (K.tolist())
 		Str += "\n - Data splits: %s" % (self.dataSplits)
 		Str += "\n - Data split counts: %s" % ({k : len(self.dataSplitIndices[k]) for k in self.dataSplits})
 		Str += "\n - Data split mode: %s" % (self.dataSplitMode)
