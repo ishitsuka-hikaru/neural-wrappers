@@ -69,9 +69,11 @@ class SfmLearnerVideoReader(SfmLearnerGenericReader):
 		self.fieldOfView = cameraParams["fieldOfView"]
 		self.nativeResolution = cameraParams["nativeResolution"]
 		self.sequenceSize = sequenceSize
+		self.skipFrames = skipFrames
 		self.dataSplits = dataSplits
 		self.dataSplitMode = dataSplitMode
-		self.dataSplitIndices = computeIndices(self.dataSplitMode, self.dataSplits, len(self.video), self.sequenceSize)
+		self.dataSplitIndices = computeIndices(self.dataSplitMode, self.dataSplits, len(self.video), \
+			self.sequenceSize, self.skipFrames)
 
 		rgbGetter = {
 			"random" : defaultRgbGetter,
@@ -103,7 +105,7 @@ class SfmLearnerVideoReader(SfmLearnerGenericReader):
 		Str = "[SfmLearnerVideoReader]"
 		Str += "\n - Path: %s" % (self.videoPath)
 		Str += "\n - Num frames: %d. FPS: %2.3f. Frame shape: %s" % (len(self.video), self.fps, self.frameShape)
-		Str += "\n - Sequence size: %d" % (self.sequenceSize)
+		Str += "\n - Sequence size: %d. Skip frames: %d" % (self.sequenceSize, self.skipFrames)
 		Str += "\n - FoV: %d. Native resolution: %s" % (self.fieldOfView, self.nativeResolution)
 		K = intrinsicGetter(None, None, self.fieldOfView, self.nativeResolution, self.frameShape)
 		Str += "\n - Intrinsic camera: %s" % (K.tolist())
