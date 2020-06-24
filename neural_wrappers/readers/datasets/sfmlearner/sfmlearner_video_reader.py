@@ -55,7 +55,7 @@ class SfmLearnerVideoReader(SfmLearnerGenericReader):
 
 	def __init__(self, videoPath:str, sequenceSize:int, cameraParams:np.ndarray, dataSplits:Dict[str, float], \
 		skipFrames:int = 1, dataSplitMode:str = "random", videoMode:str = "fast", \
-		dimTransform:Dict[str, Dict[str, Callable]]={}):
+		dimTransform:Dict[str, Dict[str, Callable]]={}, desiredResolution=None):
 		assert sequenceSize > 1
 		assert sum(dataSplits.values()) == 1
 		self.videoPath = videoPath
@@ -65,6 +65,11 @@ class SfmLearnerVideoReader(SfmLearnerGenericReader):
 		if videoMode == "fast":
 			self.video = self.video.close()
 			self.video = pims.PyAVReaderIndexed(self.videoPath)
+
+		# If we don't want to resize the raw images (and thus influence the K matrix), then we'll use the frames.
+		self.desiredResolution = desiredResolution
+		if not desiredResolution:
+			self.desiredResolution = self.frameShape
 
 		self.fieldOfView = cameraParams["fieldOfView"]
 		self.nativeResolution = cameraParams["nativeResolution"]
@@ -81,7 +86,7 @@ class SfmLearnerVideoReader(SfmLearnerGenericReader):
 			"sequential_then_random" : defaultRgbGetter
 		}[self.dataSplitMode]
 		fIntrinsicsGetter = partial(intrinsicGetter, fieldOfView=self.fieldOfView, \
-			nativeResolution=self.nativeResolution, desiredResolution=self.frameShape)
+			nativeResolution=self.nativeResolution, desiredResolution=self.desiredResolution)
 
 		super().__init__(
 			dataBuckets={"data" : ["rgb", "intrinsics"]}, \
@@ -104,10 +109,10 @@ class SfmLearnerVideoReader(SfmLearnerGenericReader):
 	def __str__(self) -> str:
 		Str = "[SfmLearnerVideoReader]"
 		Str += "\n - Path: %s" % (self.videoPath)
-		Str += "\n - Num frames: %d. FPS: %2.3f. Frame shape: %s" % (len(self.video), self.fps, self.frameShape)
-		Str += "\n - Sequence size: %d. Skip frames: %d" % (self.sequenceSize, self.skipFrames)
+		Str += "\n - Num frames: %d. FPS: %2.3f. Frame shape: %s" % (len(self.video), self.fps, self.desiredResolution)
+		Str += "\n - Sequence size: %d. Skip frames: %d." % (self.sequenceSize, self.skipFrames)
 		Str += "\n - FoV: %d. Native resolution: %s" % (self.fieldOfView, self.nativeResolution)
-		K = intrinsicGetter(None, None, self.fieldOfView, self.nativeResolution, self.frameShape)
+		K = intrinsicGetter(None, None, self.fieldOfView, self.nativeResolution, self.desiredResolution)
 		Str += "\n - Intrinsic camera: %s" % (K.tolist())
 		Str += "\n - Data splits: %s" % (self.dataSplits)
 		Str += "\n - Data split counts: %s" % ({k : len(self.dataSplitIndices[k]) for k in self.dataSplits})
