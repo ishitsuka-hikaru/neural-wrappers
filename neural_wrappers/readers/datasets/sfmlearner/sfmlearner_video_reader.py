@@ -1,7 +1,7 @@
 import pims
 import numpy as np
 from functools import partial
-from typing import Dict, Any
+from typing import Dict, Any, Callable
 from .sfmlearner_generic_reader import SfmLearnerGenericReader
 from .video_utils import computeIndices
 from ...internal import DatasetRandomIndex, DatasetIndex
@@ -23,10 +23,6 @@ def sequentialRgbGetter(dataset, index):
 	items = fastItems[sequenceIndices]
 	return items
 
-def rgbNorm(x):
-	# return ((np.float32(x) / 255) - 0.5) * 2
-	return np.float32(x) / 255
-
 def intrinsicGetter(dataset, index, fieldOfView, nativeResolution, desiredResolution):
 	cy = nativeResolution[0] / 2
 	cx = nativeResolution[1] / 2
@@ -46,6 +42,7 @@ def intrinsicGetter(dataset, index, fieldOfView, nativeResolution, desiredResolu
 class SfmLearnerVideoReader(SfmLearnerGenericReader):
 	# @param[in] videoPath Path to the video file
 	# @param[in] sequenceSize The length of the sequence (nearby frames) returned at each iteration
+	# @param[in] cameraParams A dictionary wtih field of fiew and native resolution keys
 	# @param[in] dataSplitMode Three options are available (for let's say 2 groups Train and Validation):
 	#  - Random: Any index can be either T or V with probability given by dataSplits (T(1)T(2)V(3)T(4)V(5)T(6)..V(N))
 	#  - Random (no overlap): Any index can be either T or V, but if an sequence subindex is in T(so [T-k,..T+k], given
@@ -53,9 +50,12 @@ class SfmLearnerVideoReader(SfmLearnerGenericReader):
 	#  - Sequential: Ordered by the order of data split mode and no randomness: T(t1)T(t2)..T(tN)V(v1)...V(vN)
 	#  - Sequential then random: Ordered by the order of data split, but inner order is random:
 	#     T(ti1)T(ti2)T(ti3)..T(tiN)V(vi1)V(vi2)...V(viN) where ti1..tiN, vi1..viN is a randomized order
+	# @param[in] skipFrames How many frames ahead should be in each sequence. Default: 1.
+	#  Example: skipFrames=2 and sequenceSize=5 => [t-4, t-2, t, t+2, t+4]
 
-	def __init__(self, videoPath : str, sequenceSize : int, cameraParams, \
-		dataSplits : Dict[str, float]={"train" : 1}, dataSplitMode="random", videoMode="fast"):
+	def __init__(self, videoPath:str, sequenceSize:int, cameraParams:np.ndarray, dataSplits:Dict[str, float], \
+		skipFrames:int = 1, dataSplitMode:str = "random", videoMode:str = "fast", \
+		dimTransform:Dict[str, Dict[str, Callable]]={}):
 		assert sequenceSize > 1
 		assert sum(dataSplits.values()) == 1
 		self.videoPath = videoPath
@@ -84,7 +84,7 @@ class SfmLearnerVideoReader(SfmLearnerGenericReader):
 		super().__init__(
 			dataBuckets={"data" : ["rgb", "intrinsics"]}, \
 			dimGetter={"rgb" : rgbGetter, "intrinsics" : fIntrinsicsGetter}, \
-			dimTransform={"data" : {"rgb" : rgbNorm}}
+			dimTransform=dimTransform
 		)
 
 	def getNumData(self, topLevel : str) -> int:
