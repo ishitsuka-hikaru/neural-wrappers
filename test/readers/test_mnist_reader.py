@@ -1,9 +1,10 @@
 import numpy as np
+import os
 from neural_wrappers.readers import MNISTReader
 from neural_wrappers.utilities import getGenerators, npCloseEnough
 
 # This path must be supplied manually in order to pass these tests
-MNIST_READER_PATH = "/home/mihai/Public/Datasets/mnist/mnist.h5"
+MNIST_READER_PATH = os.environ["MNIST_READER_PATH"]
 
 class TestMNISTReader:
 	def test_mnist_construct_1(self):

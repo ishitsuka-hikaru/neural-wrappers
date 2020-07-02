@@ -148,10 +148,11 @@ def plotModelMetricHistory(trainHistory, metricName, plotBestBullet, dpi=120):
 	numEpochs = len(trainHistory)
 	# trainValues = np.array([trainHistory[i]["Train"][metric] for i in range(numEpochs)])
 
+	# TODO: Problem for graph where score is stored in keys according to tuple.
 	def getScore(trainHistory, name):
-		score = trainHistory
-		for k in name:
-			score = score[k]
+		score = trainHistory[name]
+		# for k in name:
+		# 	score = score[k]
 		return score
 
 	trainValues, validationValues = np.zeros((2, numEpochs), dtype=np.float32)
@@ -176,7 +177,7 @@ def plotModelMetricHistory(trainHistory, metricName, plotBestBullet, dpi=120):
 	trainValues[np.isnan(trainValues)] = 0
 	usedValues[np.isnan(usedValues)] = 0
 
-	assert plotBestBullet in ("none", "min", "max")
+	assert plotBestBullet in ("none", "min", "max"), "%s" % plotBestBullet
 	if plotBestBullet == "min":
 		minX, minValue = np.argmin(usedValues), np.min(usedValues)
 		plt.annotate("Epoch %d\nMin %2.2f" % (minX + 1, minValue), xy=(minX + 1, minValue))

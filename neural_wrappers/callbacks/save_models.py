@@ -23,10 +23,7 @@ class SaveModels(Callback):
 			return
 
 		metric = model.getMetric(self.metricName)
-		print(metric)
 		metricDirection = metric.getDirection()
-		print(metricDirection)
-		exit()
 
 		self.best = {
 			"min" : 1<<31,
@@ -74,12 +71,8 @@ class SaveModels(Callback):
 			trainHistory = trainHistory["Train"]
 		else:
 			trainHistory = trainHistory["Validation"]
-		score = trainHistory
-		for k in self.metricName:
-			score = score[k]
-		print(self.metricName, kwargs["model"].getMetric(self.metricName))
-		exit()
 
+		score = trainHistory[self.metricName]
 		fileName = "model_weights_%d_%s_%s.pkl" % (kwargs["epoch"], self.metricName, score)
 		if self.mode == "improvements":
 			self.saveModelsImprovements(score, **kwargs)
@@ -91,10 +84,13 @@ class SaveModels(Callback):
 			assert False
 
 	def onCallbackLoad(self, additional, **kwargs):
+		metric = kwargs["model"].getMetric(self.metricName)
+		metricDirection = metric.getDirection()
+
 		self.metricFunc = {
 			"min" : lambda x : x < self.best,
 			"max" : lambda x : x > self.best,
-		}[self.metricDirection]
+		}[metricDirection]
 
 	# Some callbacks require some special/additional tinkering when saving (such as closing files). It should be noted
 	#  that it's safe to close files (or any other side-effect action) because callbacks are deepcopied before this

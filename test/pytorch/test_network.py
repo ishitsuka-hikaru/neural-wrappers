@@ -149,7 +149,7 @@ class TestNetwork:
 		model.setOptimizer(Adam, lr=0.01)
 		model.setCriterion(lambda y, t: y.mean())
 
-		callbacks = [SaveModels("best", "Loss"), SaveModels("last"), SaveHistory("history.txt")]
+		callbacks = [SaveModels("best", "Loss"), SaveModels("last", "Loss"), SaveHistory("history.txt")]
 		model.addCallbacks(callbacks)
 		model.addMetrics({"Test" : lambda x, y, **k : 0.5})
 		beforeKeys = list(model.callbacks.keys())
@@ -275,7 +275,7 @@ class TestNetwork:
 		model = Model(I, H, O).to(device)
 		try:
 			callbacks = [SaveModels("best", "Loss", name="SaveModelsBest"), \
-				SaveModels("last", name="SaveModelsLast"), SaveHistory("history.txt")]
+				SaveModels("last", "Loss", name="SaveModelsLast"), SaveHistory("history.txt")]
 			model.addCallbacks([MyTestCallback(name="TestCallback")])
 			model.addCallbacks(callbacks)
 			model.addMetrics({"Test" : lambda x, y, **k : 0.5})
@@ -287,7 +287,7 @@ class TestNetwork:
 		model = Model(I, H, O).to(device)
 		try:
 			callbacks = [SaveModels("best", "Loss", name="SaveModelsBest"), \
-				SaveModels("last", name="SaveModelsLast"), SaveHistory("history.txt")]
+				SaveModels("last", "Loss", name="SaveModelsLast"), SaveHistory("history.txt")]
 			model.addCallbacks([MyTestCallback(name="TestCallback")])
 			model.addCallbacks(callbacks)
 			model.addMetrics({"Test" : lambda x, y, **k : 0.5})
@@ -300,7 +300,7 @@ class TestNetwork:
 		model = Model(I, H, O).to(device)
 		try:
 			callbacks = [SaveModels("best", "Loss", name="SaveModelsBest"), \
-				SaveModels("last", name="SaveModelsLast"), SaveHistory("history.txt")]
+				SaveModels("last", "Loss", name="SaveModelsLast"), SaveHistory("history.txt")]
 			model.addCallbacks([MyTestCallback(name="TestCallback")])
 			model.addCallbacks(callbacks)
 			model.addMetrics({"Test" : lambda x, y, **k : 0.5})
@@ -322,7 +322,7 @@ class TestNetwork:
 		model = Model(I, H, O).to(device)
 		try:
 			callbacks = [SaveModels("best", "Loss", name="SaveModelsBest"), \
-				SaveModels("last", name="SaveModelsLast"), SaveHistory("history.txt")]
+				SaveModels("last", "Loss", name="SaveModelsLast"), SaveHistory("history.txt")]
 			model.addCallbacks([MyTestCallback(name="TestCallback")])
 			model.addCallbacks(callbacks)
 			model.addMetrics({"Test" : lambda x, y, **k : 0.5})
@@ -357,7 +357,7 @@ class TestNetwork:
 		model_new = Model(I, H, O).to(device)
 		try:
 			callbacks = [SaveModels("best", "Loss", name="SaveModelsBest"), \
-				SaveModels("last", name="SaveModelsLast"), SaveHistory("history.txt")]
+				SaveModels("last", "Loss", name="SaveModelsLast"), SaveHistory("history.txt")]
 			model.addCallbacks([MyTestCallback(name="TestCallback")])
 			model.addCallbacks(callbacks)
 			model.addMetrics({"Test" : lambda x, y, **k : 0.5})
@@ -383,8 +383,8 @@ if __name__ == "__main__":
 	pass
 	# TestNetwork().test_save_weights_1()
 	# TestNetwork().test_save_model_1()
-	TestNetwork().test_save_model_2()
-	# TestNetwork().test_save_model_3()
+	# TestNetwork().test_save_model_2()
+	TestNetwork().test_save_model_3()
 	# TestNetwork().test_save_model_4()
 	# TestNetwork().test_save_model_5()
 	# TestNetwork().test_add_merics_1()

@@ -1,7 +1,21 @@
 from neural_wrappers.readers import DatasetReader, DatasetRange, DatasetIndex
 from neural_wrappers.utilities import npCloseEnough
 from typing import Any
+from overrides import overrides
 import numpy as np
+
+class DummyDataset(DatasetReader):
+	@overrides
+	def getDataset(self, topLevel : str) -> Any:
+		return None
+
+	@overrides
+	def getNumData(self, topLevel : str) -> int:
+		return None
+
+	@overrides
+	def getBatchDatasetIndex(self, i : int, topLevel : str, batchSize : int) -> DatasetIndex:
+		return None
 
 class Dataset(DatasetReader):
 	def __init__(self):
@@ -46,7 +60,7 @@ class Dataset(DatasetReader):
 
 class TestDatasetReader:
 	def test_constructor_1(self):
-		reader = DatasetReader(
+		reader = DummyDataset(
 			dataBuckets = {
 				"data" : ["rgb", "depth"],
 				"labels" : ["depth", "semantic"]
@@ -69,7 +83,7 @@ class TestDatasetReader:
 		)
 
 	def test_constructor_2(self):
-		reader = DatasetReader(
+		reader = DummyDataset(
 			dataBuckets = {
 				"data" : ["rgb", "depth"],
 				"labels" : ["depth", "semantic"]
@@ -107,7 +121,7 @@ class TestDatasetReader:
 		assert items["labels"]["D2"].sum() == 0
 
 def main():
-	# TestDatasetReader().test_constructor_1()
+	TestDatasetReader().test_constructor_1()
 	# TestDatasetReader().test_constructor_2()
 	# TestDatasetReader().test_iterate_1()
 	pass

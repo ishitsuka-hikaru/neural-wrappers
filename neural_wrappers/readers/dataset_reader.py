@@ -26,6 +26,28 @@ class DatasetReader(ABC):
 		self.dimTransform = self.sanitizeDimTransform(dimTransform)
 		self.activeTopLevel = None
 
+	@abstractmethod
+	def getDataset(self, topLevel : str) -> Any:
+		raise NotImplementedError("Should have implemented this")
+
+	# @brief Returns the number of items in a given top level name
+	# @param[in] topLevel The top-level dimension that is iterated over (example: train, validation, test, etc.)
+	# @return The number of items in a given top level name
+	@abstractmethod
+	def getNumData(self, topLevel : str) -> int:
+		raise NotImplementedError("Should have implemented this")
+
+	# @brief Returns the index object specific to this dataset for a requested batch index. This is used to logically
+	#  iterate through a dataset
+	# @param[in] i The index of the epoch we're trying to get dataset indexes for
+	# @param[in] topLevel The top-level dimension that is iterated over (example: train, validation, test, etc.)
+	# @param[in] batchSize The size of a batch that is yielded at each iteration
+	# @return A DatasetIndex object with the indexes of this iteration for a specific dimension
+	@abstractmethod
+	def getBatchDatasetIndex(self, i : int, topLevel : str, batchSize : int) -> DatasetIndex:
+		raise NotImplementedError("Should have implemented this")
+
+
 	def sanitizeDimGetter(self, dimGetter : Dict[str, Callable]) -> Dict[str, Callable]:
 		for key in self.allDims:
 			assert key in dimGetter
@@ -113,32 +135,6 @@ class DatasetReader(ABC):
 
 		# Clear active top level as well after finishing the epoch
 		self.setActiveTopLevel(None)
-
-	# @brief A conceptual wrapper for the dataset, given a top level. It should permit indexing w.r.t data buckets and
-	#  dimenions. The low level implementation (h5/paths/web service) is left for each class as long as
-	#  these requirements are maintained.
-	# @param[in] topLevel The top-level dimension that is iterated over (example: train, validation, test, etc.)
-	# @return A dataset object for the the top level provided
-	@abstractmethod
-	def getDataset(self, topLevel : str) -> Any:
-		raise NotImplementedError("Should have implemented this")
-
-	# @brief Returns the number of items in a given top level name
-	# @param[in] topLevel The top-level dimension that is iterated over (example: train, validation, test, etc.)
-	# @return The number of items in a given top level name
-	@abstractmethod
-	def getNumData(self, topLevel : str) -> int:
-		raise NotImplementedError("Should have implemented this")
-
-	# @brief Returns the index object specific to this dataset for a requested batch index. This is used to logically
-	#  iterate through a dataset
-	# @param[in] i The index of the epoch we're trying to get dataset indexes for
-	# @param[in] topLevel The top-level dimension that is iterated over (example: train, validation, test, etc.)
-	# @param[in] batchSize The size of a batch that is yielded at each iteration
-	# @return A DatasetIndex object with the indexes of this iteration for a specific dimension
-	@abstractmethod
-	def getBatchDatasetIndex(self, i : int, topLevel : str, batchSize : int) -> DatasetIndex:
-		raise NotImplementedError("Should have implemented this")
 
 	# @brief Return the number of iterations in an epoch for a top level name, given a batch size.
 	# @param[in] topLevel The top-level dimension that is iterated over (example: train, validation, test, etc.)

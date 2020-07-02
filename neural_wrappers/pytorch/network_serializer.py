@@ -84,7 +84,9 @@ class NetworkSerializer:
 				callbacksOriginalPositions.append(callback.name)
 			else:
 				additional = callback.onCallbackSave(model=self.model)
+				assert isPicklable(additional), "Callback %s is not pickable" % callback.name
 				callbacksAdditional.append(deepcopy(additional))
+				assert isPicklable(callback), "Callback %s is not pickable" % callback.name
 				callbacks.append(deepcopy(callback))
 				callbacksOriginalPositions.append(None)
 				# Pretty awkward, but we need to restore the state of this callback (not the one that stored). Calling
@@ -155,51 +157,10 @@ class NetworkSerializer:
 				assert False, "Got unknown key %s" % (key)
 		print("Finished loading model")
 
-	def doLoadWeightsOld(self, loadedState):
-		assert "weights" in loadedState
-		loadedParams = loadedState["weights"]
-		# trainableParams = getTrainableParameters(self.model)
-		trainableParams = dict(filter(lambda x : x[1].requires_grad, self.model.named_parameters()))
-		numTrainableParams = _computeNumParams(trainableParams)
-		numLoadedParams = _computeNumParams({i : x for i, x in zip(range(len(loadedParams)), loadedParams)})
-
-		assert numLoadedParams == numTrainableParams, "Inconsistent parameters: Loaded: %d vs Model (trainable): %d." \
-			% (numLoadedParams, numTrainableParams)
-		for i, name in enumerate(trainableParams.keys()):
-			thisItem = trainableParams[name]
-			loadedItem = loadedParams[i]
-			if thisItem.shape != loadedItem.shape:
-				raise Exception("Inconsistent parameters: %d vs %d." % (thisItem.shape, loadedItem.shape))
-			with tr.no_grad():
-				thisItem[:] = loadedItem[:].to(device)
-			thisItem.requires_grad_(True)
-		print("Succesfully loaded weights (%d parameters) " % (numLoadedParams))
-
-	def doLoadWeightsOld2(self, namedTrainableParams, namedLoadedParams, trainableParams, loadedParams):
-		print("Loading in old way, where we hope/assume that the order of the keys is identical to the loaded one")
-		# Combines names of trainable params with weights from loaded (should apply to all cases) if the loop down
-		#  works (Potential bug: RARE CASE WHERE DICT ORDER IS DIFFERENT BUT SAME # OF PARAMS)
-		newParams = {}
-		for i in range(len(namedTrainableParams)):
-			nameTrainableParam = namedTrainableParams[i]
-			nameLoadedParam = namedLoadedParams[i]
-			trainableParam = trainableParams[nameTrainableParam]
-			loadedParam = loadedParams[nameLoadedParam]
-			assert trainableParam.shape == loadedParam.shape, "This: %s:%s. Loaded:%s" % \
-				(nameLoadedParam, str(trainableParam.shape), str(loadedParam.shape))
-			newParams[nameTrainableParam] = loadedParam
-		return newParams
-
 	# Handles loading weights from a model.
 	def doLoadWeights(self, loadedState):
 		assert "weights" in loadedState
 		loadedParams = loadedState["weights"]
-		if type(loadedParams) == list:
-			print("Warning! Model was stored with older version (list instead of named parameters dict). " + \
-				"Will attempt to load weights, however having BatchNorm/Dropout will result in .eval() not " + \
-				"working as well as other possible bugs.")
-			self.doLoadWeightsOld(loadedState)
-			return
 
 		trainableParams = getTrainableParameters(self.model)
 		numTrainableParams = _computeNumParams(trainableParams)
@@ -210,13 +171,11 @@ class NetworkSerializer:
 		namedTrainableParams = sorted(list(trainableParams.keys()))
 		namedLoadedParams = sorted(list(loadedParams.keys()))
 		# Loading in natural way, because keys are identical
-		if namedTrainableParams == namedLoadedParams:
-			for key in namedTrainableParams:
-				assert trainableParams[key].shape == loadedParams[key].shape, "This: %s:%s. Loaded:%s" % \
-					(nameLoadedParam, str(trainableParam.shape), str(loadedParam.shape))
-			newParams = loadedParams
-		else:
-			newParams = self.doLoadWeightsOld2(namedTrainableParams, namedLoadedParams, trainableParams, loadedParams)
+		assert namedTrainableParams == namedLoadedParams, "Old behaviour model not supported anymore."
+		for key in namedTrainableParams:
+			assert trainableParams[key].shape == loadedParams[key].shape, "This: %s:%s. Loaded:%s" % \
+				(nameLoadedParam, str(trainableParam.shape), str(loadedParam.shape))
+		newParams = loadedParams
 
 		# TODO: Make strict=True and add fake params in the if above (including BN/Dropout).
 		missing, unexpected = self.model.load_state_dict(newParams, strict=False)
