@@ -433,7 +433,6 @@ class NeuralNetworkPyTorch(nn.Module):
 		metrics = self.getMetrics()
 		summaryStr = ""
 		for metric in metrics:
-			print(metric)
 			summaryStr += "\t- %s (%s)\n" % (metric, metrics[metric].getDirection())
 		return summaryStr
 

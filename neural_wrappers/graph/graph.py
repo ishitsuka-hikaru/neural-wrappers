@@ -152,7 +152,10 @@ class Graph(NeuralNetworkPyTorch):
 			else:
 				strEdge = str(edge)
 			edgeTrainMetrics = trainMetrics[str(edge)]
-			edgeValMetrics = validationMetrics[str(edge)]
+			if not validationMetrics is None:
+				edgeValMetrics = validationMetrics[str(edge)]
+			else:
+				edgeValMetrics = None
 			if len(edgeTrainMetrics) == 0:
 				continue
 			edgePrintMessage = edge.computePrintMessage(edgeTrainMetrics, edgeValMetrics, numEpochs, duration)[1 : ]

@@ -27,14 +27,14 @@ class DatasetReader(ABC):
 		self.activeTopLevel = None
 
 	@abstractmethod
-	def getDataset(self, topLevel : str) -> Any:
+	def getDataset(self, topLevel:str) -> Any:
 		raise NotImplementedError("Should have implemented this")
 
 	# @brief Returns the number of items in a given top level name
 	# @param[in] topLevel The top-level dimension that is iterated over (example: train, validation, test, etc.)
 	# @return The number of items in a given top level name
 	@abstractmethod
-	def getNumData(self, topLevel : str) -> int:
+	def getNumData(self, topLevel:str) -> int:
 		raise NotImplementedError("Should have implemented this")
 
 	# @brief Returns the index object specific to this dataset for a requested batch index. This is used to logically
@@ -44,9 +44,8 @@ class DatasetReader(ABC):
 	# @param[in] batchSize The size of a batch that is yielded at each iteration
 	# @return A DatasetIndex object with the indexes of this iteration for a specific dimension
 	@abstractmethod
-	def getBatchDatasetIndex(self, i : int, topLevel : str, batchSize : int) -> DatasetIndex:
+	def getBatchDatasetIndex(self, i:int, topLevel:str, batchSize:int) -> DatasetIndex:
 		raise NotImplementedError("Should have implemented this")
-
 
 	def sanitizeDimGetter(self, dimGetter : Dict[str, Callable]) -> Dict[str, Callable]:
 		for key in self.allDims:
