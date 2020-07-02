@@ -1,6 +1,7 @@
 import numpy as np
 from typing import List, Union, Dict, Optional
 from .callback import Callback
+from .callback_name import CallbackName
 from ..metrics import Metric
 from ..utilities import NWNumber
 
@@ -8,17 +9,12 @@ from ..utilities import NWNumber
 #  metrics and callbacks in one way. Stats and iteration messages can be computed for both cases thanks to this.
 # Another use case of this class is to enable more complex metrics.
 class MetricAsCallback(Callback):
-	def __init__(self, metricName : str, metric : Optional[Metric] = None):
+	def __init__(self, metricName:CallbackName, metric:Metric):
 		super().__init__(metricName)
 		self.metric = metric
 
-	# Returns "min" or "max" as defined in the class of each metric. If it's a function or some other type of metric
-	#  that posed as MetricAsCallback and has no direction field defined, just ignore the exception and reutrn "min".
 	def getDirection(self) -> str:
-		try:
-			return self.metric.getDirection()
-		except Exception:
-			return "min"
+		return self.metric.getDirection()
 
 	def epochReduceFunction(self, results) -> NWNumber:
 		return results

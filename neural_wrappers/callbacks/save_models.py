@@ -1,5 +1,6 @@
 import sys
 from .callback import Callback
+from .callback_name import CallbackName
 from ..metrics import Metric, MetricWrapper
 from typing import Union, Tuple, Optional
 
@@ -8,27 +9,39 @@ from typing import Union, Tuple, Optional
 #  that hasn't updated all it's callbacks. This is relevant, for example in EarlyStopping, where we'd save the state
 #  of the N-1th epoch instead of last, causing it to lead to different behavioiur pre/post loading.
 class SaveModels(Callback):
-	def __init__(self, mode : str="all", metricName : Union[str, Tuple[str]]="Loss", metricDirecion = "min", **kwargs):
+	def __init__(self, mode:str, metricName:CallbackName, **kwargs):
 		assert mode in ("all", "improvements", "last", "best")
 		self.mode = mode
-		if type(metricName) == str:
-			metricName = (metricName, )
 		self.metricName = metricName
-		self.metricDirection = metricDirecion
+		self.best = None
+		self.metricFunc = None
+		super().__init__(**kwargs)
+
+	# Do the setup at the end of the first epoch, so we know direction. This is expected to not change ever afterwards.
+	def setup(self, model):
+		if not self.best is None:
+			return
+
+		metric = model.getMetric(self.metricName)
+		print(metric)
+		metricDirection = metric.getDirection()
+		print(metricDirection)
+		exit()
+
 		self.best = {
 			"min" : 1<<31,
 			"max" : -1<<31
-		}[self.metricDirection]
+		}[metricDirection]
 		self.metricFunc = {
 			"min" : lambda x : x < self.best,
 			"max" : lambda x : x > self.best,
-		}[self.metricDirection]
-		super().__init__(**kwargs)
+		}[metricDirection]
 
 	def saveModelsImprovements(self, score, **kwargs):
 		if not self.metricFunc(score):
 			return
-		fileName = "model_weights_%d_%s_%s.pkl" % (kwargs["epoch"], self.metricName, score)
+		metricName = self.metricName[0] if len(self.metricName) == 1 else self.metricName
+		fileName = "model_improvement_%d_%s_%s.pkl" % (kwargs["epoch"], str(metricName), score)
 		kwargs["model"].saveModel(fileName)
 		print("[SaveModels] Epoch %d. Improvement (%s) from %2.2f to %2.2f" % \
 				(kwargs["epoch"], self.metricName, self.best, score))
@@ -37,7 +50,7 @@ class SaveModels(Callback):
 	def saveModelsBest(self, score, **kwargs):
 		if not self.metricFunc(score):
 			return
-		fileName = "model_weights_best_%s.pkl" % (str(self.metricName))
+		fileName = "model_best_%s.pkl" % (self.metricName)
 		kwargs["model"].saveModel(fileName)
 		print("[SaveModels] Epoch %d. Improvement (%s) from %2.2f to %2.2f" % \
 				(kwargs["epoch"], self.metricName, self.best, score))
@@ -54,6 +67,7 @@ class SaveModels(Callback):
 	def onEpochEnd(self, **kwargs):
 		if not kwargs["isTraining"]:
 			return
+		self.setup(kwargs["model"])
 
 		trainHistory = kwargs["trainHistory"][-1]
 		if (not "Validation" in trainHistory) or (trainHistory["Validation"] is None):
@@ -63,6 +77,8 @@ class SaveModels(Callback):
 		score = trainHistory
 		for k in self.metricName:
 			score = score[k]
+		print(self.metricName, kwargs["model"].getMetric(self.metricName))
+		exit()
 
 		fileName = "model_weights_%d_%s_%s.pkl" % (kwargs["epoch"], self.metricName, score)
 		if self.mode == "improvements":
@@ -73,27 +89,6 @@ class SaveModels(Callback):
 			self.saveModelsLast(**kwargs)
 		else:
 			assert False
-		# 	# nan != nan is True
-		# 	if self.best != self.best or metricFunc(score, self.best):
-		# 		kwargs["model"].saveModel(fileName)
-		# 		print("[SaveModels] Epoch %d. Improvement (%s) from %2.2f to %2.2f" % \
-		# 			(kwargs["epoch"], strMetric, self.best, score))
-		# 		self.best = score
-		# 	else:
-		# 		print("Epoch %d did not improve best metric (%s: %2.2f)" % \
-		# 			(kwargs["epoch"], strMetric, self.best))
-		# 	sys.stdout.flush()
-		# elif self.type == "all":
-		# 	kwargs["model"].saveModel(fileName)
-		# elif self.type == "last":
-		# 	kwargs["model"].saveModel("model_last_%s.pkl" % (strMetric))
-		# elif self.type == "best":
-		# 	# nan != nan is True
-		# 	if self.best != self.best or metricFunc(score, self.best):
-		# 		kwargs["model"].saveModel("model_best_%s.pkl" % (strMetric))
-		# 		print("[SaveModels] Epoch %d. Improvement (%s) from %2.2f to %2.2f" % \
-		# 			(kwargs["epoch"], strMetric, self.best, score))
-		# 		self.best = score
 
 	def onCallbackLoad(self, additional, **kwargs):
 		self.metricFunc = {

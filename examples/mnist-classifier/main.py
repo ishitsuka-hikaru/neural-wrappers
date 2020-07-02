@@ -13,6 +13,9 @@ from neural_wrappers.utilities import getGenerators
 from neural_wrappers.metrics import Accuracy
 from neural_wrappers.pytorch import device
 
+from neural_wrappers.callbacks import MetricAsCallback
+from neural_wrappers.utilities import isBaseOf
+
 from argparse import ArgumentParser
 
 def getArgs():
@@ -20,18 +23,18 @@ def getArgs():
 	parser.add_argument("type")
 	parser.add_argument("model_type")
 	parser.add_argument("dataset_path")
-	parser.add_argument("--weights_file")
-	parser.add_argument("--num_epochs", type=int, default=100)
-	parser.add_argument("--batch_size", type=int, default=20)
+	parser.add_argument("--weightsFile")
+	parser.add_argument("--numEpochs", type=int, default=100)
+	parser.add_argument("--batchSize", type=int, default=20)
 
 	args = parser.parse_args()
 
 	assert args.type in ("train", "test", "retrain")
 	assert args.model_type in ("model_fc", "model_conv")
 	if args.type in ("test", "retrain"):
-		assert not args.weights_file is None
+		assert not args.weightsFile is None
 	if args.type in ("train", "retrain"):
-		assert not args.num_epochs is None
+		assert not args.numEpochs is None
 	return args
 
 def lossFn(y, t):
@@ -46,7 +49,7 @@ def main():
 	reader = MNISTReader(args.dataset_path)
 	print(reader.summary())
 	trainGenerator, trainSteps, valGenerator, valSteps = getGenerators(reader, \
-		batchSize=args.batch_size, keys=["train", "test"])
+		batchSize=args.batchSize, keys=["train", "test"])
 
 	model = {
 		"model_fc" : ModelFC(inputShape=(28, 28, 1), outputNumClasses=10),
@@ -56,20 +59,20 @@ def main():
 	model.addMetrics({"Accuracy" : Accuracy()})
 	model.setOptimizer(optim.SGD, momentum=0.5, lr=0.1)
 	model.setOptimizerScheduler(ReduceLROnPlateau, metric="Loss")
-	callbacks = [SaveHistory("history.txt"), PlotMetrics(["Loss", "Accuracy"], ["min", "max"]), \
-		EarlyStopping(patience=5), SaveModels("best")]
+	callbacks = [SaveHistory("history.txt"), PlotMetrics(["Loss", "Accuracy"]), \
+		EarlyStopping(patience=5), SaveModels("best", "Loss")]
 	model.addCallbacks(callbacks)
 	print(model.summary())
 
 	if args.type == "train":
-		model.train_generator(trainGenerator, trainSteps, numEpochs=args.num_epochs, \
-			validationGenerator=valGenerator, validationSteps=valSteps, printMessage="v2")
+		model.train_generator(trainGenerator, 10, numEpochs=args.numEpochs, \
+			validationGenerator=valGenerator, validationSteps=10, printMessage="v2")
 	elif args.type == "retrain":
-		model.loadModel(args.weights_file)
-		model.train_generator(trainGenerator, trainSteps, numEpochs=args.num_epochs, \
+		model.loadModel(args.weightsFile)
+		model.train_generator(trainGenerator, trainSteps, numEpochs=args.numEpochs, \
 			validationGenerator=valGenerator, validationSteps=valSteps)
 	elif args.type == "test":
-		model.loadModel(args.weights_file)
+		model.loadModel(args.weightsFile)
 		metrics = model.test_generator(valGenerator, valSteps)
 		print("Metrics: %s" % (metrics))
 

@@ -1,4 +1,5 @@
 from .callback import Callback
+from .callback_name import CallbackName
 from .metric_as_callback import MetricAsCallback
 from .metric_with_threshold_wrapper import MetricWithThresholdWrapper
 

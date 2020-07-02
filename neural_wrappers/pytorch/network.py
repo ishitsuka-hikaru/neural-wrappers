@@ -28,14 +28,8 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.criterion = None
 		self.currentEpoch = 1
 
-		# Variable that holds both callbacks and metrics (which are also callbacks with just onIterationEnd method
-		#   implemented). By default Loss will always be a callback
-		self.callbacks = OrderedDict({"Loss" : MetricAsCallback("Loss", lambda y, t, **k : k["loss"])})
-		self.topologicalSort = np.array([0], dtype=np.uint8)
-		self.topologicalKeys = np.array(["Loss"], dtype=str)
-		# A list of all the metrics/callbacks that are used to compute the iteration print
-		#  message during training/testing
-		self.iterPrintMessageKeys = ["Loss"]
+		# Setup print message keys, callbacks & topological sort variables
+		self.clearCallbacks()
 
 		# A list that stores various information about the model at each epoch. The index in the list represents the
 		#  epoch value. Each value of the list is a dictionary that holds by default only loss value, but callbacks
@@ -60,6 +54,12 @@ class NeuralNetworkPyTorch(nn.Module):
 			assert not key in self.hyperParameters
 			self.hyperParameters[key] = hyperParameters[key]
 
+	def invalidateTopologicalSort(self):
+		# See warning for add Metrics
+		self.topologicalSort = np.arange(len(self.callbacks))
+		self.topologicalKeys = np.array(list(self.callbacks.keys()))[self.topologicalSort]
+		self.topologicalSortDirty = True
+
 	# Sets the user provided list of metrics as callbacks and adds them to the callbacks list.
 	def addMetrics(self, metrics : Dict[str, Union[Metric, MetricAsCallback]]):
 		assert not "Loss" in metrics, "Cannot overwrite Loss metric. This is added by default for all networks."
@@ -76,10 +76,9 @@ class NeuralNetworkPyTorch(nn.Module):
 				metricAsCallback = MetricAsCallback(metricName=key, metric=metricAsCallback) # type: ignore
 			self.callbacks[key] = metricAsCallback
 			self.iterPrintMessageKeys.append(key)
-		# Warning, calling addMetrics might invalidat topological sort as we reset the indexes here. If there are
+		# Warning, calling addMetrics will invalidate topological sort as we reset the indexes here. If there are
 		#  dependencies already set using setCallbacksDependeices, it must be called again.
-		self.topologicalSort = np.arange(len(self.callbacks))
-		self.topologicalKeys = np.array(list(self.callbacks.keys()))[self.topologicalSort]
+		self.invalidateTopologicalSort()
 
 	# Adds the user provided list of callbacks to the model's list of callbacks (and metrics)
 	def addCallbacks(self, callbacks):
@@ -91,9 +90,9 @@ class NeuralNetworkPyTorch(nn.Module):
 
 			if isBaseOf(callback, MetricAsCallback):
 				self.iterPrintMessageKeys.append(callback.name)
-		# See warning for add Metrics
-		self.topologicalSort = np.arange(len(self.callbacks))
-		self.topologicalKeys = np.array(list(self.callbacks.keys()))[self.topologicalSort]
+		# Warning, calling addCallbacks will invalidate topological sort as we reset the indexes here. If there are
+		#  dependencies already set using setCallbacksDependeices, it must be called again.
+		self.invalidateTopologicalSort()
 
 	# TODO: Add clearMetrics. Store dependencies, so we can call topological sort before/after clearCallbacks.
 	# Store dependenceis on model store. Make clearCallbacks clear only callbacks, not metrics as well.
@@ -105,13 +104,23 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	def clearCallbacks(self):
 		self.callbacks = OrderedDict({"Loss" : MetricAsCallback("Loss", lambda y, t, **k : k["loss"])})
+		self.iterPrintMessageKeys = ["Loss"]
 		self.topologicalSort = np.array([0], dtype=np.uint8)
 		self.topologicalKeys = np.array(["Loss"], dtype=str)
-		self.iterPrintMessageKeys = ["Loss"]
+		self.topologicalSortDirty = False
 
 	def getMetrics(self):
 		callbacks = {k : v for k, v in self.callbacks.items() if isBaseOf(v, MetricAsCallback)}
 		return callbacks
+
+	def getMetric(self, metricName) -> Metric:
+		for key, callback in self.callbacks.items():
+			print(key, metricName, callback.name, type(callback))
+			if not isBaseOf(callback, MetricAsCallback):
+				continue
+			if callback.name == metricName:
+				return callback
+		assert False, "Metric %s was not found. Use adddMetrics() properly first." % metricName
 
 	# Does a topological sort on the given list of callback dependencies. This MUST be called after all addMetrics and
 	#  addCallbacks are called, as these functions invalidate the topological sort.
