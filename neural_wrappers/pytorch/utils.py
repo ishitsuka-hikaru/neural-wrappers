@@ -97,13 +97,13 @@ def getOptimizerStr(optimizer):
 def getNpData(data):
 	if data is None:
 		return None
-	elif type(data) in (list, tuple):
+	elif isinstance(data, (list, tuple)):
 		return [getNpData(x) for x in data]
-	elif type(data) in (dict, OrderedDict):
+	elif isinstance(data, (dict, OrderedDict)):
 		return {k : getNpData(data[k]) for k in data}
-	elif type(data) == tr.Tensor:
+	elif isinstance(data, tr.Tensor):
 		return data.detach().to("cpu").numpy()
-	elif type(data) == np.ndarray:
+	elif isinstance(data, np.ndarray):
 		return data
 	elif callable(data):
 		return data
@@ -113,14 +113,16 @@ def getNpData(data):
 def getTrData(data):
 	if data is None:
 		return None
-	elif type(data) in (list, tuple):
+	elif isinstance(data, (np.int32, np.int8, np.int16, np.int64, np.float32, np.float64, int, float)):
+		return tr.Tensor([data]).to(device)
+	elif isinstance(data, (list, tuple)):
 		return [getTrData(x) for x in data]
-	elif type(data) in (dict, OrderedDict):
+	elif isinstance(data, (dict, OrderedDict)):
 		return {k : getTrData(data[k]) for k in data}
-	elif type(data) == np.ndarray:
-		return tr.from_numpy(data).to(device)
-	elif type(data) == tr.Tensor:
+	elif isinstance(data, tr.Tensor):
 		return data.to(device)
+	elif isinstance(data, np.ndarray):
+		return tr.from_numpy(data).to(device)
 	elif callable(data):
 		return data
 	assert False, "Got type %s" % (type(data))
