@@ -39,7 +39,7 @@ class SfmLearnerVideoReader(SfmLearnerGenericReader):
 
 	def __init__(self, videoPath:str, sequenceSize:int, dataSplits:Dict[str, float], \
 		intrinsicMatrix:np.ndarray = np.eye(3), skipFrames:int = 1, dataSplitMode:str = "random", \
-		videoMode:str = "fast", dimTransform:Dict[str, Dict[str, Callable]]={}, desiredResolution=None):
+		videoMode:str = "fast", dimTransform:Dict[str, Dict[str, Callable]]={}):
 		assert sequenceSize > 1
 		assert sum(dataSplits.values()) == 1
 		self.videoPath = videoPath
@@ -49,11 +49,6 @@ class SfmLearnerVideoReader(SfmLearnerGenericReader):
 		if videoMode == "fast":
 			self.video = self.video.close()
 			self.video = pims.PyAVReaderIndexed(self.videoPath)
-
-		# If we don't want to resize the raw images (and thus influence the K matrix), then we'll use the frames.
-		self.desiredResolution = desiredResolution
-		if not desiredResolution:
-			self.desiredResolution = self.frameShape
 
 		self.intrinsicMatrix = intrinsicMatrix
 		self.sequenceSize = sequenceSize
@@ -90,7 +85,8 @@ class SfmLearnerVideoReader(SfmLearnerGenericReader):
 	def __str__(self) -> str:
 		Str = "[SfmLearnerVideoReader]"
 		Str += "\n - Path: %s" % (self.videoPath)
-		Str += "\n - Num frames: %d. FPS: %2.3f. Frame shape: %s" % (len(self.video), self.fps, self.desiredResolution)
+		Str += "\n - Resolution: %d x %d" % (self.frameShape[0], self.frameShape[1])
+		Str += "\n - Num frames: %d. FPS: %2.3f" % (len(self.video), self.fps)
 		Str += "\n - Sequence size: %d. Skip frames: %d." % (self.sequenceSize, self.skipFrames)
 		# Str += "\n - FoV: %d. Native resolution: %s" % (self.fieldOfView, self.nativeResolution)
 		Str += "\n - Intrinsic camera: %s" % (self.intrinsicMatrix.tolist())
