@@ -2,6 +2,8 @@ import pims
 import numpy as np
 from functools import partial
 from typing import Dict, Any, Callable
+from overrides import overrides
+
 from .sfmlearner_generic_reader import SfmLearnerGenericReader
 from .video_utils import computeIndices
 from ...internal import DatasetRandomIndex, DatasetIndex
@@ -24,7 +26,7 @@ def sequentialRgbGetter(dataset, index):
 	return items
 
 class SfmLearnerVideoReader(SfmLearnerGenericReader):
-	# @param[in] videoPath Path to the video file
+	# @param[in] datasetPath Path to the video file
 	# @param[in] sequenceSize The length of the sequence (nearby frames) returned at each iteration
 	# @param[in] intrinsicMatrix The intrinsic matrix used by the camera to record the video. Defaults to np.eye(3)
 	# @param[in] dataSplitMode Three options are available (for let's say 2 groups Train and Validation):
@@ -37,26 +39,18 @@ class SfmLearnerVideoReader(SfmLearnerGenericReader):
 	# @param[in] skipFrames How many frames ahead should be in each sequence. Default: 1.
 	#  Example: skipFrames=2 and sequenceSize=5 => [t-4, t-2, t, t+2, t+4]
 
-	def __init__(self, videoPath:str, sequenceSize:int, dataSplits:Dict[str, float], \
+	def __init__(self, datasetPath:str, sequenceSize:int, dataSplits:Dict[str, float], \
 		intrinsicMatrix:np.ndarray = np.eye(3), skipFrames:int = 1, dataSplitMode:str = "random", \
-		videoMode:str = "fast", dimTransform:Dict[str, Dict[str, Callable]]={}):
-		assert sequenceSize > 1
-		assert sum(dataSplits.values()) == 1
-		self.videoPath = videoPath
-		self.video = pims.Video(self.videoPath)
+		dimTransform:Dict[str, Dict[str, Callable]]={}):
+		self.datasetPath = datasetPath
+		self.video = pims.Video(self.datasetPath)
 		self.fps = self.video.frame_rate
 		self.frameShape = self.video.frame_shape
-		if videoMode == "fast":
-			self.video = self.video.close()
-			self.video = pims.PyAVReaderIndexed(self.videoPath)
 
-		self.intrinsicMatrix = intrinsicMatrix
-		self.sequenceSize = sequenceSize
 		self.skipFrames = skipFrames
-		self.dataSplits = dataSplits
 		self.dataSplitMode = dataSplitMode
-		self.dataSplitIndices = computeIndices(self.dataSplitMode, self.dataSplits, len(self.video), \
-			self.sequenceSize, self.skipFrames)
+		self.dataSplitIndices = computeIndices(self.dataSplitMode, dataSplits, len(self.video), \
+			sequenceSize, self.skipFrames)
 
 		rgbGetter = {
 			"random" : defaultRgbGetter,
@@ -66,16 +60,20 @@ class SfmLearnerVideoReader(SfmLearnerGenericReader):
 
 		super().__init__(
 			dataBuckets={"data" : ["rgb", "intrinsics"]}, \
-			dimGetter={"rgb" : rgbGetter, "intrinsics" : (lambda _, __ : self.intrinsicMatrix)}, \
-			dimTransform=dimTransform
+			dimGetter={"rgb" : rgbGetter, "intrinsics" : (lambda _, __ : intrinsicMatrix)}, \
+			dimTransform=dimTransform,
+			sequenceSize=sequenceSize, dataSplits=dataSplits, intrinsicMatrix=intrinsicMatrix
 		)
 
+	@overrides
 	def getNumData(self, topLevel : str) -> int:
 		return len(self.dataSplitIndices[topLevel])
 
+	@overrides
 	def getDataset(self, topLevel : str) -> Any:
 		return self.video
 
+	@overrides
 	def getBatchDatasetIndex(self, i : int, topLevel : str, batchSize : int) -> DatasetIndex:
 		startIndex = i * batchSize
 		endIndex = min((i + 1) * batchSize, self.getNumData(topLevel))
@@ -84,7 +82,7 @@ class SfmLearnerVideoReader(SfmLearnerGenericReader):
 
 	def __str__(self) -> str:
 		Str = "[SfmLearnerVideoReader]"
-		Str += "\n - Path: %s" % (self.videoPath)
+		Str += "\n - Path: %s" % (self.datasetPath)
 		Str += "\n - Resolution: %d x %d" % (self.frameShape[0], self.frameShape[1])
 		Str += "\n - Num frames: %d. FPS: %2.3f" % (len(self.video), self.fps)
 		Str += "\n - Sequence size: %d. Skip frames: %d." % (self.sequenceSize, self.skipFrames)
