@@ -1,11 +1,10 @@
 import numpy as np
 import h5py
-from typing import Dict, Callable, Any
+from typing import Dict, Callable, Any, List
 from overrides import overrides
 from functools import partial
-from .sfmlearner_generic_reader import SfmLearnerGenericReader
-from .sfmlearner_video_reader import computeIndices
 
+from .sfmlearner_generic_reader import SfmLearnerGenericReader
 from ...internal import DatasetRandomIndex, DatasetIndex
 from ....utilities import smartIndexWrapper
 
@@ -22,28 +21,22 @@ def defaultRgbGetter(dataset, index:DatasetIndex, baseDirectory:str):
 	return result
 
 class SfmLearnerVideoNpyReader(SfmLearnerGenericReader):
-	def __init__(self, datasetPath:str, sequenceSize:int, dataSplits:Dict[str, float], \
-		intrinsicMatrix:np.ndarray = np.eye(3), skipFrames:int = 1, dataSplitMode:str = "random", \
-		dimTransform:Dict[str, Dict[str, Callable]]={}):
+	def __init__(self, datasetPath:str, sequenceSize:int, dataSplitIndices:Dict[str, List[int]], \
+		intrinsicMatrix:np.ndarray = np.eye(3), dimTransform:Dict[str, Dict[str, Callable]]={}):
 
 		self.datasetPath = datasetPath
 		self.dataset = h5py.File(self.datasetPath, "r")
-		self.frameShape = self.dataset["others"]["resolution"][()]
 		self.fps = self.dataset["others"]["fps"][()]
+		self.frameShape = self.dataset["others"]["resolution"][()]
+		self.dataSplitIndices = dataSplitIndices
 
-		self.skipFrames = skipFrames
-		self.dataSplitMode = dataSplitMode
-		self.dataSplitIndices = computeIndices(self.dataSplitMode, dataSplits, len(self.dataset["data"]["rgb"]), \
-			sequenceSize, self.skipFrames)
-
-		assert self.dataSplitMode == "random"
 		rgbGetter = partial(defaultRgbGetter, baseDirectory=self.dataset["others"]["baseDirectory"][()])
-
 		super().__init__(
-			dataBuckets={"data" : ["rgb", "intrinsics"]}, \
-			dimGetter={"rgb" : rgbGetter, "intrinsics" : (lambda _, __ : intrinsicMatrix)}, \
-			dimTransform=dimTransform,
-			sequenceSize=sequenceSize, dataSplits=dataSplits, intrinsicMatrix=intrinsicMatrix
+			dataBuckets = {"data" : ["rgb", "intrinsics"]}, \
+			dimGetter = {"rgb" : rgbGetter, "intrinsics" : (lambda _, __ : intrinsicMatrix)}, \
+			dimTransform = dimTransform,
+			dataSplitIndices = dataSplitIndices,
+			intrinsicMatrix = intrinsicMatrix
 		)
 
 	@overrides
@@ -67,10 +60,8 @@ class SfmLearnerVideoNpyReader(SfmLearnerGenericReader):
 		Str += "\n - Resolution: %d x %d" % (self.frameShape[0], self.frameShape[1])
 		Str += "\n - Num frames: %d. FPS: %2.3f" % (len(self.dataset["data"]["rgb"]), self.fps)
 		Str += "\n - Sequence size: %d. Skip frames: %d." % (self.sequenceSize, self.skipFrames)
-		# Str += "\n - FoV: %d. Native resolution: %s" % (self.fieldOfView, self.nativeResolution)
 		Str += "\n - Intrinsic camera: %s" % (self.intrinsicMatrix.tolist())
-		Str += "\n - Data splits: %s" % (self.dataSplits)
-		Str += "\n - Data split counts: %s" % ({k : len(self.dataSplitIndices[k]) for k in self.dataSplits})
-		Str += "\n - Data split mode: %s" % (self.dataSplitMode)
+		Str += "\n - Data splits: %s" % (list(self.dataSplitIndices.keys()))
+		Str += "\n - Data split counts: %s" % ({k : len(self.dataSplitIndices[k]) for k in self.dataSplitIndices})
 		return Str
 

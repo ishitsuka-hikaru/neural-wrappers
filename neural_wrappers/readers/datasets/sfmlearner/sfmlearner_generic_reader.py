@@ -5,15 +5,17 @@ from ...internal import DatasetIndex
 
 class SfmLearnerGenericReader(DatasetReader):
 	def __init__(self, dataBuckets : Dict[str, List[str]], dimGetter : Dict[str, DimGetterCallable], \
-		dimTransform:Dict[str, Dict[str, Callable]], sequenceSize:int, dataSplits:Dict[str, float], \
+		dimTransform:Dict[str, Dict[str, Callable]], dataSplitIndices:Dict[str, List[int]], \
 		intrinsicMatrix:np.ndarray = np.eye(3)):
 		super().__init__(dataBuckets, dimGetter, dimTransform)
-		assert sequenceSize > 1
-		assert sum(dataSplits.values()) == 1
 
 		self.intrinsicMatrix = intrinsicMatrix
-		self.sequenceSize = sequenceSize
-		self.dataSplits = dataSplits
+		self.dataSplitIndices = dataSplitIndices
+
+		# TODO: When we add optical flow, this must be computed somehow else (perhaps a dataSplitIndices object)
+		firstItem = dataSplitIndices[list(dataSplitIndices.keys())[0]]
+		self.sequenceSize = firstItem.shape[1]
+		self.skipFrames = firstItem[0, 1] - firstItem[0, 0]
 
 	def getDataset(self, topLevel : str) -> Any:
 		raise NotImplementedError("Should have implemented this")

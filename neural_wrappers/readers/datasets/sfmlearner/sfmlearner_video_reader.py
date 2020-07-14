@@ -1,28 +1,15 @@
 import pims
 import numpy as np
 from functools import partial
-from typing import Dict, Any, Callable
+from typing import Dict, Any, Callable, List
 from overrides import overrides
 
 from .sfmlearner_generic_reader import SfmLearnerGenericReader
-from .video_utils import computeIndices
 from ...internal import DatasetRandomIndex, DatasetIndex
 from ....utilities import smartIndexWrapper, npGetInfo
 
 def defaultRgbGetter(dataset, index):
 	items = smartIndexWrapper(dataset, index.sequence)
-	return items
-
-# Since we know that the index is sequential, there is no need to go the default way, and instead we can read all the
-#  items at once sequentially and then create a smart index in the returned contiguous array
-# [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] => [[0, 1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6], [4, 5, 6, 7],
-#  [5, 6, 7, 8], [6, 7, 8, 9], [7, 8, 9, 10], [8, 9, 10, 11], [9, 10, 11, 12]]
-def sequentialRgbGetter(dataset, index):
-	Min, Max = index.sequence[0, 0], index.sequence[-1, -1] + 1
-	indices = np.arange(Min, Max)
-	fastItems = np.array(dataset[indices])
-	sequenceIndices = index.sequence - Min
-	items = fastItems[sequenceIndices]
 	return items
 
 class SfmLearnerVideoReader(SfmLearnerGenericReader):
@@ -39,30 +26,20 @@ class SfmLearnerVideoReader(SfmLearnerGenericReader):
 	# @param[in] skipFrames How many frames ahead should be in each sequence. Default: 1.
 	#  Example: skipFrames=2 and sequenceSize=5 => [t-4, t-2, t, t+2, t+4]
 
-	def __init__(self, datasetPath:str, sequenceSize:int, dataSplits:Dict[str, float], \
-		intrinsicMatrix:np.ndarray = np.eye(3), skipFrames:int = 1, dataSplitMode:str = "random", \
-		dimTransform:Dict[str, Dict[str, Callable]]={}):
+	def __init__(self, datasetPath:str, sequenceSize:int, dataSplitIndices:Dict[str, List[int]], \
+		intrinsicMatrix:np.ndarray = np.eye(3), dimTransform:Dict[str, Dict[str, Callable]]={}):
 		self.datasetPath = datasetPath
 		self.video = pims.Video(self.datasetPath)
 		self.fps = self.video.frame_rate
 		self.frameShape = self.video.frame_shape
-
-		self.skipFrames = skipFrames
-		self.dataSplitMode = dataSplitMode
-		self.dataSplitIndices = computeIndices(self.dataSplitMode, dataSplits, len(self.video), \
-			sequenceSize, self.skipFrames)
-
-		rgbGetter = {
-			"random" : defaultRgbGetter,
-			"sequential" : sequentialRgbGetter,
-			"sequential_then_random" : defaultRgbGetter
-		}[self.dataSplitMode]
+		self.dataSplitIndices = dataSplitIndices
 
 		super().__init__(
-			dataBuckets={"data" : ["rgb", "intrinsics"]}, \
-			dimGetter={"rgb" : rgbGetter, "intrinsics" : (lambda _, __ : intrinsicMatrix)}, \
-			dimTransform=dimTransform,
-			sequenceSize=sequenceSize, dataSplits=dataSplits, intrinsicMatrix=intrinsicMatrix
+			dataBuckets = {"data" : ["rgb", "intrinsics"]}, \
+			dimGetter = {"rgb" : defaultRgbGetter, "intrinsics" : (lambda _, __ : intrinsicMatrix)}, \
+			dimTransform = dimTransform,
+			dataSplitIndices = dataSplitIndices,
+			intrinsicMatrix = intrinsicMatrix
 		)
 
 	@overrides
@@ -86,10 +63,8 @@ class SfmLearnerVideoReader(SfmLearnerGenericReader):
 		Str += "\n - Resolution: %d x %d" % (self.frameShape[0], self.frameShape[1])
 		Str += "\n - Num frames: %d. FPS: %2.3f" % (len(self.video), self.fps)
 		Str += "\n - Sequence size: %d. Skip frames: %d." % (self.sequenceSize, self.skipFrames)
-		# Str += "\n - FoV: %d. Native resolution: %s" % (self.fieldOfView, self.nativeResolution)
 		Str += "\n - Intrinsic camera: %s" % (self.intrinsicMatrix.tolist())
-		Str += "\n - Data splits: %s" % (self.dataSplits)
-		Str += "\n - Data split counts: %s" % ({k : len(self.dataSplitIndices[k]) for k in self.dataSplits})
-		Str += "\n - Data split mode: %s" % (self.dataSplitMode)
+		Str += "\n - Data splits: %s" % (list(self.dataSplitIndices.keys()))
+		Str += "\n - Data split counts: %s" % ({k : len(self.dataSplitIndices[k]) for k in self.dataSplitIndices})
 		return Str
 
