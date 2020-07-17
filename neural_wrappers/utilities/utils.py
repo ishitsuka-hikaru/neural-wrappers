@@ -124,6 +124,13 @@ def deepCheckEqual(a, b):
 		return True
 	elif Type == np.ndarray:
 		return npCloseEnough(a, b)
+	elif Type in (list, tuple):
+		if not len(a) == len(b):
+			return False
+		for i in range(len(a)):
+			if not deepCheckEqual(a[i], b[i]):
+				return False
+		return True
 	else:
 		return a == b
 	assert False, "Shouldn't reach here"
