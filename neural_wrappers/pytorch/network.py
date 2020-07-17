@@ -9,7 +9,7 @@ from collections import OrderedDict
 from typing import List, Union, Dict
 
 from .network_serializer import NetworkSerializer
-from .utils import getNumParams, getOptimizerStr, getNpData, getTrData, StorePrevState
+from .utils import getNumParams, getOptimizerStr, npGetData, trGetData, StorePrevState
 from ..utilities import makeGenerator, MessagePrinter, isBaseOf, RunningMean, \
 	topologicalSort, deepCheckEqual, getFormattedStr
 from ..callbacks import Callback, MetricAsCallback
@@ -179,14 +179,14 @@ class NeuralNetworkPyTorch(nn.Module):
 	##### Traiming / testing functions
 
 	def mainLoop(self, npInputs, npLabels, isTraining=False, isOptimizing=False):
-		trInputs, trLabels = getTrData(npInputs), getTrData(npLabels)
+		trInputs, trLabels = trGetData(npInputs), trGetData(npLabels)
 		self.iterationEpilogue(isTraining, isOptimizing, trLabels)
 
 		# Call the network algorithm. By default this is just results = self.forward(inputs);
 		#  loss = criterion(results). But this can be updated for specific network architectures (i.e. GANs)
 		trResults, trLoss = self.networkAlgorithm(trInputs, trLabels)
 
-		npResults, npLoss = getNpData(trResults), getNpData(trLoss)
+		npResults, npLoss = npGetData(trResults), npGetData(trLoss)
 
 		# Might be better to use a callback so we skip this step
 		if not trLoss is None:
@@ -484,7 +484,7 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	# Useful to passing numpy data but still returning backpropagable results
 	def npForwardTrResult(self, x):
-		trInput = getTrData(x)
+		trInput = trGetData(x)
 		trResult = self.forward(trInput)
 		return trResult
 
@@ -492,7 +492,7 @@ class NeuralNetworkPyTorch(nn.Module):
 	# @param[in] x The input, which can be a numpy array, or a list/tuple/dict of numpy arrays
 	# @return y The output of the network as numpy array
 	def npForward(self, x):
-		npResult = getNpData(self.npForwardTrResult(x))
+		npResult = npGetData(self.npForwardTrResult(x))
 		return npResult
 
 	# The network algorithm. This must be updated for specific networks, so the whole metric/callbacks system works
