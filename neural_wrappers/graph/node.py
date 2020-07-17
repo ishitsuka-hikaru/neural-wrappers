@@ -1,6 +1,6 @@
 from __future__ import annotations
 import torch as tr
-from ..pytorch import getTrData, trDetachData, NeuralNetworkPyTorch
+from ..pytorch import trGetData, trDetachData, NeuralNetworkPyTorch
 from typing import Optional, Dict, Type, Union
 
 class Node:
@@ -55,7 +55,7 @@ class Node:
 		return inputs
 
 	def getMessages(self) -> Dict[str, tr.Tensor]:
-		return {k : getTrData(self.messages[k]) for k in self.messages}
+		return {k : trGetData(self.messages[k]) for k in self.messages}
 
 	def addMessage(self, edgeID : str, message : tr.Tensor) -> None:
 		self.messages[edgeID] = message

@@ -1,26 +1,35 @@
 import numpy as np
 import os
+import pytest
 from neural_wrappers.readers import MNISTReader
 from neural_wrappers.utilities import getGenerators, npCloseEnough
 
-# This path must be supplied manually in order to pass these tests
-MNIST_READER_PATH = os.environ["MNIST_READER_PATH"]
+try:
+	# This path must be supplied manually in order to pass these tests
+	MNIST_READER_PATH = os.environ["MNIST_READER_PATH"]
+	pytestmark = pytest.mark.skipif(False)
+except Exception:
+	pytestmark = pytest.mark.skip("MNIST Dataset path must be set.", allow_module_level=True)
 
 class TestMNISTReader:
+	@pytestmark
 	def test_mnist_construct_1(self):
 		reader = MNISTReader(MNIST_READER_PATH)
 		assert reader.dataBuckets == {"data" : ["rgb"], "labels" : ["labels"]}
 
+	@pytestmark
 	def test_mnist_construct_2(self):
 		reader = MNISTReader(MNIST_READER_PATH)
 		assert reader.dataset["train"]["images"].shape == (60000, 28, 28, 1)
 		assert reader.dataset["test"]["images"].shape == (10000, 28, 28, 1)
 
+	@pytestmark
 	def test_getNumData_1(self):
 		reader = MNISTReader(MNIST_READER_PATH)
 		assert reader.getNumData("train") == 60000
 		assert reader.getNumData("test") == 10000
 
+	@pytestmark
 	def test_getNumIterations_1(self):
 		reader = MNISTReader(MNIST_READER_PATH)
 		batches = [1, 2, 7, 10, 23, 100, 444, 9999, 10000]
@@ -30,6 +39,7 @@ class TestMNISTReader:
 			assert trainExpected[i] == reader.getNumIterations("train", batches[i])
 			assert testExpected[i] == reader.getNumIterations("test", batches[i])
 
+	@pytestmark
 	def test_iterate_1(self):
 		reader = MNISTReader(MNIST_READER_PATH)
 		MB = np.random.randint(1, 200)
@@ -42,6 +52,7 @@ class TestMNISTReader:
 		assert rgb.shape == (MB, 28, 28, 1)
 		assert labels.shape == (MB, 10)
 
+	@pytestmark
 	def test_iterate_2(self):
 		reader = MNISTReader(MNIST_READER_PATH)
 		numIters = reader.getNumIterations("train", 30)
@@ -54,6 +65,7 @@ class TestMNISTReader:
 		except StopIteration:
 			pass
 
+	@pytestmark
 	def test_iterate_3(self):
 		reader = MNISTReader(MNIST_READER_PATH)
 		generator, numIters = getGenerators(reader, 30, keys=["train"])
@@ -65,6 +77,7 @@ class TestMNISTReader:
 		assert npCloseEnough(firstRgb, firstRgbEpoch2)
 		assert npCloseEnough(firstLabels, firstLabelsEpoch2)
 
+	@pytestmark
 	def test_normalization_1(self):
 		reader = MNISTReader(MNIST_READER_PATH, normalization="none")
 		generator, numIters = getGenerators(reader, 30, keys=["train"])
@@ -72,6 +85,7 @@ class TestMNISTReader:
 
 		assert firstRGBs.dtype == np.uint8 and firstRGBs.min() == 0 and firstRGBs.max() == 255
 
+	@pytestmark
 	def test_normalization_2(self):
 		reader = MNISTReader(MNIST_READER_PATH, normalization="min_max_0_1")
 		generator, numIters = getGenerators(reader, 30, keys=["train"])

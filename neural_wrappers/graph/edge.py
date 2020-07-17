@@ -1,7 +1,7 @@
 import torch.nn as nn
 from functools import partial
 from .node import MapNode, VectorNode
-from ..pytorch import NeuralNetworkPyTorch, trModuleWrapper, getTrData, getNpData
+from ..pytorch import NeuralNetworkPyTorch, trModuleWrapper
 from ..pytorch.network_serializer import NetworkSerializer
 
 # Default loss of this edge goes through all ground truths and all outputs of the output node and computes the

@@ -1,5 +1,5 @@
 import torch.nn as nn
-from ..pytorch import NeuralNetworkPyTorch, getNpData, getTrData, npTrCall, trNpCall
+from ..pytorch import NeuralNetworkPyTorch, npGetData, trGetData, npToTrCall, trToNpCall
 from ..utilities import MultiLinePrinter, getFormattedStr
 from functools import partial
 from copy import copy
@@ -24,7 +24,7 @@ class Graph(NeuralNetworkPyTorch):
 		for edge in self.edges:
 			edgeID = str(edge)
 			edgeLoss = edge.loss(y, t)
-			self.edgeLoss[edgeID] = getNpData(edgeLoss)
+			self.edgeLoss[edgeID] = npGetData(edgeLoss)
 	
 			# If this edge has no loss, ignore it.
 			if edgeLoss is None:
