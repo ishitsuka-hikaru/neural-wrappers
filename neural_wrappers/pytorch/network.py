@@ -242,7 +242,8 @@ class NeuralNetworkPyTorch(nn.Module):
 			self.linePrinter(("Warning! Number of iterations (%d) does not match expected ") + \
 				("iterations in reader (%d)") % (i, stepsPerEpoch - 1))
 
-		return self.reduceEpochMetrics(metricResults)
+		res = self.reduceEpochMetrics(metricResults)
+		return res
 
 	def test_generator(self, generator, stepsPerEpoch, printMessage=None):
 		assert stepsPerEpoch > 0

@@ -21,13 +21,22 @@ class MetricAsCallback(Callback):
 			return "min"
 
 	def epochReduceFunction(self, results) -> NWNumber:
-		return results
+		try:
+			return self.metric.epochReduceFunction(results)
+		except Exception:
+			return results
 
 	def iterationReduceFunction(self, results):
-		return results
+		try:
+			return self.metric.iterationReduceFunction(results)
+		except Exception:
+			return results
 
 	def defaultValue(self) -> NWNumber:
-		return 0
+		try:
+			return self.metric.defaultValue()
+		except Exception:
+			return 0
 
 	def onEpochEnd(self, **kwargs):
 		pass
