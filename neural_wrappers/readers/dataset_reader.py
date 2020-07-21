@@ -49,7 +49,7 @@ class DatasetReader(ABC):
 
 	def sanitizeDimGetter(self, dimGetter : Dict[str, Callable]) -> Dict[str, Callable]:
 		for key in self.allDims:
-			assert key in dimGetter
+			assert key in dimGetter, "Key '%s' is not in allDims: %s" % (key, list(dimGetter.keys()))
 		return dimGetter
 
 	def sanitizeDimTransform(self, dimTransform : Dict[str, Dict[str, Callable]]):

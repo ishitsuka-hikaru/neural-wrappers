@@ -20,10 +20,7 @@ def minMaxNormalizeData(data, min, max):
 	return data
 
 def toCategorical(data, numClasses):
-	numData = len(data)
-	newData = np.zeros((numData, numClasses), dtype=np.uint8)
-	newData[np.arange(numData), data] = 1
-	return newData
+	return np.squeeze(np.eye(numClasses)[data.reshape(-1)]).astype(np.uint8)
 
 # Labels can be None, in that case only data is available (testing cases without labels)
 def makeGenerator(data, labels, batchSize):
@@ -102,11 +99,25 @@ def topologicalSort(depGraph):
 			raise Exception("Graph is not acyclical")
 	return L
 
+# @brief Utility function that returns a generator and the number of iterations for that generator.
+#  Supports multiple keys.
+# @param[in] reader A DatasetReader object for the used dataset
+# @param[in] batchSize The batch size used for iterating through the dataset. If -1 is used, the size is automatically
+#  deduced as to use only 1 batch that yields the entire dataset
+# @param[in] maxPrefetch Whether to use prefetch_generator library to use multiple threads to read N iterations ahead.
+# @param[in] keys The keys used to return pairs of (generator, iterations). Defaults to "train", "validation"
+# @return A flattened list of pairs of type (generator, iteraions). For the values, we get 4 items.
 def getGenerators(reader, batchSize, maxPrefetch=1, keys=["train", "validation"]):
+
 	items = []
 	for key in keys:
-		generator = reader.iterate(key, batchSize=batchSize, maxPrefetch=maxPrefetch)
-		numIters = reader.getNumIterations(key, batchSize=batchSize)
+		# Automatically infer number of iterations s.t. we get the entire data group.
+		N = batchSize
+		if batchSize == -1:
+			N = reader.getNumData(key)
+
+		generator = reader.iterate(key, batchSize=N, maxPrefetch=maxPrefetch)
+		numIters = reader.getNumIterations(key, batchSize=N)
 		items.extend([generator, numIters])
 	return items
 
