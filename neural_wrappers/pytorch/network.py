@@ -7,6 +7,7 @@ from datetime import datetime
 from copy import deepcopy
 from collections import OrderedDict
 from typing import List, Union, Dict, Callable
+from types import LambdaType
 
 from .network_serializer import NetworkSerializer
 from .utils import getNumParams, getOptimizerStr, npGetData, trGetData, StorePrevState
@@ -70,7 +71,7 @@ class NeuralNetworkPyTorch(nn.Module):
 			assert key not in self.callbacks, "Metric %s already in callbacks list." % (key)
 
 			# If it's just a callback, make it a metric
-			if callable(metric):
+			if isinstance(metric, LambdaType):
 				metric = MetricWrapper(metric)
 			# If it's just a metric, make it a callback
 			if not isBaseOf(metric, MetricAsCallback):
