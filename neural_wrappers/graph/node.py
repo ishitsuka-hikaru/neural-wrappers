@@ -1,6 +1,6 @@
 from __future__ import annotations
 import torch as tr
-from ..pytorch import getTrData, trDetachData, NeuralNetworkPyTorch
+from ..pytorch import trGetData, trDetachData, NeuralNetworkPyTorch
 from typing import Optional, Dict, Type, Union
 
 class Node:
@@ -55,7 +55,7 @@ class Node:
 		return inputs
 
 	def getMessages(self) -> Dict[str, tr.Tensor]:
-		return {k : getTrData(self.messages[k]) for k in self.messages}
+		return {k : trGetData(self.messages[k]) for k in self.messages}
 
 	def addMessage(self, edgeID : str, message : tr.Tensor) -> None:
 		self.messages[edgeID] = message
@@ -70,7 +70,7 @@ class Node:
 		elif (type(self.groundTruthKey) is str) and (self.groundTruthKey != "*"):
 			return labels[self.groundTruthKey]
 		elif type(self.groundTruthKey) in (list, tuple):
-			return {k : self.getNodeLabelOnly(labels[k]) for k in self.groundTruthKey}
+			return {k : labels[k] for k in self.groundTruthKey}
 		raise Exception("Key %s required from GT data not in labels %s" % (self.groundTruthKey, list(labels.keys())))
 
 	# TODO: labels type
