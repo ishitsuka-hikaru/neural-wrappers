@@ -20,7 +20,7 @@ def minMaxNormalizeData(data, min, max):
 	return data
 
 def toCategorical(data, numClasses):
-	return np.squeeze(np.eye(numClasses)[data.reshape(-1)]).astype(np.uint8)
+	return np.squeeze(np.eye(numClasses)[np.array(data).reshape(-1)]).astype(np.uint8)
 
 # Labels can be None, in that case only data is available (testing cases without labels)
 def makeGenerator(data, labels, batchSize):

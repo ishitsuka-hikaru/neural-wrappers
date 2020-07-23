@@ -5,7 +5,7 @@ from ...internal import DatasetIndex
 
 class SfmLearnerGenericReader(DatasetReader):
 	def __init__(self, dataBuckets : Dict[str, List[str]], dimGetter : Dict[str, DimGetterCallable], \
-		dimTransform:Dict[str, Dict[str, Callable]], dataSplitIndices:Dict[str, List[int]], \
+		dimTransform:Dict[str, Dict[str, Callable]], dataSplitIndices:Dict[str, np.ndarray], \
 		intrinsicMatrix:np.ndarray = np.eye(3)):
 		super().__init__(dataBuckets, dimGetter, dimTransform)
 
