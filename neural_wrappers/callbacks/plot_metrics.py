@@ -1,7 +1,8 @@
+from overrides import overrides
+from typing import List, Union, Tuple, Optional
 from .callback import Callback
 from .callback_name import CallbackName
 from ..pytorch.utils import plotModelMetricHistory
-from typing import List, Union, Tuple, Optional
 
 class PlotMetrics(Callback):
 	def __init__(self, metricNames : List[CallbackName], **kwargs):
@@ -21,6 +22,7 @@ class PlotMetrics(Callback):
 			metricDirections.append(metricDirection)
 		self.directions = metricDirections
 
+	@overrides
 	def onEpochEnd(self, **kwargs):
 		self.setup(kwargs["model"])
 		trainHistory = kwargs["trainHistory"]
@@ -30,9 +32,27 @@ class PlotMetrics(Callback):
 		for i in range(len(self.metricNames)):
 			plotModelMetricHistory(trainHistory, self.metricNames[i], self.directions[i])
 
+	@overrides
+	def onEpochStart(self, **kwargs):
+		pass
+
+	@overrides
+	def onIterationStart(self, **kwargs):
+		pass
+
+	@overrides
+	def onIterationEnd(self, results, labels, **kwargs):
+		pass
+
+	@overrides
 	def onCallbackSave(self, model):
 		self.directions = None
 
+	@overrides
+	def onCallbackLoad(self, additional, **kwargs):
+		pass
+
+	@overrides
 	def __str__(self):
 		assert len(self.metricNames) >= 1
 		Str = str(self.metricNames[0])

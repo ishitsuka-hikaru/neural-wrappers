@@ -3,6 +3,7 @@ from .callback import Callback
 from .callback_name import CallbackName
 from ..metrics import Metric, MetricWrapper
 from typing import Union, Tuple, Optional
+from overrides import overrides
 
 # TODO: add format to saving files
 # Note: This callback should be called after all (relevant) callbacks were called, otherwise we risk of storing a model
@@ -66,6 +67,7 @@ class SaveModels(Callback):
 	# Saving by best train loss is validation is not available, otherwise validation. Nasty situation can occur if one
 	#  epoch there is a validation loss and the next one there isn't, so we need formats to avoid this and error out
 	#  nicely if the format asks for validation loss and there's not validation metric reported.
+	@overrides
 	def onEpochEnd(self, **kwargs):
 		if not kwargs["isTraining"]:
 			return
@@ -88,6 +90,19 @@ class SaveModels(Callback):
 		else:
 			assert False
 
+	@overrides
+	def onEpochStart(self, **kwargs):
+		pass
+
+	@overrides
+	def onIterationStart(self, **kwargs):
+		pass
+
+	@overrides
+	def onIterationEnd(self, results, labels, **kwargs):
+		pass
+
+	@overrides
 	def onCallbackLoad(self, additional, **kwargs):
 		metric = kwargs["model"].getMetric(self.metricName)
 		metricDirection = metric.getDirection()
@@ -100,8 +115,10 @@ class SaveModels(Callback):
 	# Some callbacks require some special/additional tinkering when saving (such as closing files). It should be noted
 	#  that it's safe to close files (or any other side-effect action) because callbacks are deepcopied before this
 	#  method is called (in saveModel)
+	@overrides
 	def onCallbackSave(self, **kwargs):
 		self.metricFunc = None
 
+	@overrides
 	def __str__(self):
 		return "SaveModels (Metric: %s. Type: %s)" % (str(self.metricName), self.mode)

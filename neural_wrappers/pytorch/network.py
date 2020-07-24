@@ -13,7 +13,7 @@ from .network_serializer import NetworkSerializer
 from .utils import getNumParams, getOptimizerStr, npGetData, trGetData, StorePrevState
 from ..utilities import makeGenerator, MessagePrinter, isBaseOf, RunningMean, \
 	topologicalSort, deepCheckEqual, getFormattedStr
-from ..callbacks import Callback, MetricAsCallback
+from ..callbacks import Callback
 from ..metrics import Metric, MetricWrapper
 
 np.set_printoptions(precision=3, suppress=True)
@@ -62,20 +62,16 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.topologicalSortDirty = True
 
 	# Sets the user provided list of metrics as callbacks and adds them to the callbacks list.
-	def addMetrics(self, metrics : Dict[str, Union[Callable, Metric, MetricAsCallback]]):
-		assert not "Loss" in metrics, "Cannot overwrite Loss metric. This is added by default for all networks."
+	def addMetrics(self, metrics : Dict[str, Union[Callable, Metric]]):
 		assert isBaseOf(metrics, dict), "Metrics must be provided as Str=>Callback dictionary"
 
 		for key, metric in metrics.items():
-			# assert hasattr(metrics[key], "__call__"), "The user provided metric %s must be callable" % (key)
 			assert key not in self.callbacks, "Metric %s already in callbacks list." % (key)
 
 			# If it's just a callback, make it a metric
 			if isinstance(metric, LambdaType):
 				metric = MetricWrapper(metric)
-			# If it's just a metric, make it a callback
-			if not isBaseOf(metric, MetricAsCallback):
-				metric = MetricAsCallback(metricName=key, metric=metric) # type: ignore
+			metric.setName(key)
 
 			self.callbacks[key] = metric
 			self.iterPrintMessageKeys.append(key)
@@ -90,9 +86,6 @@ class NeuralNetworkPyTorch(nn.Module):
 				"Expected only subclass of types Callback, got type %s" % (type(callback))
 			assert callback.name not in self.callbacks, "Callback %s already in callbacks list." % (callback.name)
 			self.callbacks[callback.name] = callback
-
-			if isBaseOf(callback, MetricAsCallback):
-				self.iterPrintMessageKeys.append(callback.name)
 		# Warning, calling addCallbacks will invalidate topological sort as we reset the indexes here. If there are
 		#  dependencies already set using setCallbacksDependeices, it must be called again.
 		self.invalidateTopologicalSort()
@@ -102,23 +95,24 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	# Returns only the callbacks that are of subclass Callback (not metrics)
 	def getCallbacks(self):
-		callbacks = {k : v for k, v in self.callbacks.items() if not isBaseOf(v, MetricAsCallback)}
-		return callbacks
+		res = list(filter(lambda x : not isBaseOf(x, Metric), self.callbacks.values()))
+		return res
 
 	def clearCallbacks(self):
-		self.callbacks = OrderedDict({"Loss" : MetricAsCallback("Loss", MetricWrapper(lambda y, t, **k : k["loss"]))})
+		self.callbacks = OrderedDict()
 		self.iterPrintMessageKeys = ["Loss"]
+		self.addMetrics({"Loss" : lambda y, t, **k : k["loss"]})
 		self.topologicalSort = np.array([0], dtype=np.uint8)
 		self.topologicalKeys = np.array(["Loss"], dtype=str)
 		self.topologicalSortDirty = False
 
 	def getMetrics(self):
-		callbacks = {k : v for k, v in self.callbacks.items() if isBaseOf(v, MetricAsCallback)}
-		return callbacks
+		res = list(filter(lambda x : isBaseOf(x, Metric), self.callbacks.values()))
+		return res
 
 	def getMetric(self, metricName) -> Metric:
 		for key, callback in self.callbacks.items():
-			if not isBaseOf(callback, MetricAsCallback):
+			if not isBaseOf(callback, Metric):
 				continue
 			if callback.name == metricName:
 				return callback
@@ -211,14 +205,16 @@ class NeuralNetworkPyTorch(nn.Module):
 		return npResults, npLoss
 
 	def initializeEpochMetrics(self):
-		return {name : RunningMean(initValue=metric.defaultValue()) for name, metric in self.getMetrics().items()}
+		metrics = self.getMetrics()
+		names = map(lambda x : x.getName(), metrics)
+		return {name : RunningMean(initValue=metric.defaultValue()) for name, metric in zip(names, metrics)}
 
 	def reduceEpochMetrics(self, metricResults):
 		results = {}
-		# Get the values at end of epoch. Also, apply the reduceFunction for complex MetricAsCallbacks.
+		# Get the values at end of epoch. Also, apply the reduceFunction for complex Metrics.
 		for metric in self.getMetrics():
-			result = metricResults[metric].get()
-			results[metric] = self.callbacks[metric].epochReduceFunction(result)
+			result = metricResults[metric.name].get()
+			results[metric] = metric.epochReduceFunction(result)
 		return results
 
 	# Basic method that does a forward phase for one epoch given a generator. It can apply a step of optimizer or not.
@@ -459,7 +455,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		metrics = self.getMetrics()
 		summaryStr = ""
 		for metric in metrics:
-			summaryStr += "\t- %s (%s)\n" % (metric, metrics[metric].getDirection())
+			summaryStr += "\t- %s (%s)\n" % (metric.getName(), metric.getDirection())
 		return summaryStr
 
 	def summary(self):
@@ -476,7 +472,8 @@ class NeuralNetworkPyTorch(nn.Module):
 		summaryStr += "Metrics:\n"
 		summaryStr += self.metricsSummary()
 
-		strCallbacks = str(list(self.getCallbacks().keys()))[1 : -1]
+		# strCallbacks = str(list(self.getCallbacks().keys()))[1 : -1]
+		strCallbacks = list(map(lambda x : x.getName(), self.getCallbacks()))
 		summaryStr += "Callbacks: %s\n" % ("None" if len(strCallbacks) == 0 else strCallbacks)
 
 		summaryStr += "Optimizer: %s\n" % getOptimizerStr(self.optimizer)

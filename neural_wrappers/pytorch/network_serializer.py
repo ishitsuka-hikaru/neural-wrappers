@@ -4,9 +4,9 @@ import numpy as np
 from copy import deepcopy
 from collections import OrderedDict
 
+from ..metrics import Metric
 from .utils import getNumParams, getOptimizerStr, getTrainableParameters, _computeNumParams, device
 from ..utilities import isBaseOf, deepCheckEqual, isPicklable, npCloseEnough
-from ..callbacks import MetricAsCallback
 
 class NetworkSerializer:
 	# @param[in] The model upon which this serializer works.
@@ -78,9 +78,7 @@ class NetworkSerializer:
 			# Store only callbacks, not MetricAsCallbacks (As they are lambdas which cannot be pickle'd).
 			# Metrics must be reloaded anyway, as they do not hold any (global) state, like full Callbacks do.
 			callback = self.model.callbacks[key]
-			assert key == self.model.callbacks[key].name, ("Some inconsistency between the metric's key and the" + \
-				" MetricAsCallback's name was found. Key: %s. Name: %s" % (key, callback.name))
-			if isBaseOf(callback, MetricAsCallback):
+			if isBaseOf(callback, Metric):
 				callbacksOriginalPositions.append(callback.name)
 			else:
 				additional = callback.onCallbackSave(model=self.model)
