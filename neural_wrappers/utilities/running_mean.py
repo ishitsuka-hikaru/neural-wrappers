@@ -59,18 +59,17 @@ class RunningMeanDict:
 		return {k : self.value[k] / self.count for k in self.value}
 
 class RunningMean:
-	def __init__(self, initValue : Union[NWNumber, NWSequence, NWDict]):
+	def __init__(self, initValue:Union[NWNumber, NWSequence, NWDict]):
 		if type(initValue) in NWNumber.__args__: # type: ignore
-			self.obj = RunningMeanNumber(initValue)
+			self.obj = RunningMeanNumber(initValue) # type: ignore
 		elif type(initValue) in NWSequence.__args__: # type: ignore
-			self.obj = RunningMeanSequence(initValue)
+			self.obj = RunningMeanSequence(initValue) # type: ignore
 		elif type(initValue) in NWDict.__args__: # type: ignore
-			self.obj = RunningMeanDict(initValue)
+			self.obj = RunningMeanDict(initValue) # type: ignore
 		else:
-			assert False, "Unknown type: %s" % (type(item))
+			assert False, "Unknown type: %s" % (type(initValue))
 
-	def update(self, value : Union[NWNumber, NWSequence, NWDict], \
-		count : Optional[int] = 0):
+	def update(self, value:Union[NWNumber, NWSequence, NWDict], count:Optional[int] = 0):
 		self.obj.update(value, count)
 
 	def updateBatch(self, value : NWDict):

@@ -8,7 +8,7 @@ from .sfmlearner_generic_reader import SfmLearnerGenericReader
 from ...internal import DatasetRandomIndex, DatasetIndex
 from ....utilities import smartIndexWrapper
 
-def defaultRgbGetter(dataset, index:DatasetIndex, baseDirectory:str):
+def defaultRgbGetter(dataset, index:DatasetRandomIndex, baseDirectory:str):
 	# TODO: Fix smartIndexWrapper for str paths
 	items = smartIndexWrapper(dataset["data"]["rgb"], index.sequence, f = lambda data, index : np.array([data[index]]))
 	result = []
