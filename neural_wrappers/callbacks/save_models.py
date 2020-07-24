@@ -35,7 +35,12 @@ class SaveModels(Callback):
 		}[metricDirection]
 
 	def saveModelsImprovements(self, score, **kwargs):
-		if not self.metricFunc(score):
+		try:
+			if not self.metricFunc(score):
+				return
+		except Exception:
+			# TODO: Add comparison function for metrics
+			print("Skipping metric %s because it doesn't return a comparable number.")
 			return
 		metricName = self.metricName[0] if len(self.metricName) == 1 else self.metricName
 		fileName = "model_improvement_%d_%s_%s.pkl" % (kwargs["epoch"], str(metricName), score)

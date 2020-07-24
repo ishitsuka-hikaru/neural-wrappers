@@ -144,24 +144,25 @@ class Graph(NeuralNetworkPyTorch):
 	# Computes the message that is printed to the stdout. This method is also called by SaveHistory callback.
 	# @param[in] kwargs The arguments sent to any regular callback.
 	# @return A string that contains the one-line message that is printed at each end of epoch.
-	def computePrintMessage(self, trainMetrics, validationMetrics, numEpochs, duration):
-		messages = super().computePrintMessage(trainMetrics, validationMetrics, numEpochs, duration)
+	def computePrintMessage(self, metrics, numEpochs):
+		messages = super().computePrintMessage(metrics, numEpochs)
 		for edge in self.edges:
 			if type(edge) == Graph:
 				strEdge = "SubGraph"
 			else:
 				strEdge = str(edge)
-			edgeTrainMetrics = trainMetrics[str(edge)]
-			if not validationMetrics is None:
-				edgeValMetrics = validationMetrics[str(edge)]
-			else:
-				edgeValMetrics = None
-			if len(edgeTrainMetrics) == 0:
-				continue
-			edgePrintMessage = edge.computePrintMessage(edgeTrainMetrics, edgeValMetrics, numEpochs, duration)[1 : ]
+			edgePrintMessage = edge.computePrintMessage(metrics, numEpochs)[1:]
 			messages.append(strEdge)
 			messages.extend(edgePrintMessage)
 		return messages
+		# 	edgeTrainMetrics = trainMetrics[str(edge)]
+		# 	edgeValMetrics = validationMetrics[str(edge)]
+		# 	if len(edgeTrainMetrics) == 0:
+		# 		continue
+		# 	edgePrintMessage = edge.computePrintMessage(edgeTrainMetrics, edgeValMetrics, numEpochs, duration)[1 : ]
+		# 	messages.append(strEdge)
+		# 	messages.extend(edgePrintMessage)
+		# return messages
 
 	def iterationEpilogue(self, isTraining, isOptimizing, trLabels):
 		# Set the GT for each node based on the inputs available at this step. Edges may overwrite this when reaching

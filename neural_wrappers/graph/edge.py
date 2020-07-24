@@ -24,7 +24,7 @@ def defaultLossFn(y, t, obj):
 #  inputs at the inputNode
 # @param[in] lossFn Custom loss function. If not set, we'll use the default loss function which uses all outputs at the
 #  output node and call the output node's loss function for each of them.
-# @param[in] dependencies A list of edge dependenices. This is used for topological sorot during each iteration.
+# @param[in] dependencies A list of edge dependenices. This is used for topological sort during each iteration.
 # @param[in] blockGradients If set to true, each output of this edge will be owned by the outputNode, rather than
 #  maintaing a history of its origin. This is used s.t. long graphs don't have to backpropagate to the source of each
 #  input.

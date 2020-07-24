@@ -179,6 +179,8 @@ def getFormattedStr(item : Union[np.ndarray, NWNumber, NWSequence, NWDict], prec
 		return [formatStr % (x) for x in item] # type: ignore
 	elif type(item) in NWDict.__args__: # type: ignore
 		return {k : formatStr % (item[k]) for k in item} # type: ignore
+	elif isinstance(item, (np.int32, np.float32, np.float64)):
+		return formatStr % (item)
 	assert False, "Unknown type: %s" % (type(item))
 
 def flattenList(x : Iterable[List[T]]) -> List[T]:

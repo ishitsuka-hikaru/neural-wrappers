@@ -1,6 +1,6 @@
 import numpy as np
+import transforms3d.euler as txe
 from typing import Dict, Union
-from .utils import getQuatFromRotation
 from ....utilities import resize_batch, h5ReadDict, npGetInfo
 from ...dataset_reader import DatasetReader
 
@@ -36,6 +36,7 @@ def positionNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray
 	return position
 
 def positionQuatNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
+	MB = len(x)
 	positionStats = h5ReadDict(readerObj.dataset["others"]["dataStatistics"]["position"])
 
 	minPos, maxPos = positionStats["min"][0 : 3], positionStats["max"][0 : 3]
@@ -44,10 +45,16 @@ def positionQuatNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.nda
 	# Translation is easy, just min max it
 	translation = (translation - minPos) / (maxPos - minPos)
 
-	# Rotation is in [-180 : 180], move to [-1 : 1], then call getQuatFromRotation
+	# Rotation is in [-180 : 180], move to [-1 : 1]
 	rotation = rotation / 180
-	quatRotation = getQuatFromRotation(rotation)
-	# The returned quaternion is in [-1 : 1], we move it to [0 : 1]
+
+	# roll, pitch, yaw :: [-1 : 1]
+	roll, pitch, yaw = rotation[:, 0], rotation[:, 1], rotation[:, 2]
+	# quat :: [-1 : 1]
+	quatRotation = [txe.euler2quat(roll[i], pitch[i], yaw[i], "sxyx") for i in range(MB)]
+	quatRotation = np.array(quatRotation).astype(np.float32)
+
+	# [-1 : 1] => [0 : 1]
 	quatRotation = (quatRotation + 1) / 2
 	position = np.concatenate([translation, quatRotation], axis=-1)
 
