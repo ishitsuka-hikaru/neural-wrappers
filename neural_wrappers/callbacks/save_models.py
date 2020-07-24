@@ -79,6 +79,7 @@ class SaveModels(Callback):
 		else:
 			trainHistory = trainHistory["Validation"]
 
+		breakpoint()
 		score = trainHistory[self.metricName]
 		fileName = "model_weights_%d_%s_%s.pkl" % (kwargs["epoch"], self.metricName, score)
 		if self.mode == "improvements":

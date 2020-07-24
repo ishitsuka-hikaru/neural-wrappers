@@ -168,6 +168,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		metricResults, isTraining, isOptimizing):
 		iterResults = {}
 		metrics = self.getMetrics()
+		names = list(map(lambda x : x.name, metrics))
 		for key in self.topologicalKeys:
 			# iterResults is updated at each step in the order of topological sort
 			result = self.callbacks[key].onIterationEnd(results, labels, data=data, loss=loss, \
@@ -177,7 +178,7 @@ class NeuralNetworkPyTorch(nn.Module):
 
 			# Add it to running mean only if it's numeric. Here's why the metrics differ for different batch size
 			#  values. There's no way for us to infer the batch of each iteration, so we assume it's 1.
-			if key in metrics:
+			if key in names:
 				metricResults[key].update(iterResults[key], 1)
 		return metricResults
 
@@ -260,10 +261,10 @@ class NeuralNetworkPyTorch(nn.Module):
 		with StorePrevState(self):
 			self.eval()
 			with tr.no_grad():
-				epochMetrics = \
+				epochResults = \
 					{"Test" : self.run_one_epoch(generator, stepsPerEpoch, isTraining=False, isOptimizing=False)}
-		self.epochPrologue(epochMetrics, numEpochs=1, isTraining=False)
-		return epochMetrics
+		self.epochPrologue(epochResults, numEpochs=1, isTraining=False)
+		return epochResults
 
 	def test_model(self, data, labels, batchSize, printMessage=None):
 		dataGenerator = makeGenerator(data, labels, batchSize)
@@ -273,13 +274,12 @@ class NeuralNetworkPyTorch(nn.Module):
 	def epochEpilogue(self, isTraining):
 		self.callbacksOnEpochStart(isTraining=isTraining)
 
-	def epochPrologue(self, epochMetrics, numEpochs, isTraining):
-		message = self.computePrintMessage(epochMetrics, numEpochs)
-		epochMetrics["message"] = message
+	def epochPrologue(self, epochResults, numEpochs, isTraining):
+		message = self.computePrintMessage(epochResults, numEpochs)
+		epochResults["message"] = message
 
-		if "message" in epochMetrics:
-			self.linePrinter(epochMetrics["message"], reset=False)
-		self.trainHistory.append(epochMetrics)
+		self.linePrinter(epochResults["message"], reset=False)
+		self.trainHistory.append(epochResults)
 		self.callbacksOnEpochEnd(isTraining=isTraining)
 		if not self.optimizerScheduler is None:
 			self.optimizerScheduler.step()
@@ -331,7 +331,7 @@ class NeuralNetworkPyTorch(nn.Module):
 			# Add this epoch to the trainHistory list, which is used to track history
 			# self.trainHistory.append({})
 			assert len(self.trainHistory) == self.currentEpoch - 1
-			epochMetrics = {}
+			epochResults = {}
 			self.epochEpilogue(isTraining=True)
 
 			# Run for training data and append the results
@@ -339,19 +339,18 @@ class NeuralNetworkPyTorch(nn.Module):
 			#  done on validation set). If no validation set is used, the iteration callbacks are used on train set.
 			with StorePrevState(self):
 				# self.train()
-				epochMetrics["Train"] = \
+				epochResults["Train"] = \
 					self.run_one_epoch(generator, stepsPerEpoch, isTraining=True, isOptimizing=True)
 
 			# Run for validation data and append the results
-			epochMetrics["Validation"] = None
 			if not validationGenerator is None:
 				with StorePrevState(self):
 					self.eval()
 					with tr.no_grad():
-						epochMetrics["Validation"] = self.run_one_epoch(validationGenerator, validationSteps, \
+						epochResults["Validation"] = self.run_one_epoch(validationGenerator, validationSteps, \
 								isTraining=True, isOptimizing=False)
 
-			self.epochPrologue(epochMetrics, numEpochs, isTraining=True)
+			self.epochPrologue(epochResults, numEpochs, isTraining=True)
 
 	def train_model(self, data, labels, batchSize, numEpochs, validationData=None, \
 		validationLabels=None, printMessage=None):
@@ -427,7 +426,7 @@ class NeuralNetworkPyTorch(nn.Module):
 	# 		messages.append(validationMessage)
 	# 	return messages
 
-	def computePrintMessage(self, metrics, numEpochs):
+	def computePrintMessage(self, epochResults, numEpochs):
 		messages = []
 		done = self.currentEpoch / numEpochs * 100
 		message = "Epoch %d/%d. Done: %2.2f%%." % (self.currentEpoch, numEpochs, done)
@@ -436,18 +435,22 @@ class NeuralNetworkPyTorch(nn.Module):
 		if self.optimizer:
 			messages.append("  - Optimizer: %s" % (getOptimizerStr(self.optimizer)))
 
-		if len(metrics.keys()) == 0:
+		metrics = self.getMetrics()
+		if len(epochResults.keys()) == 0:
 			return messages
 
 		messages.append("  - Metrics:")
-		firstKey = list(metrics.keys())[0]
-		sortedMetrics = list(filter(lambda x : x in self.iterPrintMessageKeys, sorted(metrics[firstKey])))
-		groupMessage = {k : "    - [%s]" % k for k in metrics.keys()}
+		firstKey = list(epochResults.keys())[0]
+		# TODO: This is because we put "duration" as well here...
+		actualMetrics = list(filter(lambda x : isBaseOf(x, Metric), epochResults[firstKey]))
+		printMetrics = list(filter(lambda x : x.name in self.iterPrintMessageKeys, actualMetrics))
+		sortedMetrics = sorted(printMetrics, key = lambda item : item.name)
+		groupMessage = {k : "    - [%s]" % k for k in epochResults.keys()}
 		for key in groupMessage:
-			item = metrics[key]
+			item = epochResults[key]
 			for metric in sortedMetrics:
 				formattedStr = getFormattedStr(item[metric], precision=3)
-				groupMessage[key] += " %s: %s" % (metric, formattedStr)
+				groupMessage[key] += " %s: %s" % (metric.name, formattedStr)
 			messages.append(groupMessage[key])
 		return messages
 
