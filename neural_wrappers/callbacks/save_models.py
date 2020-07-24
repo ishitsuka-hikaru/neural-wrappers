@@ -8,7 +8,8 @@ from typing import Union, Tuple, Optional
 #  that hasn't updated all it's callbacks. This is relevant, for example in EarlyStopping, where we'd save the state
 #  of the N-1th epoch instead of last, causing it to lead to different behavioiur pre/post loading.
 class SaveModels(Callback):
-	def __init__(self, mode : str="all", metricName : Union[str, Tuple[str]]="Loss", metricDirecion = "min", **kwargs):
+	def __init__(self, mode:str = "all", metricName:Union[str, Tuple[str]] = "Loss", \
+		metricDirecion:str = "min", **kwargs):
 		assert mode in ("all", "improvements", "last", "best")
 		self.mode = mode
 		if type(metricName) == str:
@@ -26,7 +27,12 @@ class SaveModels(Callback):
 		super().__init__(**kwargs)
 
 	def saveModelsImprovements(self, score, **kwargs):
-		if not self.metricFunc(score):
+		try:
+			if not self.metricFunc(score):
+				return
+		except Exception:
+			# TODO: Add comparison function for metrics
+			print("Skipping metric %s because it doesn't return a comparable number.")
 			return
 		fileName = "model_weights_%d_%s_%s.pkl" % (kwargs["epoch"], self.metricName, score)
 		kwargs["model"].saveModel(fileName)

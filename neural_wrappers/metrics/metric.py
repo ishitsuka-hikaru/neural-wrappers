@@ -27,6 +27,15 @@ class Metric:
 	def defaultValue(self) -> NWNumber:
 		return 0
 
+	# @brief Provides a sane way of comparing two results of this metric
+	# @return Returns a callback that can compare two results and returns a bool value (usually if result a is better
+	#  than result b, given the metrics semantic, but can be overriden)
+	def compareFunction(self) -> Callable[[NWNumber, NWNumber], bool]
+		return = {
+			"min" : lambda a, b : a < b,
+			"max" : lambda a, b : a > b,
+		}[self.direction]
+
 	# @brief The main method that must be implemented by a metric
 	def __call__(self, results : NWNumber, labels : NWNumber, **kwargs):
 		raise NotImplementedError("Should have implemented this")

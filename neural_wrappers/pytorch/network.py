@@ -243,31 +243,37 @@ class NeuralNetworkPyTorch(nn.Module):
 				("iterations in reader (%d)") % (i, stepsPerEpoch - 1))
 
 		res = self.reduceEpochMetrics(metricResults)
+		res["duration"] = datetime.now() - startTime
 		return res
 
 	def test_generator(self, generator, stepsPerEpoch, printMessage=None):
 		assert stepsPerEpoch > 0
 		self.linePrinter = MessagePrinter(printMessage)
-		self.callbacksOnEpochStart(isTraining=False)
+		self.epochEpilogue(isTraining=False)
 		with StorePrevState(self):
 			self.eval()
 			with tr.no_grad():
-				resultMetrics = self.run_one_epoch(generator, stepsPerEpoch, isTraining=False, isOptimizing=False)
-		self.callbacksOnEpochEnd(isTraining=False)
-		return resultMetrics
+				epochMetrics = \
+					{"Test" : self.run_one_epoch(generator, stepsPerEpoch, isTraining=False, isOptimizing=False)}
+		self.epochPrologue(epochMetrics, numEpochs=1, isTraining=False)
+		return epochMetrics
 
 	def test_model(self, data, labels, batchSize, printMessage=None):
 		dataGenerator = makeGenerator(data, labels, batchSize)
 		numIterations = data.shape[0] // batchSize + (data.shape[0] % batchSize != 0)
 		return self.test_generator(dataGenerator, stepsPerEpoch=numIterations, printMessage=printMessage)
 
-	def epochEpilogue(self):
-		self.callbacksOnEpochStart(isTraining=True)
+	def epochEpilogue(self, isTraining):
+		self.callbacksOnEpochStart(isTraining=isTraining)
 
-	def epochPrologue(self, epochMetrics):
-		self.linePrinter(epochMetrics["message"], reset=False)
+	def epochPrologue(self, epochMetrics, numEpochs, isTraining):
+		message = self.computePrintMessage(epochMetrics, numEpochs)
+		epochMetrics["message"] = message
+
+		if "message" in epochMetrics:
+			self.linePrinter(epochMetrics["message"], reset=False)
 		self.trainHistory.append(epochMetrics)
-		self.callbacksOnEpochEnd(isTraining=True)
+		self.callbacksOnEpochEnd(isTraining=isTraining)
 		if not self.optimizerScheduler is None:
 			self.optimizerScheduler.step()
 		self.currentEpoch += 1
@@ -319,17 +325,15 @@ class NeuralNetworkPyTorch(nn.Module):
 			# self.trainHistory.append({})
 			assert len(self.trainHistory) == self.currentEpoch - 1
 			epochMetrics = {}
-			self.epochEpilogue()
+			self.epochEpilogue(isTraining=True)
 
 			# Run for training data and append the results
-			now = datetime.now()
 			# No iteration callbacks are used if there is a validation set (so iteration callbacks are only
 			#  done on validation set). If no validation set is used, the iteration callbacks are used on train set.
-			# trainCallbacks = [] if validationGenerator != None else callbacks
 			with StorePrevState(self):
 				# self.train()
-				epochMetrics["Train"] = self.run_one_epoch(generator, stepsPerEpoch, isTraining=True, \
-					isOptimizing=True)
+				epochMetrics["Train"] = \
+					self.run_one_epoch(generator, stepsPerEpoch, isTraining=True, isOptimizing=True)
 
 			# Run for validation data and append the results
 			epochMetrics["Validation"] = None
@@ -338,13 +342,9 @@ class NeuralNetworkPyTorch(nn.Module):
 					self.eval()
 					with tr.no_grad():
 						epochMetrics["Validation"] = self.run_one_epoch(validationGenerator, validationSteps, \
-							isTraining=True, isOptimizing=False)
+								isTraining=True, isOptimizing=False)
 
-			epochMetrics["duration"] = datetime.now() - now
-			message = self.computePrintMessage(epochMetrics["Train"], epochMetrics["Validation"], \
-				numEpochs, epochMetrics["duration"])
-			epochMetrics["message"] = message
-			self.epochPrologue(epochMetrics)
+			self.epochPrologue(epochMetrics, numEpochs, isTraining=True)
 
 	def train_model(self, data, labels, batchSize, numEpochs, validationData=None, \
 		validationLabels=None, printMessage=None):
@@ -394,30 +394,54 @@ class NeuralNetworkPyTorch(nn.Module):
 	# Computes the message that is printed to the stdout. This method is also called by SaveHistory callback.
 	# @param[in] kwargs The arguments sent to any regular callback.
 	# @return A string that contains the one-line message that is printed at each end of epoch.
-	def computePrintMessage(self, trainMetrics, validationMetrics, numEpochs, duration):
+	# def computePrintMessage(self, trainMetrics, validationMetrics, numEpochs, duration):
+	# 	messages = []
+	# 	done = self.currentEpoch / numEpochs * 100
+	# 	message = "Epoch %d/%d. Done: %2.2f%%. Took: %s." % (self.currentEpoch, numEpochs, done, duration)
+	# 	messages.append(message)
+
+	# 	if self.optimizer:
+	# 		messages.append("  - Optimizer: %s" % (getOptimizerStr(self.optimizer)))
+
+	# 	if len(trainMetrics) == 0:
+	# 		return messages
+
+	# 	messages.append("  - Metrics:")
+	# 	printableMetrics = filter(lambda x : x in self.iterPrintMessageKeys, sorted(trainMetrics))
+	# 	trainMessage, validationMessage = "    - [Train]", "    - [Validation]"
+	# 	for metric in printableMetrics:
+	# 		formattedStr = getFormattedStr(trainMetrics[metric], precision=3)
+	# 		trainMessage += " %s: %s." % (metric, formattedStr)
+	# 		if not validationMetrics is None:
+	# 			formattedStr = getFormattedStr(validationMetrics[metric], precision=3)
+	# 			validationMessage += " %s: %s." % (metric, formattedStr)
+	# 	messages.append(trainMessage)
+	# 	if not validationMetrics is None:
+	# 		messages.append(validationMessage)
+	# 	return messages
+
+	def computePrintMessage(self, metrics, numEpochs):
 		messages = []
 		done = self.currentEpoch / numEpochs * 100
-		message = "Epoch %d/%d. Done: %2.2f%%. Took: %s." % (self.currentEpoch, numEpochs, done, duration)
+		message = "Epoch %d/%d. Done: %2.2f%%." % (self.currentEpoch, numEpochs, done)
 		messages.append(message)
 
 		if self.optimizer:
 			messages.append("  - Optimizer: %s" % (getOptimizerStr(self.optimizer)))
 
-		if len(trainMetrics) == 0:
+		if len(metrics.keys()) == 0:
 			return messages
 
 		messages.append("  - Metrics:")
-		printableMetrics = filter(lambda x : x in self.iterPrintMessageKeys, sorted(trainMetrics))
-		trainMessage, validationMessage = "    - [Train]", "    - [Validation]"
-		for metric in printableMetrics:
-			formattedStr = getFormattedStr(trainMetrics[metric], precision=3)
-			trainMessage += " %s: %s." % (metric, formattedStr)
-			if not validationMetrics is None:
-				formattedStr = getFormattedStr(validationMetrics[metric], precision=3)
-				validationMessage += " %s: %s." % (metric, formattedStr)
-		messages.append(trainMessage)
-		if not validationMetrics is None:
-			messages.append(validationMessage)
+		firstKey = list(metrics.keys())[0]
+		sortedMetrics = list(filter(lambda x : x in self.iterPrintMessageKeys, sorted(metrics[firstKey])))
+		groupMessage = {k : "    - [%s]" % k for k in metrics.keys()}
+		for key in groupMessage:
+			item = metrics[key]
+			for metric in sortedMetrics:
+				formattedStr = getFormattedStr(item[metric], precision=3)
+				groupMessage[key] += " %s: %s" % (metric, formattedStr)
+			messages.append(groupMessage[key])
 		return messages
 
 	def metricsSummary(self):
