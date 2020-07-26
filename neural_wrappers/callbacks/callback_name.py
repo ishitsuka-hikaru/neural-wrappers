@@ -6,17 +6,30 @@ from ..utilities import isBaseOf
 #  can be both, depending on context. Graph metrics are stored as a tuple of strings.
 class CallbackName:
     def __init__(self, name:Union[str, Tuple[Any]]):
+        if isBaseOf(name, CallbackName):
+            name = name.name
         if isBaseOf(name, str):
             name = (name, )
         self.name = name
 
     def __str__(self) -> str:
-        if len(self.name) == 1:
-            return self.name[0]
-        return str(self.name)
+        Str = []
+        for i in range(len(self.name)):
+            Str.append(str(self.name[i]))
+        Str = "|".join(Str)
+        return Str
 
     def __repr__(self) -> str:
         return str(self)
 
     def __eq__(self, other:CallbackName) -> bool: # type: ignore[override]
-        return self.name == other.name
+        if not isinstance(other, CallbackName):
+            other = CallbackName(other)
+
+        try:
+            return self.name == other.name
+        except Exception:
+            breakpoint()
+
+    def __hash__(self):
+        return hash(self.name)

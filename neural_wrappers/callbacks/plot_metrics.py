@@ -7,7 +7,7 @@ from ..pytorch.utils import plotModelMetricHistory
 class PlotMetrics(Callback):
 	def __init__(self, metricNames : List[CallbackName], **kwargs):
 		assert len(metricNames) > 0, "Expected a list of at least one metric which will be plotted."
-		self.metricNames = metricNames
+		self.metricNames = list(map(lambda x : CallbackName(x), metricNames))
 		self.directions = None
 		super().__init__(**kwargs)
 

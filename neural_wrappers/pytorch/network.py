@@ -13,7 +13,7 @@ from .network_serializer import NetworkSerializer
 from .utils import getNumParams, getOptimizerStr, npGetData, trGetData, StorePrevState
 from ..utilities import makeGenerator, MessagePrinter, isBaseOf, RunningMean, \
 	topologicalSort, deepCheckEqual, getFormattedStr
-from ..callbacks import Callback
+from ..callbacks import Callback, CallbackName
 from ..metrics import Metric, MetricWrapper
 
 np.set_printoptions(precision=3, suppress=True)
@@ -71,6 +71,8 @@ class NeuralNetworkPyTorch(nn.Module):
 			# If it's just a callback, make it a metric
 			if isinstance(metric, LambdaType):
 				metric = MetricWrapper(metric)
+			if not isinstance(key, CallbackName):
+				key = CallbackName(key)
 			metric.setName(key)
 
 			self.callbacks[key] = metric
@@ -100,10 +102,10 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	def clearCallbacks(self):
 		self.callbacks = OrderedDict()
-		self.iterPrintMessageKeys = ["Loss"]
-		self.addMetrics({"Loss" : lambda y, t, **k : k["loss"]})
+		self.iterPrintMessageKeys = [CallbackName("Loss")]
+		self.addMetrics({CallbackName("Loss") : lambda y, t, **k : k["loss"]})
 		self.topologicalSort = np.array([0], dtype=np.uint8)
-		self.topologicalKeys = np.array(["Loss"], dtype=str)
+		self.topologicalKeys = np.array([CallbackName("Loss")], dtype=str)
 		self.topologicalSortDirty = False
 
 	def getMetrics(self):
@@ -167,19 +169,21 @@ class NeuralNetworkPyTorch(nn.Module):
 	def callbacksOnIterationEnd(self, data, labels, results, loss, iteration, numIterations, \
 		metricResults, isTraining, isOptimizing):
 		iterResults = {}
-		metrics = self.getMetrics()
-		names = list(map(lambda x : x.name, metrics))
-		for key in self.topologicalKeys:
-			# iterResults is updated at each step in the order of topological sort
-			result = self.callbacks[key].onIterationEnd(results, labels, data=data, loss=loss, \
+		modelMetrics = self.getMetrics()
+		# iterResults is updated at each step in the order of topological sort
+		for topologicalKey in self.topologicalKeys:
+			callback = self.callbacks[topologicalKey]
+			callbackResult = callback.onIterationEnd(results, labels, data=data, loss=loss, \
 				iteration=iteration, numIterations=numIterations, iterResults=iterResults, \
 				metricResults=metricResults, isTraining=isTraining, isOptimizing=isOptimizing)
-			iterResults[key] = self.callbacks[key].iterationReduceFunction(result)
+			callbackResult = callback.iterationReduceFunction(callbackResult)
+			iterResults[callback] = callbackResult
 
 			# Add it to running mean only if it's numeric. Here's why the metrics differ for different batch size
 			#  values. There's no way for us to infer the batch of each iteration, so we assume it's 1.
-			if key in names:
-				metricResults[key].update(iterResults[key], 1)
+			if callback in modelMetrics:
+				assert callback.getName() in metricResults, "Metric %s not in metric results" % (metric.getName())
+				metricResults[callback.getName()].update(callbackResult, count=1)
 		return metricResults
 
 	##### Traiming / testing functions
@@ -215,7 +219,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		# Get the values at end of epoch. Also, apply the reduceFunction for complex Metrics.
 		for metric in self.getMetrics():
 			result = metricResults[metric.name].get()
-			results[metric] = metric.epochReduceFunction(result)
+			results[metric.name] = metric.epochReduceFunction(result)
 		return results
 
 	# Basic method that does a forward phase for one epoch given a generator. It can apply a step of optimizer or not.
@@ -388,7 +392,7 @@ class NeuralNetworkPyTorch(nn.Module):
 			messages.append("  - Optimizer: %s" % (getOptimizerStr(self.optimizer)))
 
 		message = "  - Metrics."
-		metricKeys = sorted(list(set(metricResults.keys())))
+		metricKeys = sorted(list(set(metricResults.keys())), key = lambda item : item.name)
 		Keys = list(filter(lambda x : x in self.iterPrintMessageKeys, metricKeys))
 		for key in Keys:
 			formattedStr = getFormattedStr(metricResults[key].get(), precision=3)
@@ -396,35 +400,6 @@ class NeuralNetworkPyTorch(nn.Module):
 		if len(Keys) > 0:
 			messages.append(message)
 		return messages
-
-	# Computes the message that is printed to the stdout. This method is also called by SaveHistory callback.
-	# @param[in] kwargs The arguments sent to any regular callback.
-	# @return A string that contains the one-line message that is printed at each end of epoch.
-	# def computePrintMessage(self, trainMetrics, validationMetrics, numEpochs, duration):
-	# 	messages = []
-	# 	done = self.currentEpoch / numEpochs * 100
-	# 	message = "Epoch %d/%d. Done: %2.2f%%. Took: %s." % (self.currentEpoch, numEpochs, done, duration)
-	# 	messages.append(message)
-
-	# 	if self.optimizer:
-	# 		messages.append("  - Optimizer: %s" % (getOptimizerStr(self.optimizer)))
-
-	# 	if len(trainMetrics) == 0:
-	# 		return messages
-
-	# 	messages.append("  - Metrics:")
-	# 	printableMetrics = filter(lambda x : x in self.iterPrintMessageKeys, sorted(trainMetrics))
-	# 	trainMessage, validationMessage = "    - [Train]", "    - [Validation]"
-	# 	for metric in printableMetrics:
-	# 		formattedStr = getFormattedStr(trainMetrics[metric], precision=3)
-	# 		trainMessage += " %s: %s." % (metric, formattedStr)
-	# 		if not validationMetrics is None:
-	# 			formattedStr = getFormattedStr(validationMetrics[metric], precision=3)
-	# 			validationMessage += " %s: %s." % (metric, formattedStr)
-	# 	messages.append(trainMessage)
-	# 	if not validationMetrics is None:
-	# 		messages.append(validationMessage)
-	# 	return messages
 
 	def computePrintMessage(self, epochResults, numEpochs):
 		messages = []
@@ -438,6 +413,8 @@ class NeuralNetworkPyTorch(nn.Module):
 		metrics = self.getMetrics()
 		if len(epochResults.keys()) == 0:
 			return messages
+
+		# breakpoint()
 
 		messages.append("  - Metrics:")
 		firstKey = list(epochResults.keys())[0]

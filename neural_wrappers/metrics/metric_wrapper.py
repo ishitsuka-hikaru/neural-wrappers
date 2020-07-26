@@ -1,5 +1,6 @@
-from .metric import Metric
+from overrides import overrides
 from typing import Callable, Dict
+from .metric import Metric
 from ..utilities import NWNumber, isBaseOf
 
 class MetricWrapper(Metric):

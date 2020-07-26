@@ -13,7 +13,7 @@ class SaveModels(Callback):
 	def __init__(self, mode:str, metricName:CallbackName, **kwargs):
 		assert mode in ("all", "improvements", "last", "best")
 		self.mode = mode
-		self.metricName = metricName
+		self.metricName = CallbackName(metricName)
 		self.best = None
 		self.metricFunc = None
 		super().__init__(**kwargs)
@@ -79,7 +79,6 @@ class SaveModels(Callback):
 		else:
 			trainHistory = trainHistory["Validation"]
 
-		breakpoint()
 		score = trainHistory[self.metricName]
 		fileName = "model_weights_%d_%s_%s.pkl" % (kwargs["epoch"], self.metricName, score)
 		if self.mode == "improvements":

@@ -1,5 +1,6 @@
 import torch.nn as nn
 from functools import partial
+from overrides import overrides
 from .node import MapNode, VectorNode
 from ..pytorch import NeuralNetworkPyTorch, trModuleWrapper
 from ..pytorch.network_serializer import NetworkSerializer
@@ -123,8 +124,9 @@ class Edge(NeuralNetworkPyTorch):
 			self.forwardFn = forwardUseAll
 		if not self.lossFn:
 			self.lossFn = partial(defaultLossFn, obj=self)
-		self.addMetrics(self.outputNode.getMetrics())
-		self.setCriterion(self.outputNode.getCriterion())
+
+		self.addMetrics(self.outputNode.getNodeMetrics())
+		self.setCriterion(self.outputNode.getNodeCriterion())
 
 	def setBlockGradients(self, value):
 		self.blockGradients = value
@@ -136,6 +138,7 @@ class Edge(NeuralNetworkPyTorch):
 		hyperParameters["blockGradients"] = blockGradients
 		return hyperParameters
 
+	@overrides
 	def callbacksOnIterationEnd(self, data, labels, results, loss, iteration, numIterations, \
 		metricResults, isTraining, isOptimizing):
 		for i in range(len(results)):

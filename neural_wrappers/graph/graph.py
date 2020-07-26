@@ -1,6 +1,7 @@
 import torch.nn as nn
 from ..pytorch import NeuralNetworkPyTorch, npGetData, trGetData, npToTrCall, trToNpCall
 from ..utilities import MultiLinePrinter, getFormattedStr
+from ..callbacks import CallbackName
 from functools import partial
 from copy import copy
 
@@ -126,7 +127,8 @@ class Graph(NeuralNetworkPyTorch):
 		return summaryStr
 
 	def computeIterPrintMessage(self, i, stepsPerEpoch, metricResults, iterFinishTime):
-		messages = super().computeIterPrintMessage(i, stepsPerEpoch, metricResults, iterFinishTime)
+		nonEdgeMetricResults = dict(filter(lambda x : isinstance(x[0], CallbackName), metricResults.items()))
+		messages = super().computeIterPrintMessage(i, stepsPerEpoch, nonEdgeMetricResults, iterFinishTime)
 
 		for edge in self.edges:
 			if type(edge) == Graph:
