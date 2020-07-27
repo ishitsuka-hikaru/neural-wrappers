@@ -149,11 +149,14 @@ class NetworkSerializer:
 			if key == "weights":
 				self.doLoadWeights(loadedState)
 			elif key == "optimizer":
-				self.doLoadOptimizer(loadedState)
+				assert "optimizer" in loadedState
+				self.doLoadOptimizer(loadedState["optimizer"])
 			elif key == "history_dict":
-				self.doLoadHistoryDict(loadedState)
+				assert "history_dict" in loadedState
+				self.doLoadHistoryDict(loadedState["history_dict"])
 			elif key == "callbacks":
-				self.doLoadCallbacks(loadedState)
+				assert "callbacks" in loadedState
+				self.doLoadCallbacks(loadedState["callbacks"])
 			elif key == "model_state":
 				pass
 			else:
@@ -188,12 +191,7 @@ class NetworkSerializer:
 			print("Unexpected %d keys in the loaded model" % (len(unexpected)))
 		print("Succesfully loaded weights (%d parameters) " % (numLoadedParams))
 
-	def doLoadOptimizer(self, loadedState):
-		assert "optimizer" in loadedState
-	
-		# Create a new instance of the optimizer. Some optimizers require a lr to be set as well
-		optimizerDict = loadedState["optimizer"]
-
+	def doLoadOptimizer(self, optimizerDict):
 		if not "kwargs" in optimizerDict:
 			print("Warning: Depcrecated model. No kwargs in optimizerDict. Defaulting to lr=0.01")
 			optimizerDict["kwargs"] = {"lr" : 0.01}
@@ -208,19 +206,16 @@ class NetworkSerializer:
 			self.model.optimizerScheduler.storedArgs = optimizerDict["scheduler_kwargs"]
 			print("Succesfully loaded optimizer scheduler: %s" % (self.model.optimizerScheduler))
 
-	def doLoadHistoryDict(self, loadedState):
-		assert "history_dict" in loadedState
-		trainHistory = loadedState["history_dict"]
+	def doLoadHistoryDict(self, trainHistory):
 		self.model.trainHistory = deepcopy(trainHistory)
 		self.model.currentEpoch = len(trainHistory) + 1
 		print("Succesfully loaded model history (epoch %d)" % (len(trainHistory)))
 
 	def doLoadCallbacks(self, loadedState):
-		assert "callbacks" in loadedState
-		callbacks = loadedState["callbacks"]["state"]
-		additionals = loadedState["callbacks"]["additional"]
-		originalPositions = loadedState["callbacks"]["callbacks_positions"]
-		topologicalSort = loadedState["callbacks"]["topological_sort"]
+		callbacks = loadedState["state"]
+		additionals = loadedState["additional"]
+		originalPositions = loadedState["callbacks_positions"]
+		topologicalSort = loadedState["topological_sort"]
 
 		# This filtering is needed if we're doing save/load on the same model (such as loading and storing very often
 		#  so there are some callbacks that need to be reloaded.
@@ -251,7 +246,12 @@ class NetworkSerializer:
 			# This includes setCriterion as well.
 			else:
 				key = originalPositions[i]
-				value = metricCallbacks[key]
+				value = None
+				for callback in metricCallbacks:
+					if callback.getName() == key:
+						value = callback
+						break
+				assert not value is None, "Couldn't find %s" % (key)
 			newCallbacks[key] = value
 
 		self.model.callbacks = newCallbacks

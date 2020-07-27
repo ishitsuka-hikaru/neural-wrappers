@@ -1,5 +1,7 @@
 import torch.nn as nn
+import numpy as np
 from functools import partial
+from collections import OrderedDict
 from overrides import overrides
 from typing import Union, Callable
 from types import LambdaType
@@ -38,6 +40,8 @@ class Edge(NeuralNetworkPyTorch):
 	def __init__(self, inputNode, outputNode, edgeType="edge-edge", forwardFn=None, \
 		lossFn=None, dependencies=[], blockGradients=False, hyperParameters={}):
 		hyperParameters = self.getHyperParameters(hyperParameters, edgeType, blockGradients)
+		self.strInputnode = str(inputNode)
+		self.strOutputNode = str(outputNode)
 		super().__init__(hyperParameters=hyperParameters)
 		assert edgeType in ("node-node", "node-edge", "edge-node", "edge-edge")
 		self.inputNode = inputNode
@@ -182,8 +186,19 @@ class Edge(NeuralNetworkPyTorch):
 		self.callbacks[metricName] = metric
 		self.iterPrintMessageKeys.append(metricName)
 
+	@overrides
+	def clearCallbacks(self):
+		metric = MetricWrapper(lambda y, t, **k : k["loss"])
+		metricName = CallbackName((str(self), "Loss"))
+		metric.setName(metricName)
+		self.callbacks = OrderedDict({metricName : metric})
+		self.iterPrintMessageKeys = [metricName]
+		self.topologicalSort = np.array([0], dtype=np.uint8)
+		self.topologicalKeys = np.array([metricName], dtype=str)
+		self.topologicalSortDirty = False
+
 	def __str__(self):
-		return "%s -> %s" % (str(self.inputNode), str(self.outputNode))
+		return "%s -> %s" % (self.strInputnode, self.strOutputNode)
 
 	def __repr__(self):
 		return str(self)
