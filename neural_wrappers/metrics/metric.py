@@ -28,10 +28,10 @@ class Metric(Callback):
 	# @brief Provides a sane way of comparing two results of this metric
 	# @return Returns a callback that can compare two results and returns a bool value (usually if result a is better
 	#  than result b, given the metrics semantic, but can be overriden)
-	def compareFunction(self) -> Callable[[NWNumber, NWNumber], bool]:
+	def compareFunction(self, a:NWNumber, b:NWNumber) -> bool:
 		return {
-			"min" : lambda a, b : a < b,
-			"max" : lambda a, b : a > b,
+			"min" : lambda a, b : a > b,
+			"max" : lambda a, b : a < b,
 		}[self.direction]
 
 	@overrides

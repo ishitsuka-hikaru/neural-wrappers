@@ -53,19 +53,24 @@ class NetworkSerializer:
 
 	# @brief Handles saving the optimizer of the model
 	def doSaveOptimizer(self):
-		assert not self.model.optimizer is None, "No optimizer was set for this model. Cannot save."
-		optimizerType = type(self.model.optimizer)
-		optimizerState = self.model.optimizer.state_dict()
-		optimizerKwargs = self.model.optimizer.storedArgs
-		Dict = {"state" : optimizerState, "type" : optimizerType, "kwargs" : optimizerKwargs}
+		def f(optimizer, scheduler):
+			assert not optimizer is None, "No optimizer was set for this model. Cannot save."
+			optimizerType = type(optimizer)
+			optimizerState = optimizer.state_dict()
+			optimizerKwargs = optimizer.storedArgs
+			Dict = {"state" : optimizerState, "type" : optimizerType, "kwargs" : optimizerKwargs}
 
-		# If there is also an optimizer scheduler appended to this optimizer, save it as well
-		if not self.model.optimizerScheduler is None:
-			Dict["scheduler_state"] = self.model.optimizerScheduler.state_dict()
-			Dict["scheduler_type"] = type(self.model.optimizerScheduler)
-			Dict["scheduler_kwargs"] = self.model.optimizerScheduler.storedArgs
+			# If there is also an optimizer scheduler appended to this optimizer, save it as well
+			if not scheduler is None:
+				Dict["scheduler_state"] = scheduler.state_dict()
+				Dict["scheduler_type"] = type(scheduler)
+				Dict["scheduler_kwargs"] = scheduler.storedArgs
+			return Dict
 
-		return Dict
+		optimizer = self.model.getOptimizer()
+		scheduler = self.model.optimizerScheduler
+		res = f(optimizer, scheduler)
+		return res
 
 	def doSaveHistoryDict(self):
 		return self.model.trainHistory

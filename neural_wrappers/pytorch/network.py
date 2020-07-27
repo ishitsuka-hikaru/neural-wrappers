@@ -61,22 +61,23 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.topologicalKeys = np.array(list(self.callbacks.keys()))[self.topologicalSort]
 		self.topologicalSortDirty = True
 
+	def addMetric(self, metricName:Union[str, CallbackName], metric:Union[Callable, Metric]):
+		# If it's just a callback, make it a metric
+		if isinstance(metric, LambdaType):
+			metric = MetricWrapper(metric)
+		if not isinstance(metricName, CallbackName):
+			metricName = CallbackName(metricName)
+		metric.setName(metricName)
+		self.callbacks[metricName] = metric
+		self.iterPrintMessageKeys.append(metricName)
+
 	# Sets the user provided list of metrics as callbacks and adds them to the callbacks list.
 	def addMetrics(self, metrics : Dict[str, Union[Callable, Metric]]):
 		assert isBaseOf(metrics, dict), "Metrics must be provided as Str=>Callback dictionary"
 
-		for key, metric in metrics.items():
-			assert key not in self.callbacks, "Metric %s already in callbacks list." % (key)
-
-			# If it's just a callback, make it a metric
-			if isinstance(metric, LambdaType):
-				metric = MetricWrapper(metric)
-			if not isinstance(key, CallbackName):
-				key = CallbackName(key)
-			metric.setName(key)
-
-			self.callbacks[key] = metric
-			self.iterPrintMessageKeys.append(key)
+		for metricName, metric in metrics.items():
+			assert metricName not in self.callbacks, "Metric %s already in callbacks list." % (metricName)
+			self.addMetric(metricName, metric)
 		# Warning, calling addMetrics will invalidate topological sort as we reset the indexes here. If there are
 		#  dependencies already set using setCallbacksDependeices, it must be called again.
 		self.invalidateTopologicalSort()
@@ -101,11 +102,13 @@ class NeuralNetworkPyTorch(nn.Module):
 		return res
 
 	def clearCallbacks(self):
-		self.callbacks = OrderedDict()
-		self.iterPrintMessageKeys = [CallbackName("Loss")]
-		self.addMetrics({CallbackName("Loss") : lambda y, t, **k : k["loss"]})
+		metric = MetricWrapper(lambda y, t, **k : k["loss"])
+		metricName = CallbackName("Loss")
+		metric.setName(metricName)
+		self.callbacks = OrderedDict({metricName : metric})
+		self.iterPrintMessageKeys = [metricName]
 		self.topologicalSort = np.array([0], dtype=np.uint8)
-		self.topologicalKeys = np.array([CallbackName("Loss")], dtype=str)
+		self.topologicalKeys = np.array([metricName], dtype=str)
 		self.topologicalSortDirty = False
 
 	def getMetrics(self):
@@ -186,6 +189,15 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	##### Traiming / testing functions
 
+	def updateOptimizer(self, trLoss, isTraining, isOptimizing):
+		if not trLoss is None:
+			if isTraining and isOptimizing:
+				self.getOptimizer().zero_grad()
+				trLoss.backward()
+				self.getOptimizer().step()
+			else:
+				trLoss.detach_()
+
 	def mainLoop(self, npInputs, npLabels, isTraining=False, isOptimizing=False):
 		trInputs, trLabels = trGetData(npInputs), trGetData(npLabels)
 		self.iterationEpilogue(isTraining, isOptimizing, trLabels)
@@ -197,13 +209,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		npResults, npLoss = npGetData(trResults), npGetData(trLoss)
 
 		# Might be better to use a callback so we skip this step
-		if not trLoss is None:
-			if isTraining and isOptimizing:
-				self.getOptimizer().zero_grad()
-				trLoss.backward()
-				self.getOptimizer().step()
-			else:
-				trLoss.detach_()
+		self.updateOptimizer(trLoss, isTraining, isOptimizing)
 
 		return npResults, npLoss
 
@@ -387,14 +393,15 @@ class NeuralNetworkPyTorch(nn.Module):
 		messages.append(message)
 
 		if self.getOptimizer():
-			messages.append("  - Optimizer: %s" % (self.getOptimizerStr()))
+			optimizerStr = "\n".join(self.getOptimizerStr())
+			messages.append("  - Optimizer: %s" % optimizerStr)
 
 		message = "  - Metrics."
 		metricKeys = sorted(list(set(metricResults.keys())), key = lambda item : item.name)
 		Keys = list(filter(lambda x : x in self.iterPrintMessageKeys, metricKeys))
 		for key in Keys:
 			formattedStr = getFormattedStr(metricResults[key].get(), precision=3)
-			message += " %s: %s." % (key, formattedStr)
+			message += " %s: %s." % (key.name[-1], formattedStr)
 		if len(Keys) > 0:
 			messages.append(message)
 		return messages
@@ -406,7 +413,8 @@ class NeuralNetworkPyTorch(nn.Module):
 		messages.append(message)
 
 		if self.getOptimizer():
-			messages.append("  - Optimizer: %s" % self.getOptimizerStr())
+			optimizerStr = "\n".join(self.getOptimizerStr())
+			messages.append("  - Optimizer: %s" % optimizerStr)
 
 		metrics = self.getMetrics()
 		if len(epochResults.keys()) == 0:
@@ -455,7 +463,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		summaryStr += "Callbacks:\n"
 		summaryStr += "\t%s\n" % (self.callbacksSummary())
 
-		summaryStr += "Optimizer: %s\n" % self.getOptimizerStr()
+		summaryStr += "Optimizer: %s\n" % "\n".join(self.getOptimizerStr())
 		summaryStr += "Optimizer Scheduler: %s\n" % ("None" if not self.optimizerScheduler \
 			else str(self.optimizerScheduler))
 
@@ -489,7 +497,11 @@ class NeuralNetworkPyTorch(nn.Module):
 	def getOptimizerStr(self):
 		optimizer = self.getOptimizer()
 		if optimizer is None:
-			return "None"
+			return ["None"]
+		# TODO: For graph (or other complex networks), we cannot optimizer the main network as well and optimizer is
+		#  stored as a dict of edges.
+		if isinstance(optimizer, dict):
+			return []
 
 		groups = optimizer.param_groups[0]
 		if type(optimizer) == tr.optim.SGD:
@@ -511,7 +523,7 @@ class NeuralNetworkPyTorch(nn.Module):
 			tr.optim.RMSprop : "RMSprop"
 		}[type(optimizer)]
 
-		return "%s. %s" % (optimizerType, params)
+		return ["%s. %s" % (optimizerType, params)]
 
 	def setOptimizerScheduler(self, scheduler, **kwargs):
 		assert not self.getOptimizer() is None, "Optimizer must be set before scheduler!"

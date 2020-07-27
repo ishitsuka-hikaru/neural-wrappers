@@ -124,19 +124,16 @@ def plotModelMetricHistory(trainHistory, metricName, plotBestBullet, dpi=120):
 	numEpochs = len(trainHistory)
 	# trainValues = np.array([trainHistory[i]["Train"][metric] for i in range(numEpochs)])
 
-	# TODO: Problem for graph where score is stored in keys according to tuple.
-	def getScore(trainHistory, name):
-		score = trainHistory[name]
-		# for k in name:
-		# 	score = score[k]
-		return score
-
 	trainValues, validationValues = np.zeros((2, numEpochs), dtype=np.float32)
 	hasValidation = ("Validation" in trainHistory[0]) and (not trainHistory[0]["Validation"] is None)
 	for i in range(numEpochs):
-		trainValues[i] = getScore(trainHistory[i]["Train"], metricName)
+		X = getMetricScoreFromHistory(trainHistory[i]["Train"], metricName)
+		# Apply mean in case the metric returned a tuple.
+		trainValues[i] = X.mean()
+		
 		if hasValidation:
-			validationValues[i] = getScore(trainHistory[i]["Validation"], metricName)
+			X = getMetricScoreFromHistory(trainHistory[i]["Validation"], metricName)
+			validationValues[i] = X.mean()
 
 	x = np.arange(len(trainValues)) + 1
 	metricName = str(metricName)
@@ -181,3 +178,11 @@ def getModelHistoryMessage(model):
 		for i in range(len(trainHistory)):
 			Str += trainHistory[i]["message"] + "\n"
 		return Str
+
+# Metrics may be stored as tuples for graph/complex networks.
+def getMetricScoreFromHistory(trainHistory, metricName):
+	score = trainHistory
+	for i in range(len(metricName.name) - 1):
+		score = score[metricName.name[i]]
+	score = score[metricName]
+	return score

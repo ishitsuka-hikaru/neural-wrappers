@@ -1,9 +1,12 @@
 import sys
+import numpy as np
+from typing import Union, Tuple, Optional
+from overrides import overrides
+
 from .callback import Callback
 from .callback_name import CallbackName
 from ..metrics import Metric, MetricWrapper
-from typing import Union, Tuple, Optional
-from overrides import overrides
+from ..pytorch import getMetricScoreFromHistory
 
 # TODO: add format to saving files
 # Note: This callback should be called after all (relevant) callbacks were called, otherwise we risk of storing a model
@@ -26,18 +29,28 @@ class SaveModels(Callback):
 		metric = model.getMetric(self.metricName)
 		metricDirection = metric.getDirection()
 
-		self.best = {
-			"min" : 1<<31,
-			"max" : -1<<31
-		}[metricDirection]
-		self.metricFunc = {
-			"min" : lambda x : x < self.best,
-			"max" : lambda x : x > self.best,
-		}[metricDirection]
+		self.best = np.array(metric.defaultValue())
+		if len(self.best.shape) == 0:
+			self.best = np.expand_dims(self.best, axis=0)
+		
+		try:
+			Value = {
+				"min" : np.iinfo(self.best.dtype).max,
+				"max" : np.iinfo(self.best.dtype).min
+			}[metricDirection]
+		except Exception:
+			Value = {
+				"min" : np.finfo(self.best.dtype).max,
+				"max" : np.finfo(self.best.dtype).min
+			}[metricDirection]
+
+		for i in range(len(self.best)):
+			self.best[i] = Value
+		self.metricFunc = metric.compareFunction
 
 	def saveModelsImprovements(self, score, **kwargs):
 		try:
-			if not self.metricFunc(score):
+			if not self.metricFunc(score, self.best):
 				return
 		except Exception:
 			# TODO: Add comparison function for metrics
@@ -46,16 +59,16 @@ class SaveModels(Callback):
 		metricName = self.metricName[0] if len(self.metricName) == 1 else self.metricName
 		fileName = "model_improvement_%d_%s_%s.pkl" % (kwargs["epoch"], str(metricName), score)
 		kwargs["model"].saveModel(fileName)
-		print("[SaveModels] Epoch %d. Improvement (%s) from %2.2f to %2.2f" % \
+		print("[SaveModels] Epoch %d. Improvement (%s) from %s to %s" % \
 				(kwargs["epoch"], self.metricName, self.best, score))
 		self.best = score
 
 	def saveModelsBest(self, score, **kwargs):
-		if not self.metricFunc(score):
+		if not self.metricFunc(score, self.best):
 			return
 		fileName = "model_best_%s.pkl" % (self.metricName)
 		kwargs["model"].saveModel(fileName)
-		print("[SaveModels] Epoch %d. Improvement (%s) from %2.2f to %2.2f" % \
+		print("[SaveModels] Epoch %d. Improvement (%s) from %s to %s" % \
 				(kwargs["epoch"], self.metricName, self.best, score))
 		self.best = score
 
@@ -79,7 +92,7 @@ class SaveModels(Callback):
 		else:
 			trainHistory = trainHistory["Validation"]
 
-		score = trainHistory[self.metricName]
+		score = getMetricScoreFromHistory(trainHistory, self.metricName)
 		fileName = "model_weights_%d_%s_%s.pkl" % (kwargs["epoch"], self.metricName, score)
 		if self.mode == "improvements":
 			self.saveModelsImprovements(score, **kwargs)
@@ -106,15 +119,8 @@ class SaveModels(Callback):
 	def onCallbackLoad(self, additional, **kwargs):
 		metric = kwargs["model"].getMetric(self.metricName)
 		metricDirection = metric.getDirection()
+		self.metricFunc = metric.compareFunction
 
-		self.metricFunc = {
-			"min" : lambda x : x < self.best,
-			"max" : lambda x : x > self.best,
-		}[metricDirection]
-
-	# Some callbacks require some special/additional tinkering when saving (such as closing files). It should be noted
-	#  that it's safe to close files (or any other side-effect action) because callbacks are deepcopied before this
-	#  method is called (in saveModel)
 	@overrides
 	def onCallbackSave(self, **kwargs):
 		self.metricFunc = None

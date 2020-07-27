@@ -3,10 +3,11 @@ from functools import partial
 from copy import copy
 from overrides import overrides
 
+from .draw_graph import drawGraph
+from .graph_serializer import GraphSerializer
 from ..pytorch import NeuralNetworkPyTorch, npGetData, trGetData, npToTrCall, trToNpCall
 from ..utilities import MultiLinePrinter, getFormattedStr
 from ..callbacks import CallbackName
-from .draw_graph import drawGraph
 
 class Graph(NeuralNetworkPyTorch):
 	def __init__(self, edges, hyperParameters={}):
@@ -24,6 +25,8 @@ class Graph(NeuralNetworkPyTorch):
 		# This is used so we can use a common train history throughout the graph.
 		for edge in self.edges:
 			edge.trainHistory = self.getTrainHistory()
+			edge.currentEpoch = self.currentEpoch
+		self.serializer = GraphSerializer(self)
 
 	def loss(self, y, t):
 		loss = 0
@@ -115,6 +118,7 @@ class Graph(NeuralNetworkPyTorch):
 		return x
 
 	# We also override some methods on the Network class so it works with edges as well.
+
 	@overrides
 	def setOptimizer(self, optimizer, **kwargs):
 		for edge in self.edges:
@@ -132,10 +136,14 @@ class Graph(NeuralNetworkPyTorch):
 
 	@overrides
 	def getOptimizerStr(self):
-		Str = super().getOptimizerStr()
+		optimizerStr = super().getOptimizerStr()
 		for edge in self.edges:
-			Str += "\n\t - %s : %s" % (edge.getName(), super().getOptimizerStr())
-		return Str
+			strEdge = str(edge)
+			if type(edge) == Graph:
+				strEdge = "SubGraph"
+			Str = "\t - %s : %s" % (strEdge, edge.getOptimizerStr())
+			optimizerStr.append(Str)
+		return optimizerStr
 
 	@overrides
 	def initializeEpochMetrics(self):
@@ -174,7 +182,8 @@ class Graph(NeuralNetworkPyTorch):
 
 	@overrides
 	def getTrainHistory(self):
-		return super().getTrainHistory()
+		res = super().getTrainHistory()
+		return res
 
 	@overrides
 	def callbacksOnEpochStart(self, isTraining):
@@ -257,6 +266,11 @@ class Graph(NeuralNetworkPyTorch):
 		for node in self.nodes:
 			node.setGroundTruth(trLabels)
 			node.messages = {}
+
+	@overrides
+	def updateOptimizer(self, trLoss, isTraining, isOptimizing):
+		for edge in self.edges:
+			edge.updateOptimizer(trLoss, isTraining, isOptimizing)
 
 	def __str__(self):
 		return self.graphStr()

@@ -1,9 +1,14 @@
 import torch.nn as nn
 from functools import partial
 from overrides import overrides
+from typing import Union, Callable
+from types import LambdaType
+
 from .node import MapNode, VectorNode
 from ..pytorch import NeuralNetworkPyTorch, trModuleWrapper
 from ..pytorch.network_serializer import NetworkSerializer
+from ..callbacks import CallbackName
+from ..metrics import Metric, MetricWrapper
 
 # Default loss of this edge goes through all ground truths and all outputs of the output node and computes the
 #  loss between them. This can be updated for a more specific edge algorithm for loss computation.
@@ -163,6 +168,19 @@ class Edge(NeuralNetworkPyTorch):
 		if relevantKeys[1] != thisOutputNode:
 			print("Warning! Output node is different. Expected: %s. Got: %s." % (relevantKeys[1], thisOutputNode))
 		self.serializer.doLoadWeights(pklFile)
+
+	# We also override some methods on the Network class so it works with edges as well.
+	@overrides
+	def addMetric(self, metricName:Union[str, CallbackName], metric:Union[Callable, Metric]):
+		# If it's just a callback, make it a metric
+		if isinstance(metric, LambdaType):
+			metric = MetricWrapper(metric)
+		if not isinstance(metricName, CallbackName):
+			metricName = CallbackName(metricName)
+		metricName = CallbackName((str(self), *metricName.name))
+		metric.setName(metricName)
+		self.callbacks[metricName] = metric
+		self.iterPrintMessageKeys.append(metricName)
 
 	def __str__(self):
 		return "%s -> %s" % (str(self.inputNode), str(self.outputNode))
