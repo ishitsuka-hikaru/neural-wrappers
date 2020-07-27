@@ -10,7 +10,7 @@ from typing import List, Union, Dict, Callable
 from types import LambdaType
 
 from .network_serializer import NetworkSerializer
-from .utils import getNumParams, getOptimizerStr, npGetData, trGetData, StorePrevState
+from .utils import getNumParams, npGetData, trGetData, StorePrevState
 from ..utilities import makeGenerator, MessagePrinter, isBaseOf, RunningMean, \
 	topologicalSort, deepCheckEqual, getFormattedStr
 from ..callbacks import Callback, CallbackName
@@ -142,24 +142,22 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.topologicalKeys = np.array(list(self.callbacks.keys()))[self.topologicalSort]
 		print("Successfully done topological sort!")
 
+	def getTrainHistory(self):
+		return self.trainHistory
+
 	# Other neural network architectures can update these
 	def callbacksOnEpochStart(self, isTraining):
 		# Call onEpochStart here, using only basic args
-		if self.trainHistory != [] and len(self.trainHistory) >= self.currentEpoch:
-			trainHistory = self.trainHistory[self.currentEpoch - 1]
-		else:
-			trainHistory = None
-
 		for key in self.callbacks:
 			self.callbacks[key].onEpochStart(model=self, epoch=self.currentEpoch, \
-				trainHistory=trainHistory, isTraining=isTraining)
+				trainHistory=self.getTrainHistory(), isTraining=isTraining)
 
 	def callbacksOnEpochEnd(self, isTraining):
 		# epochResults is updated at each step in the order of topological sort
 		epochResults = {}
 		for key in self.topologicalKeys:
 			epochResults[key] = self.callbacks[key].onEpochEnd(model=self, epoch=self.currentEpoch, \
-				trainHistory=self.trainHistory, epochResults=epochResults, \
+				trainHistory=self.getTrainHistory(), epochResults=epochResults, \
 				isTraining=isTraining)
 
 	def callbacksOnIterationStart(self, isTraining, isOptimizing):
@@ -201,9 +199,9 @@ class NeuralNetworkPyTorch(nn.Module):
 		# Might be better to use a callback so we skip this step
 		if not trLoss is None:
 			if isTraining and isOptimizing:
-				self.optimizer.zero_grad()
+				self.getOptimizer().zero_grad()
 				trLoss.backward()
-				self.optimizer.step()
+				self.getOptimizer().step()
 			else:
 				trLoss.detach_()
 
@@ -232,7 +230,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		if isOptimizing == False and tr.is_grad_enabled():
 			print("Warning! Not optimizing, but grad is enabled.")
 		if isTraining and isOptimizing:
-			assert not self.optimizer is None, "Set optimizer before training"
+			assert not self.getOptimizer() is None, "Set optimizer before training"
 		assert not self.criterion is None, "Set criterion before training or testing"
 		metricResults = self.initializeEpochMetrics()
 
@@ -388,8 +386,8 @@ class NeuralNetworkPyTorch(nn.Module):
 		message += " ETA: %s" % (ETA)
 		messages.append(message)
 
-		if self.optimizer:
-			messages.append("  - Optimizer: %s" % (getOptimizerStr(self.optimizer)))
+		if self.getOptimizer():
+			messages.append("  - Optimizer: %s" % (self.getOptimizerStr()))
 
 		message = "  - Metrics."
 		metricKeys = sorted(list(set(metricResults.keys())), key = lambda item : item.name)
@@ -407,19 +405,17 @@ class NeuralNetworkPyTorch(nn.Module):
 		message = "Epoch %d/%d. Done: %2.2f%%." % (self.currentEpoch, numEpochs, done)
 		messages.append(message)
 
-		if self.optimizer:
-			messages.append("  - Optimizer: %s" % (getOptimizerStr(self.optimizer)))
+		if self.getOptimizer():
+			messages.append("  - Optimizer: %s" % self.getOptimizerStr())
 
 		metrics = self.getMetrics()
 		if len(epochResults.keys()) == 0:
 			return messages
 
-		# breakpoint()
-
 		messages.append("  - Metrics:")
 		firstKey = list(epochResults.keys())[0]
-		# TODO: This is because we put "duration" as well here...
-		actualMetrics = list(filter(lambda x : isBaseOf(x, Metric), epochResults[firstKey]))
+		# This is because we put "duration" as well here.
+		actualMetrics = list(filter(lambda x : isBaseOf(x, CallbackName), epochResults[firstKey]))
 		printMetrics = list(filter(lambda x : x.name in self.iterPrintMessageKeys, actualMetrics))
 		sortedMetrics = sorted(printMetrics, key = lambda item : item.name)
 		groupMessage = {k : "    - [%s]" % k for k in epochResults.keys()}
@@ -427,7 +423,7 @@ class NeuralNetworkPyTorch(nn.Module):
 			item = epochResults[key]
 			for metric in sortedMetrics:
 				formattedStr = getFormattedStr(item[metric], precision=3)
-				groupMessage[key] += " %s: %s" % (metric.name, formattedStr)
+				groupMessage[key] += " %s: %s" % (str(metric), formattedStr)
 			messages.append(groupMessage[key])
 		return messages
 
@@ -437,6 +433,10 @@ class NeuralNetworkPyTorch(nn.Module):
 		for metric in metrics:
 			summaryStr += "\t- %s (%s)\n" % (metric.getName(), metric.getDirection())
 		return summaryStr
+
+	def callbacksSummary(self):
+		callbackNames = " | ".join(list(map(lambda x : str(x.getName()), self.getCallbacks())))
+		return callbackNames
 
 	def summary(self):
 		summaryStr = "[Model summary]\n"
@@ -452,11 +452,10 @@ class NeuralNetworkPyTorch(nn.Module):
 		summaryStr += "Metrics:\n"
 		summaryStr += self.metricsSummary()
 
-		# strCallbacks = str(list(self.getCallbacks().keys()))[1 : -1]
-		strCallbacks = list(map(lambda x : x.getName(), self.getCallbacks()))
-		summaryStr += "Callbacks: %s\n" % ("None" if len(strCallbacks) == 0 else strCallbacks)
+		summaryStr += "Callbacks:\n"
+		summaryStr += "\t%s\n" % (self.callbacksSummary())
 
-		summaryStr += "Optimizer: %s\n" % getOptimizerStr(self.optimizer)
+		summaryStr += "Optimizer: %s\n" % self.getOptimizerStr()
 		summaryStr += "Optimizer Scheduler: %s\n" % ("None" if not self.optimizerScheduler \
 			else str(self.optimizerScheduler))
 
@@ -484,9 +483,39 @@ class NeuralNetworkPyTorch(nn.Module):
 			self.optimizer = optimizer(trainableParams, **kwargs)
 		self.optimizer.storedArgs = kwargs
 
+	def getOptimizer(self):
+		return self.optimizer
+
+	def getOptimizerStr(self):
+		optimizer = self.getOptimizer()
+		if optimizer is None:
+			return "None"
+
+		groups = optimizer.param_groups[0]
+		if type(optimizer) == tr.optim.SGD:
+			params = "Learning rate: %s, Momentum: %s, Dampening: %s, Weight Decay: %s, Nesterov: %s" % (groups["lr"], \
+				groups["momentum"], groups["dampening"], groups["weight_decay"], groups["nesterov"])
+		elif type(optimizer) in (tr.optim.Adam, tr.optim.AdamW):
+			params = "Learning rate: %s, Betas: %s, Eps: %s, Weight Decay: %s" % (groups["lr"], groups["betas"], \
+				groups["eps"], groups["weight_decay"])
+		elif type(optimizer) == tr.optim.RMSprop:
+			params = "Learning rate: %s, Momentum: %s. Alpha: %s, Eps: %s, Weight Decay: %s" % (groups["lr"], \
+				groups["momentum"], groups["alpha"], groups["eps"], groups["weight_decay"])
+		else:
+			raise NotImplementedError("Not yet implemneted optimizer str for %s" % (type(optimizer)))
+
+		optimizerType = {
+			tr.optim.SGD : "SGD",
+			tr.optim.Adam : "Adam",
+			tr.optim.AdamW : "AdamW",
+			tr.optim.RMSprop : "RMSprop"
+		}[type(optimizer)]
+
+		return "%s. %s" % (optimizerType, params)
+
 	def setOptimizerScheduler(self, scheduler, **kwargs):
-		assert not self.optimizer is None, "Optimizer must be set before scheduler!"
-		self.optimizerScheduler = scheduler(optimizer=self.optimizer, **kwargs)
+		assert not self.getOptimizer() is None, "Optimizer must be set before scheduler!"
+		self.optimizerScheduler = scheduler(optimizer=self.getOptimizer(), **kwargs)
 		# Some schedulers need acces to the model's object. Others, will not have this argument.
 		self.optimizerScheduler.model = self
 		self.optimizerScheduler.storedArgs = kwargs

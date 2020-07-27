@@ -4,8 +4,8 @@ import numpy as np
 from copy import deepcopy
 from collections import OrderedDict
 
+from .utils import getNumParams, getTrainableParameters, _computeNumParams, device
 from ..metrics import Metric
-from .utils import getNumParams, getOptimizerStr, getTrainableParameters, _computeNumParams, device
 from ..utilities import isBaseOf, deepCheckEqual, isPicklable, npCloseEnough
 
 class NetworkSerializer:
@@ -195,7 +195,7 @@ class NetworkSerializer:
 		self.model.setOptimizer(optimizerDict["type"], **optimizerDict["kwargs"])
 		self.model.optimizer.load_state_dict(optimizerDict["state"])
 		self.model.optimizer.storedArgs = optimizerDict["kwargs"]
-		print("Succesfully loaded optimizer: %s" % (getOptimizerStr(self.model.optimizer)))
+		print("Succesfully loaded optimizer: %s" % (self.model.getOptimizerStr()))
 
 		if "scheduler_state" in optimizerDict:
 			self.model.setOptimizerScheduler(optimizerDict["scheduler_type"], **optimizerDict["scheduler_kwargs"])
