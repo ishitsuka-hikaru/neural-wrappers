@@ -136,14 +136,14 @@ class Graph(NeuralNetworkPyTorch):
 
 	@overrides
 	def getOptimizerStr(self):
-		optimizerStr = super().getOptimizerStr()
+		strList = super().getOptimizerStr()
 		for edge in self.edges:
 			strEdge = str(edge)
 			if type(edge) == Graph:
 				strEdge = "SubGraph"
-			Str = "\t - %s : %s" % (strEdge, edge.getOptimizerStr())
-			optimizerStr.append(Str)
-		return optimizerStr
+			edgeStrList = edge.getOptimizerStr()
+			strList.extend(edgeStrList)
+		return strList
 
 	@overrides
 	def initializeEpochMetrics(self):

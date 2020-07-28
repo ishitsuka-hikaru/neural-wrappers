@@ -393,8 +393,11 @@ class NeuralNetworkPyTorch(nn.Module):
 		messages.append(message)
 
 		if self.getOptimizer():
-			optimizerStr = "\n".join(self.getOptimizerStr())
-			messages.append("  - Optimizer: %s" % optimizerStr)
+			optimizerStrList = self.getOptimizerStr()
+			# TODO: Here we have more items, however they are printed more than once due to recurrency. Only first item
+			#  should be relevant for this instance.
+			messages.append("  - Optimizer: %s" % optimizerStrList[0])
+			# messages.extend(optimizerStrList[1 :])
 
 		message = "  - Metrics."
 		metricKeys = sorted(list(set(metricResults.keys())), key = lambda item : item.name)
@@ -413,8 +416,8 @@ class NeuralNetworkPyTorch(nn.Module):
 		messages.append(message)
 
 		if self.getOptimizer():
-			optimizerStr = "\n".join(self.getOptimizerStr())
-			messages.append("  - Optimizer: %s" % optimizerStr)
+			optimizerStrList = self.getOptimizerStr()
+			messages.append("  - Optimizer: %s" % optimizerStrList[0])
 
 		metrics = self.getMetrics()
 		if len(epochResults.keys()) == 0:
@@ -463,7 +466,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		summaryStr += "Callbacks:\n"
 		summaryStr += "\t%s\n" % (self.callbacksSummary())
 
-		summaryStr += "Optimizer: %s\n" % "\n".join(self.getOptimizerStr())
+		summaryStr += "Optimizer: %s\n" % self.getOptimizerStr()
 		summaryStr += "Optimizer Scheduler: %s\n" % ("None" if not self.optimizerScheduler \
 			else str(self.optimizerScheduler))
 
@@ -498,10 +501,10 @@ class NeuralNetworkPyTorch(nn.Module):
 		optimizer = self.getOptimizer()
 		if optimizer is None:
 			return ["None"]
-		# TODO: For graph (or other complex networks), we cannot optimizer the main network as well and optimizer is
+		# TODO: For graph (or other complex networks), we cannot optimize the main network as well and optimizer is
 		#  stored as a dict of edges.
 		if isinstance(optimizer, dict):
-			return []
+			return ["Dict"]
 
 		groups = optimizer.param_groups[0]
 		if type(optimizer) == tr.optim.SGD:

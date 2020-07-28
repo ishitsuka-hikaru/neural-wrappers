@@ -1,6 +1,6 @@
 from .callback import Callback
 from .callback_name import CallbackName
-from .metric_with_threshold_wrapper import MetricWithThresholdWrapper
+# from .metric_with_threshold_wrapper import MetricWithThresholdWrapper
 
 from .save_models import SaveModels
 from .save_history import SaveHistory

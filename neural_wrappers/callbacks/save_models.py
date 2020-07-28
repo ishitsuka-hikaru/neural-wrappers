@@ -5,7 +5,6 @@ from overrides import overrides
 
 from .callback import Callback
 from .callback_name import CallbackName
-from ..metrics import Metric, MetricWrapper
 from ..pytorch import getMetricScoreFromHistory
 
 # TODO: add format to saving files
