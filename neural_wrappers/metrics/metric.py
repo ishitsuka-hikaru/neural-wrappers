@@ -25,13 +25,17 @@ class Metric(Callback):
 	def defaultValue(self) -> NWNumber:
 		return 0
 
+	def getExtremes(self) -> NWNumber:
+		return {"min" : -1<<31, "max" : 1<<31}
+
 	# @brief Provides a sane way of comparing two results of this metric
-	# @return Returns a callback that can compare two results and returns a bool value (usually if result a is better
-	#  than result b, given the metrics semantic, but can be overriden)
+	# @return Returns a callback that can compare two results and returns a bool value. Returns true if
+	#  - for direction == "max", a > b
+	#  - for direciton == "min", a < b
 	def compareFunction(self, a:NWNumber, b:NWNumber) -> bool:
 		return {
-			"min" : lambda a, b : a > b,
-			"max" : lambda a, b : a < b,
+			"min" : lambda a, b : a < b,
+			"max" : lambda a, b : a > b,
 		}[self.direction]
 
 	@overrides

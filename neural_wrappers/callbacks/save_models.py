@@ -17,7 +17,8 @@ class SaveModels(Callback):
 		self.mode = mode
 		self.metricName = CallbackName(metricName)
 		self.best = None
-		self.metricFunc = None
+		self.metric = None
+		# self.metricFunc = None
 		super().__init__(**kwargs)
 
 	# Do the setup at the end of the first epoch, so we know direction. This is expected to not change ever afterwards.
@@ -25,45 +26,20 @@ class SaveModels(Callback):
 		if not self.best is None:
 			return
 
-		metric = model.getMetric(self.metricName)
-		metricDirection = metric.getDirection()
-
-		self.best = np.array(metric.defaultValue())
-		if len(self.best.shape) == 0:
-			self.best = np.expand_dims(self.best, axis=0)
-		
-		try:
-			Value = {
-				"min" : np.iinfo(self.best.dtype).max,
-				"max" : np.iinfo(self.best.dtype).min
-			}[metricDirection]
-		except Exception:
-			Value = {
-				"min" : np.finfo(self.best.dtype).max,
-				"max" : np.finfo(self.best.dtype).min
-			}[metricDirection]
-
-		for i in range(len(self.best)):
-			self.best[i] = Value
-		self.metricFunc = metric.compareFunction
+		self.metric = model.getMetric(self.metricName)
+		self.best = self.metric.getExtremes()["min"]
 
 	def saveModelsImprovements(self, score, **kwargs):
-		try:
-			if not self.metricFunc(score, self.best):
-				return
-		except Exception:
-			# TODO: Add comparison function for metrics
-			print("Skipping metric %s because it doesn't return a comparable number.")
+		if not self.metric.compareFunction(score, self.best):
 			return
-		metricName = self.metricName[0] if len(self.metricName) == 1 else self.metricName
-		fileName = "model_improvement_%d_%s_%s.pkl" % (kwargs["epoch"], str(metricName), score)
+		fileName = "model_improvement_%d_%s_%s.pkl" % (kwargs["epoch"], self.metricName, score)
 		kwargs["model"].saveModel(fileName)
 		print("[SaveModels] Epoch %d. Improvement (%s) from %s to %s" % \
 				(kwargs["epoch"], self.metricName, self.best, score))
 		self.best = score
 
 	def saveModelsBest(self, score, **kwargs):
-		if not self.metricFunc(score, self.best):
+		if not self.metric.compareFunction(score, self.best):
 			return
 		fileName = "model_best_%s.pkl" % (self.metricName)
 		kwargs["model"].saveModel(fileName)
@@ -85,6 +61,7 @@ class SaveModels(Callback):
 			return
 		self.setup(kwargs["model"])
 
+		# breakpoint()
 		trainHistory = kwargs["trainHistory"][-1]
 		if (not "Validation" in trainHistory) or (trainHistory["Validation"] is None):
 			trainHistory = trainHistory["Train"]
@@ -116,13 +93,11 @@ class SaveModels(Callback):
 
 	@overrides
 	def onCallbackLoad(self, additional, **kwargs):
-		metric = kwargs["model"].getMetric(self.metricName)
-		metricDirection = metric.getDirection()
-		self.metricFunc = metric.compareFunction
+		self.metric = kwargs["model"].getMetric(self.metricName)
 
 	@overrides
 	def onCallbackSave(self, **kwargs):
-		self.metricFunc = None
+		self.metric = None
 
 	@overrides
 	def __str__(self):

@@ -287,7 +287,8 @@ class NeuralNetworkPyTorch(nn.Module):
 		epochResults["message"] = message
 
 		self.linePrinter(epochResults["message"], reset=False)
-		self.trainHistory.append(epochResults)
+		self.getTrainHistory().append(epochResults)
+		breakpoint()
 		self.callbacksOnEpochEnd(isTraining=isTraining)
 		if not self.optimizerScheduler is None:
 			self.optimizerScheduler.step()

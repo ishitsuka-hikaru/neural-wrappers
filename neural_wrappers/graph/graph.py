@@ -22,10 +22,6 @@ class Graph(NeuralNetworkPyTorch):
 		self.linePrinter = MultiLinePrinter()
 		self.setCriterion(self.loss)
 
-		# This is used so we can use a common train history throughout the graph.
-		for edge in self.edges:
-			edge.trainHistory = self.getTrainHistory()
-			edge.currentEpoch = self.currentEpoch
 		self.serializer = GraphSerializer(self)
 
 	def loss(self, y, t):
@@ -154,7 +150,7 @@ class Graph(NeuralNetworkPyTorch):
 
 	@overrides
 	def reduceEpochMetrics(self, metricResults):
-		results = super().reduceEpochMetrics(metricResults)
+		results = {None : super().reduceEpochMetrics(metricResults)}
 		for edge in self.edges:
 			results[str(edge)] = edge.reduceEpochMetrics(metricResults[str(edge)])
 		return results
@@ -180,10 +176,10 @@ class Graph(NeuralNetworkPyTorch):
 				edgeResults, edgeLoss, iteration, numIterations, edgeMetricResults, isTraining, isOptimizing)
 		return thisResults
 
-	@overrides
-	def getTrainHistory(self):
-		res = super().getTrainHistory()
-		return res
+	# @overrides
+	# def getTrainHistory(self):
+		# res = super().getTrainHistory()
+		# return res
 
 	@overrides
 	def callbacksOnEpochStart(self, isTraining):
@@ -191,11 +187,11 @@ class Graph(NeuralNetworkPyTorch):
 		for edge in self.edges:
 			edge.callbacksOnEpochStart(isTraining)
 
-	@overrides
-	def callbacksOnEpochEnd(self, isTraining):
-		super().callbacksOnEpochEnd(isTraining)
-		for edge in self.edges:
-			edge.callbacksOnEpochEnd(isTraining)
+	# @overrides
+	# def callbacksOnEpochEnd(self, isTraining):
+	# 	super().callbacksOnEpochEnd(isTraining)
+	# 	for edge in self.edges:
+	# 		edge.callbacksOnEpochEnd(isTraining)
 
 	@overrides
 	def metricsSummary(self):
@@ -242,19 +238,20 @@ class Graph(NeuralNetworkPyTorch):
 			messages.extend(edgeIterPrintMessage)
 		return messages
 
-	@overrides
-	def computePrintMessage(self, metrics, numEpochs):
-		messages = super().computePrintMessage(metrics, numEpochs)
-		for edge in self.edges:
-			edgeMetrics = {k : metrics[k][str(edge)] for k in metrics}
-			if type(edge) == Graph:
-				strEdge = "SubGraph"
-			else:
-				strEdge = str(edge)
-			edgePrintMessage = edge.computePrintMessage(edgeMetrics, numEpochs)[1:]
-			messages.append(strEdge)
-			messages.extend(edgePrintMessage)
-		return messages
+	# @overrides
+	# def computePrintMessage(self, metrics, numEpochs):
+	# 	messages = super().computePrintMessage(metrics, numEpochs)
+	# 	breakpoint()
+	# 	for edge in self.edges:
+	# 		edgeMetrics = {k : metrics[k][str(edge)] for k in metrics}
+	# 		if type(edge) == Graph:
+	# 			strEdge = "SubGraph"
+	# 		else:
+	# 			strEdge = str(edge)
+	# 		edgePrintMessage = edge.computePrintMessage(edgeMetrics, numEpochs)[1:]
+	# 		messages.append(strEdge)
+	# 		messages.extend(edgePrintMessage)
+	# 	return messages
 
 	@overrides
 	def iterationEpilogue(self, isTraining, isOptimizing, trLabels):
@@ -271,6 +268,14 @@ class Graph(NeuralNetworkPyTorch):
 	def updateOptimizer(self, trLoss, isTraining, isOptimizing):
 		for edge in self.edges:
 			edge.updateOptimizer(trLoss, isTraining, isOptimizing)
+
+	@overrides
+	def epochPrologue(self, epochResults, numEpochs, isTraining):
+		mainResults = {k : epochResults[k][None] for k in epochResults}
+		super().epochPrologue(mainResults, numEpochs, isTraining)
+		for edge in self.edges:
+			edgeResults = {k : epochResults[k][str(edge)] for k in epochResults}
+			edge.epochPrologue(edgeResults, numEpochs, isTraining)
 
 	def __str__(self):
 		return self.graphStr()
