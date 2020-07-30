@@ -71,27 +71,29 @@ def getOptimizerStr(optimizer):
 	if optimizer is None:
 		return "None"
 
-	groups = optimizer.param_groups[0]
-	if type(optimizer) == tr.optim.SGD:
+	if isinstance(optimizer, tr.optim.SGD):
+		groups = optimizer.param_groups[0]
 		params = "Learning rate: %s, Momentum: %s, Dampening: %s, Weight Decay: %s, Nesterov: %s" % (groups["lr"], \
 			groups["momentum"], groups["dampening"], groups["weight_decay"], groups["nesterov"])
-	elif type(optimizer) in (tr.optim.Adam, tr.optim.AdamW):
+		name = "SGD"
+	elif isinstance(optimizer, (tr.optim.Adam, tr.optim.AdamW)):
+		groups = optimizer.param_groups[0]
 		params = "Learning rate: %s, Betas: %s, Eps: %s, Weight Decay: %s" % (groups["lr"], groups["betas"], \
 			groups["eps"], groups["weight_decay"])
-	elif type(optimizer) == tr.optim.RMSprop:
+		name = {
+			tr.optim.Adam : "Adam",
+			tr.optim.AdamW : "AdamW"
+		}[type(optimizer)]
+	elif isinstance(optimizer, tr.optim.RMSprop):
+		groups = optimizer.param_groups[0]
 		params = "Learning rate: %s, Momentum: %s. Alpha: %s, Eps: %s, Weight Decay: %s" % (groups["lr"], \
 			groups["momentum"], groups["alpha"], groups["eps"], groups["weight_decay"])
+		name = "RMSprop"
 	else:
-		raise NotImplementedError("Not yet implemneted optimizer str for %s" % (type(optimizer)))
+		name = "Generic Optimizer"
+		params = str(optimizer)
 
-	optimizerType = {
-		tr.optim.SGD : "SGD",
-		tr.optim.Adam : "Adam",
-		tr.optim.AdamW : "AdamW",
-		tr.optim.RMSprop : "RMSprop"
-	}[type(optimizer)]
-
-	return "%s. %s" % (optimizerType, params)
+	return "%s. %s" % (name, params)
 
 # Results come in torch format, but callbacks require numpy, so convert the results back to numpy format
 def npGetData(data):
