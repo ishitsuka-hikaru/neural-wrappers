@@ -501,33 +501,31 @@ class NeuralNetworkPyTorch(nn.Module):
 	def getOptimizerStr(self):
 		optimizer = self.getOptimizer()
 		if optimizer is None:
-			return ["None"]
-		# TODO: For graph (or other complex networks), we cannot optimize the main network as well and optimizer is
-		#  stored as a dict of edges.
-		if isinstance(optimizer, dict):
-			return ["Dict"]
+			return "None"
 
-		groups = optimizer.param_groups[0]
-		if type(optimizer) == tr.optim.SGD:
+		if isinstance(optimizer, tr.optim.SGD):
+			groups = optimizer.param_groups[0]
 			params = "Learning rate: %s, Momentum: %s, Dampening: %s, Weight Decay: %s, Nesterov: %s" % (groups["lr"], \
 				groups["momentum"], groups["dampening"], groups["weight_decay"], groups["nesterov"])
-		elif type(optimizer) in (tr.optim.Adam, tr.optim.AdamW):
+			name = "SGD"
+		elif isinstance(optimizer, (tr.optim.Adam, tr.optim.AdamW)):
+			groups = optimizer.param_groups[0]
 			params = "Learning rate: %s, Betas: %s, Eps: %s, Weight Decay: %s" % (groups["lr"], groups["betas"], \
 				groups["eps"], groups["weight_decay"])
-		elif type(optimizer) == tr.optim.RMSprop:
+			name = {
+				tr.optim.Adam : "Adam",
+				tr.optim.AdamW : "AdamW"
+			}[type(optimizer)]
+		elif isinstance(optimizer, tr.optim.RMSprop):
+			groups = optimizer.param_groups[0]
 			params = "Learning rate: %s, Momentum: %s. Alpha: %s, Eps: %s, Weight Decay: %s" % (groups["lr"], \
 				groups["momentum"], groups["alpha"], groups["eps"], groups["weight_decay"])
+			name = "RMSprop"
 		else:
-			raise NotImplementedError("Not yet implemneted optimizer str for %s" % (type(optimizer)))
+			name = "Generic Optimizer"
+			params = str(optimizer)
 
-		optimizerType = {
-			tr.optim.SGD : "SGD",
-			tr.optim.Adam : "Adam",
-			tr.optim.AdamW : "AdamW",
-			tr.optim.RMSprop : "RMSprop"
-		}[type(optimizer)]
-
-		return ["%s. %s" % (optimizerType, params)]
+		return "%s. %s" % (name, params)
 
 	def setOptimizerScheduler(self, scheduler, **kwargs):
 		assert not self.getOptimizer() is None, "Optimizer must be set before scheduler!"
@@ -540,16 +538,18 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.criterion = criterion
 
 	# Useful to passing numpy data but still returning backpropagable results
-	def npForwardTrResult(self, x):
-		trInput = trGetData(x)
-		trResult = self.forward(trInput)
+	def npForwardTrResult(self, *args, **kwargs):
+		trArgs = trGetData(args)
+		trKwargs= trGetData(kwargs)
+		trResult = self.forward(*trArgs, **trKwargs)
 		return trResult
 
 	# Wrapper for passing numpy arrays, converting them to torch arrays, forward network and convert back to numpy
 	# @param[in] x The input, which can be a numpy array, or a list/tuple/dict of numpy arrays
 	# @return y The output of the network as numpy array
-	def npForward(self, x):
-		npResult = npGetData(self.npForwardTrResult(x))
+	def npForward(self, *args, **kwargs):
+		trResult = self.npForwardTrResult(*args, **kwargs)
+		npResult = npGetData(trResult)
 		return npResult
 
 	# The network algorithm. This must be updated for specific networks, so the whole metric/callbacks system works
