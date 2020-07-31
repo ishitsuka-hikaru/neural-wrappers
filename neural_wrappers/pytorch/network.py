@@ -68,6 +68,8 @@ class NeuralNetworkPyTorch(nn.Module):
 		if not isinstance(metricName, CallbackName):
 			metricName = CallbackName(metricName)
 		metric.setName(metricName)
+		if metricName in self.callbacks:
+			raise Exception("Metric %s already exists" % (metricName))
 		self.callbacks[metricName] = metric
 		self.iterPrintMessageKeys.append(metricName)
 
@@ -94,7 +96,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.invalidateTopologicalSort()
 
 	# TODO: Add clearMetrics. Store dependencies, so we can call topological sort before/after clearCallbacks.
-	# Store dependenceis on model store. Make clearCallbacks clear only callbacks, not metrics as well.
+	# Store dependencies on model store. Make clearCallbacks clear only callbacks, not metrics as well.
 
 	# Returns only the callbacks that are of subclass Callback (not metrics)
 	def getCallbacks(self):
@@ -108,7 +110,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.callbacks = OrderedDict({metricName : metric})
 		self.iterPrintMessageKeys = [metricName]
 		self.topologicalSort = np.array([0], dtype=np.uint8)
-		self.topologicalKeys = np.array([metricName], dtype=str)
+		self.topologicalKeys = np.array([metricName])
 		self.topologicalSortDirty = False
 
 	def getMetrics(self):
@@ -126,20 +128,39 @@ class NeuralNetworkPyTorch(nn.Module):
 	# Does a topological sort on the given list of callback dependencies. This MUST be called after all addMetrics and
 	#  addCallbacks are called, as these functions invalidate the topological sort.
 	def setCallbacksDependencies(self, dependencies):
-		dependencies = deepcopy(dependencies)
+		# Convert strings and callbacks to CallbackNames
+		convertedDependencies = {}
 		for key in dependencies:
+			items = dependencies[key]
+			if isinstance(key, str):
+				key = CallbackName(key)
+			if isBaseOf(key, Callback):
+				key = key.getName()
+			convertedDependencies[key] = []
+			for item in items:
+				if isinstance(item, str):
+					item = CallbackName(item)
+				if isBaseOf(item, Callback):
+					item = item.getName()
+				convertedDependencies[key].append(item)
+
+		for key in convertedDependencies:
+			items = convertedDependencies[key]
+
 			if not key in self.callbacks:
 				assert False, "Key %s is not in callbacks (%s)" % (key, list(self.callbacks.keys()))
-			for depKey in dependencies[key]:
+
+			for depKey in items:
 				if not depKey in self.callbacks:
 					assert False, "Key %s of dependency %s is not in callbacks (%s)" \
 						% (depKey, key, list(self.callbacks.keys()))
 
 		for key in self.callbacks:
-			if not key in dependencies:
-				dependencies[key] = []
+			assert isinstance(key, CallbackName)
+			if not key in convertedDependencies:
+				convertedDependencies[key] = []
 
-		order = topologicalSort(dependencies)
+		order = topologicalSort(convertedDependencies)
 		callbacksKeys = list(self.callbacks.keys())
 		self.topologicalSort = np.array([callbacksKeys.index(x) for x in order])
 		self.topologicalKeys = np.array(list(self.callbacks.keys()))[self.topologicalSort]
@@ -189,11 +210,11 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	##### Traiming / testing functions
 
-	def updateOptimizer(self, trLoss, isTraining, isOptimizing):
+	def updateOptimizer(self, trLoss, isTraining, isOptimizing, retain_graph=False):
 		if not trLoss is None:
 			if isTraining and isOptimizing:
 				self.getOptimizer().zero_grad()
-				trLoss.backward()
+				trLoss.backward(retain_graph=retain_graph)
 				self.getOptimizer().step()
 			else:
 				trLoss.detach_()
@@ -208,7 +229,6 @@ class NeuralNetworkPyTorch(nn.Module):
 
 		npResults, npLoss = npGetData(trResults), npGetData(trLoss)
 
-		# Might be better to use a callback so we skip this step
 		self.updateOptimizer(trLoss, isTraining, isOptimizing)
 
 		return npResults, npLoss
@@ -499,19 +519,22 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	def getOptimizerStr(self):
 		optimizer = self.getOptimizer()
+		if isinstance(optimizer, dict):
+			return ["Dict"]
+
 		if optimizer is None:
-			return "None"
+			return ["None"]
 
 		if isinstance(optimizer, tr.optim.SGD):
 			groups = optimizer.param_groups[0]
 			params = "Learning rate: %s, Momentum: %s, Dampening: %s, Weight Decay: %s, Nesterov: %s" % (groups["lr"], \
 				groups["momentum"], groups["dampening"], groups["weight_decay"], groups["nesterov"])
-			name = "SGD"
+			optimizerType = "SGD"
 		elif isinstance(optimizer, (tr.optim.Adam, tr.optim.AdamW)):
 			groups = optimizer.param_groups[0]
 			params = "Learning rate: %s, Betas: %s, Eps: %s, Weight Decay: %s" % (groups["lr"], groups["betas"], \
 				groups["eps"], groups["weight_decay"])
-			name = {
+			optimizerType = {
 				tr.optim.Adam : "Adam",
 				tr.optim.AdamW : "AdamW"
 			}[type(optimizer)]
@@ -519,12 +542,12 @@ class NeuralNetworkPyTorch(nn.Module):
 			groups = optimizer.param_groups[0]
 			params = "Learning rate: %s, Momentum: %s. Alpha: %s, Eps: %s, Weight Decay: %s" % (groups["lr"], \
 				groups["momentum"], groups["alpha"], groups["eps"], groups["weight_decay"])
-			name = "RMSprop"
+			optimizerType = "RMSprop"
 		else:
-			name = "Generic Optimizer"
+			optimizerType = "Generic Optimizer"
 			params = str(optimizer)
 
-		return "%s. %s" % (name, params)
+		return ["%s. %s" % (optimizerType, params)]
 
 	def setOptimizerScheduler(self, scheduler, **kwargs):
 		assert not self.getOptimizer() is None, "Optimizer must be set before scheduler!"

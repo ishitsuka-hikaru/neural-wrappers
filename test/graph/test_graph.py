@@ -1,7 +1,7 @@
 import numpy as np
 from functools import partial
 from overrides import overrides
-from typing import Any, Dict, Iterator
+from typing import Any, Dict, Iterator, Callable, Optional
 
 import torch as tr
 import torch.nn as nn
@@ -11,11 +11,10 @@ from neural_wrappers.pytorch import device, NeuralNetworkPyTorch
 from neural_wrappers.graph import Graph, Edge, Node
 from neural_wrappers.utilities import pickTypeFromMRO
 from neural_wrappers.models import IdentityLayer
+from neural_wrappers.metrics import Metric
 from neural_wrappers.readers import DatasetReader
 from neural_wrappers.readers.internal import DatasetRange, DatasetIndex
 from neural_wrappers.readers.h5_dataset_reader import defaultH5DimGetter
-
-
 
 class Reader(DatasetReader):
 	def __init__(self, dataStuff:Dict[Node, int]):
@@ -75,7 +74,8 @@ class MyNode(Node):
 		self.nDims = nDims
 		super().__init__(name, gtKey)
 
-	def getEncoder(self, outputNodeType=None):
+	@overrides
+	def getEncoder(self, outputNodeType : Optional[Node]=None) -> NeuralNetworkPyTorch:
 		modelTypes = {
 			A : partial(Model, outDims=5),
 			B : partial(Model, outDims=7),
@@ -85,13 +85,16 @@ class MyNode(Node):
 		}
 		return pickTypeFromMRO(outputNodeType, modelTypes)(inDims=self.nDims).to(device)
 
-	def getDecoder(self, inputNodeType=None):
+	@overrides
+	def getDecoder(self, inputNodeType : Optional[Node]=None) -> NeuralNetworkPyTorch:
 		return IdentityLayer().to(device)
 
-	def getMetrics(self):
+	@overrides
+	def getNodeMetrics(self) -> Dict[str, Metric]:
 		return {}
 
-	def getCriterion(self):
+	@overrides
+	def getNodeCriterion(self) -> Callable[[tr.Tensor, tr.Tensor, dict], tr.Tensor]:
 		return lambda y, t : ((y - t)**2).mean()	
 
 class A(MyNode):

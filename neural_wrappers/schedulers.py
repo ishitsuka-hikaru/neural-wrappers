@@ -1,8 +1,13 @@
 from torch.optim.lr_scheduler import ReduceLROnPlateau as BaseModel
+from .callbacks import CallbackName, Callback
+from .utilities import isBaseOf
 
 class ReduceLROnPlateau:
 	def __init__(self, **kwargs):
-		kwargs["metric"] = "Loss" if not "metric" in kwargs else kwargs["metric"]
+		if isinstance(kwargs["metric"], str):
+			kwargs["metric"] = CallbackName(kwargs["metric"])
+		if isBaseOf(kwargs["metric"], Callback):
+			kwargs["metric"] = kwargs["metric"].getName()
 		self.metric = kwargs["metric"]
 		del kwargs["metric"]
 		self.baseModel = BaseModel(**kwargs)

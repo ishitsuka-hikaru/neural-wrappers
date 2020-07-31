@@ -384,7 +384,7 @@ if __name__ == "__main__":
 	# TestNetwork().test_save_weights_1()
 	# TestNetwork().test_save_model_1()
 	# TestNetwork().test_save_model_2()
-	TestNetwork().test_save_model_3()
+	# TestNetwork().test_save_model_3()
 	# TestNetwork().test_save_model_4()
 	# TestNetwork().test_save_model_5()
 	# TestNetwork().test_add_merics_1()

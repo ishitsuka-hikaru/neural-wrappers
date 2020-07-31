@@ -1,4 +1,5 @@
 import torch.nn as nn
+import torch.optim as optim
 from functools import partial
 from copy import copy
 from overrides import overrides
@@ -26,19 +27,16 @@ class Graph(NeuralNetworkPyTorch):
 
 	def loss(self, y, t):
 		loss = 0
+		self.edgeLoss[None] = 0
 		for edge in self.edges:
 			edgeID = str(edge)
 			edgeLoss = edge.loss(y, t)
 			self.edgeLoss[edgeID] = npGetData(edgeLoss)
+			# Cummulate it for the entire graph as well for statistics.
+			self.edgeLoss[None] += self.edgeLoss[edgeID]
 	
-			# If this edge has no loss, ignore it.
-			if edgeLoss is None:
-				continue
-			# If this edge is not trainable, also ignore it (? To think if this is correct ?)
-			# TODO: see how to fast check if edge is trainable (perhaps not an issue at all to add untrainable ones)
-
-			# Otherwise, just add it to the loss of the entire graph
-			loss += edgeLoss
+			if not edgeLoss is None:
+				loss += edgeLoss
 		return loss
 
 	# Graphs and subgraphs use all the possible inputs.
@@ -117,18 +115,15 @@ class Graph(NeuralNetworkPyTorch):
 
 	@overrides
 	def setOptimizer(self, optimizer, **kwargs):
-		for edge in self.edges:
-			edge.setOptimizer(optimizer, **kwargs)
-
-	@overrides
-	def getOptimizer(self):
-		res = {}
-		for edge in self.edges:
-			optimizer = edge.getOptimizer()
-			if not optimizer:
-				continue
-			res[edge] = optimizer
-		return res
+		if isinstance(optimizer, optim.Optimizer):
+			self.optimizer = optimizer
+		else:
+			params = []
+			for edge in self.edges:
+				edgeParams =  list(filter(lambda p : p.requires_grad, edge.parameters()))
+				params.append({"params" : edgeParams})
+			self.optimizer = optimizer(params, **kwargs)
+		self.optimizer.storedArgs = kwargs
 
 	@overrides
 	def getOptimizerStr(self):
@@ -176,22 +171,11 @@ class Graph(NeuralNetworkPyTorch):
 				edgeResults, edgeLoss, iteration, numIterations, edgeMetricResults, isTraining, isOptimizing)
 		return thisResults
 
-	# @overrides
-	# def getTrainHistory(self):
-		# res = super().getTrainHistory()
-		# return res
-
 	@overrides
 	def callbacksOnEpochStart(self, isTraining):
 		super().callbacksOnEpochStart(isTraining)
 		for edge in self.edges:
 			edge.callbacksOnEpochStart(isTraining)
-
-	# @overrides
-	# def callbacksOnEpochEnd(self, isTraining):
-	# 	super().callbacksOnEpochEnd(isTraining)
-	# 	for edge in self.edges:
-	# 		edge.callbacksOnEpochEnd(isTraining)
 
 	@overrides
 	def metricsSummary(self):
@@ -238,21 +222,6 @@ class Graph(NeuralNetworkPyTorch):
 			messages.extend(edgeIterPrintMessage)
 		return messages
 
-	# @overrides
-	# def computePrintMessage(self, metrics, numEpochs):
-	# 	messages = super().computePrintMessage(metrics, numEpochs)
-	# 	breakpoint()
-	# 	for edge in self.edges:
-	# 		edgeMetrics = {k : metrics[k][str(edge)] for k in metrics}
-	# 		if type(edge) == Graph:
-	# 			strEdge = "SubGraph"
-	# 		else:
-	# 			strEdge = str(edge)
-	# 		edgePrintMessage = edge.computePrintMessage(edgeMetrics, numEpochs)[1:]
-	# 		messages.append(strEdge)
-	# 		messages.extend(edgePrintMessage)
-	# 	return messages
-
 	@overrides
 	def iterationEpilogue(self, isTraining, isOptimizing, trLabels):
 		# Set the GT for each node based on the inputs available at this step. Edges may overwrite this when reaching
@@ -263,11 +232,6 @@ class Graph(NeuralNetworkPyTorch):
 		for node in self.nodes:
 			node.setGroundTruth(trLabels)
 			node.messages = {}
-
-	@overrides
-	def updateOptimizer(self, trLoss, isTraining, isOptimizing):
-		for edge in self.edges:
-			edge.updateOptimizer(trLoss, isTraining, isOptimizing)
 
 	@overrides
 	def epochPrologue(self, epochResults, numEpochs, isTraining):
