@@ -483,16 +483,18 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.criterion = criterion
 
 	# Useful to passing numpy data but still returning backpropagable results
-	def npForwardTrResult(self, x):
-		trInput = trGetData(x)
-		trResult = self.forward(trInput)
+	def npForwardTrResult(self, *args, **kwargs):
+		trArgs = trGetData(args)
+		trKwargs= trGetData(kwargs)
+		trResult = self.forward(*trArgs, **trKwargs)
 		return trResult
 
 	# Wrapper for passing numpy arrays, converting them to torch arrays, forward network and convert back to numpy
 	# @param[in] x The input, which can be a numpy array, or a list/tuple/dict of numpy arrays
 	# @return y The output of the network as numpy array
-	def npForward(self, x):
-		npResult = npGetData(self.npForwardTrResult(x))
+	def npForward(self, *args, **kwargs):
+		trResult = self.npForwardTrResult(*args, **kwargs)
+		npResult = npGetData(trResult)
 		return npResult
 
 	# The network algorithm. This must be updated for specific networks, so the whole metric/callbacks system works
