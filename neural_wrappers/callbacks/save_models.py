@@ -5,7 +5,6 @@ from overrides import overrides
 
 from .callback import Callback
 from .callback_name import CallbackName
-from ..pytorch import getMetricScoreFromHistory
 
 # TODO: add format to saving files
 # Note: This callback should be called after all (relevant) callbacks were called, otherwise we risk of storing a model
@@ -57,6 +56,7 @@ class SaveModels(Callback):
 	#  nicely if the format asks for validation loss and there's not validation metric reported.
 	@overrides
 	def onEpochEnd(self, **kwargs):
+		from ..pytorch import getMetricScoreFromHistory
 		if not kwargs["isTraining"]:
 			return
 		self.setup(kwargs["model"])
