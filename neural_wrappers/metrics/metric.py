@@ -34,8 +34,8 @@ class Metric(Callback):
 	#  - for direciton == "min", a < b
 	def compareFunction(self, a:NWNumber, b:NWNumber) -> bool:
 		return {
-			"min" : lambda a, b : a < b,
-			"max" : lambda a, b : a > b,
+			"min" : a < b,
+			"max" : a > b,
 		}[self.direction]
 
 	@overrides

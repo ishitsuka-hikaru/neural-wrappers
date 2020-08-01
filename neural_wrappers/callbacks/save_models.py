@@ -26,7 +26,7 @@ class SaveModels(Callback):
 			return
 
 		self.metric = model.getMetric(self.metricName)
-		self.best = self.metric.getExtremes()["min"]
+		self.best = self.metric.getExtremes()["max"]
 
 	def saveModelsImprovements(self, score, **kwargs):
 		if not self.metric.compareFunction(score, self.best):
@@ -38,7 +38,8 @@ class SaveModels(Callback):
 		self.best = score
 
 	def saveModelsBest(self, score, **kwargs):
-		if not self.metric.compareFunction(score, self.best):
+		res = self.metric.compareFunction(score, self.best)
+		if not res:
 			return
 		fileName = "model_best_%s.pkl" % (self.metricName)
 		kwargs["model"].saveModel(fileName)
@@ -61,7 +62,6 @@ class SaveModels(Callback):
 			return
 		self.setup(kwargs["model"])
 
-		# breakpoint()
 		trainHistory = kwargs["trainHistory"][-1]
 		if (not "Validation" in trainHistory) or (trainHistory["Validation"] is None):
 			trainHistory = trainHistory["Train"]
