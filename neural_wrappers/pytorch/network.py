@@ -512,7 +512,7 @@ class NeuralNetworkPyTorch(nn.Module):
 				print("[setOptimizer] Warning, number of trainable parameters is 0. Doing nothing.")
 				return
 			self.optimizer = optimizer(trainableParams, **kwargs)
-		self.optimizer.storedArgs = kwargs
+			self.optimizer.storedArgs = kwargs
 
 	def getOptimizer(self):
 		return self.optimizer

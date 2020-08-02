@@ -81,6 +81,8 @@ def npGetData(data):
 		return data
 	elif callable(data):
 		return data
+	elif isinstance(data, str):
+		return data
 	assert False, "Got type %s" % (type(data))
 
 # Equivalent of the function above, but using the data from generator (which comes in numpy format)
@@ -98,6 +100,8 @@ def trGetData(data):
 	elif isinstance(data, np.ndarray):
 		return tr.from_numpy(data).to(device)
 	elif callable(data):
+		return data
+	elif isinstance(data, str):
 		return data
 	assert False, "Got type %s" % (type(data))
 
