@@ -3,7 +3,7 @@ from typing import Union, _GenericAlias, TypeVar, List, Sequence # type: ignore
 
 from collections import OrderedDict
 
-NWNumber = Union[float, int, np.number, np.float64]
+NWNumber = Union[float, int, np.number, np.float32, np.float64]
 NWDict = Union[dict, OrderedDict]
 NWSequence = Union[list, tuple, set, np.ndarray]
 T = TypeVar("T")
