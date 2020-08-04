@@ -26,7 +26,6 @@ def normalNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
 	return x
 
 def semanticSegmentationNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
-	breakpoint()
 	x = x.astype(np.uint8)
 	x = resize_batch(x, interpolation="nearest", height=readerObj.desiredShape[0], \
 		width=readerObj.desiredShape[1], resizeLib="opencv")

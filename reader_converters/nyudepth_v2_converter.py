@@ -72,8 +72,11 @@ def main():
     file = h5py.File(args.exportFileName, "w")
     paths = getPaths(args.datasetPath, splits, expectedKeys, topLevelRenames)
     h5StoreDict(file, paths)
-    h5StoreDict(file, {"others" : 
-        {"baseDirectory" : os.path.abspath(args.datasetPath), "maxDepthMeters" : 10}})
+    h5StoreDict(file, {"others" : {
+        "baseDirectory" : os.path.abspath(args.datasetPath),
+        "maxDepthMeters" : 10,
+        "datasetName" : "NYUDepthV2"
+    }})
     file.flush()
     print("Stored h5 file to %s" % args.exportFileName)
 

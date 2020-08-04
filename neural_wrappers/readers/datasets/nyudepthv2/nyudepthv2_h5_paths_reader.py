@@ -24,7 +24,7 @@ def pathsReader(dataset : h5py._hl.group.Group, index : DatasetIndex, readerObj 
 
 class NYUDepthV2H5PathsReader(H5DatasetReader):
 	def __init__(self, datasetPath : str, dataBuckets : Dict[str, List[str]], \
-		desiredShape : Tuple[int, int], hyperParameters : Optional[Dict[str, Any]]={}):
+		desiredShape : Tuple[int, int], hyperParameters : Optional[Dict[str, Any]]={}, **kwargs):
 
 		dimGetter = {
 			"rgb" : partial(pathsReader, readerObj=self, readFn=tryReadImage, dim="rgb"),
