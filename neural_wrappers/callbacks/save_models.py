@@ -26,7 +26,12 @@ class SaveModels(Callback):
 			return
 
 		self.metric = model.getMetric(self.metricName)
-		self.best = self.metric.getExtremes()["max"]
+		direction = self.metric.getDirection()
+		extremes = self.metric.getExtremes()
+		self.best = {
+			"max" : extremes["min"],
+			"min" : extremes["max"]
+		}[direction]
 
 	def saveModelsImprovements(self, score, **kwargs):
 		if not self.metric.compareFunction(score, self.best):
