@@ -527,8 +527,8 @@ class NeuralNetworkPyTorch(nn.Module):
 
 		if isinstance(optimizer, tr.optim.SGD):
 			groups = optimizer.param_groups[0]
-			params = "Learning rate: %s, Momentum: %s, Dampening: %s, Weight Decay: %s, Nesterov: %s" % (groups["lr"], \
-				groups["momentum"], groups["dampening"], groups["weight_decay"], groups["nesterov"])
+			params = "Learning rate: %s, Momentum: %s, Dampening: %s, Weight Decay: %s, Nesterov: %s" % \
+				(groups["lr"], groups["momentum"], groups["dampening"], groups["weight_decay"], groups["nesterov"])
 			optimizerType = "SGD"
 		elif isinstance(optimizer, (tr.optim.Adam, tr.optim.AdamW)):
 			groups = optimizer.param_groups[0]
@@ -551,10 +551,13 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	def setOptimizerScheduler(self, scheduler, **kwargs):
 		assert not self.getOptimizer() is None, "Optimizer must be set before scheduler!"
-		self.optimizerScheduler = scheduler(optimizer=self.getOptimizer(), **kwargs)
-		# Some schedulers need acces to the model's object. Others, will not have this argument.
-		self.optimizerScheduler.model = self
-		self.optimizerScheduler.storedArgs = kwargs
+		if isinstance(scheduler, optim.lr_scheduler._LRScheduler):
+			self.optimizerScheduler = scheduler
+		else:
+			self.optimizerScheduler = scheduler(optimizer=self.getOptimizer(), **kwargs)
+			# Some schedulers need acces to the model's object. Others, will not have this argument.
+			self.optimizerScheduler.model = self
+			self.optimizerScheduler.storedArgs = kwargs
 
 	def setCriterion(self, criterion):
 		self.criterion = criterion

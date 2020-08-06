@@ -7,7 +7,7 @@ from neural_wrappers.utilities import getGenerators, npCloseEnough
 try:
 	# This path must be supplied manually in order to pass these tests
 	MNIST_READER_PATH = os.environ["MNIST_READER_PATH"]
-	pytestmark = pytest.mark.skipif(False)
+	pytestmark = pytest.mark.skipif(False, reason="Dataset path not found.")
 except Exception:
 	pytestmark = pytest.mark.skip("MNIST Dataset path must be set.", allow_module_level=True)
 
@@ -92,3 +92,18 @@ class TestMNISTReader:
 		firstRGBs = next(generator)[0]
 
 		assert firstRGBs.dtype == np.float32 and firstRGBs.min() == 0 and firstRGBs.max() == 1
+
+def main():
+	pass
+	TestMNISTReader().test_mnist_construct_1()
+	TestMNISTReader().test_mnist_construct_2()
+	TestMNISTReader().test_getNumData_1()
+	TestMNISTReader().test_getNumIterations_1()
+	TestMNISTReader().test_iterate_1()
+	TestMNISTReader().test_iterate_2()
+	TestMNISTReader().test_iterate_3()
+	TestMNISTReader().test_normalization_1()
+	TestMNISTReader().test_normalization_2()
+
+if __name__ == "__main__":
+	main()

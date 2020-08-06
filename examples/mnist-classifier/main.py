@@ -8,12 +8,11 @@ from functools import partial
 from models import ModelFC, ModelConv
 from neural_wrappers.readers import MNISTReader
 from neural_wrappers.callbacks import SaveModels, SaveHistory, ConfusionMatrix, PlotMetrics, EarlyStopping
-from neural_wrappers.schedulers import ReduceLROnPlateau
+from neural_wrappers.schedulers import ReduceLRAndBacktrackOnPlateau
 from neural_wrappers.utilities import getGenerators
 from neural_wrappers.metrics import Accuracy
 from neural_wrappers.pytorch import device
 
-from neural_wrappers.callbacks import MetricAsCallback
 from neural_wrappers.utilities import isBaseOf
 
 from argparse import ArgumentParser
@@ -58,15 +57,14 @@ def main():
 	model.setCriterion(lossFn)
 	model.addMetrics({"Accuracy" : Accuracy()})
 	model.setOptimizer(optim.SGD, momentum=0.5, lr=0.1)
-	model.setOptimizerScheduler(ReduceLROnPlateau, metric="Loss")
-	callbacks = [SaveHistory("history.txt"), PlotMetrics(["Loss", "Accuracy"]), \
-		EarlyStopping(patience=5), SaveModels("best", "Loss")]
+	model.setOptimizerScheduler(ReduceLRAndBacktrackOnPlateau(model, "Loss", 2, 10))
+	callbacks = [SaveHistory("history.txt"), PlotMetrics(["Loss", "Accuracy"]), SaveModels("best", "Loss")]
 	model.addCallbacks(callbacks)
 	print(model.summary())
 
 	if args.type == "train":
-		model.train_generator(trainGenerator, 10, numEpochs=args.numEpochs, \
-			validationGenerator=valGenerator, validationSteps=10, printMessage="v2")
+		model.train_generator(trainGenerator, trainSteps, numEpochs=args.numEpochs, \
+			validationGenerator=valGenerator, validationSteps=valSteps, printMessage="v2")
 	elif args.type == "retrain":
 		model.loadModel(args.weightsFile)
 		model.train_generator(trainGenerator, trainSteps, numEpochs=args.numEpochs, \

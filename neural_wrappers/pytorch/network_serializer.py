@@ -147,7 +147,8 @@ class NetworkSerializer:
 
 		for key in stateKeys:
 			if key == "weights":
-				self.doLoadWeights(loadedState)
+				assert "weights" in loadedState
+				self.doLoadWeights(loadedState["weights"])
 			elif key == "optimizer":
 				assert "optimizer" in loadedState
 				self.doLoadOptimizer(loadedState["optimizer"])
@@ -164,10 +165,7 @@ class NetworkSerializer:
 		print("Finished loading model")
 
 	# Handles loading weights from a model.
-	def doLoadWeights(self, loadedState):
-		assert "weights" in loadedState
-		loadedParams = loadedState["weights"]
-
+	def doLoadWeights(self, loadedParams):
 		trainableParams = getTrainableParameters(self.model)
 		numTrainableParams = _computeNumParams(trainableParams)
 		numLoadedParams = _computeNumParams(loadedParams)
