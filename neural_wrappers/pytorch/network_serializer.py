@@ -190,16 +190,15 @@ class NetworkSerializer:
 		print("Succesfully loaded weights (%d parameters) " % (numLoadedParams))
 
 	def doLoadOptimizer(self, optimizerDict):
-		if not "kwargs" in optimizerDict:
-			print("Warning: Depcrecated model. No kwargs in optimizerDict. Defaulting to lr=0.01")
-			optimizerDict["kwargs"] = {"lr" : 0.01}
-		self.model.setOptimizer(optimizerDict["type"], **optimizerDict["kwargs"])
-		self.model.optimizer.load_state_dict(optimizerDict["state"])
-		self.model.optimizer.storedArgs = optimizerDict["kwargs"]
+		assert "kwargs" in optimizerDict
+		assert not self.model.getOptimizer() is None, "Set optimizer first before loading the model."
+		self.model.getOptimizer().load_state_dict(optimizerDict["state"])
+		self.model.getOptimizer().storedArgs = optimizerDict["kwargs"]
 		print("Succesfully loaded optimizer: %s" % (self.model.getOptimizerStr()))
 
 		if "scheduler_state" in optimizerDict:
-			self.model.setOptimizerScheduler(optimizerDict["scheduler_type"], **optimizerDict["scheduler_kwargs"])
+			self.model.setOptimizerScheduler(optimizerDict["scheduler_type"], \
+				**optimizerDict["scheduler_kwargs"])
 			self.model.optimizerScheduler.load_state_dict(optimizerDict["scheduler_state"])
 			self.model.optimizerScheduler.storedArgs = optimizerDict["scheduler_kwargs"]
 			print("Succesfully loaded optimizer scheduler: %s" % (self.model.optimizerScheduler))

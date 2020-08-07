@@ -10,7 +10,7 @@ from typing import List, Union, Dict, Callable
 from types import LambdaType
 
 from .network_serializer import NetworkSerializer
-from .utils import getNumParams, npGetData, trGetData, StorePrevState
+from .utils import getNumParams, npGetData, trGetData, StorePrevState, _getOptimizerStr
 from ..utilities import makeGenerator, MessagePrinter, isBaseOf, RunningMean, \
 	topologicalSort, deepCheckEqual, getFormattedStr
 from ..callbacks import Callback, CallbackName
@@ -519,35 +519,7 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	def getOptimizerStr(self):
 		optimizer = self.getOptimizer()
-		if isinstance(optimizer, dict):
-			return ["Dict"]
-
-		if optimizer is None:
-			return ["None"]
-
-		if isinstance(optimizer, tr.optim.SGD):
-			groups = optimizer.param_groups[0]
-			params = "Learning rate: %s, Momentum: %s, Dampening: %s, Weight Decay: %s, Nesterov: %s" % \
-				(groups["lr"], groups["momentum"], groups["dampening"], groups["weight_decay"], groups["nesterov"])
-			optimizerType = "SGD"
-		elif isinstance(optimizer, (tr.optim.Adam, tr.optim.AdamW)):
-			groups = optimizer.param_groups[0]
-			params = "Learning rate: %s, Betas: %s, Eps: %s, Weight Decay: %s" % (groups["lr"], groups["betas"], \
-				groups["eps"], groups["weight_decay"])
-			optimizerType = {
-				tr.optim.Adam : "Adam",
-				tr.optim.AdamW : "AdamW"
-			}[type(optimizer)]
-		elif isinstance(optimizer, tr.optim.RMSprop):
-			groups = optimizer.param_groups[0]
-			params = "Learning rate: %s, Momentum: %s. Alpha: %s, Eps: %s, Weight Decay: %s" % (groups["lr"], \
-				groups["momentum"], groups["alpha"], groups["eps"], groups["weight_decay"])
-			optimizerType = "RMSprop"
-		else:
-			optimizerType = "Generic Optimizer"
-			params = str(optimizer)
-
-		return ["%s. %s" % (optimizerType, params)]
+		return _getOptimizerStr(optimizer)
 
 	def setOptimizerScheduler(self, scheduler, **kwargs):
 		assert not self.getOptimizer() is None, "Optimizer must be set before scheduler!"

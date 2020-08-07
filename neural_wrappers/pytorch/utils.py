@@ -190,3 +190,34 @@ def getMetricScoreFromHistory(trainHistory, metricName):
 		score = score[metricName.name[i]]
 	score = score[metricName]
 	return score
+
+def _getOptimizerStr(optimizer):
+	if isinstance(optimizer, dict):
+		return ["Dict"]
+
+	if optimizer is None:
+		return ["None"]
+
+	if isinstance(optimizer, tr.optim.SGD):
+		groups = optimizer.param_groups[0]
+		params = "Learning rate: %s, Momentum: %s, Dampening: %s, Weight Decay: %s, Nesterov: %s" % \
+			(groups["lr"], groups["momentum"], groups["dampening"], groups["weight_decay"], groups["nesterov"])
+		optimizerType = "SGD"
+	elif isinstance(optimizer, (tr.optim.Adam, tr.optim.AdamW)):
+		groups = optimizer.param_groups[0]
+		params = "Learning rate: %s, Betas: %s, Eps: %s, Weight Decay: %s" % (groups["lr"], groups["betas"], \
+			groups["eps"], groups["weight_decay"])
+		optimizerType = {
+			tr.optim.Adam : "Adam",
+			tr.optim.AdamW : "AdamW"
+		}[type(optimizer)]
+	elif isinstance(optimizer, tr.optim.RMSprop):
+		groups = optimizer.param_groups[0]
+		params = "Learning rate: %s, Momentum: %s. Alpha: %s, Eps: %s, Weight Decay: %s" % (groups["lr"], \
+			groups["momentum"], groups["alpha"], groups["eps"], groups["weight_decay"])
+		optimizerType = "RMSprop"
+	else:
+		optimizerType = "Generic Optimizer"
+		params = str(optimizer)
+
+	return ["%s. %s" % (optimizerType, params)]

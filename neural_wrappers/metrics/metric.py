@@ -1,8 +1,9 @@
+from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Union, Optional, Callable
 from overrides import overrides
 from ..utilities import NWNumber
-from ..callbacks import Callback
+from ..callbacks import Callback, CallbackName
 
 # @brief Base Class for all metrics. It defines a direction, which represents whether the metric is minimized or
 #  maximized.
@@ -66,3 +67,14 @@ class Metric(Callback):
 	@abstractmethod
 	def __call__(self, results : NWNumber, labels : NWNumber, **kwargs):
 		pass
+
+	def __eq__(self, other:Metric) -> bool: # type: ignore[override]
+		thisName = self.getName()
+		if isinstance(other, str):
+			other = CallbackName(other)
+		if isinstance(other, Callback):
+			other = other.getName()
+		return thisName == other
+
+	def __hash__(self):
+		return hash(self.name)
