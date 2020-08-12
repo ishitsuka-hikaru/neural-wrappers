@@ -11,7 +11,9 @@ def defaultLossFn(y, t, obj):
 	L = 0
 	t = B.getGroundTruth()
 	for y in obj.outputs:
-		L += obj.criterion(y, t)
+		res = obj.criterion(y, t)
+		if not res is None:
+			L += obj.criterion(y, t)
 	return L
 
 # @param[in] inputNode Instance of the input node of this edge

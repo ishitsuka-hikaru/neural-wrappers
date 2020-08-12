@@ -99,6 +99,8 @@ def getOptimizerStr(optimizer):
 def npGetData(data):
 	if data is None:
 		return None
+	elif isinstance(data, (int, float)):
+		return np.array([data])
 	elif isinstance(data, (list, tuple)):
 		return [npGetData(x) for x in data]
 	elif isinstance(data, (dict, OrderedDict)):
