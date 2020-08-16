@@ -192,6 +192,8 @@ class NetworkSerializer:
 	def doLoadOptimizer(self, optimizerDict):
 		assert "kwargs" in optimizerDict
 		assert not self.model.getOptimizer() is None, "Set optimizer first before loading the model."
+		loadedType = type(self.model.getOptimizer())
+		assert optimizerDict["type"] == loadedType, "Optimizers: %s vs %s" % (optimizerDict["type"], loadedType)
 		self.model.getOptimizer().load_state_dict(optimizerDict["state"])
 		self.model.getOptimizer().storedArgs = optimizerDict["kwargs"]
 		print("Succesfully loaded optimizer: %s" % (self.model.getOptimizerStr()))
