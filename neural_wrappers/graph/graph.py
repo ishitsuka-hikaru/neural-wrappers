@@ -1,14 +1,18 @@
 import torch.nn as nn
-from ..pytorch import NeuralNetworkPyTorch, npGetData, trGetData, npToTrCall, trToNpCall
-from ..utilities import MultiLinePrinter, getFormattedStr
+import torch.optim as optim
 from functools import partial
 from copy import copy
+from overrides import overrides
 
 from .draw_graph import drawGraph
+from .graph_serializer import GraphSerializer
+from ..pytorch import NeuralNetworkPyTorch, npGetData, trGetData, npToTrCall, trToNpCall
+from ..utilities import MultiLinePrinter, getFormattedStr
+from ..callbacks import CallbackName
 
 class Graph(NeuralNetworkPyTorch):
 	def __init__(self, edges, hyperParameters={}):
-		self.edges =edges
+		self.edges = edges
 		self.nodes = self.getNodes()
 		hyperParameters = self.getHyperParameters(hyperParameters)
 		super().__init__(hyperParameters=hyperParameters)
@@ -19,21 +23,20 @@ class Graph(NeuralNetworkPyTorch):
 		self.linePrinter = MultiLinePrinter()
 		self.setCriterion(self.loss)
 
+		self.serializer = GraphSerializer(self)
+
 	def loss(self, y, t):
 		loss = 0
+		self.edgeLoss[None] = 0
 		for edge in self.edges:
 			edgeID = str(edge)
 			edgeLoss = edge.loss(y, t)
 			self.edgeLoss[edgeID] = npGetData(edgeLoss)
+			# Cummulate it for the entire graph as well for statistics.
+			self.edgeLoss[None] += self.edgeLoss[edgeID]
 	
-			# If this edge has no loss, ignore it.
-			if edgeLoss is None:
-				continue
-			# If this edge is not trainable, also ignore it (? To think if this is correct ?)
-			# TODO: see how to fast check if edge is trainable (perhaps not an issue at all to add untrainable ones)
-
-			# Otherwise, just add it to the loss of the entire graph
-			loss += edgeLoss
+			if not edgeLoss is None:
+				loss += edgeLoss
 		return loss
 
 	# Graphs and subgraphs use all the possible inputs.
@@ -42,6 +45,7 @@ class Graph(NeuralNetworkPyTorch):
 	def getInputs(self, trInputs):
 		return trInputs
 
+	@overrides
 	def forward(self, trInputs):
 		trResults = {}
 		# TODO: Execution order. (synchronus vs asynchronus as well as topological sort at various levels.)
@@ -81,95 +85,6 @@ class Graph(NeuralNetworkPyTorch):
 				nodes.add(node)
 		return nodes
 
-	def initializeEpochMetrics(self):
-		res = super().initializeEpochMetrics()
-		for edge in self.edges:
-			res[str(edge)] = edge.initializeEpochMetrics()
-		return res
-
-	def reduceEpochMetrics(self, metricResults):
-		results = super().reduceEpochMetrics(metricResults)
-		for edge in self.edges:
-			results[str(edge)] = edge.reduceEpochMetrics(metricResults[str(edge)])
-		return results
-
-	### Some updates to original NeuralNetworkPyTorch to work seamlessly with graphs (mostly printing)
-
-	def getGroundTruth(self, x):
-		return x
-
-	def callbacksOnIterationEnd(self, data, labels, results, loss, iteration, numIterations, \
-		metricResults, isTraining, isOptimizing):
-		thisResults = super().callbacksOnIterationEnd(data, labels, results, loss, iteration, numIterations, \
-				metricResults, isTraining, isOptimizing)
-
-		for edge in self.edges:
-			edgeResults = results[str(edge)]
-			edgeLabels = edge.getGroundTruth(labels)
-			edgeMetricResults = metricResults[str(edge)]
-			edgeLoss = self.edgeLoss[str(edge)]
-			thisResults[str(edge)] = edge.callbacksOnIterationEnd(data, edgeLabels, \
-				edgeResults, edgeLoss, iteration, numIterations, edgeMetricResults, isTraining, isOptimizing)
-		return thisResults
-
-	def metricsSummary(self):
-		summaryStr = super().metricsSummary()
-		for edge in self.edges:
-			strEdge = str(edge)
-			if type(edge) == Graph:
-				strEdge = "SubGraph"
-			lines = edge.metricsSummary().split("\n")[0 : -1]
-			if len(lines) > 0:
-				summaryStr += "\t- %s:\n" % (strEdge)
-				for line in lines:
-					summaryStr += "\t%s\n" % (line)
-		return summaryStr
-
-	def computeIterPrintMessage(self, i, stepsPerEpoch, metricResults, iterFinishTime):
-		messages = super().computeIterPrintMessage(i, stepsPerEpoch, metricResults, iterFinishTime)
-
-		for edge in self.edges:
-			if type(edge) == Graph:
-				strEdge = "SubGraph"
-			else:
-				strEdge = str(edge)
-			edgeMetrics = metricResults[str(edge)]
-			if len(edgeMetrics) == 0:
-				continue
-			edgeIterPrintMessage = edge.computeIterPrintMessage(i, stepsPerEpoch, edgeMetrics, iterFinishTime)[1 :]
-			messages.append(strEdge)
-			messages.extend(edgeIterPrintMessage)
-		return messages
-
-	# Computes the message that is printed to the stdout. This method is also called by SaveHistory callback.
-	# @param[in] kwargs The arguments sent to any regular callback.
-	# @return A string that contains the one-line message that is printed at each end of epoch.
-	def computePrintMessage(self, trainMetrics, validationMetrics, numEpochs, duration):
-		messages = super().computePrintMessage(trainMetrics, validationMetrics, numEpochs, duration)
-		for edge in self.edges:
-			if type(edge) == Graph:
-				strEdge = "SubGraph"
-			else:
-				strEdge = str(edge)
-			edgeTrainMetrics = trainMetrics[str(edge)]
-			edgeValMetrics = validationMetrics[str(edge)]
-			if len(edgeTrainMetrics) == 0:
-				continue
-			edgePrintMessage = edge.computePrintMessage(edgeTrainMetrics, edgeValMetrics, numEpochs, duration)[1 : ]
-			messages.append(strEdge)
-			messages.extend(edgePrintMessage)
-		return messages
-
-	def iterationEpilogue(self, isTraining, isOptimizing, trLabels):
-		# Set the GT for each node based on the inputs available at this step. Edges may overwrite this when reaching
-		#  a node via an edge, however it is the graph's responsability to set the default GTs. What happens during the
-		#  optimization shouldn't be influenced by this default.
-		# If the ground truth key is "*", then all items are provided to the node and it's expected that the node will
-		#  manage the labels accordingly.
-		for node in self.nodes:
-			node.setGroundTruth(trLabels)
-			node.messages = {}
-
 	def draw(self, fileName, cleanup=True, view=False):
 		drawGraph(self.nodes, self.edges, fileName, cleanup, view)
 
@@ -192,6 +107,139 @@ class Graph(NeuralNetworkPyTorch):
 				edgeStr = str(edge)
 			Str += "\n%s-%s" % (pre, edgeStr)
 		return Str
+
+	def getGroundTruth(self, x):
+		return x
+
+	# We also override some methods on the Network class so it works with edges as well.
+
+	@overrides
+	def setOptimizer(self, optimizer, **kwargs):
+		if isinstance(optimizer, optim.Optimizer):
+			self.optimizer = optimizer
+		else:
+			params = []
+			for edge in self.edges:
+				edgeParams =  list(filter(lambda p : p.requires_grad, edge.parameters()))
+				params.append({"params" : edgeParams})
+			self.optimizer = optimizer(params, **kwargs)
+		self.optimizer.storedArgs = kwargs
+
+	@overrides
+	def getOptimizerStr(self):
+		strList = super().getOptimizerStr()
+		for edge in self.edges:
+			strEdge = str(edge)
+			if type(edge) == Graph:
+				strEdge = "SubGraph"
+			edgeStrList = edge.getOptimizerStr()
+			strList.extend(edgeStrList)
+		return strList
+
+	@overrides
+	def initializeEpochMetrics(self):
+		res = super().initializeEpochMetrics()
+		for edge in self.edges:
+			res[str(edge)] = edge.initializeEpochMetrics()
+		return res
+
+	@overrides
+	def reduceEpochMetrics(self, metricResults):
+		results = {None : super().reduceEpochMetrics(metricResults)}
+		for edge in self.edges:
+			results[str(edge)] = edge.reduceEpochMetrics(metricResults[str(edge)])
+		return results
+
+	@overrides
+	def callbacksOnIterationStart(self, isTraining, isOptimizing):
+		super().callbacksOnIterationStart(isTraining, isOptimizing)
+		for edge in self.edges:
+			edge.callbacksOnIterationStart(isTraining, isOptimizing)
+
+	@overrides
+	def callbacksOnIterationEnd(self, data, labels, results, loss, iteration, numIterations, \
+		metricResults, isTraining, isOptimizing):
+		thisResults = super().callbacksOnIterationEnd(data, labels, results, loss, iteration, numIterations, \
+				metricResults, isTraining, isOptimizing)
+
+		for edge in self.edges:
+			edgeResults = results[str(edge)]
+			edgeLabels = edge.getGroundTruth(labels)
+			edgeMetricResults = metricResults[str(edge)]
+			edgeLoss = self.edgeLoss[str(edge)]
+			thisResults[str(edge)] = edge.callbacksOnIterationEnd(data, edgeLabels, \
+				edgeResults, edgeLoss, iteration, numIterations, edgeMetricResults, isTraining, isOptimizing)
+		return thisResults
+
+	@overrides
+	def callbacksOnEpochStart(self, isTraining):
+		super().callbacksOnEpochStart(isTraining)
+		for edge in self.edges:
+			edge.callbacksOnEpochStart(isTraining)
+
+	@overrides
+	def metricsSummary(self):
+		summaryStr = super().metricsSummary()
+		for edge in self.edges:
+			strEdge = str(edge)
+			if type(edge) == Graph:
+				strEdge = "SubGraph"
+			lines = edge.metricsSummary().split("\n")[0 : -1]
+			if len(lines) > 0:
+				summaryStr += "\t- %s:\n" % (strEdge)
+				for line in lines:
+					summaryStr += "\t%s\n" % (line)
+		return summaryStr
+
+	@overrides
+	def callbacksSummary(self):
+		summaryStr = super().callbacksSummary()
+		for edge in self.edges:
+			strEdge = str(edge)
+			if type(edge) == Graph:
+				strEdge = "SubGraph"
+			lines = edge.callbacksSummary()
+			if len(lines) == 0:
+				continue
+			summaryStr += "\n\t- %s:\n\t\t%s" % (strEdge, lines)
+		return summaryStr
+
+	@overrides
+	def computeIterPrintMessage(self, i, stepsPerEpoch, metricResults, iterFinishTime):
+		nonEdgeMetricResults = dict(filter(lambda x : isinstance(x[0], CallbackName), metricResults.items()))
+		messages = super().computeIterPrintMessage(i, stepsPerEpoch, nonEdgeMetricResults, iterFinishTime)
+
+		for edge in self.edges:
+			if type(edge) == Graph:
+				strEdge = "SubGraph"
+			else:
+				strEdge = str(edge)
+			edgeMetrics = metricResults[str(edge)]
+			if len(edgeMetrics) == 0:
+				continue
+			edgeIterPrintMessage = edge.computeIterPrintMessage(i, stepsPerEpoch, edgeMetrics, iterFinishTime)[1 :]
+			messages.append(strEdge)
+			messages.extend(edgeIterPrintMessage)
+		return messages
+
+	@overrides
+	def iterationEpilogue(self, isTraining, isOptimizing, trLabels):
+		# Set the GT for each node based on the inputs available at this step. Edges may overwrite this when reaching
+		#  a node via an edge, however it is the graph's responsability to set the default GTs. What happens during the
+		#  optimization shouldn't be influenced by this default.
+		# If the ground truth key is "*", then all items are provided to the node and it's expected that the node will
+		#  manage the labels accordingly.
+		for node in self.nodes:
+			node.setGroundTruth(trLabels)
+			node.messages = {}
+
+	@overrides
+	def epochPrologue(self, epochResults, numEpochs, isTraining):
+		mainResults = {k : epochResults[k][None] for k in epochResults}
+		super().epochPrologue(mainResults, numEpochs, isTraining)
+		for edge in self.edges:
+			edgeResults = {k : epochResults[k][str(edge)] for k in epochResults}
+			edge.epochPrologue(edgeResults, numEpochs, isTraining)
 
 	def __str__(self):
 		return self.graphStr()

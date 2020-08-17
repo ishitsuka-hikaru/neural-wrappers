@@ -1,14 +1,16 @@
 from __future__ import annotations
 import torch as tr
-from ..pytorch import trGetData, trDetachData, NeuralNetworkPyTorch
 from typing import Optional, Dict, Type, Union
+from abc import ABC, abstractmethod
+from overrides import overrides
+from ..pytorch import trGetData, trDetachData, NeuralNetworkPyTorch
 
-class Node:
+class Node(NeuralNetworkPyTorch):
 	# A dictionary that gives a unique tag to all nodes by appending an increasing number to name.
 	lastNodeID = 0
 
-	def __init__(self, name : str, groundTruthKey : str, nodeEncoder : Optional[NeuralNetworkPyTorch]=None, \
-		nodeDecoder : Optional[NeuralNetworkPyTorch]=None, hyperParameters : dict={}):
+	def __init__(self, name : str, groundTruthKey : str, hyperParameters : dict={}):
+		super().__init__()
 		assert name != "GT", "GT is a reserved keyword"
 		self.name = Node.getUniqueName(name)
 		self.groundTruthKey = groundTruthKey
@@ -19,33 +21,27 @@ class Node:
 		# Messages are the items received at this node via all its incoming edges.
 		self.messages : Dict[str, tr.Tensor] = {}
 
-		# Node-specific encoder and decoder instances. By default they are not instancicated.
-		self.nodeEncoder = nodeEncoder
-		self.nodeDecoder = nodeDecoder
-
 	# This function is called for getEncoder/getDecoder. By default we'll return the normal type of this function.
 	#  However, we are free to overwrite what type a node offers to be seen as. A concrete example is a
 	#  ConcatenateNode, which might be more useful to be seen as a MapNode (if it concatenates >=2 MapNodes)
 	def getType(self) -> Type[Node]:
 		return type(self)
 
-	def getEncoder(self, outputNodeType : Optional[Node]=None):
-		if not self.nodeEncoder is None:
-			return self.nodeEncoder
-		raise Exception("Must be implemented by each node!")
+	@abstractmethod
+	def getEncoder(self, outputNodeType : Optional[Node]=None) -> NeuralNetworkPyTorch:
+		pass
 
+	@abstractmethod
 	def getDecoder(self, inputNodeType : Optional[Node]=None) -> NeuralNetworkPyTorch:
-		if not self.getDecoder is None:
-			return self.nodeDecoder
-		raise Exception("Must be implemented by each node!")
+		pass
 
-	# TODO type
-	def getMetrics(self) -> dict:
-		raise Exception("Must be implemented by each node!")
+	@abstractmethod
+	def getNodeMetrics(self) -> Dict[str, Metric]:
+		pass
 
-	# TODO: Return callable
-	def getCriterion(self):
-		raise Exception("Must be implemented by each node!")
+	@abstractmethod
+	def getNodeCriterion(self) -> Callable[[tr.Tensor, tr.Tensor, dict], tr.Tensor]:
+		pass
 
 	def getInputs(self, x : tr.Tensor) -> Dict[str, tr.Tensor]:
 		inputs = self.getMessages()

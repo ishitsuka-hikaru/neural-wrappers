@@ -1,8 +1,16 @@
 import torch.nn as nn
+import numpy as np
 from functools import partial
+from collections import OrderedDict
+from overrides import overrides
+from typing import Union, Callable
+from types import LambdaType
+
 from .node import MapNode, VectorNode
-from ..pytorch import NeuralNetworkPyTorch, trModuleWrapper, trGetData, npGetData
+from ..pytorch import NeuralNetworkPyTorch, trModuleWrapper
 from ..pytorch.network_serializer import NetworkSerializer
+from ..callbacks import CallbackName
+from ..metrics import Metric, MetricWrapper
 
 # Default loss of this edge goes through all ground truths and all outputs of the output node and computes the
 #  loss between them. This can be updated for a more specific edge algorithm for loss computation.
@@ -34,6 +42,8 @@ class Edge(NeuralNetworkPyTorch):
 	def __init__(self, inputNode, outputNode, edgeType="edge-edge", forwardFn=None, \
 		lossFn=None, dependencies=[], blockGradients=False, hyperParameters={}):
 		hyperParameters = self.getHyperParameters(hyperParameters, edgeType, blockGradients)
+		self.strInputnode = str(inputNode)
+		self.strOutputNode = str(outputNode)
 		super().__init__(hyperParameters=hyperParameters)
 		assert edgeType in ("node-node", "node-edge", "edge-node", "edge-edge")
 		self.inputNode = inputNode
@@ -125,8 +135,9 @@ class Edge(NeuralNetworkPyTorch):
 			self.forwardFn = forwardUseAll
 		if not self.lossFn:
 			self.lossFn = partial(defaultLossFn, obj=self)
-		self.addMetrics(self.outputNode.getMetrics())
-		self.setCriterion(self.outputNode.getCriterion())
+
+		self.addMetrics(self.outputNode.getNodeMetrics())
+		self.setCriterion(self.outputNode.getNodeCriterion())
 
 	def setBlockGradients(self, value):
 		self.blockGradients = value
@@ -138,6 +149,7 @@ class Edge(NeuralNetworkPyTorch):
 		hyperParameters["blockGradients"] = blockGradients
 		return hyperParameters
 
+	@overrides
 	def callbacksOnIterationEnd(self, data, labels, results, loss, iteration, numIterations, \
 		metricResults, isTraining, isOptimizing):
 		for i in range(len(results)):
@@ -163,8 +175,32 @@ class Edge(NeuralNetworkPyTorch):
 			print("Warning! Output node is different. Expected: %s. Got: %s." % (relevantKeys[1], thisOutputNode))
 		self.serializer.doLoadWeights(pklFile)
 
+	# We also override some methods on the Network class so it works with edges as well.
+	@overrides
+	def addMetric(self, metricName:Union[str, CallbackName], metric:Union[Callable, Metric]):
+		# If it's just a callback, make it a metric
+		if isinstance(metric, LambdaType):
+			metric = MetricWrapper(metric)
+		if not isinstance(metricName, CallbackName):
+			metricName = CallbackName(metricName)
+		metricName = CallbackName((str(self), *metricName.name))
+		metric.setName(metricName)
+		self.callbacks[metricName] = metric
+		self.iterPrintMessageKeys.append(metricName)
+
+	@overrides
+	def clearCallbacks(self):
+		metric = MetricWrapper(lambda y, t, **k : k["loss"])
+		metricName = CallbackName((str(self), "Loss"))
+		metric.setName(metricName)
+		self.callbacks = OrderedDict({metricName : metric})
+		self.iterPrintMessageKeys = [metricName]
+		self.topologicalSort = np.array([0], dtype=np.uint8)
+		self.topologicalKeys = np.array([metricName], dtype=str)
+		self.topologicalSortDirty = False
+
 	def __str__(self):
-		return "%s -> %s" % (str(self.inputNode), str(self.outputNode))
+		return "%s -> %s" % (self.strInputnode, self.strOutputNode)
 
 	def __repr__(self):
 		return str(self)

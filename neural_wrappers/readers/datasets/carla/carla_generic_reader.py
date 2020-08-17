@@ -1,65 +1,17 @@
 import numpy as np
 import h5py
 from typing import Callable, Any, Dict, List, Tuple
-from functools import partial
+from returns.curry import partial
 
-from .normalizers import rgbNorm, depthNorm, positionNorm, opticalFlowNorm, \
-	normalNorm, semanticSegmentationNorm, positionQuatNorm, positionDotTranslationOnlyNorm, positionNorm
 from ...h5_dataset_reader import H5DatasetReader, defaultH5DimGetter
-from ...internal import DatasetIndex
-from ....utilities import smartIndexWrapper
-
-def opticalFlowReader(dataset : h5py._hl.group.Group, index : DatasetIndex, \
-	dim : str, readerObj : H5DatasetReader) -> np.ndarray:
-	baseDirectory = readerObj.dataset["others"]["baseDirectory"][()]
-	paths = dataset[dim][index.start : index.end]
-
-	results = []
-	for path in paths:
-		path_x, path_y = path
-		path_x, path_y = "%s/%s" % (baseDirectory, str(path_x, "utf8")), "%s/%s" % (baseDirectory, str(path_y, "utf8"))
-		flow_x, flow_y = readerObj.rawFlowReadFunction(path_x), readerObj.rawFlowReadFunction(path_y)
-		flow = np.stack([flow_x, flow_y], axis=-1)
-		results.append(flow)
-	return np.array(results)
-
-def rgbNeighbourReader(dataset : h5py._hl.group.Group, index : DatasetIndex, \
-	skip : int, readerObj : H5DatasetReader) -> np.ndarray:
-	baseDirectory = readerObj.dataset["others"]["baseDirectory"][()]
-
-	# For optical flow we have the problem that the flow data for t->t+1 is stored at index t+1, which isn't
-	#  necessarily 1 index to the right (trian set may be randomized beforehand). Thus, we need to get the indexes
-	#  of the next neighbours of this top level (train/test etc.), and then read the paths at those indexes.
-	topLevel = readerObj.getActiveTopLevel()
-	key = "t+%d" % (skip)
-	neighbourIds = readerObj.idOfNeighbour[topLevel][key][index.start : index.end]
-	paths = smartIndexWrapper(dataset["rgb"], neighbourIds)
-
-	results = []
-	for path in paths:
-		path = "%s/%s" % (baseDirectory, str(path, "utf8"))
-		results.append(readerObj.rawReadFunction(path))
-	return np.array(results)
-
-def depthReadFunction(path : str, readerObj : H5DatasetReader) -> np.ndarray:
-	return readerObj.rawDepthReadFunction(path)
-
-# Append base directory to all paths read from the h5, and then call the reading function for each full path.
-def pathsReader(dataset : h5py._hl.group.Group, index : DatasetIndex, readerObj : H5DatasetReader,
-	readFunction : Callable[[str], np.ndarray], dim : str) -> np.ndarray:
-	baseDirectory = readerObj.dataset["others"]["baseDirectory"][()]
-	paths = dataset[dim][index.start : index.end]
-
-	results = []
-	for path in paths:
-		path = "%s/%s" % (baseDirectory, str(path, "utf8"))
-		results.append(readFunction(path))
-	return np.array(results)
 
 class CarlaGenericReader(H5DatasetReader):
-	def __init__(self, datasetPath : str, dataBuckets : Dict[str, List[str]], \
+	def __init__(self, datasetPath:str, dataBuckets : Dict[str, List[str]], \
 		rawReadFunction : Callable[[str], np.ndarray], desiredShape : Tuple[int, int], \
 		numNeighboursAhead : int, hyperParameters : Dict[str, Any]):
+		from .normalizers import rgbNorm, depthNorm, positionNorm, opticalFlowNorm, \
+			normalNorm, semanticSegmentationNorm, positionQuatNorm, positionDotTranslationOnlyNorm
+		from .utils import opticalFlowReader, depthReadFunction, rgbNeighbourReader, pathsReader
 		assert numNeighboursAhead >= 0
 
 		dimGetter = {
@@ -112,6 +64,8 @@ class CarlaGenericReader(H5DatasetReader):
 		self.idOfNeighbour = self.getIdsOfNeighbour()
 		self.desiredShape = desiredShape
 		self.hyperParameters = hyperParameters
+		self.rawFlowReadFunction = lambda x : x
+		self.rawDepthReadFunction = lambda x : x
 
 	# For each top level (train/tet/val) create a new array with the index of the frame at time t + skipFrames.
 	# For example result["train"][0] = 2550 means that, after randomization the frame at time=1 is at id 2550.

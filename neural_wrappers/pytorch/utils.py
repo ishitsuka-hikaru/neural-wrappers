@@ -67,34 +67,6 @@ def _computeNumParams(namedParams):
 def getNumParams(model):
 	return _computeNumParams(model.state_dict()), _computeNumParams(getTrainableParameters(model))
 
-def getOptimizerStr(optimizer):
-	if optimizer is None:
-		return "None"
-
-	if isinstance(optimizer, tr.optim.SGD):
-		groups = optimizer.param_groups[0]
-		params = "Learning rate: %s, Momentum: %s, Dampening: %s, Weight Decay: %s, Nesterov: %s" % (groups["lr"], \
-			groups["momentum"], groups["dampening"], groups["weight_decay"], groups["nesterov"])
-		name = "SGD"
-	elif isinstance(optimizer, (tr.optim.Adam, tr.optim.AdamW)):
-		groups = optimizer.param_groups[0]
-		params = "Learning rate: %s, Betas: %s, Eps: %s, Weight Decay: %s" % (groups["lr"], groups["betas"], \
-			groups["eps"], groups["weight_decay"])
-		name = {
-			tr.optim.Adam : "Adam",
-			tr.optim.AdamW : "AdamW"
-		}[type(optimizer)]
-	elif isinstance(optimizer, tr.optim.RMSprop):
-		groups = optimizer.param_groups[0]
-		params = "Learning rate: %s, Momentum: %s. Alpha: %s, Eps: %s, Weight Decay: %s" % (groups["lr"], \
-			groups["momentum"], groups["alpha"], groups["eps"], groups["weight_decay"])
-		name = "RMSprop"
-	else:
-		name = "Generic Optimizer"
-		params = str(optimizer)
-
-	return "%s. %s" % (name, params)
-
 # Results come in torch format, but callbacks require numpy, so convert the results back to numpy format
 def npGetData(data):
 	if data is None:
@@ -110,6 +82,8 @@ def npGetData(data):
 	elif isinstance(data, np.ndarray):
 		return data
 	elif callable(data):
+		return data
+	elif isinstance(data, str):
 		return data
 	assert False, "Got type %s" % (type(data))
 
@@ -128,6 +102,8 @@ def trGetData(data):
 	elif isinstance(data, np.ndarray):
 		return tr.from_numpy(data).to(device)
 	elif callable(data):
+		return data
+	elif isinstance(data, str):
 		return data
 	assert False, "Got type %s" % (type(data))
 
@@ -154,18 +130,16 @@ def plotModelMetricHistory(trainHistory, metricName, plotBestBullet, dpi=120):
 	numEpochs = len(trainHistory)
 	# trainValues = np.array([trainHistory[i]["Train"][metric] for i in range(numEpochs)])
 
-	def getScore(trainHistory, name):
-		score = trainHistory
-		for k in name:
-			score = score[k]
-		return score
-
 	trainValues, validationValues = np.zeros((2, numEpochs), dtype=np.float32)
 	hasValidation = ("Validation" in trainHistory[0]) and (not trainHistory[0]["Validation"] is None)
 	for i in range(numEpochs):
-		trainValues[i] = getScore(trainHistory[i]["Train"], metricName)
+		X = getMetricScoreFromHistory(trainHistory[i]["Train"], metricName)
+		# Apply mean in case the metric returned a tuple.
+		trainValues[i] = X.mean()
+		
 		if hasValidation:
-			validationValues[i] = getScore(trainHistory[i]["Validation"], metricName)
+			X = getMetricScoreFromHistory(trainHistory[i]["Validation"], metricName)
+			validationValues[i] = X.mean()
 
 	x = np.arange(len(trainValues)) + 1
 	metricName = str(metricName)
@@ -182,7 +156,7 @@ def plotModelMetricHistory(trainHistory, metricName, plotBestBullet, dpi=120):
 	trainValues[np.isnan(trainValues)] = 0
 	usedValues[np.isnan(usedValues)] = 0
 
-	assert plotBestBullet in ("none", "min", "max")
+	assert plotBestBullet in ("none", "min", "max"), "%s" % plotBestBullet
 	if plotBestBullet == "min":
 		minX, minValue = np.argmin(usedValues), np.min(usedValues)
 		plt.annotate("Epoch %d\nMin %2.2f" % (minX + 1, minValue), xy=(minX + 1, minValue))
@@ -210,3 +184,42 @@ def getModelHistoryMessage(model):
 		for i in range(len(trainHistory)):
 			Str += trainHistory[i]["message"] + "\n"
 		return Str
+
+# Metrics may be stored as tuples for graph/complex networks.
+def getMetricScoreFromHistory(trainHistory, metricName):
+	score = trainHistory
+	for i in range(len(metricName.name) - 1):
+		score = score[metricName.name[i]]
+	score = score[metricName]
+	return score
+
+def _getOptimizerStr(optimizer):
+	if isinstance(optimizer, dict):
+		return ["Dict"]
+
+	if optimizer is None:
+		return ["None"]
+
+	if isinstance(optimizer, tr.optim.SGD):
+		groups = optimizer.param_groups[0]
+		params = "Learning rate: %s, Momentum: %s, Dampening: %s, Weight Decay: %s, Nesterov: %s" % \
+			(groups["lr"], groups["momentum"], groups["dampening"], groups["weight_decay"], groups["nesterov"])
+		optimizerType = "SGD"
+	elif isinstance(optimizer, (tr.optim.Adam, tr.optim.AdamW)):
+		groups = optimizer.param_groups[0]
+		params = "Learning rate: %s, Betas: %s, Eps: %s, Weight Decay: %s" % (groups["lr"], groups["betas"], \
+			groups["eps"], groups["weight_decay"])
+		optimizerType = {
+			tr.optim.Adam : "Adam",
+			tr.optim.AdamW : "AdamW"
+		}[type(optimizer)]
+	elif isinstance(optimizer, tr.optim.RMSprop):
+		groups = optimizer.param_groups[0]
+		params = "Learning rate: %s, Momentum: %s. Alpha: %s, Eps: %s, Weight Decay: %s" % (groups["lr"], \
+			groups["momentum"], groups["alpha"], groups["eps"], groups["weight_decay"])
+		optimizerType = "RMSprop"
+	else:
+		optimizerType = "Generic Optimizer"
+		params = str(optimizer)
+
+	return ["%s. %s" % (optimizerType, params)]

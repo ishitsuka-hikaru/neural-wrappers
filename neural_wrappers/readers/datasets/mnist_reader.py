@@ -1,11 +1,12 @@
 import numpy as np
 from functools import partial
+from overrides import overrides
 from ..h5_dataset_reader import H5DatasetReader, defaultH5DimGetter
 from ...utilities import toCategorical
-from typing import Iterator, Dict
+from typing import Iterator, Tuple
 
 class MNISTReader(H5DatasetReader):
-	def __init__(self, datasetPath : str, normalization : str = "min_max_0_1"):
+	def __init__(self, datasetPath:str, normalization:str = "min_max_0_1"):
 		assert normalization in ("none", "min_max_0_1")
 
 		rgbTransform = {
@@ -22,12 +23,14 @@ class MNISTReader(H5DatasetReader):
 			}
 		)
 
-	def getNumData(self, topLevel : str) -> int:
+	@overrides
+	def getNumData(self, topLevel:str) -> int:
 		return {
 			"train" : 60000,
 			"test" : 10000
 		}[topLevel]
 
-	def iterateOneEpoch(self, topLevel : str, batchSize : int) -> Iterator[Dict[str, np.ndarray]]:
+	@overrides
+	def iterateOneEpoch(self, topLevel:str, batchSize:int) -> Iterator[Tuple[str, np.ndarray]]:
 		for items in super().iterateOneEpoch(topLevel, batchSize):
 			yield items["data"]["rgb"], items["labels"]["labels"]

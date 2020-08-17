@@ -4,9 +4,9 @@ import numpy as np
 from copy import deepcopy
 from collections import OrderedDict
 
-from .utils import getNumParams, getOptimizerStr, getTrainableParameters, _computeNumParams, device
+from .utils import getNumParams, getTrainableParameters, _computeNumParams, device
+from ..metrics import Metric
 from ..utilities import isBaseOf, deepCheckEqual, isPicklable, npCloseEnough
-from ..callbacks import MetricAsCallback
 
 class NetworkSerializer:
 	# @param[in] The model upon which this serializer works.
@@ -53,19 +53,24 @@ class NetworkSerializer:
 
 	# @brief Handles saving the optimizer of the model
 	def doSaveOptimizer(self):
-		assert not self.model.optimizer is None, "No optimizer was set for this model. Cannot save."
-		optimizerType = type(self.model.optimizer)
-		optimizerState = self.model.optimizer.state_dict()
-		optimizerKwargs = self.model.optimizer.storedArgs
-		Dict = {"state" : optimizerState, "type" : optimizerType, "kwargs" : optimizerKwargs}
+		def f(optimizer, scheduler):
+			assert not optimizer is None, "No optimizer was set for this model. Cannot save."
+			optimizerType = type(optimizer)
+			optimizerState = optimizer.state_dict()
+			optimizerKwargs = optimizer.storedArgs
+			Dict = {"state" : optimizerState, "type" : optimizerType, "kwargs" : optimizerKwargs}
 
-		# If there is also an optimizer scheduler appended to this optimizer, save it as well
-		if not self.model.optimizerScheduler is None:
-			Dict["scheduler_state"] = self.model.optimizerScheduler.state_dict()
-			Dict["scheduler_type"] = type(self.model.optimizerScheduler)
-			Dict["scheduler_kwargs"] = self.model.optimizerScheduler.storedArgs
+			# If there is also an optimizer scheduler appended to this optimizer, save it as well
+			if not scheduler is None:
+				Dict["scheduler_state"] = scheduler.state_dict()
+				Dict["scheduler_type"] = type(scheduler)
+				Dict["scheduler_kwargs"] = scheduler.storedArgs
+			return Dict
 
-		return Dict
+		optimizer = self.model.getOptimizer()
+		scheduler = self.model.optimizerScheduler
+		res = f(optimizer, scheduler)
+		return res
 
 	def doSaveHistoryDict(self):
 		return self.model.trainHistory
@@ -78,13 +83,13 @@ class NetworkSerializer:
 			# Store only callbacks, not MetricAsCallbacks (As they are lambdas which cannot be pickle'd).
 			# Metrics must be reloaded anyway, as they do not hold any (global) state, like full Callbacks do.
 			callback = self.model.callbacks[key]
-			assert key == self.model.callbacks[key].name, ("Some inconsistency between the metric's key and the" + \
-				" MetricAsCallback's name was found. Key: %s. Name: %s" % (key, callback.name))
-			if isBaseOf(callback, MetricAsCallback):
+			if isBaseOf(callback, Metric):
 				callbacksOriginalPositions.append(callback.name)
 			else:
 				additional = callback.onCallbackSave(model=self.model)
+				assert isPicklable(additional), "Callback %s is not pickable" % callback.name
 				callbacksAdditional.append(deepcopy(additional))
+				assert isPicklable(callback), "Callback %s is not pickable" % callback.name
 				callbacks.append(deepcopy(callback))
 				callbacksOriginalPositions.append(None)
 				# Pretty awkward, but we need to restore the state of this callback (not the one that stored). Calling
@@ -142,65 +147,25 @@ class NetworkSerializer:
 
 		for key in stateKeys:
 			if key == "weights":
-				self.doLoadWeights(loadedState)
+				assert "weights" in loadedState
+				self.doLoadWeights(loadedState["weights"])
 			elif key == "optimizer":
-				self.doLoadOptimizer(loadedState)
+				assert "optimizer" in loadedState
+				self.doLoadOptimizer(loadedState["optimizer"])
 			elif key == "history_dict":
-				self.doLoadHistoryDict(loadedState)
+				assert "history_dict" in loadedState
+				self.doLoadHistoryDict(loadedState["history_dict"])
 			elif key == "callbacks":
-				self.doLoadCallbacks(loadedState)
+				assert "callbacks" in loadedState
+				self.doLoadCallbacks(loadedState["callbacks"])
 			elif key == "model_state":
 				pass
 			else:
 				assert False, "Got unknown key %s" % (key)
 		print("Finished loading model")
 
-	def doLoadWeightsOld(self, loadedState):
-		assert "weights" in loadedState
-		loadedParams = loadedState["weights"]
-		# trainableParams = getTrainableParameters(self.model)
-		trainableParams = dict(filter(lambda x : x[1].requires_grad, self.model.named_parameters()))
-		numTrainableParams = _computeNumParams(trainableParams)
-		numLoadedParams = _computeNumParams({i : x for i, x in zip(range(len(loadedParams)), loadedParams)})
-
-		assert numLoadedParams == numTrainableParams, "Inconsistent parameters: Loaded: %d vs Model (trainable): %d." \
-			% (numLoadedParams, numTrainableParams)
-		for i, name in enumerate(trainableParams.keys()):
-			thisItem = trainableParams[name]
-			loadedItem = loadedParams[i]
-			if thisItem.shape != loadedItem.shape:
-				raise Exception("Inconsistent parameters: %d vs %d." % (thisItem.shape, loadedItem.shape))
-			with tr.no_grad():
-				thisItem[:] = loadedItem[:].to(device)
-			thisItem.requires_grad_(True)
-		print("Succesfully loaded weights (%d parameters) " % (numLoadedParams))
-
-	def doLoadWeightsOld2(self, namedTrainableParams, namedLoadedParams, trainableParams, loadedParams):
-		print("Loading in old way, where we hope/assume that the order of the keys is identical to the loaded one")
-		# Combines names of trainable params with weights from loaded (should apply to all cases) if the loop down
-		#  works (Potential bug: RARE CASE WHERE DICT ORDER IS DIFFERENT BUT SAME # OF PARAMS)
-		newParams = {}
-		for i in range(len(namedTrainableParams)):
-			nameTrainableParam = namedTrainableParams[i]
-			nameLoadedParam = namedLoadedParams[i]
-			trainableParam = trainableParams[nameTrainableParam]
-			loadedParam = loadedParams[nameLoadedParam]
-			assert trainableParam.shape == loadedParam.shape, "This: %s:%s. Loaded:%s" % \
-				(nameLoadedParam, str(trainableParam.shape), str(loadedParam.shape))
-			newParams[nameTrainableParam] = loadedParam
-		return newParams
-
 	# Handles loading weights from a model.
-	def doLoadWeights(self, loadedState):
-		assert "weights" in loadedState
-		loadedParams = loadedState["weights"]
-		if type(loadedParams) == list:
-			print("Warning! Model was stored with older version (list instead of named parameters dict). " + \
-				"Will attempt to load weights, however having BatchNorm/Dropout will result in .eval() not " + \
-				"working as well as other possible bugs.")
-			self.doLoadWeightsOld(loadedState)
-			return
-
+	def doLoadWeights(self, loadedParams):
 		trainableParams = getTrainableParameters(self.model)
 		numTrainableParams = _computeNumParams(trainableParams)
 		numLoadedParams = _computeNumParams(loadedParams)
@@ -210,13 +175,11 @@ class NetworkSerializer:
 		namedTrainableParams = sorted(list(trainableParams.keys()))
 		namedLoadedParams = sorted(list(loadedParams.keys()))
 		# Loading in natural way, because keys are identical
-		if namedTrainableParams == namedLoadedParams:
-			for key in namedTrainableParams:
-				assert trainableParams[key].shape == loadedParams[key].shape, "This: %s:%s. Loaded:%s" % \
-					(nameLoadedParam, str(trainableParam.shape), str(loadedParam.shape))
-			newParams = loadedParams
-		else:
-			newParams = self.doLoadWeightsOld2(namedTrainableParams, namedLoadedParams, trainableParams, loadedParams)
+		assert namedTrainableParams == namedLoadedParams, "Old behaviour model not supported anymore."
+		for key in namedTrainableParams:
+			assert trainableParams[key].shape == loadedParams[key].shape, "This: %s:%s. Loaded:%s" % \
+				(nameLoadedParam, str(trainableParam.shape), str(loadedParam.shape))
+		newParams = loadedParams
 
 		# TODO: Make strict=True and add fake params in the if above (including BN/Dropout).
 		missing, unexpected = self.model.load_state_dict(newParams, strict=False)
@@ -226,39 +189,32 @@ class NetworkSerializer:
 			print("Unexpected %d keys in the loaded model" % (len(unexpected)))
 		print("Succesfully loaded weights (%d parameters) " % (numLoadedParams))
 
-	def doLoadOptimizer(self, loadedState):
-		assert "optimizer" in loadedState
-	
-		# Create a new instance of the optimizer. Some optimizers require a lr to be set as well
-		optimizerDict = loadedState["optimizer"]
-
-		if not "kwargs" in optimizerDict:
-			print("Warning: Depcrecated model. No kwargs in optimizerDict. Defaulting to lr=0.01")
-			optimizerDict["kwargs"] = {"lr" : 0.01}
-		self.model.setOptimizer(optimizerDict["type"], **optimizerDict["kwargs"])
-		self.model.optimizer.load_state_dict(optimizerDict["state"])
-		self.model.optimizer.storedArgs = optimizerDict["kwargs"]
-		print("Succesfully loaded optimizer: %s" % (getOptimizerStr(self.model.optimizer)))
+	def doLoadOptimizer(self, optimizerDict):
+		assert "kwargs" in optimizerDict
+		assert not self.model.getOptimizer() is None, "Set optimizer first before loading the model."
+		loadedType = type(self.model.getOptimizer())
+		assert optimizerDict["type"] == loadedType, "Optimizers: %s vs %s" % (optimizerDict["type"], loadedType)
+		self.model.getOptimizer().load_state_dict(optimizerDict["state"])
+		self.model.getOptimizer().storedArgs = optimizerDict["kwargs"]
+		print("Succesfully loaded optimizer: %s" % (self.model.getOptimizerStr()))
 
 		if "scheduler_state" in optimizerDict:
-			self.model.setOptimizerScheduler(optimizerDict["scheduler_type"], **optimizerDict["scheduler_kwargs"])
+			self.model.setOptimizerScheduler(optimizerDict["scheduler_type"], \
+				**optimizerDict["scheduler_kwargs"])
 			self.model.optimizerScheduler.load_state_dict(optimizerDict["scheduler_state"])
 			self.model.optimizerScheduler.storedArgs = optimizerDict["scheduler_kwargs"]
 			print("Succesfully loaded optimizer scheduler: %s" % (self.model.optimizerScheduler))
 
-	def doLoadHistoryDict(self, loadedState):
-		assert "history_dict" in loadedState
-		trainHistory = loadedState["history_dict"]
+	def doLoadHistoryDict(self, trainHistory):
 		self.model.trainHistory = deepcopy(trainHistory)
 		self.model.currentEpoch = len(trainHistory) + 1
 		print("Succesfully loaded model history (epoch %d)" % (len(trainHistory)))
 
 	def doLoadCallbacks(self, loadedState):
-		assert "callbacks" in loadedState
-		callbacks = loadedState["callbacks"]["state"]
-		additionals = loadedState["callbacks"]["additional"]
-		originalPositions = loadedState["callbacks"]["callbacks_positions"]
-		topologicalSort = loadedState["callbacks"]["topological_sort"]
+		callbacks = loadedState["state"]
+		additionals = loadedState["additional"]
+		originalPositions = loadedState["callbacks_positions"]
+		topologicalSort = loadedState["topological_sort"]
 
 		# This filtering is needed if we're doing save/load on the same model (such as loading and storing very often
 		#  so there are some callbacks that need to be reloaded.
@@ -289,7 +245,12 @@ class NetworkSerializer:
 			# This includes setCriterion as well.
 			else:
 				key = originalPositions[i]
-				value = metricCallbacks[key]
+				value = None
+				for callback in metricCallbacks:
+					if callback.getName() == key:
+						value = callback
+						break
+				assert not value is None, "Couldn't find %s" % (key)
 			newCallbacks[key] = value
 
 		self.model.callbacks = newCallbacks

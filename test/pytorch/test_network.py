@@ -95,6 +95,7 @@ class TestNetwork:
 		model.saveModel("test_model.pkl")
 		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=5, printMessage=None)
 		model_new = Model(I, H, O).to(device)
+		model_new.setOptimizer(Adam, lr=0.001)
 		model_new.loadModel("test_model.pkl")
 		model_new.setCriterion(lambda y, t : tr.sum((y - t)**2))
 		model_new.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=5, printMessage=None)
@@ -126,6 +127,7 @@ class TestNetwork:
 
 		model_new = Model(I, H, O).to(device)
 		model_new.setCriterion(lambda y, t : tr.sum((y - t)**2))
+		model_new.setOptimizer(SGD, lr=0.005)
 		model_new.loadModel("test_model.pkl")
 		assert model_new.optimizerScheduler.optimizer == model_new.optimizer
 		model_new.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=20, printMessage=None)
@@ -149,7 +151,7 @@ class TestNetwork:
 		model.setOptimizer(Adam, lr=0.01)
 		model.setCriterion(lambda y, t: y.mean())
 
-		callbacks = [SaveModels("best", "Loss"), SaveModels("last"), SaveHistory("history.txt")]
+		callbacks = [SaveModels("best", "Loss"), SaveModels("last", "Loss"), SaveHistory("history.txt")]
 		model.addCallbacks(callbacks)
 		model.addMetrics({"Test" : lambda x, y, **k : 0.5})
 		beforeKeys = list(model.callbacks.keys())
@@ -180,6 +182,7 @@ class TestNetwork:
 
 		model_new = ModelConvWithBatchNormalization(bn=False).to(device)
 		model_new.setCriterion(lambda y, t : tr.sum((y - t)**2))
+		model_new.setOptimizer(SGD, lr=0.005)
 		model_new.loadModel("test_model.pkl")
 		assert model_new.optimizerScheduler.optimizer == model_new.optimizer
 		model_new.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=20, printMessage=None)
@@ -212,6 +215,7 @@ class TestNetwork:
 
 		model_new = ModelConvWithBatchNormalization(bn=True).to(device)
 		model_new.setCriterion(lambda y, t : tr.sum((y - t)**2))
+		model_new.setOptimizer(SGD, lr=0.005)
 		model_new.loadModel("test_model.pkl")
 		assert model_new.optimizerScheduler.optimizer == model_new.optimizer
 		model_new.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=20, printMessage=None)
@@ -219,6 +223,41 @@ class TestNetwork:
 
 		weights_model = list(model.parameters())
 		weights_model_new = list(model_new.parameters())
+		assert len(weights_model) == len(weights_model_new)
+		for j in range(len(weights_model)):
+			weight = weights_model[j]
+			weight_new = weights_model_new[j]
+			diff = tr.sum(tr.abs(weight - weight_new)).detach().to("cpu").numpy()
+			assert diff < 1e-5, "%d: Diff: %2.5f.\n %s %s" % (j, diff, weight, weight_new)
+
+	# Wrong optimizer for new model
+	def test_save_model_6(self):
+		N, I, H, O = 500, 100, 50, 30
+		inputs = np.float32(np.random.randn(N, I))	
+		targets = np.float32(np.random.randn(N, O))
+
+		model = Model(I, H, O).to(device)
+		model.setOptimizer(Adam, lr=0.001)
+		model.setCriterion(lambda y, t : tr.sum((y - t)**2))
+
+		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=5, printMessage=None)
+		model.saveModel("test_model.pkl")
+		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=5, printMessage=None)
+		model_new = Model(I, H, O).to(device)
+		try:
+			model_new.setOptimizer(SGD, lr=0.001)
+			model_new.loadModel("test_model.pkl")
+			assert False
+		except Exception:
+			pass
+		model_new.setOptimizer(Adam, lr=0.001)
+		model_new.loadModel("test_model.pkl")
+		model_new.setCriterion(lambda y, t : tr.sum((y - t)**2))
+		model_new.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=5, printMessage=None)
+
+		weights_model = list(model.parameters())
+		weights_model_new = list(model_new.parameters())
+
 		assert len(weights_model) == len(weights_model_new)
 		for j in range(len(weights_model)):
 			weight = weights_model[j]
@@ -275,7 +314,7 @@ class TestNetwork:
 		model = Model(I, H, O).to(device)
 		try:
 			callbacks = [SaveModels("best", "Loss", name="SaveModelsBest"), \
-				SaveModels("last", name="SaveModelsLast"), SaveHistory("history.txt")]
+				SaveModels("last", "Loss", name="SaveModelsLast"), SaveHistory("history.txt")]
 			model.addCallbacks([MyTestCallback(name="TestCallback")])
 			model.addCallbacks(callbacks)
 			model.addMetrics({"Test" : lambda x, y, **k : 0.5})
@@ -287,7 +326,7 @@ class TestNetwork:
 		model = Model(I, H, O).to(device)
 		try:
 			callbacks = [SaveModels("best", "Loss", name="SaveModelsBest"), \
-				SaveModels("last", name="SaveModelsLast"), SaveHistory("history.txt")]
+				SaveModels("last", "Loss", name="SaveModelsLast"), SaveHistory("history.txt")]
 			model.addCallbacks([MyTestCallback(name="TestCallback")])
 			model.addCallbacks(callbacks)
 			model.addMetrics({"Test" : lambda x, y, **k : 0.5})
@@ -300,7 +339,7 @@ class TestNetwork:
 		model = Model(I, H, O).to(device)
 		try:
 			callbacks = [SaveModels("best", "Loss", name="SaveModelsBest"), \
-				SaveModels("last", name="SaveModelsLast"), SaveHistory("history.txt")]
+				SaveModels("last", "Loss", name="SaveModelsLast"), SaveHistory("history.txt")]
 			model.addCallbacks([MyTestCallback(name="TestCallback")])
 			model.addCallbacks(callbacks)
 			model.addMetrics({"Test" : lambda x, y, **k : 0.5})
@@ -322,7 +361,7 @@ class TestNetwork:
 		model = Model(I, H, O).to(device)
 		try:
 			callbacks = [SaveModels("best", "Loss", name="SaveModelsBest"), \
-				SaveModels("last", name="SaveModelsLast"), SaveHistory("history.txt")]
+				SaveModels("last", "Loss", name="SaveModelsLast"), SaveHistory("history.txt")]
 			model.addCallbacks([MyTestCallback(name="TestCallback")])
 			model.addCallbacks(callbacks)
 			model.addMetrics({"Test" : lambda x, y, **k : 0.5})
@@ -357,7 +396,7 @@ class TestNetwork:
 		model_new = Model(I, H, O).to(device)
 		try:
 			callbacks = [SaveModels("best", "Loss", name="SaveModelsBest"), \
-				SaveModels("last", name="SaveModelsLast"), SaveHistory("history.txt")]
+				SaveModels("last", "Loss", name="SaveModelsLast"), SaveHistory("history.txt")]
 			model.addCallbacks([MyTestCallback(name="TestCallback")])
 			model.addCallbacks(callbacks)
 			model.addMetrics({"Test" : lambda x, y, **k : 0.5})
@@ -367,6 +406,7 @@ class TestNetwork:
 		except Exception:
 			assert False
 		model.setOptimizer(SGD, lr=0.005)
+		model_new.setOptimizer(SGD, lr=0.005)
 		model.saveModel("test_model.pkl")
 		model_new.loadModel("test_model.pkl")
 
@@ -383,10 +423,11 @@ if __name__ == "__main__":
 	pass
 	# TestNetwork().test_save_weights_1()
 	# TestNetwork().test_save_model_1()
-	TestNetwork().test_save_model_2()
+	# TestNetwork().test_save_model_2()
 	# TestNetwork().test_save_model_3()
 	# TestNetwork().test_save_model_4()
 	# TestNetwork().test_save_model_5()
+	TestNetwork().test_save_model_6()
 	# TestNetwork().test_add_merics_1()
 	# TestNetwork().test_add_merics_2()
 	# TestNetwork().test_add_merics_3()

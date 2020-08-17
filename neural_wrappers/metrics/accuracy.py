@@ -1,7 +1,9 @@
 import numpy as np
+from scipy.special import softmax
+from overrides import overrides
 from .metric_with_threshold import MetricWithThreshold
 from .metric import Metric
-from scipy.special import softmax
+from ..utilities import NWNumber
 
 class ThresholdAccuracy(MetricWithThreshold):
 	def __init__(self):
@@ -25,6 +27,10 @@ class Accuracy(Metric):
 	def __init__(self):
 		super().__init__(direction="max")
 		self.thresholdAccuracy = ThresholdAccuracy()
+
+	@overrides
+	def getExtremes(self) -> NWNumber:
+		return {"min" : 0, "max" : 1}
 
 	# @brief Since we don't care about a particular threshold, just to get the highest activation for each prediction,
 	#  we can compute the max on the last axis (classes axis) and send this as threshold to the ThresholdAccuracy

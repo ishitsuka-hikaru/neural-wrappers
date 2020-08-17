@@ -1,49 +1,44 @@
 import sys
 import numpy as np
+from overrides import overrides
+from abc import ABC, abstractmethod
 
-class MessagePrinter:
-	def __init__(self, type):
-		assert type in (None, "v1", "v2")
+class MessagePrinter(ABC):
+	def __init__(self):
+		self.printer = None
 
-		if type == None:
-			self.printer = NonePrinter()
-			self.function = lambda x : x
-		elif type == "v1":
-			self.printer = LinePrinter()
-			self.function = MessagePrinter.printV1
-		elif type == "v2":
-			self.printer = MultiLinePrinter()
-			self.function = MessagePrinter.printV2
+	def getPrinter(Type):
+		return {
+			None : NonePrinter,
+			"none" : NonePrinter,
+			"v1" : LinePrinter,
+			"v2" : MultiLinePrinter
+		}[Type]()
 
-	# For V1 printing, if we receive a list of messages, concatenate them by ". " and send them to line printer.
-	def printV1(message):
-		if type(message) in (list, tuple):
-			message = ". ".join(message)
-		message = message.replace("\n", "").replace("  ", " ").replace("..", ".")
-		return message
-
-	def printV2(message):
-		if type(message) == str:
-			message = [message]
-		return message
-
+	@abstractmethod
 	def print(self, message, **kwargs):
-		self.printer.print(self.function(message), **kwargs)
+		pass
 
 	def __call__(self, message, **kwargs):
 		return self.print(message, **kwargs)
 
-class NonePrinter:
+class NonePrinter(MessagePrinter):
+	@overrides
 	def print(self, message, **kwargs):
 		pass
 
 # Class that prints one line to the screen. Appends "\r" if no ending character is found and also appends white chars
 #  so printing between two iterations don't mess up the screen.
-class LinePrinter:
+class LinePrinter(MessagePrinter):
 	def __init__(self):
 		self.maxLength = 0
 
+	@overrides
 	def print(self, message, reset=True):
+		if type(message) in (list, tuple):
+			message = ". ".join(message)
+		message = message.replace("\n", "").replace("  ", " ").replace("..", ".")
+
 		if len(message) == 0:
 			message = ""
 			additional = "\n"
@@ -62,12 +57,16 @@ class LinePrinter:
 			print("")
 
 # Class that prints multiple lines to the screen.
-class MultiLinePrinter:
+class MultiLinePrinter(MessagePrinter):
 	def __init__(self):
 		self.numLines = 0
 		self.linePrinters = []
 
+	@overrides
 	def print(self, messages, reset=True):
+		if type(messages) == str:
+			messages = [messages]
+
 		if len(messages) > len(self.linePrinters):
 			diff = len(messages) - len(self.linePrinters)
 			for _ in range(diff):

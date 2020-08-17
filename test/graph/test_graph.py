@@ -1,12 +1,65 @@
 import numpy as np
-import torch.nn as nn
-import torch as tr
 from functools import partial
+from overrides import overrides
+from typing import Any, Dict, Iterator, Callable, Optional
+
+import torch as tr
+import torch.nn as nn
+import torch.optim as optim
 
 from neural_wrappers.pytorch import device, NeuralNetworkPyTorch
 from neural_wrappers.graph import Graph, Edge, Node
 from neural_wrappers.utilities import pickTypeFromMRO
 from neural_wrappers.models import IdentityLayer
+from neural_wrappers.metrics import Metric
+from neural_wrappers.readers import DatasetReader
+from neural_wrappers.readers.internal import DatasetRange, DatasetIndex
+from neural_wrappers.readers.h5_dataset_reader import defaultH5DimGetter
+
+class Reader(DatasetReader):
+	def __init__(self, dataStuff:Dict[Node, int]):
+		self.N = 100
+		self.dataset = {
+			"data" : {a.groundTruthKey : np.random.randn(self.N, dataStuff[a]).astype(np.float32) for a in dataStuff}
+		}
+		#  dataBuckets : Dict[str, List[str]], dimGetter : Dict[str, DimGetterCallable], \
+		# dimTransform : Dict[str, Dict[str, Callable]]
+		dimGetterFn = lambda dataset, index, dim : dataset["data"][dim][index.start : index.end]
+		super().__init__(
+			dataBuckets = {"data" : ["A", "B", "C", "D", "E"]}, \
+			dimGetter = {"A" : partial(dimGetterFn, dim="A"), "B" : partial(dimGetterFn, dim="B"), \
+				"C" : partial(dimGetterFn, dim="C"), "D" : partial(dimGetterFn, dim="D"), \
+				"E" : partial(dimGetterFn, dim="E")}, \
+			dimTransform = {}
+		)
+
+	@overrides
+	def getDataset(self, topLevel:str) -> Any:
+		return self.dataset
+
+	# @brief Returns the number of items in a given top level name
+	# @param[in] topLevel The top-level dimension that is iterated over (example: train, validation, test, etc.)
+	# @return The number of items in a given top level name
+	@overrides
+	def getNumData(self, topLevel:str) -> int:
+		return self.N
+
+	# @brief Returns the index object specific to this dataset for a requested batch index. This is used to logically
+	#  iterate through a dataset
+	# @param[in] i The index of the epoch we're trying to get dataset indexes for
+	# @param[in] topLevel The top-level dimension that is iterated over (example: train, validation, test, etc.)
+	# @param[in] batchSize The size of a batch that is yielded at each iteration
+	# @return A DatasetIndex object with the indexes of this iteration for a specific dimension
+	@overrides
+	def getBatchDatasetIndex(self, i:int, topLevel:str, batchSize:int) -> DatasetIndex:
+		startIndex = i * batchSize
+		endIndex = min((i + 1) * batchSize, self.getNumData(topLevel))
+		assert startIndex < endIndex, "startIndex < endIndex. Got values: %d %d" % (startIndex, endIndex)
+		return DatasetRange(startIndex, endIndex)
+
+	def iterateOneEpoch(self, topLevel : str, batchSize : int) -> Iterator[Dict[str, np.ndarray]]:
+		for item in super().iterateOneEpoch(topLevel, batchSize):
+			yield item["data"], item["data"]
 
 class Model(NeuralNetworkPyTorch):
 	def __init__(self, inDims, outDims):
@@ -21,7 +74,8 @@ class MyNode(Node):
 		self.nDims = nDims
 		super().__init__(name, gtKey)
 
-	def getEncoder(self, outputNodeType=None):
+	@overrides
+	def getEncoder(self, outputNodeType : Optional[Node]=None) -> NeuralNetworkPyTorch:
 		modelTypes = {
 			A : partial(Model, outDims=5),
 			B : partial(Model, outDims=7),
@@ -31,13 +85,16 @@ class MyNode(Node):
 		}
 		return pickTypeFromMRO(outputNodeType, modelTypes)(inDims=self.nDims).to(device)
 
-	def getDecoder(self, inputNodeType=None):
+	@overrides
+	def getDecoder(self, inputNodeType : Optional[Node]=None) -> NeuralNetworkPyTorch:
 		return IdentityLayer().to(device)
 
-	def getMetrics(self):
+	@overrides
+	def getNodeMetrics(self) -> Dict[str, Metric]:
 		return {}
 
-	def getCriterion(self):
+	@overrides
+	def getNodeCriterion(self) -> Callable[[tr.Tensor, tr.Tensor, dict], tr.Tensor]:
 		return lambda y, t : ((y - t)**2).mean()	
 
 class A(MyNode):
@@ -94,6 +151,19 @@ class TestGraph:
 			expected = sorted(expectedInputsShapes[type(node)])
 			assert result == expected
 
+	def test_train_1(self):
+		nodes = {A : A(), B : B(), C : C(), D : D(), E : E()}
+		reader = Reader(dataStuff={nodes[A] : 5, nodes[B] : 7, nodes[C] : 10, nodes[D] : 6, nodes[E] : 3})
+		edges = [(A, C), (B, C), (C, E), (D, E)]
+		graph = Graph([Edge(nodes[a], nodes[b]) for (a, b) in edges]).to(device)
+		graph.setOptimizer(optim.SGD, lr=0.01)
+		print(graph.summary())
+
+		generator = reader.iterate("train", batchSize=11)
+		numSteps = reader.getNumIterations("train", batchSize=11)
+		graph.train_generator(generator, numSteps, numEpochs=5)
+
 if __name__ == "__main__":
-	TestGraph().test_get_inputs_1()
+	# TestGraph().test_get_inputs_1()
+	TestGraph().test_train_1()
 	pass

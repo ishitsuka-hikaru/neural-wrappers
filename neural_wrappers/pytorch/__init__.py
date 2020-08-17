@@ -4,4 +4,4 @@ from .generative_adversarial_network import GenerativeAdversarialNetwork
 from .self_supervised_network import SelfSupervisedNetwork
 from .data_parallel_network import DataParallelNetwork
 from .utils import npGetData, trGetData, plotModelMetricHistory, getModelHistoryMessage, trModuleWrapper, device, \
-	trDetachData, npToTrCall, trToNpCall
+	trDetachData, npToTrCall, trToNpCall, getMetricScoreFromHistory

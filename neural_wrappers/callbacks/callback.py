@@ -1,10 +1,18 @@
-from typing import Union, Optional
+from typing import Union, Tuple, Any
+from abc import ABC, abstractmethod
+from .callback_name import CallbackName
 
-class Callback:
-	def __init__(self, name : str=None):
+class Callback(ABC):
+	def __init__(self, name:Union[str, Tuple[Any]] = None):
+		self.setName(name)
+
+	def setName(self, name:Union[str, Tuple[Any]] = None):
 		if name is None:
 			name = str(self)
-		self.name = name
+		self.name = CallbackName(name)
+
+	def getName(self) -> CallbackName:
+		return self.name
 
 	# This is used by complex MetricAsCallbacks where we do some stateful computation at every iteration and we want
 	#  to reduce it gracefully at the end of the epoch, so it can be stored in trainHistory, as well as for other

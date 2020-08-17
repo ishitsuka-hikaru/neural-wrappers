@@ -20,7 +20,12 @@ def minMaxNormalizeData(data, min, max):
 	return data
 
 def toCategorical(data, numClasses):
-	return np.squeeze(np.eye(numClasses)[data.reshape(-1)]).astype(np.uint8)
+	data = np.array(data)
+	y = np.eye(numClasses)[data.reshape(-1)].astype(np.uint8)
+	# Some bugs for (1, 1) shapes return (1, ) instead of (1, NC)
+	if data.shape == (1, 1):
+		return y.reshape((1, numClasses))
+	return np.squeeze(y)
 
 # Labels can be None, in that case only data is available (testing cases without labels)
 def makeGenerator(data, labels, batchSize):
@@ -179,6 +184,8 @@ def getFormattedStr(item : Union[np.ndarray, NWNumber, NWSequence, NWDict], prec
 		return [formatStr % (x) for x in item] # type: ignore
 	elif type(item) in NWDict.__args__: # type: ignore
 		return {k : formatStr % (item[k]) for k in item} # type: ignore
+	elif isinstance(item, (np.int32, np.float32, np.float64)):
+		return formatStr % (item)
 	assert False, "Unknown type: %s" % (type(item))
 
 def flattenList(x : Iterable[List[T]]) -> List[T]:
