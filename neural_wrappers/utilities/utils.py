@@ -20,7 +20,8 @@ def minMaxNormalizeData(data, min, max):
 	return data
 
 def toCategorical(data, numClasses):
-	y = np.eye(numClasses)[np.array(data).reshape(-1)].astype(np.uint8)
+	data = np.array(data)
+	y = np.eye(numClasses)[data.reshape(-1)].astype(np.uint8)
 	# Some bugs for (1, 1) shapes return (1, ) instead of (1, NC)
 	if data.shape == (1, 1):
 		return y.reshape((1, numClasses))

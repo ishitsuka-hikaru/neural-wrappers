@@ -32,6 +32,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		# Setup print message keys, callbacks & topological sort variables
 		self.clearCallbacks()
 
+		self.linePrinter = MessagePrinter.getPrinter(None)
 		# A list that stores various information about the model at each epoch. The index in the list represents the
 		#  epoch value. Each value of the list is a dictionary that holds by default only loss value, but callbacks
 		#  can add more items to this (like confusion matrix or accuracy, see mnist example).
@@ -346,7 +347,7 @@ class NeuralNetworkPyTorch(nn.Module):
 	def train_generator(self, generator, stepsPerEpoch, numEpochs, validationGenerator=None, \
 		validationSteps=0, printMessage="v2"):
 		assert stepsPerEpoch > 0
-		self.linePrinter = MessagePrinter(printMessage)
+		self.linePrinter = MessagePrinter.getPrinter(printMessage)
 
 		if self.currentEpoch > numEpochs:
 			self.linePrinter("Warning. Current epoch (%d) <= requested epochs (%d). Doing nothing.\n" % \
