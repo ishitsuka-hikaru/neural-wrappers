@@ -285,7 +285,7 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	def test_generator(self, generator, stepsPerEpoch, printMessage=None):
 		assert stepsPerEpoch > 0
-		self.linePrinter = MessagePrinter(printMessage)
+		self.linePrinter = MessagePrinter.getPrinter(printMessage)
 		self.epochEpilogue(isTraining=False)
 		with StorePrevState(self):
 			self.eval()
