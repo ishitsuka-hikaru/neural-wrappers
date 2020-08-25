@@ -64,13 +64,14 @@ class NeuralNetworkPyTorch(nn.Module):
 
 	def addMetric(self, metricName:Union[str, CallbackName], metric:Union[Callable, Metric]):
 		# If it's just a callback, make it a metric
-		if isinstance(metric, LambdaType):
-			metric = MetricWrapper(metric)
-		if not isinstance(metricName, CallbackName):
-			metricName = CallbackName(metricName)
-		metric.setName(metricName)
+		if isinstance(metric, LambdaType): #type: ignore
+			metric = MetricWrapper(metric) #type: ignore
+		if not isinstance(metricName, CallbackName): #type: ignore
+			metricName = CallbackName(metricName) #type: ignore
 		if metricName in self.callbacks:
 			raise Exception("Metric %s already exists" % (metricName))
+
+		metric.setName(metricName) #type: ignore
 		self.callbacks[metricName] = metric
 		self.iterPrintMessageKeys.append(metricName)
 

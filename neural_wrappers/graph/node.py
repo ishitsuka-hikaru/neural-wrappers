@@ -1,15 +1,18 @@
 from __future__ import annotations
 import torch as tr
-from typing import Optional, Dict, Type, Union
+from typing import Optional, Dict, Type, Union, Callable, Any
 from abc import ABC, abstractmethod
 from overrides import overrides
 from ..pytorch import trGetData, trDetachData, NeuralNetworkPyTorch
+from ..metrics import Metric
+
+GTType = Optional[Union[Dict[Any, Any], tr.Tensor]]
 
 class Node(NeuralNetworkPyTorch):
 	# A dictionary that gives a unique tag to all nodes by appending an increasing number to name.
 	lastNodeID = 0
 
-	def __init__(self, name : str, groundTruthKey : str, hyperParameters : dict={}):
+	def __init__(self, name:str, groundTruthKey:str, hyperParameters:dict={}):
 		super().__init__()
 		assert name != "GT", "GT is a reserved keyword"
 		self.name = Node.getUniqueName(name)
@@ -17,9 +20,9 @@ class Node(NeuralNetworkPyTorch):
 
 		# Set up hyperparameters for this node (used for saving/loading identical node)
 		self.hyperParameters = self.getHyperParameters(hyperParameters)
-		self.groundTruth = None
+		self.groundTruth:GTType = None
 		# Messages are the items received at this node via all its incoming edges.
-		self.messages : Dict[str, tr.Tensor] = {}
+		self.messages:Dict[str, tr.Tensor] = {}
 
 	# This function is called for getEncoder/getDecoder. By default we'll return the normal type of this function.
 	#  However, we are free to overwrite what type a node offers to be seen as. A concrete example is a
@@ -45,7 +48,7 @@ class Node(NeuralNetworkPyTorch):
 
 	def getInputs(self, x : tr.Tensor) -> Dict[str, tr.Tensor]:
 		inputs = self.getMessages()
-		GT : Optional[tr.Tensor] = self.groundTruth
+		GT:Optional[Union[Dict[Any, tr.Tensor], tr.Tensor]] = self.groundTruth
 		if not GT is None:
 			inputs["GT"] = self.getGroundTruthInput(x).unsqueeze(0)
 		return inputs
@@ -70,14 +73,14 @@ class Node(NeuralNetworkPyTorch):
 		raise Exception("Key %s required from GT data not in labels %s" % (self.groundTruthKey, list(labels.keys())))
 
 	# TODO: labels type
-	def setGroundTruth(self, labels : Optional[Union[Dict[str, tr.Tensor], tr.Tensor]]):
+	def setGroundTruth(self, labels:GTType):
 		labels = self.getNodeLabelOnly(labels) #type: ignore
 		# Ground truth is always detached from the graph, so we don't optimize both sides of the graph, if the GT of
 		#  one particular node was generated from other side.
 		labels = trDetachData(labels)
 		self.groundTruth = labels
 
-	def getGroundTruth(self) -> tr.Tensor:
+	def getGroundTruth(self) -> GTType:
 		return self.groundTruth
 
 	def getGroundTruthInput(self, inputs):

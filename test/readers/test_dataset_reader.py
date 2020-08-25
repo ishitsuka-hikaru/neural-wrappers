@@ -11,11 +11,11 @@ class DummyDataset(DatasetReader):
 
 	@overrides
 	def getNumData(self, topLevel : str) -> int:
-		return None
+		return 0
 
 	@overrides
 	def getBatchDatasetIndex(self, i : int, topLevel : str, batchSize : int) -> DatasetIndex:
-		return None
+		return DatasetIndex()
 
 class Dataset(DatasetReader):
 	def __init__(self):

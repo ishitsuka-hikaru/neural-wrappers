@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.special import softmax
 from overrides import overrides
+from typing import Dict
 from .metric_with_threshold import MetricWithThreshold
 from .metric import Metric
 from ..utilities import NWNumber
@@ -29,7 +30,7 @@ class Accuracy(Metric):
 		self.thresholdAccuracy = ThresholdAccuracy()
 
 	@overrides
-	def getExtremes(self) -> NWNumber:
+	def getExtremes(self) -> Dict[str, NWNumber]:
 		return {"min" : 0, "max" : 1}
 
 	# @brief Since we don't care about a particular threshold, just to get the highest activation for each prediction,

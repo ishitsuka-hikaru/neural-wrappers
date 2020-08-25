@@ -1,7 +1,7 @@
 import numpy as np
 from functools import partial
 from overrides import overrides
-from typing import Any, Dict, Iterator, Callable, Optional
+from typing import Any, Dict, Iterator, Callable, Optional, Tuple
 
 import torch as tr
 import torch.nn as nn
@@ -57,7 +57,8 @@ class Reader(DatasetReader):
 		assert startIndex < endIndex, "startIndex < endIndex. Got values: %d %d" % (startIndex, endIndex)
 		return DatasetRange(startIndex, endIndex)
 
-	def iterateOneEpoch(self, topLevel : str, batchSize : int) -> Iterator[Dict[str, np.ndarray]]:
+	@overrides
+	def iterateOneEpoch(self, topLevel : str, batchSize : int) -> Iterator[Tuple[Dict, Dict]]:
 		for item in super().iterateOneEpoch(topLevel, batchSize):
 			yield item["data"], item["data"]
 
@@ -86,7 +87,7 @@ class MyNode(Node):
 		return pickTypeFromMRO(outputNodeType, modelTypes)(inDims=self.nDims).to(device)
 
 	@overrides
-	def getDecoder(self, inputNodeType : Optional[Node]=None) -> NeuralNetworkPyTorch:
+	def getDecoder(self, inputNodeType : Optional[Node]=None) -> IdentityLayer:
 		return IdentityLayer().to(device)
 
 	@overrides
@@ -94,7 +95,7 @@ class MyNode(Node):
 		return {}
 
 	@overrides
-	def getNodeCriterion(self) -> Callable[[tr.Tensor, tr.Tensor, dict], tr.Tensor]:
+	def getNodeCriterion(self) -> Callable[[tr.Tensor, tr.Tensor], tr.Tensor]:
 		return lambda y, t : ((y - t)**2).mean()	
 
 class A(MyNode):

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Union, Optional, Callable
+from typing import Union, Optional, Callable, Dict
 from overrides import overrides
 from ..utilities import NWNumber
 from ..callbacks import Callback, CallbackName
@@ -26,7 +26,7 @@ class Metric(Callback):
 	def defaultValue(self) -> NWNumber:
 		return 0
 
-	def getExtremes(self) -> NWNumber:
+	def getExtremes(self) -> Dict[str, NWNumber]:
 		return {"min" : -1<<31, "max" : 1<<31}
 
 	# @brief Provides a sane way of comparing two results of this metric
@@ -70,11 +70,11 @@ class Metric(Callback):
 
 	def __eq__(self, other:Metric) -> bool: # type: ignore[override]
 		thisName = self.getName()
-		if isinstance(other, str):
-			other = CallbackName(other)
-		if isinstance(other, Callback):
-			other = other.getName()
-		return thisName == other
+		if isinstance(other, str): # type: ignore
+			other = CallbackName(other) # type: ignore
+		elif isinstance(other, Callback): # type: ignore
+			other = other.getName() # type: ignore
+		return thisName == other # type: ignore
 
 	def __hash__(self):
 		return hash(self.name)

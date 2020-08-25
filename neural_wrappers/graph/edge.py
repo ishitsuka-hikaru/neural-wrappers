@@ -178,15 +178,10 @@ class Edge(NeuralNetworkPyTorch):
 	# We also override some methods on the Network class so it works with edges as well.
 	@overrides
 	def addMetric(self, metricName:Union[str, CallbackName], metric:Union[Callable, Metric]):
-		# If it's just a callback, make it a metric
-		if isinstance(metric, LambdaType):
-			metric = MetricWrapper(metric)
-		if not isinstance(metricName, CallbackName):
-			metricName = CallbackName(metricName)
-		metricName = CallbackName((str(self), *metricName.name))
-		metric.setName(metricName)
-		self.callbacks[metricName] = metric
-		self.iterPrintMessageKeys.append(metricName)
+		if isinstance(metricName, str): #type: ignore
+			metricName = CallbackName(metricName) #type: ignore
+		metricName = CallbackName((str(self), *metricName.name)) #type: ignore
+		super().addMetric(metricName, metric)
 
 	@overrides
 	def clearCallbacks(self):

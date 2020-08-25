@@ -1,15 +1,14 @@
 import numpy as np
 import h5py
 from typing import Callable, Any, Dict, List, Tuple, Optional
-from functools import partial
+from returns.curry import partial
 
-from .normalizers import rgbNorm, depthNorm, normalNorm, semanticSegmentationNorm
 from ...h5_dataset_reader import H5DatasetReader
-from ...internal import DatasetIndex
+from ...internal import DatasetRange
 from ....utilities import tryReadImage
 
 # Append base directory to all paths read from the h5, and then call the reading function for each full path.
-def pathsReader(dataset : h5py._hl.group.Group, index : DatasetIndex, readerObj : H5DatasetReader,
+def pathsReader(dataset : h5py._hl.group.Group, index : DatasetRange, readerObj : H5DatasetReader,
 	readFn : Callable[[str], np.ndarray], dim : str) -> np.ndarray:
 	topLevelRenames = {"semantic_segmentation" : "seg", "normal" : "normal_mask", \
 		"rgb" : "img", "halftone" : "halftone", "depth" : "depth"}
@@ -26,6 +25,7 @@ class NYUDepthV2H5PathsReader(H5DatasetReader):
 	def __init__(self, datasetPath : str, dataBuckets : Dict[str, List[str]], \
 		desiredShape : Tuple[int, int], hyperParameters : Optional[Dict[str, Any]]={}, **kwargs):
 
+		from .normalizers import rgbNorm, depthNorm, normalNorm, semanticSegmentationNorm
 		dimGetter = {
 			"rgb" : partial(pathsReader, readerObj=self, readFn=tryReadImage, dim="rgb"),
 			"depth" : partial(pathsReader, readerObj=self, readFn=np.load, dim="depth"),
