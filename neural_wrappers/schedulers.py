@@ -52,6 +52,7 @@ class ReduceLRAndBacktrackOnPlateau(_LRScheduler):
 
 		self.lastRelevantWeights = self.model.serializer.doSaveWeights()
 		self.lastRelevantOptimizer = self.model.getOptimizer().state_dict()
+		self.currentLR = [float(pg["lr"]) for pg in self.model.getOptimizer().param_groups]
 		self.metric = self.model.getMetric(self.metricName)
 		self.numBadInARow = 0
 		metricExtremes = self.metric.getExtremes()
@@ -65,6 +66,7 @@ class ReduceLRAndBacktrackOnPlateau(_LRScheduler):
 			"metricName" : self.metricName,
 			"numBadInARow" : self.numBadInARow,
 			"lastRelevantValue" : self.lastRelevantValue,
+			"currentLR" : self.currentLR
 		}
 
 	def load_state_dict(self, state_dict):
@@ -73,6 +75,7 @@ class ReduceLRAndBacktrackOnPlateau(_LRScheduler):
 		self.metric = self.model.getMetric(self.metricName)
 		self.numBadInARow = state_dict["numBadInARow"]
 		self.lastRelevantValue = state_dict["lastRelevantValue"]
+		self.currentLR = state_dict["currentLR"]
 
 	@overrides
 	def step(self):
@@ -95,10 +98,9 @@ class ReduceLRAndBacktrackOnPlateau(_LRScheduler):
 			self.numBadInARow = 0
 			self.model.serializer.doLoadWeights(self.lastRelevantWeights)
 			self.model.getOptimizer().load_state_dict(self.lastRelevantOptimizer)
-			for param_group in self.model.getOptimizer().param_groups:
-				oldLR = float(param_group["lr"])
-				newLR = oldLR / self.factor
-				param_group["lr"] = newLR
+			for i, param_group in enumerate(self.model.getOptimizer().param_groups):
+				self.currentLR[i] /= self.factor
+				param_group["lr"] = self.currentLR[i]
 
 	def __str__(self):
 		return "ReduceLRAndBacktrackOnPlateau (Patience: %d. Factor: %2.2f)" % (self.patience, self.factor)
