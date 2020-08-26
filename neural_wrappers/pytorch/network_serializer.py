@@ -199,8 +199,9 @@ class NetworkSerializer:
 		print("Succesfully loaded optimizer: %s" % (self.model.getOptimizerStr()))
 
 		if "scheduler_state" in optimizerDict:
-			self.model.setOptimizerScheduler(optimizerDict["scheduler_type"], \
-				**optimizerDict["scheduler_kwargs"])
+			loadedSchedulerType = type(self.model.optimizerScheduler)
+			assert optimizerDict["scheduler_type"] == loadedSchedulerType, \
+				"Schedulers: %s vs %s" % (optimizerDict["scheduler_type"], loadedSchedulerType)
 			self.model.optimizerScheduler.load_state_dict(optimizerDict["scheduler_state"])
 			self.model.optimizerScheduler.storedArgs = optimizerDict["scheduler_kwargs"]
 			print("Succesfully loaded optimizer scheduler: %s" % (self.model.optimizerScheduler))

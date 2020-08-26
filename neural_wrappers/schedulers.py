@@ -1,5 +1,6 @@
 from torch.optim.lr_scheduler import _LRScheduler, ReduceLROnPlateau as BaseModel
 from overrides import overrides
+from copy import deepcopy
 from .pytorch import NeuralNetworkPyTorch
 from .callbacks import CallbackName, Callback
 from .utilities import isBaseOf
@@ -86,8 +87,8 @@ class ReduceLRAndBacktrackOnPlateau(_LRScheduler):
 		else:
 			self.lastRelevantValue = score
 			self.numBadInARow = 0
-			self.lastRelevantWeights = self.model.serializer.doSaveWeights()
-			self.lastRelevantOptimizer = self.model.getOptimizer().state_dict()
+			self.lastRelevantWeights = deepcopy(self.model.serializer.doSaveWeights())
+			self.lastRelevantOptimizer = deepcopy(self.model.getOptimizer().state_dict())
 
 		if self.numBadInARow == self.patience:
 			print("[ReduceLRAndBacktrackOnPlateau] Applying reduce lr and backtracking.")
