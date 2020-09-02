@@ -8,3 +8,4 @@ from .precision import ThresholdPrecision, Precision
 from .recall import ThresholdRecall, Recall
 # from .precision_recall import ThresholdPrecisionRecall
 from .inter_class_accuracy import InterClassAccuracy
+from .mean_iou import MeanIoU
