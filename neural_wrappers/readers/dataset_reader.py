@@ -83,11 +83,14 @@ class DatasetReader(ABC):
 	#  normal in most cases, due to the multi-threaded nature. For length > 1, the queue size is just increased.
 	def iterate(self, topLevel:str, batchSize:int, maxPrefetch:int = 0) -> Iterator[Dict[str, np.ndarray]]:
 		assert maxPrefetch >= 0
+		N = self.getNumIterations(topLevel, batchSize)
 		while True:
 			iterateGenerator = self.iterateOneEpoch(topLevel, batchSize)
 			if maxPrefetch > 0:
 				iterateGenerator = BackgroundGenerator(iterateGenerator, max_prefetch=maxPrefetch)
-			for items in iterateGenerator:
+			for i, items in enumerate(iterateGenerator):
+				if i == N:
+					break
 				yield items
 				del items
 

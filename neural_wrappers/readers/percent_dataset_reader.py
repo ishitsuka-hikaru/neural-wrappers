@@ -25,3 +25,8 @@ class PercentDatasetReader(DatasetReader):
 	@overrides
 	def getBatchDatasetIndex(self, i:int, topLevel:str, batchSize:int) -> DatasetIndex:
 		return self.baseReader.getBatchDatasetIndex(i, topLevel, batchSize)
+
+	@overrides
+	def iterateOneEpoch(self, topLevel : str, batchSize : int):
+		for x in self.baseReader.iterateOneEpoch(topLevel, batchSize):
+			yield x
