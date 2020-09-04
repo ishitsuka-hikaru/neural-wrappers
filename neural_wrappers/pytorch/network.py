@@ -311,9 +311,9 @@ class NeuralNetworkPyTorch(nn.Module):
 		self.linePrinter(epochResults["message"], reset=False)
 		self.getTrainHistory().append(epochResults)
 		self.callbacksOnEpochEnd(isTraining=isTraining)
-		if not self.optimizerScheduler is None:
+		if not self.optimizerScheduler is None and isTraining == True:
 			self.optimizerScheduler.step()
-		self.currentEpoch += 1
+			self.currentEpoch += 1
 
 	def iterationEpilogue(self, isTraining, isOptimizing, labels):
 		self.callbacksOnIterationStart(isTraining=isTraining, isOptimizing=isOptimizing)

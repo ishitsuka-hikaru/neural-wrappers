@@ -1,5 +1,6 @@
 # from .dataset_reader import DatasetReader, ClassificationDatasetReader
 from .dataset_reader import DatasetReader
+from .percent_dataset_reader import PercentDatasetReader
 # from .classification_dataset_reader import ClassificationDatasetReader
 # from .dataset_reader_old import ClassificationDatasetReader
 
