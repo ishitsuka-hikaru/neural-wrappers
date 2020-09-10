@@ -33,6 +33,49 @@ class ThresholdF1Score(MetricWithThreshold):
 		whereOk = whereOk[whereNotNaN]
 		return (f1Score * whereOk).sum() / whereOk.sum()
 
+# TODO
+# class GlobalFScore(Metric):
+# 	def __init__(self, threshold=0.5):
+# 		super().__init__(direction="max")
+# 		self.TP = np.array([0, 0], dtype=np.int64)
+# 		self.FP = np.array([0, 0], dtype=np.int64)
+# 		self.FN = np.array([0, 0], dtype=np.int64)
+# 		self.threshold = threshold
+
+# 	def epochReduceFunction(self, results):
+# 		precision = self.TP / (self.TP + self.FP + 1e-5)
+# 		recall = self.TP / (self.TP + self.FN + 1e-5)
+# 		res = (precision * recall) / (precision + recall + 1e-5)
+# 		# self.precision *= 0
+# 		# self.recall *= 0
+# 		print(res)
+# 		print(res.mean())
+# 		return res.mean()
+
+# 	def iterationReduceFunction(self, results):
+# 		precision = self.TP / (self.TP + self.FP + 1e-5)
+# 		recall = self.TP / (self.TP + self.FN + 1e-5)
+# 		return (precision * recall) / (precision + recall + 1e-5)
+
+# 	def __call__(self, y, t, **k):
+# 		yWhite = y[..., 0] >= self.threshold
+# 		tWhite = t[..., 0] >= self.threshold
+# 		yBlack = y[..., 0] < self.threshold
+# 		tBlack = t[..., 0] < self.threshold
+
+# 		TPWhite = yWhite * tWhite
+# 		FPWhite = yWhite * (1 - tWhite)
+# 		FNWhite = (1 - yWhite) * tWhite
+
+# 		TPBlack = yBlack * tBlack
+# 		FPBlack = yBlack * (1 - tBlack)
+# 		FNBlack = (1 - yBlack) * tBlack
+
+# 		self.TP += [TPWhite.sum(), TPBlack.sum()]
+# 		self.FP += [FPWhite.sum(), FPBlack.sum()]
+# 		self.FN += [FNWhite.sum(), FNBlack.sum()]
+# 		return 0
+
 class F1Score(Metric):
 	def __init__(self):
 		super().__init__("max")
