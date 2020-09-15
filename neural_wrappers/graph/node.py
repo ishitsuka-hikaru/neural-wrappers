@@ -1,5 +1,6 @@
 from __future__ import annotations
 import torch as tr
+import torch.nn as nn
 from typing import Optional, Dict, Type, Union, Callable, Any
 from abc import ABC, abstractmethod
 from overrides import overrides
@@ -8,7 +9,7 @@ from ..metrics import Metric
 
 GTType = Optional[Union[Dict[Any, Any], tr.Tensor]]
 
-class Node(NWModule):
+class Node(nn.Module):
 	# A dictionary that gives a unique tag to all nodes by appending an increasing number to name.
 	lastNodeID = 0
 

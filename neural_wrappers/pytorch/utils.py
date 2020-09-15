@@ -7,8 +7,8 @@ from collections import OrderedDict
 device = tr.device("cuda") if tr.cuda.is_available() else tr.device("cpu")
 
 def trModuleWrapper(module):
-	from .nw_mpdule import NWModule
-	class Model(NWModule):
+	from .feed_forward_network import FeedForwardNetwork
+	class Model(FeedForwardNetwork):
 		def __init__(self, module):
 			super().__init__()
 			self.module = module

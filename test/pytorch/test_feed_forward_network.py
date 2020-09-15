@@ -128,6 +128,7 @@ class TestNetwork:
 		model_new = Model(I, H, O).to(device)
 		model_new.setCriterion(lambda y, t : tr.sum((y - t)**2))
 		model_new.setOptimizer(SGD, lr=0.005)
+		model_new.setOptimizerScheduler(ReduceLROnPlateau, metric="Loss")
 		model_new.loadModel("test_model.pkl")
 		assert model_new.optimizerScheduler.optimizer == model_new.optimizer
 		model_new.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=20, printMessage=None)
@@ -183,6 +184,7 @@ class TestNetwork:
 		model_new = ModelConvWithBatchNormalization(bn=False).to(device)
 		model_new.setCriterion(lambda y, t : tr.sum((y - t)**2))
 		model_new.setOptimizer(SGD, lr=0.005)
+		model_new.setOptimizerScheduler(ReduceLROnPlateau, metric="Loss")
 		model_new.loadModel("test_model.pkl")
 		assert model_new.optimizerScheduler.optimizer == model_new.optimizer
 		model_new.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=20, printMessage=None)
@@ -216,6 +218,7 @@ class TestNetwork:
 		model_new = ModelConvWithBatchNormalization(bn=True).to(device)
 		model_new.setCriterion(lambda y, t : tr.sum((y - t)**2))
 		model_new.setOptimizer(SGD, lr=0.005)
+		model_new.setOptimizerScheduler(ReduceLROnPlateau, metric="Loss")
 		model_new.loadModel("test_model.pkl")
 		assert model_new.optimizerScheduler.optimizer == model_new.optimizer
 		model_new.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=20, printMessage=None)
@@ -423,11 +426,11 @@ if __name__ == "__main__":
 	pass
 	# TestNetwork().test_save_weights_1()
 	# TestNetwork().test_save_model_1()
-	# TestNetwork().test_save_model_2()
+	TestNetwork().test_save_model_2()
 	# TestNetwork().test_save_model_3()
 	# TestNetwork().test_save_model_4()
 	# TestNetwork().test_save_model_5()
-	TestNetwork().test_save_model_6()
+	# TestNetwork().test_save_model_6()
 	# TestNetwork().test_add_merics_1()
 	# TestNetwork().test_add_merics_2()
 	# TestNetwork().test_add_merics_3()

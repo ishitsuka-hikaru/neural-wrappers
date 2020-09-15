@@ -25,6 +25,24 @@ class Graph(NWModule):
 
 		self.serializer = GraphSerializer(self)
 
+	@overrides
+	def networkAlgorithm(self, trInputs, trLabels):
+		trResults = self.graphForward(trInputs)
+		trLoss = self.criterion(trResults, trLabels)
+		return trResults, trLoss
+
+	def graphForward(self, trInputs):
+		trResults = {}
+		# TODO: Execution order. (synchronus vs asynchronus as well as topological sort at various levels.)
+		# For now, the execution is synchronous and linear as defined by the list of edges
+		for edge in self.edges:
+			edgeID = str(edge)
+			edgeInputs = edge.getInputs(trInputs)
+			edgeOutput = edge.forward(edgeInputs)
+			# Update the outputs of the whole graph as well
+			trResults[edgeID] = edgeOutput
+		return trResults
+
 	def loss(self, y, t):
 		loss = 0
 		self.edgeLoss[None] = 0
@@ -44,19 +62,6 @@ class Graph(NWModule):
 	#  and redundant, since the forward of the subgraphs will call getInputs of each edge anyway.
 	def getInputs(self, trInputs):
 		return trInputs
-
-	@overrides
-	def forward(self, trInputs):
-		trResults = {}
-		# TODO: Execution order. (synchronus vs asynchronus as well as topological sort at various levels.)
-		# For now, the execution is synchronous and linear as defined by the list of edges
-		for edge in self.edges:
-			edgeID = str(edge)
-			edgeInputs = edge.getInputs(trInputs)
-			edgeOutput = edge.forward(edgeInputs)
-			# Update the outputs of the whole graph as well
-			trResults[edgeID] = edgeOutput
-		return trResults
 
 	def getEdges(self):
 		edges = []
@@ -203,24 +208,6 @@ class Graph(NWModule):
 				continue
 			summaryStr += "\n\t- %s:\n\t\t%s" % (strEdge, lines)
 		return summaryStr
-
-	@overrides
-	def computeIterPrintMessage(self, i, stepsPerEpoch, metricResults, iterFinishTime):
-		nonEdgeMetricResults = dict(filter(lambda x : isinstance(x[0], CallbackName), metricResults.items()))
-		messages = super().computeIterPrintMessage(i, stepsPerEpoch, nonEdgeMetricResults, iterFinishTime)
-
-		for edge in self.edges:
-			if type(edge) == Graph:
-				strEdge = "SubGraph"
-			else:
-				strEdge = str(edge)
-			edgeMetrics = metricResults[str(edge)]
-			if len(edgeMetrics) == 0:
-				continue
-			edgeIterPrintMessage = edge.computeIterPrintMessage(i, stepsPerEpoch, edgeMetrics, iterFinishTime)[1 :]
-			messages.append(strEdge)
-			messages.extend(edgeIterPrintMessage)
-		return messages
 
 	@overrides
 	def iterationEpilogue(self, isTraining, isOptimizing, trLabels):

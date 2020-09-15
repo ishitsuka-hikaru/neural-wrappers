@@ -199,6 +199,7 @@ class NetworkSerializer:
 		print("Succesfully loaded optimizer: %s" % (self.model.getOptimizerStr()))
 
 		if "scheduler_state" in optimizerDict:
+			assert not self.model.optimizerScheduler is None, "Set scheduler first before loading the model."
 			loadedSchedulerType = type(self.model.optimizerScheduler)
 			assert optimizerDict["scheduler_type"] == loadedSchedulerType, \
 				"Schedulers: %s vs %s" % (optimizerDict["scheduler_type"], loadedSchedulerType)

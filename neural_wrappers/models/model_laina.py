@@ -2,7 +2,6 @@ import torch as tr
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .resnet50_notop import ResNet50NoTop
 from .upsample import UpSampleLayer
 from ..pytorch import FeedForwardNetwork
 
@@ -17,7 +16,8 @@ class ModelLaina(FeedForwardNetwork):
 		self.baseModelPreTrained = baseModelPreTrained
 
 		if self.baseModelType == "resnet50":
-			self.baseModel = ResNet50NoTop(pretrained=baseModelPreTrained)
+			assert False, "TODO"
+			# self.baseModel = ResNet50NoTop(pretrained=baseModelPreTrained)
 
 		upsampleArgs = {}
 		if upSampleType == "conv_transposed":

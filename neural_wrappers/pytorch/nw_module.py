@@ -10,7 +10,7 @@ from typing import List, Union, Dict, Callable
 from types import LambdaType
 from tqdm import tqdm
 
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from .network_serializer import NetworkSerializer
 from .utils import getNumParams, npGetData, trGetData, StorePrevState, _getOptimizerStr
 from ..utilities import makeGenerator, isBaseOf, RunningMean, \
@@ -23,7 +23,7 @@ np.set_printoptions(precision=3, suppress=True)
 # Wrapper on top of the PyTorch model. Added methods for saving and loading a state. To completly implement a PyTorch
 #  model, one must define layers in the object's constructor, call setOptimizer, setCriterion and implement the
 #  forward method identically like a normal PyTorch model.
-class NWModule(nn.Module):
+class NWModule(nn.Module, ABC):
 	def __init__(self, hyperParameters={}):
 		assert type(hyperParameters) == dict
 		self.optimizer = None
@@ -297,12 +297,12 @@ class NWModule(nn.Module):
 		self.callbacksOnEpochStart(isTraining=isTraining)
 
 	def epochPrologue(self, epochResults, numEpochs, isTraining):
-
-		self.getTrainHistory().append(epochResults)
-		self.callbacksOnEpochEnd(isTraining=isTraining)
-		if not self.optimizerScheduler is None and isTraining == True:
-			self.optimizerScheduler.step()
+		if isTraining:
+			self.getTrainHistory().append(epochResults)
 			self.currentEpoch += 1
+			if not self.optimizerScheduler is None:
+				self.optimizerScheduler.step()
+		self.callbacksOnEpochEnd(isTraining=isTraining)
 
 	def iterationEpilogue(self, isTraining, isOptimizing, labels):
 		self.callbacksOnIterationStart(isTraining=isTraining, isOptimizing=isOptimizing)
@@ -346,7 +346,9 @@ class NWModule(nn.Module):
 
 		pbar = tqdm(initial=self.currentEpoch, total=numEpochs, position=0, desc="Epoch")
 		for i in range(N):
-			assert len(self.trainHistory) == self.currentEpoch - 1
+			if len(self.trainHistory) != self.currentEpoch - 1:
+				breakpoint()
+				assert False
 
 			self.epochEpilogue(isTraining=True)
 			epochResults = {}

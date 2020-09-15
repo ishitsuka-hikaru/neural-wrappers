@@ -7,7 +7,7 @@ from typing import Union, Callable
 from types import LambdaType
 
 from .node import MapNode, VectorNode
-from ..pytorch import NWModule, trModuleWrapper
+from ..pytorch import FeedForwardNetwork, trModuleWrapper
 from ..pytorch.network_serializer import NetworkSerializer
 from ..callbacks import CallbackName
 from ..metrics import Metric, MetricWrapper
@@ -38,7 +38,7 @@ def defaultLossFn(y, t, obj):
 # @param[in] blockGradients If set to true, each output of this edge will be owned by the outputNode, rather than
 #  maintaing a history of its origin. This is used s.t. long graphs don't have to backpropagate to the source of each
 #  input.
-class Edge(NWModule):
+class Edge(FeedForwardNetwork):
 	def __init__(self, inputNode, outputNode, edgeType="edge-edge", forwardFn=None, \
 		lossFn=None, dependencies=[], blockGradients=False, hyperParameters={}):
 		hyperParameters = self.getHyperParameters(hyperParameters, edgeType, blockGradients)
