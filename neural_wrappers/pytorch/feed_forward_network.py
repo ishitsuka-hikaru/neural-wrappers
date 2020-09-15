@@ -10,7 +10,8 @@ class FeedForwardNetwork(NWModule):
 		super().__init__(hyperParameters)
 
 	@overrides
-	def networkAlgorithm(self, trInputs, trLabels):
+	def networkAlgorithm(self, trInputs, trLabels, isTraining, isOptimizing):
 		trResults = self.forward(trInputs)
 		trLoss = self.criterion(trResults, trLabels)
+		self.updateOptimizer(trLoss, isTraining, isOptimizing)
 		return trResults, trLoss

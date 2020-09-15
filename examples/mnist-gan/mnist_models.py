@@ -7,6 +7,7 @@ class GeneratorLinear(FeedForwardNetwork):
 	def __init__(self, inputSize, outputSize):
 		super().__init__()
 		assert len(outputSize) == 3
+		self.noiseSize = inputSize
 		self.inputSize = inputSize
 		self.outputSize = outputSize
 

@@ -53,7 +53,7 @@ class NWModule(nn.Module, ABC):
 	# @param[in] trLabels The labels of the network
 	# @return The results of the network and the loss as given by the criterion function
 	@abstractmethod
-	def networkAlgorithm(self, trInputs, trLabels):
+	def networkAlgorithm(self, trInputs, trLabels, isTraining=False, isOptimizing=False):
 		pass
 
 	##### Metrics, callbacks and hyperparameters #####
@@ -217,20 +217,6 @@ class NWModule(nn.Module, ABC):
 			else:
 				trLoss.detach_()
 
-	def mainLoop(self, npInputs, npLabels, isTraining=False, isOptimizing=False):
-		trInputs, trLabels = trGetData(npInputs), trGetData(npLabels)
-		self.iterationEpilogue(isTraining, isOptimizing, trLabels)
-
-		# Call the network algorithm. By default this is just results = self.forward(inputs);
-		#  loss = criterion(results). But this can be updated for specific network architectures (i.e. GANs)
-		trResults, trLoss = self.networkAlgorithm(trInputs, trLabels)
-
-		npResults, npLoss = npGetData(trResults), npGetData(trLoss)
-
-		self.updateOptimizer(trLoss, isTraining, isOptimizing)
-
-		return npResults, npLoss
-
 	def initializeEpochMetrics(self):
 		metrics = self.getMetrics()
 		names = map(lambda x : x.getName(), metrics)
@@ -267,8 +253,11 @@ class NWModule(nn.Module, ABC):
 		for i in pbar:
 			items = next(generator)
 			npInputs, npLabels = items
-			npResults, npLoss = self.mainLoop(npInputs, npLabels, isTraining, isOptimizing)
+			trInputs, trLabels = trGetData(npInputs), trGetData(npLabels)
 
+			self.iterationEpilogue(isTraining, isOptimizing, trLabels)
+			trResults, trLoss = self.networkAlgorithm(trInputs, trLabels, isTraining, isOptimizing)
+			npResults, npLoss = npGetData(trResults), npGetData(trLoss)
 			self.iterationPrologue(npInputs, npLabels, npResults, npLoss, i, stepsPerEpoch, \
 				metricResults, isTraining, isOptimizing, startTime)
 
@@ -532,7 +521,7 @@ class NWModule(nn.Module, ABC):
 				print("[setOptimizer] Warning, number of trainable parameters is 0. Doing nothing.")
 				return
 			self.optimizer = optimizer(trainableParams, **kwargs)
-			self.optimizer.storedArgs = kwargs
+		self.optimizer.storedArgs = kwargs
 
 	def getOptimizer(self):
 		return self.optimizer
