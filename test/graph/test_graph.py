@@ -7,7 +7,7 @@ import torch as tr
 import torch.nn as nn
 import torch.optim as optim
 
-from neural_wrappers.pytorch import device, NeuralNetworkPyTorch
+from neural_wrappers.pytorch import device, FeedForwardNetwork
 from neural_wrappers.graph import Graph, Edge, Node
 from neural_wrappers.utilities import pickTypeFromMRO
 from neural_wrappers.models import IdentityLayer
@@ -62,7 +62,7 @@ class Reader(DatasetReader):
 		for item in super().iterateOneEpoch(topLevel, batchSize):
 			yield item["data"], item["data"]
 
-class Model(NeuralNetworkPyTorch):
+class Model(FeedForwardNetwork):
 	def __init__(self, inDims, outDims):
 		super().__init__()
 		self.fc = nn.Linear(inDims, outDims)
@@ -76,7 +76,7 @@ class MyNode(Node):
 		super().__init__(name, gtKey)
 
 	@overrides
-	def getEncoder(self, outputNodeType : Optional[Node]=None) -> NeuralNetworkPyTorch:
+	def getEncoder(self, outputNodeType : Optional[Node]=None) -> FeedForwardNetwork:
 		modelTypes = {
 			A : partial(Model, outDims=5),
 			B : partial(Model, outDims=7),

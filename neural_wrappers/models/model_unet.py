@@ -1,11 +1,11 @@
 import torch as tr
 import torch.nn as nn
 import torch.nn.functional as F
-from neural_wrappers.pytorch import NeuralNetworkPyTorch
 from .upsample import UpSampleLayer
+from ..pytorch import FeedForwardNetwork
 
 # A simple block that implements the 2 convs + Relu layers
-class UNetBlock(NeuralNetworkPyTorch):
+class UNetBlock(FeedForwardNetwork):
 	def __init__(self, dIn, dOut, padding=0):
 		super(UNetBlock, self).__init__()
 		self.conv1 = nn.Conv2d(in_channels=dIn, out_channels=dOut, kernel_size=3, padding=padding)
@@ -17,7 +17,7 @@ class UNetBlock(NeuralNetworkPyTorch):
 		return out2
 
 # A class that implements the upsample+concatenation of the output of the downsample part with the result of the up
-class UNetConcatenateBlock(NeuralNetworkPyTorch):
+class UNetConcatenateBlock(FeedForwardNetwork):
 	def __init__(self, dIn, dOut, upSampleType):
 		super(UNetConcatenateBlock, self).__init__()
 		assert upSampleType in ("conv_transposed_smooth", "conv_transposed", "nearest", "bilinear", "unpool")
@@ -44,7 +44,7 @@ class UNetConcatenateBlock(NeuralNetworkPyTorch):
 		return out_cat
 
 # Implementation of the UNet model from https://arxiv.org/abs/1505.04597
-class ModelUNet(NeuralNetworkPyTorch):
+class ModelUNet(FeedForwardNetwork):
 	def __init__(self, dIn, dOut, upSampleType):
 		super(ModelUNet, self).__init__()
 		assert upSampleType in ("bilinear", "nearest", "conv_transposed", "conv_transposed_smooth")

@@ -1,9 +1,9 @@
 import torch as tr
 import torch.nn.functional as F
 import torch.nn as nn
-from neural_wrappers.pytorch import NeuralNetworkPyTorch
+from neural_wrappers.pytorch import FeedForwardNetwork
 
-class GeneratorLinear(NeuralNetworkPyTorch):
+class GeneratorLinear(FeedForwardNetwork):
 	def __init__(self, inputSize, outputSize):
 		super().__init__()
 		assert len(outputSize) == 3
@@ -28,7 +28,7 @@ class GeneratorLinear(NeuralNetworkPyTorch):
 		y5 = y5.view(-1, *self.outputSize)
 		return y5
 
-class DiscriminatorLinear(NeuralNetworkPyTorch):
+class DiscriminatorLinear(FeedForwardNetwork):
 	def __init__(self, inputSize):
 		super().__init__()
 		assert len(inputSize) == 3

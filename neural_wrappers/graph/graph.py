@@ -6,11 +6,11 @@ from overrides import overrides
 
 from .draw_graph import drawGraph
 from .graph_serializer import GraphSerializer
-from ..pytorch import NeuralNetworkPyTorch, npGetData, trGetData, npToTrCall, trToNpCall
+from ..pytorch import NWModule, npGetData, trGetData, npToTrCall, trToNpCall
 from ..utilities import MultiLinePrinter, getFormattedStr
 from ..callbacks import CallbackName
 
-class Graph(NeuralNetworkPyTorch):
+class Graph(NWModule):
 	def __init__(self, edges, hyperParameters={}):
 		self.edges = edges
 		self.nodes = self.getNodes()

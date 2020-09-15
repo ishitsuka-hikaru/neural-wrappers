@@ -2,10 +2,10 @@ import torch as tr
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
-from neural_wrappers.pytorch import NeuralNetworkPyTorch, device
+from ..pytorch import FeedForwardNetwork, device
 
 # UnPool Layer as defined by Laina paper
-class UpSampleUnpool(NeuralNetworkPyTorch):
+class UpSampleUnpool(FeedForwardNetwork):
 	# @param[in] dIn Number of depth channels for the input
 	# @param[in] inShape  If inShape is provided, then the indices are pre-computed and will be used at every forward
 	#  step. Otherwise, if they are not provided (or set to None), they will be computed at every forward step.
@@ -45,7 +45,7 @@ class UpSampleUnpool(NeuralNetworkPyTorch):
 		ind = self.getIndices(x)
 		return self.upSample(x, ind)
 
-class UpSampleConvTransposed(NeuralNetworkPyTorch):
+class UpSampleConvTransposed(FeedForwardNetwork):
 	def __init__(self, dIn, dOut, kernelSize, stride):
 		super(UpSampleConvTransposed, self).__init__()
 		self.upSample = nn.ConvTranspose2d(in_channels=dIn, out_channels=dOut, kernel_size=kernelSize, stride=stride)
@@ -60,7 +60,7 @@ class UpSampleConvTransposed(NeuralNetworkPyTorch):
 # Class that implements 3 methods for up-sampling from the bottom encoding layer
 # "unpool" is the method described in Laina paper, with unpooling method with zeros + conv
 # "nearest" and "bilinear" are based on using PyTorch's nn.Upsample layer
-class UpSampleLayer(NeuralNetworkPyTorch):
+class UpSampleLayer(FeedForwardNetwork):
 	# @param[in] dIn Number of depth channels for input
 	# @param[in] dOut number of depth channels for output (last convolution uses this parameter)
 	# @param[in] Type The type of upsampling method. Valid values: "unpool", "nearest", "bilinear" or "conv_transposed"

@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 from neural_wrappers.readers import MNISTReader
-from neural_wrappers.pytorch import NeuralNetworkPyTorch, device
+from neural_wrappers.pytorch import FeedForwardNetwork, device
 from neural_wrappers.callbacks import SaveModels
 from neural_wrappers.utilities import toCategorical
 import matplotlib.pyplot as plt
@@ -32,7 +32,7 @@ class BinaryMNISTReader(MNISTReader):
 			targets = np.float32(targets)
 			yield [images, targets], images
 
-class FCEncoder(NeuralNetworkPyTorch):
+class FCEncoder(FeedForwardNetwork):
 	def __init__(self, numEncodings):
 		super().__init__()
 		# 10 classes (one-hot encoded) in the first layer
@@ -50,7 +50,7 @@ class FCEncoder(NeuralNetworkPyTorch):
 		y_std = self.mean_std(y2)
 		return y_mean, y_std
 
-class Decoder(NeuralNetworkPyTorch):
+class Decoder(FeedForwardNetwork):
 	def __init__(self, numEncodings):
 		super().__init__()
 		self.fc1 = nn.Linear(numEncodings + 10, 300)
@@ -63,7 +63,8 @@ class Decoder(NeuralNetworkPyTorch):
 		y_decoder = tr.sigmoid(y2)
 		return y_decoder
 
-class VAE(NeuralNetworkPyTorch):
+# TODO: Implement VAE in library with a special network algorithm.
+class VAE(FeedForwardNetwork):
 	def __init__(self, numEncodings, encoderType="FCEncoder"):
 		super().__init__()
 		assert encoderType in ("FCEncoder", "ConvEncoder")

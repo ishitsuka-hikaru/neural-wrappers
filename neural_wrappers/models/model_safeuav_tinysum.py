@@ -1,9 +1,9 @@
 import torch as tr
 import torch.nn as nn
 import torch.nn.functional as F
-from neural_wrappers.pytorch import NeuralNetworkPyTorch
+from ..pytorch import FeedForwardNetwork
 
-class ModelSafeUAVTinySum(NeuralNetworkPyTorch):
+class ModelSafeUAVTinySum(FeedForwardNetwork):
 	def __init__(self, dIn, dOut, numFilters, **k):
 		super().__init__(**k)
 

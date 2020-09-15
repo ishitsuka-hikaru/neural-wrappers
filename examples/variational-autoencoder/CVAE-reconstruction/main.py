@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from scipy.misc import toimage
 
 from neural_wrappers.readers import MNISTReader
-from neural_wrappers.pytorch import NeuralNetworkPyTorch
+from neural_wrappers.pytorch import FeedForwardNetwork
 from neural_wrappers.callbacks import SaveModels
 
 import torch as tr
@@ -14,7 +14,7 @@ import torch.optim as optim
 from torch.autograd import Variable
 import torch.nn.functional as F
 
-class FCEncoder(NeuralNetworkPyTorch):
+class FCEncoder(FeedForwardNetwork):
 	def __init__(self, numEncodings):
 		super().__init__()
 		self.fc1 = nn.Linear(28 * 28, 100)
@@ -73,7 +73,7 @@ class ConditionalBinaryMNIST(MNISTReader):
 			# givenImages[1] = np.float32(corruptedImages)
 			yield [images, corruptedImages], images
 
-class Decoder(NeuralNetworkPyTorch):
+class Decoder(FeedForwardNetwork):
 	def __init__(self, numEncodings):
 		super().__init__()
 		self.fc1 = nn.Linear(numEncodings + 28 * 28, 300)
@@ -87,7 +87,7 @@ class Decoder(NeuralNetworkPyTorch):
 		y_decoder = F.sigmoid(y2)
 		return y_decoder
 
-class CVAE(NeuralNetworkPyTorch):
+class CVAE(FeedForwardNetwork):
 	def __init__(self, numEncodings, encoderType="FCEncoder"):
 		super().__init__()
 		assert encoderType in ("FCEncoder", "ConvEncoder")

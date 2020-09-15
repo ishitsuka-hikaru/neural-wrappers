@@ -1,11 +1,11 @@
-from neural_wrappers.pytorch import NeuralNetworkPyTorch
-from .upsample import UpSampleLayer
-from .model_unet import UNetBlock
 import torch.nn as nn
 import torch.nn.functional as F
 import torch as tr
+from .upsample import UpSampleLayer
+from .model_unet import UNetBlock
+from ..pytorch import FeedForwardNetwork
 
-class ConcatenateBlock(NeuralNetworkPyTorch):
+class ConcatenateBlock(FeedForwardNetwork):
 	def __init__(self, dIn, dOut):
 		super().__init__()
 		self.convt = UpSampleLayer(dIn=dIn, dOut=dOut, Type="conv_transposed", noSmoothing=True, \
@@ -19,7 +19,7 @@ class ConcatenateBlock(NeuralNetworkPyTorch):
 
 # Class that computes the layers in the bottleneck portion of the model
 # TODO: further generalize instead of using "modes"
-class BottleneckBlock(NeuralNetworkPyTorch):
+class BottleneckBlock(FeedForwardNetwork):
 	def __init__(self, dIn, mode, numFilters=6):
 		super().__init__()
 		assert mode in ("dilate2_serial_concatenate", "dilate2_parallel_concatenate", "dilate2_serial_sum")
@@ -73,7 +73,7 @@ class BottleneckBlock(NeuralNetworkPyTorch):
 	def forward(self, x_down, x_pooled):
 		return self.forwardMethod(x_down, x_pooled)
 
-class ModelUNetDilatedConv(NeuralNetworkPyTorch):
+class ModelUNetDilatedConv(FeedForwardNetwork):
 	def __init__(self, dIn, dOut, numFilters, bottleneckMode):
 		super().__init__()
 

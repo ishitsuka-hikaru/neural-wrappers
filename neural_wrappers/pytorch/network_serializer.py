@@ -1,4 +1,4 @@
-# network_serializer.py Script that handles saving/loading a NeuralNetworkPyTorch class (weights, state etc.)
+# network_serializer.py Script that handles saving/loading a NWModule class (weights, state etc.)
 import torch as tr
 import numpy as np
 from copy import deepcopy
@@ -22,7 +22,7 @@ class NetworkSerializer:
 		tr.save(state, path)
 
 	# @brief Computes a serialized version of the model, by storing the state of all caveats that makes up a
-	#  NeuralNetworkPyTorch model: weights, optimizer, history and callbacks state.
+	#  NWModule model: weights, optimizer, history and callbacks state.
 	# @param[in] stateKeys A list of all keys that are to be stored (saveWeights just stores weights for example)
 	# @return returns a serialized version of the model
 	def doSerialization(self, stateKeys):

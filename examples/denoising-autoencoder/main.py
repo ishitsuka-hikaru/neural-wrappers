@@ -5,7 +5,7 @@ import torch as tr
 import torch.nn as nn
 from models import ModelFC
 from neural_wrappers.readers import MNISTReader, CorrupterReader
-from neural_wrappers.pytorch import NeuralNetworkPyTorch, SelfSupervisedNetwork, device
+from neural_wrappers.pytorch import FeedForwardNetwork, SelfSupervisedNetwork, device
 from neural_wrappers.callbacks import Callback
 from neural_wrappers.metrics import Accuracy
 from Mihlib import plot_image, show_plots

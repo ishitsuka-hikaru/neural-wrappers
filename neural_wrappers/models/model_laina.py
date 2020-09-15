@@ -1,12 +1,13 @@
-from .resnet50_notop import ResNet50NoTop
-from .upsample import UpSampleLayer
-from neural_wrappers.pytorch import NeuralNetworkPyTorch
 import torch as tr
 import torch.nn as nn
 import torch.nn.functional as F
 
+from .resnet50_notop import ResNet50NoTop
+from .upsample import UpSampleLayer
+from ..pytorch import FeedForwardNetwork
+
 # Implementation of the Laina model from https://arxiv.org/abs/1606.00373
-class ModelLaina(NeuralNetworkPyTorch):
+class ModelLaina(FeedForwardNetwork):
 	def __init__(self, baseModelType, upSampleType, baseModelPreTrained):
 		super().__init__()
 		assert baseModelType in ("resnet50", )

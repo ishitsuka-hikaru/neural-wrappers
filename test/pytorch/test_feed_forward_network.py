@@ -1,4 +1,4 @@
-from neural_wrappers.pytorch import NeuralNetworkPyTorch, device
+from neural_wrappers.pytorch import FeedForwardNetwork, device
 from neural_wrappers.callbacks import Callback, SaveModels, SaveHistory
 import numpy as np
 import torch as tr
@@ -7,7 +7,7 @@ import torch.nn as nn
 from torch.optim import Adam, SGD
 from neural_wrappers.schedulers import ReduceLROnPlateau
 
-class Model(NeuralNetworkPyTorch):
+class Model(FeedForwardNetwork):
 	def __init__(self, inputSize, hiddenSize, outputSize):
 		super().__init__()
 		self.fc1 = nn.Linear(inputSize, hiddenSize)
@@ -20,7 +20,7 @@ class Model(NeuralNetworkPyTorch):
 		y3 = self.fc3(y2)
 		return y3
 
-class ModelConvWithBatchNormalization(NeuralNetworkPyTorch):
+class ModelConvWithBatchNormalization(FeedForwardNetwork):
 	def __init__(self, bn=True, dIn=3, numFilters=16):
 		super().__init__()
 		self.dIn = dIn

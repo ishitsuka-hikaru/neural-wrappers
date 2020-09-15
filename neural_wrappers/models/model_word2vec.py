@@ -1,10 +1,10 @@
 import torch as tr
 import torch.nn as nn
-from neural_wrappers.pytorch import NeuralNetworkPyTorch
+from ..pytorch import FeedForwardNetwork
 
 device = tr.device("cuda") if tr.cuda.is_available() else tr.device("cpu")
 
-class ModelWord2Vec(NeuralNetworkPyTorch):
+class ModelWord2Vec(FeedForwardNetwork):
 	def __init__(self, dictionary, embeddingSize):
 		super().__init__()
 		self.dictionary = dictionary

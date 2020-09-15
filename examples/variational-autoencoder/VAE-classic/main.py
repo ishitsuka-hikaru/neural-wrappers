@@ -5,7 +5,7 @@
 import sys
 import numpy as np
 from neural_wrappers.readers import MNISTReader
-from neural_wrappers.pytorch import NeuralNetworkPyTorch, device
+from neural_wrappers.pytorch import FeedForwardNetwork, device
 from neural_wrappers.callbacks import SaveModels
 import matplotlib.pyplot as plt
 from scipy.misc import toimage
@@ -23,7 +23,7 @@ class BinaryMNISTReader(MNISTReader):
 			images = np.float32(images > 0)
 			yield images, images
 
-class FCEncoder(NeuralNetworkPyTorch):
+class FCEncoder(FeedForwardNetwork):
 	def __init__(self, numEncodings):
 		super().__init__()
 		self.fc1 = nn.Linear(28 * 28, 100)
@@ -39,7 +39,7 @@ class FCEncoder(NeuralNetworkPyTorch):
 		y_std = self.mean_std(y2)
 		return y_mean, y_std
 
-class ConvEncoder(NeuralNetworkPyTorch):
+class ConvEncoder(FeedForwardNetwork):
 	def __init__(self, numEncodings):
 		super().__init__()
 		self.conv1 = nn.Conv2d(in_channels=1, out_channels=100, kernel_size=3, stride=1)
@@ -58,7 +58,7 @@ class ConvEncoder(NeuralNetworkPyTorch):
 		y_std = self.mean_std(y3)
 		return y_mean, y_std
 
-class Decoder(NeuralNetworkPyTorch):
+class Decoder(FeedForwardNetwork):
 	def __init__(self, numEncodings):
 		super().__init__()
 		self.fc1 = nn.Linear(numEncodings, 300)
@@ -70,7 +70,7 @@ class Decoder(NeuralNetworkPyTorch):
 		y_decoder = tr.sigmoid(y2)
 		return y_decoder
 
-class VAE(NeuralNetworkPyTorch):
+class VAE(FeedForwardNetwork):
 	def __init__(self, numEncodings, encoderType="FCEncoder"):
 		super().__init__()
 		assert encoderType in ("FCEncoder", "ConvEncoder")
