@@ -47,6 +47,15 @@ class NWModule(nn.Module):
 		self.hyperParameters = hyperParameters
 		super(NWModule, self).__init__()
 
+	# The network algorithm. This must be updated for specific networks, so the whole metric/callbacks system works
+	#  just as before.
+	# @param[in] trInputs The inputs of the network
+	# @param[in] trLabels The labels of the network
+	# @return The results of the network and the loss as given by the criterion function
+	@abstractmethod
+	def networkAlgorithm(self, trInputs, trLabels):
+		pass
+
 	##### Metrics, callbacks and hyperparameters #####
 
 	# @brief Adds hyperparameters to the dictionary. Only works if the model has not been trained yet (so we don't)
@@ -77,7 +86,7 @@ class NWModule(nn.Module):
 		# self.iterPrintMessageKeys.append(metricName)
 
 	# Sets the user provided list of metrics as callbacks and adds them to the callbacks list.
-	def addMetrics(self, metrics : Dict[str, Union[Callable, Metric]]):
+	def addMetrics(self, metrics:Dict[str, Union[Callable, Metric]]):
 		assert isBaseOf(metrics, dict), "Metrics must be provided as Str=>Callback dictionary"
 
 		for metricName, metric in metrics.items():
@@ -87,24 +96,23 @@ class NWModule(nn.Module):
 		#  dependencies already set using setCallbacksDependeices, it must be called again.
 		self.invalidateTopologicalSort()
 
-	# Adds the user provided list of callbacks to the model's list of callbacks (and metrics)
-	def addCallbacks(self, callbacks):
-		for callback in callbacks:
-			assert isBaseOf(callback, Callback), \
-				"Expected only subclass of types Callback, got type %s" % (type(callback))
-			assert callback.name not in self.callbacks, "Callback %s already in callbacks list." % (callback.name)
-			self.callbacks[callback.name] = callback
+	def addCallback(self, callback:Callback):
+		assert isBaseOf(callback, Callback), \
+			"Expected only subclass of types Callback, got type %s" % (type(callback))
+		assert callback.name not in self.callbacks, "Callback %s already in callbacks list." % (callback.name)
+		self.callbacks[callback.name] = callback
 		# Warning, calling addCallbacks will invalidate topological sort as we reset the indexes here. If there are
 		#  dependencies already set using setCallbacksDependeices, it must be called again.
+		# TODO: see if this is needed or we can add a new node to the existing topological sort graph
 		self.invalidateTopologicalSort()
+
+	# Adds the user provided list of callbacks to the model's list of callbacks (and metrics)
+	def addCallbacks(self, callbacks:List[Callback]):
+		for callback in callbacks:
+			self.addCallback(callback)
 
 	# TODO: Add clearMetrics. Store dependencies, so we can call topological sort before/after clearCallbacks.
 	# Store dependencies on model store. Make clearCallbacks clear only callbacks, not metrics as well.
-
-	# Returns only the callbacks that are of subclass Callback (not metrics)
-	def getCallbacks(self):
-		res = list(filter(lambda x : not isBaseOf(x, Metric), self.callbacks.values()))
-		return res
 
 	def clearCallbacks(self):
 		metric = MetricWrapper(lambda y, t, **k : k["loss"])
@@ -115,18 +123,6 @@ class NWModule(nn.Module):
 		self.topologicalSort = np.array([0], dtype=np.uint8)
 		self.topologicalKeys = np.array([metricName])
 		self.topologicalSortDirty = False
-
-	def getMetrics(self):
-		res = list(filter(lambda x : isBaseOf(x, Metric), self.callbacks.values()))
-		return res
-
-	def getMetric(self, metricName) -> Metric:
-		for key, callback in self.callbacks.items():
-			if not isBaseOf(callback, Metric):
-				continue
-			if callback.name == metricName:
-				return callback
-		assert False, "Metric %s was not found. Use adddMetrics() properly first." % metricName
 
 	# Does a topological sort on the given list of callback dependencies. This MUST be called after all addMetrics and
 	#  addCallbacks are called, as these functions invalidate the topological sort.
@@ -169,8 +165,7 @@ class NWModule(nn.Module):
 		self.topologicalKeys = np.array(list(self.callbacks.keys()))[self.topologicalSort]
 		print("Successfully done topological sort!")
 
-	def getTrainHistory(self):
-		return self.trainHistory
+	### Callbacks for training purposes
 
 	# Other neural network architectures can update these
 	def callbacksOnEpochStart(self, isTraining):
@@ -435,41 +430,6 @@ class NWModule(nn.Module):
 
 	##### Misc functions #####
 
-	# Optimizer can be either a class or an object. If it's a class, it will be instantiated on all the trainable
-	#  parameters, and using the arguments in the variable kwargs. If it's an object, we will just use that object,
-	#  and assume it's correct (for example if we want only some parameters to be trained this has to be used)
-	# Examples of usage: model.setOptimizer(nn.Adam, lr=0.01), model.setOptimizer(nn.Adam(model.parameters(), lr=0.01))
-	def setOptimizer(self, optimizer, **kwargs):
-		if isinstance(optimizer, optim.Optimizer):
-			self.optimizer = optimizer
-		else:
-			trainableParams = list(filter(lambda p : p.requires_grad, self.parameters()))
-			if len(trainableParams) == 0:
-				print("[setOptimizer] Warning, number of trainable parameters is 0. Doing nothing.")
-				return
-			self.optimizer = optimizer(trainableParams, **kwargs)
-			self.optimizer.storedArgs = kwargs
-
-	def getOptimizer(self):
-		return self.optimizer
-
-	def getOptimizerStr(self):
-		optimizer = self.getOptimizer()
-		return _getOptimizerStr(optimizer)
-
-	def setOptimizerScheduler(self, scheduler, **kwargs):
-		assert not self.getOptimizer() is None, "Optimizer must be set before scheduler!"
-		if isinstance(scheduler, optim.lr_scheduler._LRScheduler):
-			self.optimizerScheduler = scheduler
-		else:
-			self.optimizerScheduler = scheduler(optimizer=self.getOptimizer(), **kwargs)
-			# Some schedulers need acces to the model's object. Others, will not have this argument.
-			self.optimizerScheduler.model = self
-			self.optimizerScheduler.storedArgs = kwargs
-
-	def setCriterion(self, criterion):
-		self.criterion = criterion
-
 	# Useful to passing numpy data but still returning backpropagable results
 	def npForwardTrResult(self, *args, **kwargs):
 		trArgs = trGetData(args)
@@ -484,16 +444,6 @@ class NWModule(nn.Module):
 		trResult = self.npForwardTrResult(*args, **kwargs)
 		npResult = npGetData(trResult)
 		return npResult
-
-	# The network algorithm. This must be updated for specific networks, so the whole metric/callbacks system works
-	#  just as before.
-	# @param[in] trInputs The inputs of the network
-	# @param[in] trLabels The labels of the network
-	# @return The results of the network and the loss as given by the criterion function
-	def networkAlgorithm(self, trInputs, trLabels):
-		trResults = self.forward(trInputs)
-		trLoss = self.criterion(trResults, trLabels)
-		return trResults, trLoss
 
 	def saveWeights(self, path):
 		return self.serializer.saveModel(path, stateKeys=["weights", "model_state"])
@@ -533,13 +483,70 @@ class NWModule(nn.Module):
 			if not deepCheckEqual(loadedState, modelState):
 				return False
 		return True
-
-	def setTrainableWeights(self, value):
-		for param in self.parameters():
-		    param.requires_grad = value
 	
 	def isTrainable(self):
 		for param in self.parameters():
 			if param.requires_grad == True:
 				return True
 		return False
+
+	### Getters and setters
+
+	# Returns only the callbacks that are of subclass Callback (not metrics)
+	def getCallbacks(self):
+		res = list(filter(lambda x : not isBaseOf(x, Metric), self.callbacks.values()))
+		return res
+
+	def getMetrics(self):
+		res = list(filter(lambda x : isBaseOf(x, Metric), self.callbacks.values()))
+		return res
+
+	def getMetric(self, metricName) -> Metric:
+		for key, callback in self.callbacks.items():
+			if not isBaseOf(callback, Metric):
+				continue
+			if callback.name == metricName:
+				return callback
+		assert False, "Metric %s was not found. Use adddMetrics() properly first." % metricName
+
+	def getTrainHistory(self):
+		return self.trainHistory
+
+	def setTrainableWeights(self, value):
+		for param in self.parameters():
+		    param.requires_grad = value
+
+	# Optimizer can be either a class or an object. If it's a class, it will be instantiated on all the trainable
+	#  parameters, and using the arguments in the variable kwargs. If it's an object, we will just use that object,
+	#  and assume it's correct (for example if we want only some parameters to be trained this has to be used)
+	# Examples of usage: model.setOptimizer(nn.Adam, lr=0.01), model.setOptimizer(nn.Adam(model.parameters(), lr=0.01))
+	def setOptimizer(self, optimizer, **kwargs):
+		if isinstance(optimizer, optim.Optimizer):
+			self.optimizer = optimizer
+		else:
+			trainableParams = list(filter(lambda p : p.requires_grad, self.parameters()))
+			if len(trainableParams) == 0:
+				print("[setOptimizer] Warning, number of trainable parameters is 0. Doing nothing.")
+				return
+			self.optimizer = optimizer(trainableParams, **kwargs)
+			self.optimizer.storedArgs = kwargs
+
+	def getOptimizer(self):
+		return self.optimizer
+
+	def getOptimizerStr(self):
+		optimizer = self.getOptimizer()
+		return _getOptimizerStr(optimizer)
+
+	def setOptimizerScheduler(self, scheduler, **kwargs):
+		assert not self.getOptimizer() is None, "Optimizer must be set before scheduler!"
+		if isinstance(scheduler, optim.lr_scheduler._LRScheduler):
+			self.optimizerScheduler = scheduler
+		else:
+			self.optimizerScheduler = scheduler(optimizer=self.getOptimizer(), **kwargs)
+			# Some schedulers need acces to the model's object. Others, will not have this argument.
+			self.optimizerScheduler.model = self
+			self.optimizerScheduler.storedArgs = kwargs
+
+	def setCriterion(self, criterion:Callable[[tr.Tensor, tr.Tensor], tr.Tensor]):
+		self.criterion = criterion
