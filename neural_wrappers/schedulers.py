@@ -1,7 +1,7 @@
 from torch.optim.lr_scheduler import _LRScheduler, ReduceLROnPlateau as BaseModel
 from overrides import overrides
 from copy import deepcopy
-from .pytorch import NeuralNetworkPyTorch
+from .pytorch import NWModule
 from .callbacks import CallbackName, Callback
 from .utilities import isBaseOf
 
@@ -43,7 +43,7 @@ class ReduceLROnPlateau:
 		}[name]
 
 class ReduceLRAndBacktrackOnPlateau(_LRScheduler):
-	def __init__(self, model:NeuralNetworkPyTorch, metricName:CallbackName, patience:int, factor:float):
+	def __init__(self, model:NWModule, metricName:CallbackName, patience:int, factor:float):
 		assert patience > 0
 		self.model = model
 		self.metricName = metricName

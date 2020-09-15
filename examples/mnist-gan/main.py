@@ -9,10 +9,6 @@ from reader import GANReader
 from test_model import test_model
 from utils import PlotCallback
 
-# For some reasons, results are much better if provided data is in range -1 : 1 (not 0 : 1 or standardized).
-def GANNormalization(data, dim):
-	return (data / 255 - 0.5) * 2
-
 def getArgs():
 	parser = ArgumentParser()
 	parser.add_argument("type")
@@ -32,10 +28,9 @@ def main():
 	args = getArgs()
 
 	# Define reader, generator and callbacks
-	reader = GANReader(noiseSize=args.latent_space_size, datasetPath=args.dataset_path, \
-		normalizer=({"images" : ("GAN", GANNormalization)}))
+	reader = GANReader(noiseSize=args.latent_space_size, datasetPath=args.dataset_path)
 	print(reader.summary())
-	generator, numIterations = getGenerators(reader, miniBatchSize=args.batch_size, keys=["train"])
+	generator, numIterations = getGenerators(reader, batchSize=args.batch_size, keys=["train"])
 
 	generatorModel = Generator(inputSize=args.latent_space_size, outputSize=(28, 28, 1))
 	discriminatorModel = Discriminator(inputSize=(28, 28, 1))

@@ -9,8 +9,8 @@ from collections import OrderedDict
 from typing import List, Union, Dict, Callable
 from types import LambdaType
 from tqdm import tqdm
-from tqdm.auto import trange
 
+from abc import abstractmethod
 from .network_serializer import NetworkSerializer
 from .utils import getNumParams, npGetData, trGetData, StorePrevState, _getOptimizerStr
 from ..utilities import makeGenerator, isBaseOf, RunningMean, \
@@ -23,7 +23,7 @@ np.set_printoptions(precision=3, suppress=True)
 # Wrapper on top of the PyTorch model. Added methods for saving and loading a state. To completly implement a PyTorch
 #  model, one must define layers in the object's constructor, call setOptimizer, setCriterion and implement the
 #  forward method identically like a normal PyTorch model.
-class NeuralNetworkPyTorch(nn.Module):
+class NWModule(nn.Module):
 	def __init__(self, hyperParameters={}):
 		assert type(hyperParameters) == dict
 		self.optimizer = None
@@ -45,7 +45,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		#  hyperparameters match exactly (i.e. SfmLearner using 1 warping image vs using 2 warping images vs using
 		#  explainability mask).
 		self.hyperParameters = hyperParameters
-		super(NeuralNetworkPyTorch, self).__init__()
+		super(NWModule, self).__init__()
 
 	##### Metrics, callbacks and hyperparameters #####
 
@@ -267,7 +267,7 @@ class NeuralNetworkPyTorch(nn.Module):
 		#  inputs, they can be packed together (stacked) or put into a list, in which case the ntwork will receive the
 		#  same list, but every element in the list is tranasformed in torch format.
 		startTime = datetime.now()
-		pbar = trange(stepsPerEpoch, desc="[%s] Iteration" % Prefix)
+		pbar = tqdm(range(stepsPerEpoch), desc="[%s] Iteration" % Prefix)
 		for i in pbar:
 			items = next(generator)
 			npInputs, npLabels = items
