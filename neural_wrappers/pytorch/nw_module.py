@@ -254,7 +254,8 @@ class NWModule(nn.Module, ABC):
 		if isOptimizing == False and tr.is_grad_enabled():
 			print("Warning! Not optimizing, but grad is enabled.")
 		if isTraining and isOptimizing:
-			assert not self.getOptimizer() is None, "Set optimizer before training"
+			optimizer = self.getOptimizer()
+			assert not optimizer is None, "Set optimizer before training"
 		assert not self.criterion is None, "Set criterion before training or testing"
 		metricResults = self.initializeEpochMetrics()
 

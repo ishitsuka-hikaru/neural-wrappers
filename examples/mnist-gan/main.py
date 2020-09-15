@@ -37,9 +37,8 @@ def main():
 
 	# Define model
 	model = GenerativeAdversarialNetwork(generator=generatorModel, discriminator=discriminatorModel).to(device)
-	model.generator.setOptimizer(optim.SGD, lr=0.01)
-	model.discriminator.setOptimizer(optim.SGD, lr=0.01)
-	model.addCallbacks([SaveModels("last"), PlotMetrics(["Loss"]), PlotCallback(args.latent_space_size)])
+	model.setOptimizer(optim.SGD, lr=0.01)
+	model.addCallbacks([SaveModels("last", "Loss"), PlotMetrics(["Loss"]), PlotCallback(args.latent_space_size)])
 	print(model.summary())
 
 	if args.type == "train":

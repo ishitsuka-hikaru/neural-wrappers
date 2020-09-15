@@ -33,7 +33,3 @@ class H5DatasetReader(DatasetReader):
 		endIndex = min((i + 1) * batchSize, self.getNumData(topLevel))
 		assert startIndex < endIndex, "startIndex < endIndex. Got values: %d %d" % (startIndex, endIndex)
 		return DatasetRange(startIndex, endIndex)
-
-	def getNumData(self, topLevel : str) -> int:
-		firstKey = list(self.dimGetter.keys())[0]
-		return len(self.dataset[topLevel][firstKey])
