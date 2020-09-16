@@ -289,10 +289,11 @@ class NWModule(nn.Module, ABC):
 	def epochPrologue(self, epochResults, numEpochs, isTraining):
 		if isTraining:
 			self.getTrainHistory().append(epochResults)
-			self.currentEpoch += 1
 			if not self.optimizerScheduler is None:
 				self.optimizerScheduler.step()
 		self.callbacksOnEpochEnd(isTraining=isTraining)
+		if isTraining:
+			self.currentEpoch += 1
 
 	def iterationEpilogue(self, isTraining, isOptimizing, labels):
 		self.callbacksOnIterationStart(isTraining=isTraining, isOptimizing=isOptimizing)

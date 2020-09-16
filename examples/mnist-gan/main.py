@@ -1,7 +1,7 @@
 import torch.optim as optim
 from argparse import ArgumentParser
 from neural_wrappers.pytorch import GenerativeAdversarialNetwork, device
-from neural_wrappers.callbacks import Callback, SaveModels, PlotMetrics
+from neural_wrappers.callbacks import SaveModels, PlotMetrics
 from neural_wrappers.utilities import getGenerators
 
 from mnist_models import GeneratorLinear as Generator, DiscriminatorLinear as Discriminator

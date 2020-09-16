@@ -8,13 +8,10 @@ from overrides import overrides
 
 from .nw_module import NWModule
 from .utils import device
-from ..utilities import MessagePrinter, RunningMean, isType
+from ..utilities import isType
 
 def lossFn(y, t):
 	return -(t * tr.log(y + 1e-5) + (1 - t) * tr.log(1 - y + 1e-5)).mean()
-
-def f(y, t):
-	breakpoint()
 
 class GANOptimizer(optim.Optimizer):
 	def __init__(self, optimizerDict):
@@ -42,8 +39,7 @@ class GenerativeAdversarialNetwork(NWModule):
 		self.generator = generator
 		self.discriminator = discriminator
 		self.discriminator.setCriterion(lossFn)
-
-		self.setCriterion(f)
+		self.setCriterion(lambda y, t: None)
 
 	@overrides
 	def setOptimizer(self, optimizer, **kwargs):
