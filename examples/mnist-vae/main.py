@@ -39,8 +39,8 @@ def main():
 	encoder = Encoder(noiseSize=args.noiseSize)
 	decoder = Decoder(noiseSize=args.noiseSize)
 	model = VariationalAutoencoderNetwork(encoder, decoder, \
-		lossWeights={"latent" : 1 / (28 * 28 * 100), "decoder" : 1}).to(device)
-	model.setOptimizer(optim.SGD, lr=0.001)
+		lossWeights={"latent" : 1 / (1000), "decoder" : 1}).to(device)
+	model.setOptimizer(optim.AdamW, lr=0.00001)
 	model.addMetrics({
 		"Reconstruction Loss" : lambda y, t, **k : npToTrCall(decoderLossFn, y, t),
 		"Latent Loss" : lambda y, t, **k : npToTrCall(latentLossFn, y, t)

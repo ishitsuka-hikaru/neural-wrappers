@@ -15,3 +15,4 @@ class SampleResultsCallback(Callback):
 			for j in range(5):
 				ax[i, j].imshow(results[i, j], cmap="gray")
 		plt.savefig("results_%d.png" % (kwargs["epoch"]))
+		plt.close()
