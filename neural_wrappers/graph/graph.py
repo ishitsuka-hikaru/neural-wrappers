@@ -6,10 +6,9 @@ from overrides import overrides
 
 from .draw_graph import drawGraph
 from .graph_serializer import GraphSerializer
-from ..pytorch import NWModule, npGetData, trGetData, npToTrCall, trToNpCall
-from ..utilities import MultiLinePrinter, getFormattedStr
-from ..callbacks import CallbackName
+from ..pytorch import NWModule, npGetData
 
+# A Graph is a list of Edges. Each edge is a FeedForward network between two nodes.
 class Graph(NWModule):
 	def __init__(self, edges, hyperParameters={}):
 		self.edges = edges
@@ -20,18 +19,12 @@ class Graph(NWModule):
 		self.edges = nn.ModuleList(self.getEdges())
 		self.edgeIDsToEdges = self.getStrMapping()
 		self.edgeLoss = {}
-		self.linePrinter = MultiLinePrinter()
 		self.setCriterion(self.loss)
 
 		self.serializer = GraphSerializer(self)
 
 	@overrides
-	def networkAlgorithm(self, trInputs, trLabels):
-		trResults = self.graphForward(trInputs)
-		trLoss = self.criterion(trResults, trLabels)
-		return trResults, trLoss
-
-	def graphForward(self, trInputs):
+	def networkAlgorithm(self, trInputs, trLabels, isTraining, isOptimizing):
 		trResults = {}
 		# TODO: Execution order. (synchronus vs asynchronus as well as topological sort at various levels.)
 		# For now, the execution is synchronous and linear as defined by the list of edges
@@ -41,7 +34,10 @@ class Graph(NWModule):
 			edgeOutput = edge.forward(edgeInputs)
 			# Update the outputs of the whole graph as well
 			trResults[edgeID] = edgeOutput
-		return trResults
+
+		trLoss = self.criterion(trResults, trLabels)
+		self.updateOptimizer(trLoss, isTraining, isOptimizing)
+		return trResults, trLoss
 
 	def loss(self, y, t):
 		loss = 0

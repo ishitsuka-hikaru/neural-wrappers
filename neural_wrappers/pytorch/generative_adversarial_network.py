@@ -38,8 +38,8 @@ class GenerativeAdversarialNetwork(NWModule):
 		assert hasattr(generator, "noiseSize")
 		self.generator = generator
 		self.discriminator = discriminator
-		self.discriminator.setCriterion(lossFn)
-		self.setCriterion(lambda y, t: None)
+		# self.discriminator.setCriterion(lossFn)
+		self.setCriterion(lossFn)
 
 	@overrides
 	def setOptimizer(self, optimizer, **kwargs):
@@ -97,8 +97,8 @@ class GenerativeAdversarialNetwork(NWModule):
 		predictDReal = self.discriminator.forward(trInputs)
 		predictDFake = self.discriminator.forward(fakeD)
 
-		lossDReal = self.discriminator.criterion(predictDReal, ones)
-		lossDFake = self.discriminator.criterion(predictDFake, zeros)
+		lossDReal = self.criterion(predictDReal, ones)
+		lossDFake = self.criterion(predictDFake, zeros)
 		lossD = lossDReal + lossDFake
 		if isTraining and isOptimizing:
 			self.getOptimizer().optimizer["discriminator"].zero_grad()
@@ -109,7 +109,7 @@ class GenerativeAdversarialNetwork(NWModule):
 
 		# Train generator
 		predictGFake = self.discriminator.forward(fakeG)
-		lossG = self.discriminator.criterion(predictGFake, ones)
+		lossG = self.criterion(predictGFake, ones)
 		if isTraining and isOptimizing:
 			self.getOptimizer().optimizer["generator"].zero_grad()
 			lossG.backward()

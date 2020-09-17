@@ -2,7 +2,7 @@ import torch.optim as optim
 from argparse import ArgumentParser
 from neural_wrappers.pytorch import GenerativeAdversarialNetwork, device
 from neural_wrappers.callbacks import SaveModels, PlotMetrics
-from neural_wrappers.utilities import getGenerators
+from neural_wrappers.utilities import getGenerators, changeDirectory
 
 from mnist_models import GeneratorLinear as Generator, DiscriminatorLinear as Discriminator
 from reader import GANReader
@@ -14,6 +14,7 @@ def getArgs():
 	parser.add_argument("type")
 	parser.add_argument("dataset_path")
 
+	parser.add_argument("--dir", default="test")
 	parser.add_argument("--batch_size", type=int, default=100)
 	parser.add_argument("--num_epochs", type=int, default=200)
 	parser.add_argument("--latent_space_size", type=int, default=200)
@@ -42,6 +43,7 @@ def main():
 	print(model.summary())
 
 	if args.type == "train":
+		changeDirectory(args.dir, expectExist=False)
 		model.train_generator(generator, numIterations, numEpochs=args.num_epochs)
 	elif args.type == "retrain":
 		model.loadModel(args.weights_file)

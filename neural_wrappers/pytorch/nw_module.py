@@ -244,12 +244,14 @@ class NWModule(nn.Module, ABC):
 			assert not optimizer is None, "Set optimizer before training"
 		assert not self.criterion is None, "Set criterion before training or testing"
 		metricResults = self.initializeEpochMetrics()
+		currentLoss = metricResults[CallbackName("Loss")]
 
 		# The protocol requires the generator to have 2 items, inputs and labels (both can be None). If there are more
 		#  inputs, they can be packed together (stacked) or put into a list, in which case the ntwork will receive the
 		#  same list, but every element in the list is tranasformed in torch format.
 		startTime = datetime.now()
 		pbar = tqdm(range(stepsPerEpoch), desc="[%s] Iteration" % Prefix)
+		pbar.set_postfix({"Loss" : "%2.3f" % (lambda : currentLoss.get())()})
 		for i in pbar:
 			items = next(generator)
 			npInputs, npLabels = items
