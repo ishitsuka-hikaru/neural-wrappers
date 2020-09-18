@@ -250,8 +250,7 @@ class NWModule(nn.Module, ABC):
 		#  inputs, they can be packed together (stacked) or put into a list, in which case the ntwork will receive the
 		#  same list, but every element in the list is tranasformed in torch format.
 		startTime = datetime.now()
-		pbar = tqdm(range(stepsPerEpoch), desc="[%s] Iteration" % Prefix)
-		pbar.set_postfix({"Loss" : "%2.3f" % (lambda : currentLoss.get())()})
+		pbar = tqdm(range(stepsPerEpoch), desc="[%s] Iteration" % Prefix, postfix="Loss: 0.000")
 		for i in pbar:
 			items = next(generator)
 			npInputs, npLabels = items
@@ -262,6 +261,9 @@ class NWModule(nn.Module, ABC):
 			npResults, npLoss = npGetData(trResults), npGetData(trLoss)
 			self.iterationPrologue(npInputs, npLabels, npResults, npLoss, i, stepsPerEpoch, \
 				metricResults, isTraining, isOptimizing, startTime)
+			# For performance reasons we update the shown loss less often.
+			if i % 30 == 0 or i == stepsPerEpoch - 1:
+				pbar.set_postfix({"Loss" : "%2.3f" % currentLoss.get()})
 
 		res = self.reduceEpochMetrics(metricResults)
 		res["duration"] = datetime.now() - startTime
