@@ -42,7 +42,7 @@ class Edge(FeedForwardNetwork):
 	def __init__(self, inputNode, outputNode, edgeType="edge-edge", forwardFn=None, \
 		lossFn=None, dependencies=[], blockGradients=False, hyperParameters={}):
 		hyperParameters = self.getHyperParameters(hyperParameters, edgeType, blockGradients)
-		self.strInputnode = str(inputNode)
+		self.strInputNode = str(inputNode)
 		self.strOutputNode = str(outputNode)
 		super().__init__(hyperParameters=hyperParameters)
 		assert edgeType in ("node-node", "node-edge", "edge-node", "edge-edge")
@@ -195,7 +195,7 @@ class Edge(FeedForwardNetwork):
 		self.topologicalSortDirty = False
 
 	def __str__(self):
-		return "%s -> %s" % (self.strInputnode, self.strOutputNode)
+		return "%s -> %s" % (self.strInputNode, self.strOutputNode)
 
 	def __repr__(self):
 		return str(self)

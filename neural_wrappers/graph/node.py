@@ -9,7 +9,7 @@ from ..metrics import Metric
 
 GTType = Optional[Union[Dict[Any, Any], tr.Tensor]]
 
-class Node(nn.Module):
+class Node(ABC, nn.Module):
 	# A dictionary that gives a unique tag to all nodes by appending an increasing number to name.
 	lastNodeID = 0
 
