@@ -7,6 +7,7 @@ from overrides import overrides
 from .draw_graph import drawGraph
 from .graph_serializer import GraphSerializer
 from ..pytorch import NWModule, npGetData
+from ..utilities import isType
 
 # A Graph is a list of Edges. Each edge is a FeedForward network between two nodes.
 class Graph(NWModule):
@@ -116,15 +117,18 @@ class Graph(NWModule):
 
 	@overrides
 	def setOptimizer(self, optimizer, **kwargs):
-		if isinstance(optimizer, optim.Optimizer):
-			self.optimizer = optimizer
-		else:
-			params = []
-			for edge in self.edges:
-				edgeParams =  list(filter(lambda p : p.requires_grad, edge.parameters()))
-				params.append({"params" : edgeParams})
-			self.optimizer = optimizer(params, **kwargs)
-		self.optimizer.storedArgs = kwargs
+		assert isinstance(optimizer, )
+		breakpoint()
+		assert isType(optimizer, "type"), "TODO For more special cases: %s" % type(optimizer)
+	
+		# 	self.optimizer = optimizer
+		# else:
+		# 	params = []
+		# 	for edge in self.edges:
+		# 		edgeParams =  list(filter(lambda p : p.requires_grad, edge.parameters()))
+		# 		params.append({"params" : edgeParams})
+		# 	self.optimizer = optimizer(params, **kwargs)
+		# self.optimizer.storedArgs = kwargs
 
 	@overrides
 	def getOptimizerStr(self):

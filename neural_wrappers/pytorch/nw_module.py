@@ -115,7 +115,7 @@ class NWModule(nn.Module, ABC):
 	# Store dependencies on model store. Make clearCallbacks clear only callbacks, not metrics as well.
 
 	def clearCallbacks(self):
-		metric = MetricWrapper(lambda y, t, **k : k["loss"])
+		metric = MetricWrapper(lambda y, t, **k : (k["loss"], t, k))
 		metricName = CallbackName("Loss")
 		metric.setName(metricName)
 		self.callbacks = OrderedDict({metricName : metric})
