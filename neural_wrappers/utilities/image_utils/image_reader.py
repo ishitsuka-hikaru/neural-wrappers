@@ -22,6 +22,7 @@ def tryReadImage(path, count=5, imgLib="opencv"):
 	f = {
 		"opencv" : readImageOpenCV,
 		"PIL" : readImagePIL,
+		"pillow" : readImagePIL,
 		"lycon" : readImageLycon
 	}[imgLib]
 

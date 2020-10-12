@@ -17,7 +17,8 @@ def resize(data, height, width, interpolation, resizeLib="opencv"):
 		"skimage" : resize_skimage,
 		"lycon" : resize_lycon,
 		"opencv" : resize_opencv,
-		"pillow" : resize_pillow
+		"pillow" : resize_pillow,
+		"PIL" : resize_pillow
 	}[resizeLib]
 
 	return func(data, height, width, interpolation).astype(data.dtype)
@@ -35,8 +36,9 @@ def resize_pillow(data, height, width, interpolation):
 		"lanczos" : Image.LANCZOS
 	}[interpolation]
 
-	imgResized = imgData.resize(size=(height, width), resample=resample)
-	return np.array(imgResized)
+	imgResized = imgData.resize(size=(width, height), resample=resample)
+	npImgResized = np.array(imgResized, dtype=np.uint8)
+	return npImgResized
 
 def resize_opencv(data, height, width, interpolation):
 	import cv2
@@ -49,7 +51,8 @@ def resize_opencv(data, height, width, interpolation):
 		"bicubic" : cv2.INTER_CUBIC,
 		"lanczos" : cv2.INTER_LANCZOS4
 	}[interpolation]
-	return cv2.resize(data, dsize=(height, width), interpolation=interpolation)
+	imgResized = cv2.resize(data, dsize=(width, height), interpolation=interpolation)
+	return imgResized
 
 def resize_skimage(data, height, width, interpolation):
 	from skimage.transform import resize
