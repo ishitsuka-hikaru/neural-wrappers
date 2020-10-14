@@ -1,89 +1,88 @@
 # Char-rnn like the one from: http://karpathy.github.io/2015/05/21/rnn-effectiveness/
 # Download input txt frile from that blog (i.e. Shakespeare)
-import sys
-import time
 import numpy as np
 import torch as tr
 import torch.optim as optim
-from neural_wrappers.pytorch import device
+import time
+from argparse import ArgumentParser
+
+from neural_wrappers.pytorch import device, FeedForwardNetwork
+from neural_wrappers.readers import DatasetReader
 from neural_wrappers.callbacks import SaveModels, Callback
+from neural_wrappers.utilities import toCategorical
 
 from reader import Reader
 from model import Model
 
-def lossFn(output, target):
-	# Batched binary cross entropy
-	output = output[0]
-	L = -tr.log(output[target] + 1e-5).mean()
-	return L
-
 class SampleCallback(Callback):
-	def __init__(self, reader, N):
+	def __init__(self, reader):
 		super().__init__()
 		self.reader = reader
-		self.N = N
 
 	def onEpochEnd(self, **kwargs):
-		model = kwargs["model"]
-		inputSentence = self.reader.sampleSentence(self.reader.sequenceSize)[0]
+		seed, result = sample(kwargs["model"], self.reader, numIters=200)
+		print("Seed: %s" % seed)
+		print("Result: %s" % result)
+		print("\n___________________________________________________________________\n")
 
-		# v = tr.from_numpy(self.reader.sentenceToVector(inputSentence)).unsqueeze(dim=1).to(device)
-		v = np.expand_dims(self.reader.sentenceToVector(inputSentence), axis=1)
-		Str = ""
-		out, h = model.npForward([v, None])
-		charOut = self.reader.vectorToSentence(out[-1])
-		v = np.expand_dims(self.reader.sentenceToVector(charOut), axis=1)
+def lossFn(output, target):
+	# Batched binary cross entropy
+	output, hidden = output
+	return -tr.log(output[target] + 1e-5).mean()
 
-		print("Input sentence: %s" % inputSentence)
-		for i in range(self.N):
-			with tr.no_grad():
-				out, h = model.npForward([v, h])
-			charOut = self.reader.vectorToSentence(out[-1])
-			v = np.expand_dims(self.reader.sentenceToVector(charOut), axis=1)
+def sample(model, reader, numIters, seedText=None):
+	if seedText is None:
+		seedText = reader.sampleSentence(sequenceSize=reader.sequenceSize)[0]
+	tensorSeed = np.expand_dims(reader.sentenceToVector(seedText), axis=0)
 
-			Str += charOut
-			# print("Input: %s | Predicted: %s (%2.2f)" % (Str, charOut, out.max() ))
-		print("Predicted: %s" % Str)
+	hprev = None
+	for i in range(len(seedText)):
+		input = tensorSeed[:, i : i + 1]
+		output = tr.from_numpy(input).to(device)
+		_, hprev = model.forward([output, hprev])
 
-# def sample(model, seedText, numIters, hprev=None):
-# 	tensorSeed = TextUtils.toCategorical(np.expand_dims(TextUtils.textToInt(seedText), axis=0))
+	result = ""
+	for i in range(200):
+		output, hprev = model.forward([output, hprev])
+		p = output.detach().to("cpu").numpy()[0].flatten()
+		charIndex = np.random.choice(range(len(reader.charToIx)), p=p)
+		result += reader.ixToChar[charIndex]
+		npOutput = toCategorical(charIndex, len(reader.charToIx)).astype(np.float32)
+		output = tr.from_numpy(npOutput).unsqueeze(dim=0).unsqueeze(dim=1).to(device)
+	return seedText, result
 
-# 	hprev = None
-# 	for i in range(len(seedText)):
-# 		output = tr.from_numpy(tensorSeed[:, i]).to(device)
-# 		_, hprev = model.forward(output, hprev)
-
-# 	result = ""
-# 	for i in range(200):
-# 		output, hprev = model.forward(output, hprev)
-# 		p = output.detach().to("cpu").numpy()[0].flatten()
-# 		charIndex = np.random.choice(range(len(TextUtils.alphabet)), p=p)
-# 		result += TextUtils.alphabet[charIndex]
-# 		output = tr.from_numpy(np.expand_dims(TextUtils.toCategorical(charIndex), axis=0)).to(device)
-# 	return result
+def getArgs():
+	parser = ArgumentParser()
+	parser.add_argument("type")
+	parser.add_argument("datasetPath")
+	parser.add_argument("--weightsFile")
+	parser.add_argument("--batchSize", type=int, default=1)
+	parser.add_argument("--numEpochs", type=int, default=100)
+	parser.add_argument("--stepsPerEpoch", type=int, default=10000)
+	parser.add_argument("--sequenceSize", type=int, default=5)
+	parser.add_argument("--seedText")
+	parser.add_argument("--cellType", default="LSTM")
+	args = parser.parse_args()
+	return args
 
 def main():
-	assert sys.argv[1] in ("train", "test")
-	sequenceSize = 10
-	reader = Reader(sys.argv[2], sequenceSize=sequenceSize)
-	I, H, O = len(reader.charToIx), 30, len(reader.charToIx)
-	model = Model(cellType="LSTM", inputSize=I, hiddenSize=H, outputSize=O).to(device)
-	model.addCallbacks([SaveModels("best", "Loss"), SampleCallback(reader, N=50)])
+	args = getArgs()
+	reader = Reader(args.datasetPath, args.sequenceSize)
+	generator = reader.iterate(numSteps=args.stepsPerEpoch, batchSize=args.batchSize)
+
+	model = Model(cellType=args.cellType, inputSize=len(reader.charToIx), hiddenSize=100).to(device)
+	model.setOptimizer(optim.SGD, lr=0.001, momentum=0.9)
+	model.setCriterion(lossFn)
+	model.addCallbacks([SaveModels(mode="last", metricName="Loss"), SampleCallback(reader)])
 	print(model.summary())
 
-	if sys.argv[1] == "train":
-		numSteps = 10000
-		generator = reader.iterate(numSteps=numSteps, batchSize=2)
-
-		model.setOptimizer(optim.SGD, lr=0.001, momentum=0.9)
-		model.setCriterion(lossFn)
-		model.train_generator(generator, stepsPerEpoch=numSteps, numEpochs=100)
-
-	elif sys.argv[1] == "test":
-		model.load_weights(sys.argv[2])
+	if args.type == "train":
+		model.train_generator(generator, stepsPerEpoch=args.stepsPerEpoch, numEpochs=args.numEpochs)
+	elif args.type == "test":
+		model.loadModel(sys.argv[3])
 
 		while True:
-			result = sample(model, seedText="Hello", numIters=200)
+			result = sample(model, reader, numIters=200, seedText=args.seedText)
 			print(result + "\n___________________________________________________________________")
 			time.sleep(1)
 

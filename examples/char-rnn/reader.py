@@ -43,7 +43,7 @@ class Reader:
 				_X, _t = self.sampleSentence(self.sequenceSize)
 				X[:, j] = self.sentenceToVector(_X)
 				t[:, j] = self.sentenceToVector(_t)
-			yield X, t
+			yield (X, None), t
 	
 	def iterate(self, numSteps, batchSize):
 		while True:
