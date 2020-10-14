@@ -1,6 +1,7 @@
+import torch as tr
 import torch.nn as nn
 import torch.nn.functional as F
-from neural_wrappers.pytorch import FeedForwardNetwork
+from neural_wrappers.pytorch import FeedForwardNetwork, device
 
 class MyRNN(nn.Module):
 	def __init__(self, inputShape, hiddenShape):
