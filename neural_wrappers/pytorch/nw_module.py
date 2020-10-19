@@ -115,7 +115,7 @@ class NWModule(nn.Module, ABC):
 	# Store dependencies on model store. Make clearCallbacks clear only callbacks, not metrics as well.
 
 	def clearCallbacks(self):
-		metric = MetricWrapper(lambda y, t, **k : (k["loss"], t, k))
+		metric = MetricWrapper(lambda y, t, **k : k["loss"])
 		metricName = CallbackName("Loss")
 		metric.setName(metricName)
 		self.callbacks = OrderedDict({metricName : metric})
@@ -244,7 +244,6 @@ class NWModule(nn.Module, ABC):
 			assert not optimizer is None, "Set optimizer before training"
 		assert not self.criterion is None, "Set criterion before training or testing"
 		metricResults = self.initializeEpochMetrics()
-		currentLoss = metricResults[CallbackName("Loss")]
 
 		# The protocol requires the generator to have 2 items, inputs and labels (both can be None). If there are more
 		#  inputs, they can be packed together (stacked) or put into a list, in which case the ntwork will receive the
@@ -252,7 +251,7 @@ class NWModule(nn.Module, ABC):
 		startTime = datetime.now()
 		pbar = range(stepsPerEpoch)
 		if printMessage:
-			pbar = tqdm(pbar, desc="[%s] Iteration" % Prefix, postfix="Loss: 0.000")
+			pbar = tqdm(pbar, desc="[%s] Iteration" % Prefix, postfix={str(k) : 0.000 for k in metricResults})
 		for i in pbar:
 			items = next(generator)
 			npInputs, npLabels = items
@@ -265,7 +264,8 @@ class NWModule(nn.Module, ABC):
 				metricResults, isTraining, isOptimizing, startTime)
 			# For performance reasons we update the shown loss less often.
 			if printMessage and (i % 30 == 0 or i == stepsPerEpoch - 1):
-				pbar.set_postfix({"Loss" : "%2.3f" % currentLoss.get()})
+				currentResults = {str(k) : "%2.3f" % metricResults[k].get() for k in metricResults}
+				pbar.set_postfix(currentResults)
 
 		res = self.reduceEpochMetrics(metricResults)
 		res["duration"] = datetime.now() - startTime

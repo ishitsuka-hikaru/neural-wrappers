@@ -48,5 +48,11 @@ class MetricWrapper(Metric):
 	# @brief The main method that must be implemented by a metric
 	@overrides
 	def __call__(self, results, labels, **kwargs):
-		cbResult, cbLabels, cbKwArgs = self.callback(results, labels, **kwargs)
-		return self.wrappedMetric(cbResult, cbLabels, **cbKwArgs) # type: ignore
+		try:
+			# self.callback should return the "result" of the metric
+			# TODO: If I need to change this (delete default metric? Why did I put it in the first place)
+			res = self.callback(results, labels, **kwargs)
+			res2 = self.wrappedMetric(res, labels, **kwargs)
+			return res2
+		except Exception:
+			breakpoint()
