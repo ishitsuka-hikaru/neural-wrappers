@@ -154,7 +154,7 @@ class TestNetwork:
 
 		callbacks = [SaveModels("best", "Loss"), SaveModels("last", "Loss"), SaveHistory("history.txt")]
 		model.addCallbacks(callbacks)
-		model.addMetrics({"Test" : lambda x, y, **k : (0.5, y, k)})
+		model.addMetrics({"Test" : lambda x, y, **k : 0.5})
 		beforeKeys = list(model.callbacks.keys())
 		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=10, printMessage=None)
 		model.saveModel("test_model.pkl")

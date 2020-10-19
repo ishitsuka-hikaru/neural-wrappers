@@ -22,7 +22,7 @@ def isBaseOf(whatType, baseType):
 # Example: B (extends) A (extends) Base (extends) Object
 # pickTypeFromMRO(B, {Base: "msg1", A: "msg2", Object: "msg3"}) will return msg2 because that's how mro() works.
 def pickTypeFromMRO(Type, switchType):
-	Type = type(Type) if type(Type) != type else Type
+	Type = Type if isinstance(Type, type) else type(Type)
 	typeMRO = Type.mro()
 	for Type in typeMRO:
 		if Type in switchType:
@@ -34,7 +34,7 @@ def pickTypeFromMRO(Type, switchType):
 # @param[in] item The item whose type is checked
 # @param[in] Type The type 
 def isType(item, Type : Union[type, _GenericAlias]) -> bool: # type: ignore
-	itemType = type(item) if type(item) != type else item
+	itemType = item if isinstance(item, type) else type(item)
 	if hasattr(Type, "__args__"): # type: ignore
 		return itemType in Type.__args__ # type: ignore
 	else:
