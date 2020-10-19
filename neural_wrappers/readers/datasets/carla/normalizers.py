@@ -2,19 +2,20 @@ import numpy as np
 import transforms3d.euler as txe
 from typing import Dict, Union
 from ....utilities import resize_batch, h5ReadDict, npGetInfo
-from ...dataset_reader import DatasetReader
+# from ...dataset_reader import DatasetReader
+from .carla_generic_reader import CarlaGenericReader
 
 # TODO: All norms now put data in [0 : 1]. We should look at the rederObj and if some dims want other range, transform
 #  the data to that range.
 
-def rgbNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
+def rgbNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 	# x [MBx854x854x3] => [MBx256x256x3] :: [0 : 255]
 	x = resize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
 	# x :: [0 : 255] => [0: 1]
 	x = x.astype(np.float32) / 255
 	return x
 
-def wireframeNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
+def wireframeNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 	# Wireframe is stored as RGB with 3 identical channels
 	# x :: [0 : 255] ; (MB, H, W, 3) => (MB, H, W)
 	x = x[..., 0]
@@ -25,10 +26,10 @@ def wireframeNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarra
 		width=readerObj.desiredShape[1], resizeLib="opencv")
 	return x.astype(np.float32)
 
-def halftoneNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
+def halftoneNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 	return rgbNorm(x, readerObj)
 
-def depthNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
+def depthNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 	depthStats = {"min" : 0, "max" : readerObj.hyperParameters["maxDepthMeters"]}
 
 	x = resize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
@@ -37,8 +38,8 @@ def depthNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
 	x = (x - depthStats["min"]) / (depthStats["max"] - depthStats["min"])
 	return np.expand_dims(x, axis=-1)
 
-def poseNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
-	def positionNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
+def poseNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
+	def positionNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 		if readerObj.hyperParameters["positionNormalization"] == "min_max":
 			positionStats = h5ReadDict(readerObj.dataset["others"]["dataStatistics"]["position"])
 			minPos, maxPos = positionStats["min"][0 : 3], positionStats["max"][0 : 3]
@@ -48,7 +49,7 @@ def poseNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
 
 		return x
 
-	def orientationNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
+	def orientationNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 		assert readerObj.hyperParameters["orientationRepresentation"] == "euler"
 
 		if readerObj.hyperParameters["orientationNormalization"] == "min_max":
@@ -74,7 +75,7 @@ def poseNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
 	orientation = orientationNorm(x[..., 3 : ], readerObj)
 	return np.concatenate([position, orientation], axis=-1)
 
-def opticalFlowNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
+def opticalFlowNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 	# Optical flow is in [-1:1] and 100% of percentage. Result is in [0:1] using only [-x%:x%] of data.
 	def opticalFlowPercentageTransform(x, opticalFlowPercentage):
 		# x :: [0 : 1], centered in 0
@@ -117,7 +118,7 @@ def opticalFlowNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndar
 		return np.concatenate([x, opticalFlowMagnitude(x)], axis=-1)
 	assert False
 
-# def opticalFlowNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
+# def opticalFlowNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 # 	# Data in [0 : 1]
 # 	width, height = readerObj.desiredShape
 # 	x = resize_batch(x, height=height, width=width, resizeLib="opencv")
@@ -125,13 +126,13 @@ def opticalFlowNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndar
 # 	x[..., 1] = np.float32(np.int32(x[..., 1] * height))
 # 	return x
 
-def normalNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
+def normalNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 	x = resize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
 	# Normals are stored as [0 - 255] on 3 channels, representing orientation of the 3 axes.
 	x = x.astype(np.float32) / 255
 	return x
 
-def semanticSegmentationNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
+def semanticSegmentationNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 	labelKeys = list({
 		(0, 0, 0): "Unlabeled",
 		(70, 70, 70): "Building",
@@ -148,12 +149,12 @@ def semanticSegmentationNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -
 		(0, 220, 220): "Traffic sign"
 	}.keys())
 	numClasses = len(labelKeys)
-	labelKeys = list(map(lambda x : x[0] + x[1] * 256 + x[2] * 256 * 256, labelKeys))
+	sumLabelKeys = list(map(lambda x : x[0] + x[1] * 256 + x[2] * 256 * 256, labelKeys))
 
 	x = x.astype(np.uint32)
 	x = x[..., 0] + x[..., 1] * 256 + x[..., 2] * 256 * 256
-	for i in range(len(labelKeys)):
-		x[x == labelKeys[i]] = i
+	for i in range(numClasses):
+		x[x == sumLabelKeys] = i
 	x = x.astype(np.uint8)
 	x = resize_batch(x, interpolation="nearest", height=readerObj.desiredShape[0], \
 		width=readerObj.desiredShape[1], resizeLib="opencv")

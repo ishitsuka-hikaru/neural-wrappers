@@ -1,9 +1,9 @@
 import h5py
-from functools import partial
-from typing import Dict, List, Callable, Union
+from typing import Dict, List, Callable
 from .dataset_reader import DatasetReader, DimGetterCallable
 from .internal import DatasetIndex, DatasetRange, DatasetRandomIndex
 from ..utilities import isType, flattenList
+from returns.curry import partial
 
 def defaultH5DimGetter(dataset : h5py._hl.group.Group, index : DatasetIndex, dim : str):
 	if isType(index, DatasetRange):
