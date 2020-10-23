@@ -1,5 +1,6 @@
 import h5py
 from typing import Dict, List, Callable
+from overrides import overrides
 from .dataset_reader import DatasetReader, DimGetterCallable
 from .internal import DatasetIndex, DatasetRange, DatasetRandomIndex
 from ..utilities import isType, flattenList
@@ -33,3 +34,8 @@ class H5DatasetReader(DatasetReader):
 		endIndex = min((i + 1) * batchSize, self.getNumData(topLevel))
 		assert startIndex < endIndex, "startIndex < endIndex. Got values: %d %d" % (startIndex, endIndex)
 		return DatasetRange(startIndex, endIndex)
+
+	@overrides
+	def getNumData(self, topLevel:str) -> int:
+		firstKey = tuple(self.dimGetter.keys())[0]
+		return self.getDataset(topLevel)[firstKey].shape[0]

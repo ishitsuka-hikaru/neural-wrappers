@@ -8,7 +8,7 @@ from ..utilities import flattenList
 DimGetterCallable = Union[Callable[[str, DatasetIndex], Any]]
 
 class DatasetReader(ABC):
-	# @param[in] allDims A dictionary with all available data bucket names (data, label etc.) and, for each bucket,
+	# @param[in] dataBuckets A dictionary with all available data bucket names (data, label etc.) and, for each bucket,
 	#  a list of dimensions (rgb, depth, etc.).
 	#  Example: {"data":["rgb", "depth"], "labels":["depth", "semantic"]}
 	# @param[in] dimGetter For each possible dimension defined above, we need to receive a method that tells us how
