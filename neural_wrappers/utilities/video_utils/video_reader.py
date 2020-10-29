@@ -1,19 +1,46 @@
 import numpy as np
+from abc import ABC, abstractmethod
+from overrides import overrides
+from copy import copy
 
-class VideoImageIO:
+class NWVideo(ABC):
 	def __init__(self, path, nFrames=None):
+		self.path = path
+		self.nFrames = nFrames
+
+	@abstractmethod
+	def copy(self):
+		pass
+
+	@abstractmethod
+	def __getitem__(self, key):
+		pass
+
+	@abstractmethod
+	def __len__(self):
+		pass
+
+class VideoImageIO(NWVideo):
+	def __init__(self, path, nFrames=None):
+		super().__init__(path, nFrames)
+		self.readRaw()
+
+	def readRaw(self):
 		from skimage import img_as_float32
 		from skimage.color import gray2rgb
 		from imageio import get_reader
-		reader = get_reader(path)
+		print("[VideoImageIO] Reading raw data...")
+
+		reader = get_reader(self.path)
 		metadata = reader.get_meta_data()
-		if nFrames == None:
-			nFrames = metadata["nframes"]
+
+		if self.nFrames == None:
+			self.nFrames = metadata["nframes"]
 		self.fps = metadata["fps"]
 		# Make this smarter
 		video = []
 		for i, frame in enumerate(reader):
-			if i == nFrames:
+			if i == self.nFrames:
 				break
 			video.append(frame)
 		video = np.array(video)
@@ -25,7 +52,15 @@ class VideoImageIO:
 
 		self.data = video
 		self.shape = video.shape
-		self.nFrames = nFrames
+
+	@overrides
+	def copy(self):
+		item = VideoImageIO(self.path, self.nFrames)
+		item.data = self.data.copy()
+		item.shape = self.shape
+		item.nFrames = self.nFrames
+		item.fps = self.fps
+		return item
 
 	# TODO: Make this smarter
 	def __getitem__(self, key):
@@ -34,16 +69,30 @@ class VideoImageIO:
 	def __len__(self):
 		return self.nFrames
 
-class VideoPIMS:
+class VideoPIMS(NWVideo):
 	def __init__(self, path, nFrames=None):
+		super().__init__(path, nFrames)
+		self.readRaw()
+
+	def readRaw(self):
 		import pims
-		video = pims.Video(path)
+		print("[VideoPIMS] Reading raw data...")
+
+		video = pims.Video(self.path)
 		self.fps = video.frame_rate
 		self.data = video
-		if nFrames == None:
-			nFrames = len(video)
-		self.shape = (nFrames, *video.frame_shape)
-		self.nFrames = nFrames
+		if self.nFrames == None:
+			self.nFrames = len(video)
+		self.shape = (self.nFrames, *video.frame_shape)
+
+	@overrides
+	def copy(self):
+		item = VideoPIMS(self.path, self.nFrames)
+		item.data = copy(self.data)
+		item.shape = self.shape
+		item.nFrames = self.nFrames
+		item.fps = self.fps
+		return item
 
 	def __getitem__(self, key):
 		return self.data[key]
