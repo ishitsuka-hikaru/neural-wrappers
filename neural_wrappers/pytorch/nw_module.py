@@ -435,7 +435,7 @@ class NWModule(nn.Module, ABC):
 	# Useful to passing numpy data but still returning backpropagable results
 	def npForwardTrResult(self, *args, **kwargs):
 		trArgs = trGetData(args)
-		trKwargs= trGetData(kwargs)
+		trKwargs = trGetData(kwargs)
 		trResult = self.forward(*trArgs, **trKwargs)
 		return trResult
 
@@ -443,7 +443,8 @@ class NWModule(nn.Module, ABC):
 	# @param[in] x The input, which can be a numpy array, or a list/tuple/dict of numpy arrays
 	# @return y The output of the network as numpy array
 	def npForward(self, *args, **kwargs):
-		trResult = self.npForwardTrResult(*args, **kwargs)
+		with tr.no_grad():
+			trResult = self.npForwardTrResult(*args, **kwargs)
 		npResult = npGetData(trResult)
 		return npResult
 

@@ -149,6 +149,7 @@ class NetworkSerializer:
 			if key == "weights":
 				assert "weights" in loadedState
 				self.doLoadWeights(loadedState["weights"])
+				print("Succesfully loaded weights (%d parameters) " % (_computeNumParams(loadedState["weights"])))
 			elif key == "optimizer":
 				assert "optimizer" in loadedState
 				self.doLoadOptimizer(loadedState["optimizer"])
@@ -187,7 +188,6 @@ class NetworkSerializer:
 			print("Loaded partial model. Missing %d keys (got %d keys)" % (len(missing), len(newParams)))
 		if len(unexpected):
 			print("Unexpected %d keys in the loaded model" % (len(unexpected)))
-		print("Succesfully loaded weights (%d parameters) " % (numLoadedParams))
 
 	def doLoadOptimizer(self, optimizerDict):
 		assert "kwargs" in optimizerDict
