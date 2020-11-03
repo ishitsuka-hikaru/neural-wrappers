@@ -34,16 +34,16 @@ class VideoImageIO(NWVideo):
 		reader = get_reader(self.path)
 		metadata = reader.get_meta_data()
 
-		if self.nFrames == None:
-			self.nFrames = metadata["nframes"]
+		nFrames = 1<<31 if self.nFrames is None else self.nFrames
 		self.fps = metadata["fps"]
 		# Make this smarter
 		video = []
 		for i, frame in enumerate(reader):
-			if i == self.nFrames:
+			if i == nFrames:
 				break
 			video.append(frame)
 		video = np.array(video)
+		self.nFrames = len(video)
 
 		if len(video.shape) == 3:
 			video = np.array([gray2rgb(frame) for frame in video])
