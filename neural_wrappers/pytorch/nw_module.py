@@ -73,8 +73,8 @@ class NWModule(nn.Module, ABC):
 		self.topologicalSortDirty = True
 
 	def addMetric(self, metricName:Union[str, CallbackName], metric:Union[Callable, Metric]):
-		# If it's just a callback, make it a metric
-		if isinstance(metric, LambdaType): #type: ignore
+		# partial or lambda but not metric
+		if isinstance(metric, (Callable, LambdaType)) and (not isinstance(metric, Metric)): #type: ignore
 			metric = MetricWrapper(metric) #type: ignore
 		if not isinstance(metricName, CallbackName): #type: ignore
 			metricName = CallbackName(metricName) #type: ignore
