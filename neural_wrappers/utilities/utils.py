@@ -7,6 +7,10 @@ from .type_utils import NWNumber, NWSequence, NWDict, isBaseOf, T
 from typing import Dict, Sequence, Union, Iterable, List
 from functools import reduce
 
+def minMaxImage(image):
+	Min, Max = image.min(), image.max()
+	return (image - Min) / (Max - Min + np.spacing(1))
+
 def standardizeData(data, mean, std):
 	data -= mean
 	data /= std
