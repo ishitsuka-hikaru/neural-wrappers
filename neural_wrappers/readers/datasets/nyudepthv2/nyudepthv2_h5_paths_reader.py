@@ -5,7 +5,7 @@ from returns.curry import partial
 
 from ...h5_dataset_reader import H5DatasetReader
 from ...internal import DatasetRange
-from ....utilities import tryReadImage
+from media_processing_lib.image import tryReadImage
 
 # Append base directory to all paths read from the h5, and then call the reading function for each full path.
 def pathsReader(dataset : h5py._hl.group.Group, index : DatasetRange, readerObj : H5DatasetReader,
