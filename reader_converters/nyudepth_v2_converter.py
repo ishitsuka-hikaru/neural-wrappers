@@ -67,7 +67,8 @@ def main():
     expectedKeys = ["seg", "normal_mask", "img", "halftone", "depth"]
     topLevelRenames = ["semantic_segmentation", "normal", "rgb", "halftone", "depth"]
     assert sum([item in Dirs for item in expectedKeys]) == 5
-    splits = {"train" : 0.8, "validation" : 0.2} if args.mode == "train" else {"test" : 1.0}
+    # splits = {"train" : 0.8, "validation" : 0.2} if args.mode == "train" else {"test" : 1.0}
+    splits = {"train" : 1.0} if args.mode == "train" else {"test" : 1.0}
 
     file = h5py.File(args.exportFileName, "w")
     paths = getPaths(args.datasetPath, splits, expectedKeys, topLevelRenames)
