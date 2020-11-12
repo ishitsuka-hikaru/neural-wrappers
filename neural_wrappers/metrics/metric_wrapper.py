@@ -52,7 +52,8 @@ class MetricWrapper(Metric):
 			# self.callback should return the "result" of the metric
 			# TODO: If I need to change this (delete default metric? Why did I put it in the first place)
 			res = self.callback(results, labels, **kwargs)
-			res2 = self.wrappedMetric(res, labels, **kwargs)
-			return res2
-		except Exception:
+			# res2 = self.wrappedMetric(res, labels, **kwargs)
+			return res
+		except Exception as e:
+			print(str(e))
 			breakpoint()
