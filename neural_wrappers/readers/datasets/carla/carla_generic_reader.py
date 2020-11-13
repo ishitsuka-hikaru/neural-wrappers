@@ -14,7 +14,6 @@ class CarlaGenericReader(H5DatasetReader):
 		from .normalizers import rgbNorm, depthNorm, poseNorm, opticalFlowNorm, normalNorm, \
 			semanticSegmentationNorm, wireframeNorm, halftoneNorm
 		from .utils import opticalFlowReader, rgbNeighbourReader, depthReadFunction, pathsReader
-		assert numNeighboursAhead >= 0
 
 		dimGetter = {
 			"rgb":partial(pathsReader, readerObj=self, readFunction=rawReadFunction, dim="rgb"),
@@ -45,12 +44,15 @@ class CarlaGenericReader(H5DatasetReader):
 			}
 		}
 
-		for i in range(numNeighboursAhead):
-			key = "rgbNeighbour(t+%d)" % (i + 1)
+		breakpoint()
+		for i in range(abs(numNeighboursAhead)):
+			ix = i * np.sign(numNeighboursAhead)
+			breakpoint()
+			key = "rgbNeighbour(t%+d)" % (i + 1)
 			dimGetter[key] = partial(rgbNeighbourReader, skip=i + 1, readerObj=self)
 			dimTransform["data"][key] = partial(rgbNorm, readerObj=self)
 
-			flowKey = "optical_flow(t+%d)" % (i + 1)
+			flowKey = "optical_flow(t%+d)" % (i + 1)
 			dimGetter[flowKey] = partial(opticalFlowReader, readerObj=self, dim=flowKey)
 			dimTransform["data"][flowKey] = partial(opticalFlowNorm, readerObj=self)
 

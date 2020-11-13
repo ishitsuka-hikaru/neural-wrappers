@@ -40,3 +40,16 @@ def npPadToHighestLastDim(l):
 		newArray[i, 0 : lengths[i]] = l2Flattened[i]
 	newArray = newArray.reshape((*l2.shape, maxLength))
 	return newArray
+
+# @bried Tries to read a npy file multiple times.
+def tryReadNpy(path, allow_pickle=False, count=5):
+	i = 0
+	while True:
+		try:
+			return np.load(path, allow_pickle=allow_pickle)
+		except Exception as e:
+			print("Path: %s. Exception: %s" % (path, e))
+			i += 1
+
+			if i == count:
+				raise Exception

@@ -1,16 +1,17 @@
 import numpy as np
 import transforms3d.euler as txe
 from typing import Dict, Union
-from ....utilities import resize_batch, h5ReadDict, npGetInfo
-# from ...dataset_reader import DatasetReader
+from media_processing_lib.image import imgResize_batch
+
 from .carla_generic_reader import CarlaGenericReader
+from ....utilities import h5ReadDict, npGetInfo
 
 # TODO: All norms now put data in [0 : 1]. We should look at the rederObj and if some dims want other range, transform
 #  the data to that range.
 
 def rgbNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 	# x [MBx854x854x3] => [MBx256x256x3] :: [0 : 255]
-	x = resize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
+	x = imgResize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
 	# x :: [0 : 255] => [0: 1]
 	x = x.astype(np.float32) / 255
 	return x
@@ -22,9 +23,12 @@ def wireframeNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 	# Binarize it x :: [0 : 255] => [0 : 1]
 	x = (x > 0).astype(np.uint8)
 	# Resize it to desired shape
-	x = resize_batch(x, interpolation="nearest", height=readerObj.desiredShape[0], \
+	x = imgResize_batch(x, interpolation="nearest", height=readerObj.desiredShape[0], \
 		width=readerObj.desiredShape[1], resizeLib="opencv")
 	return x.astype(np.float32)
+
+def wireframeRegressionNorm(x : np.ndarray, readerObj : CarlaGenericReader) -> np.ndarray:
+	return rgbNorm(x, readerObj)
 
 def halftoneNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 	return rgbNorm(x, readerObj)
@@ -32,7 +36,7 @@ def halftoneNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 def depthNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 	depthStats = {"min" : 0, "max" : readerObj.hyperParameters["maxDepthMeters"]}
 
-	x = resize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
+	x = imgResize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
 	# Depth is stored in [0 : 1] representing up to 1000m from simulator
 	x = np.clip(x * 1000, depthStats["min"], depthStats["max"])
 	x = (x - depthStats["min"]) / (depthStats["max"] - depthStats["min"])
@@ -105,7 +109,7 @@ def opticalFlowNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 		return np.expand_dims(norm, axis=-1)
 
 	# Data in [0 : 1]
-	x = resize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
+	x = imgResize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
 
 	if readerObj.hyperParameters["opticalFlowPercentage"] != (100, 100):
 		x = opticalFlowPercentageTransform(x, readerObj.hyperParameters["opticalFlowPercentage"])
@@ -121,13 +125,13 @@ def opticalFlowNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 # def opticalFlowNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 # 	# Data in [0 : 1]
 # 	width, height = readerObj.desiredShape
-# 	x = resize_batch(x, height=height, width=width, resizeLib="opencv")
+# 	x = imgResize_batch(x, height=height, width=width, resizeLib="opencv")
 # 	x[..., 0] = np.float32(np.int32(x[..., 0] * width))
 # 	x[..., 1] = np.float32(np.int32(x[..., 1] * height))
 # 	return x
 
 def normalNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
-	x = resize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
+	x = imgResize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
 	# Normals are stored as [0 - 255] on 3 channels, representing orientation of the 3 axes.
 	x = x.astype(np.float32) / 255
 	return x
@@ -156,7 +160,7 @@ def semanticSegmentationNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np
 	for i in range(numClasses):
 		x[x == sumLabelKeys] = i
 	x = x.astype(np.uint8)
-	x = resize_batch(x, interpolation="nearest", height=readerObj.desiredShape[0], \
+	x = imgResize_batch(x, interpolation="nearest", height=readerObj.desiredShape[0], \
 		width=readerObj.desiredShape[1], resizeLib="opencv")
 
 	# Some fancy way of doing one-hot encoding.

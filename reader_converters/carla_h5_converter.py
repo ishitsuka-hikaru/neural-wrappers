@@ -94,7 +94,7 @@ def getPaths(baseDir):
 		"cameranormal" : np.array(list(map(cameraNormalFunc, rgbList)), "S"),
 		"wireframe" : np.array(list(map(wireframeFunc, rgbList)), "S"),
 		"halftone" : np.array(list(map(halftoneFunc, rgbList)), "S"),
-		# "optical_flow(t+1)" : np.array(list(map(partial(flowFunc, skip=1), rgbList)), "S"),
+		"optical_flow(t-1, t)" : np.array(list(map(partial(flowFunc, skip=1), rgbList)), "S"),
 		# "optical_flow(t+2)" : np.array(list(map(partial(flowFunc, skip=2), rgbList)), "S"),
 		# "optical_flow(t+3)" : np.array(list(map(partial(flowFunc, skip=3), rgbList)), "S"),
 		# "optical_flow(t+4)" : np.array(list(map(partial(flowFunc, skip=4), rgbList)), "S")

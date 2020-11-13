@@ -1,14 +1,17 @@
 import h5py
+import numpy as np
 from typing import Dict, List, Callable
 from overrides import overrides
 from .dataset_reader import DatasetReader, DimGetterCallable
 from .internal import DatasetIndex, DatasetRange, DatasetRandomIndex
-from ..utilities import isType, flattenList
+from ..utilities import isType, flattenList, smartIndexWrapper
 from returns.curry import partial
 
 def defaultH5DimGetter(dataset : h5py._hl.group.Group, index : DatasetIndex, dim : str):
 	if isType(index, DatasetRange):
 		return dataset[dim][index.start : index.end][()] #type: ignore
+	elif isType(index, np.ndarray):
+		return smartIndexWrapper(dataset[dim], index)
 	assert False
 
 class H5DatasetReader(DatasetReader):
