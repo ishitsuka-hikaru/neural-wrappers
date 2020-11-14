@@ -20,7 +20,7 @@ class PercentDatasetReader(DatasetReader):
 	@overrides
 	def getNumData(self, topLevel:str) -> int:
 		N = self.baseReader.getNumData(topLevel)
-		return N * self.percent // 100
+		return int(N * self.percent / 100)
 
 	@overrides
 	def getBatchDatasetIndex(self, i:int, topLevel:str, batchSize:int) -> DatasetIndex:

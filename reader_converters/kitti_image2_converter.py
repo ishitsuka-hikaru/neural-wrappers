@@ -1,7 +1,7 @@
 import h5py
 import numpy as np
 import os
-from neural_wrappers.utilities import tryReadImage, resize
+from media_processing_lib.image import tryReadImage, imgResize
 from functools import partial
 from argparse import ArgumentParser
 
@@ -49,7 +49,7 @@ def getPaths(basePath):
 	return newPathsDict
 
 def doPng(imagePath, resolution):
-	return resize(tryReadImage(imagePath), height=resolution[0], width=resolution[1], interpolation="bilinear")
+	return imgResize(tryReadImage(imagePath), height=resolution[0], width=resolution[1], interpolation="bilinear")
 
 def doLabel(labelPath):
 	classes = ["Pedestrian", "Truck", "Car", "Cyclist", "Misc", "Van", "Tram", "Person_sitting"]

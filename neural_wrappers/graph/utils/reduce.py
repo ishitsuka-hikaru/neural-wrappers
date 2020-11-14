@@ -24,6 +24,6 @@ class ReduceNode(Edge):
 		return trModuleWrapper(lambda x : x)
 
 	def __str__(self):
-		return "ReduceNode %s" % (str(self.inputNode))
+		return "ReduceNode %s" % (self.strInputNode)
 
 class ReduceEdge: pass

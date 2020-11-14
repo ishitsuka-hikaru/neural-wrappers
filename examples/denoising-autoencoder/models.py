@@ -1,8 +1,8 @@
-from neural_wrappers.pytorch import NeuralNetworkPyTorch
+from neural_wrappers.pytorch import FeedForwardNetwork
 import torch.nn as nn
 import numpy as np
 
-class ModelFC(NeuralNetworkPyTorch):
+class ModelFC(FeedForwardNetwork):
 	def __init__(self, inputShape=(28, 28), outputShape=10):
 		super().__init__()
 

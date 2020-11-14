@@ -7,8 +7,8 @@ from collections import OrderedDict
 device = tr.device("cuda") if tr.cuda.is_available() else tr.device("cpu")
 
 def trModuleWrapper(module):
-	from .network import NeuralNetworkPyTorch
-	class Model(NeuralNetworkPyTorch):
+	from .feed_forward_network import FeedForwardNetwork
+	class Model(FeedForwardNetwork):
 		def __init__(self, module):
 			super().__init__()
 			self.module = module
@@ -17,7 +17,7 @@ def trModuleWrapper(module):
 			return self.module(x)
 	return Model(module)
 
-# Used by NeuralNetworkPyTorch so that we enter a block, we can apply train/eval and when we leave it, we restore the
+# Used by NWModule so that we enter a block, we can apply train/eval and when we leave it, we restore the
 #  previous state.
 class StorePrevState:
 	def __init__(self, moduleObj):

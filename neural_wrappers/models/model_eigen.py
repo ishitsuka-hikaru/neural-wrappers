@@ -1,10 +1,10 @@
-from neural_wrappers.pytorch import NeuralNetworkPyTorch
 import torch as tr
 import torch.nn as nn
 import torch.nn.functional as F
+from ..pytorch import FeedForwardNetwork
 
 # The top architeture in the original paper.
-class ModelDepthCoarse(NeuralNetworkPyTorch):
+class ModelDepthCoarse(FeedForwardNetwork):
 	def __init__(self):
 		super().__init__()
 		self.conv1 = nn.Conv2d(in_channels=3, out_channels=96, kernel_size=11, stride=4)
@@ -31,7 +31,7 @@ class ModelDepthCoarse(NeuralNetworkPyTorch):
 		coarse7 = coarse7.view(-1, 55, 74)
 		return coarse7
 
-class ModelDepthFine(NeuralNetworkPyTorch):
+class ModelDepthFine(FeedForwardNetwork):
 	def __init__(self):
 		super().__init__()
 		self.conv1 = nn.Conv2d(in_channels=3, out_channels=63, kernel_size=9, stride=2)
@@ -52,7 +52,7 @@ class ModelDepthFine(NeuralNetworkPyTorch):
 		return fine4
 
 # Implementation of the Eigen model from https://arxiv.org/abs/1406.2283
-class ModelEigen(NeuralNetworkPyTorch):
+class ModelEigen(FeedForwardNetwork):
 	def __init__(self,  coarseOnly):
 		super().__init__()
 		self.coarseOnly = coarseOnly

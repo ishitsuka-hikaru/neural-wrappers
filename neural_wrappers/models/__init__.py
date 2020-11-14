@@ -8,9 +8,5 @@ from .identity import IdentityLayer
 from .model_mobilenetv2_cifar10 import MobileNetV2Cifar10
 from .model_word2vec import ModelWord2Vec
 
-# TorchVision overwrites
-from .resnet50_notop import ResNet50NoTop
-from .squeezenet_notop import SqueezeNetNoTop
-
-__all__ = ["ModelEigen", "ModelLaina", "ModelUNet", "UpSampleLayer", "ResNet50NoTop", "SqueezeNetNoTop", \
+__all__ = ["ModelEigen", "ModelLaina", "ModelUNet", "UpSampleLayer", \
 	"IdentityLayer", "ModelUNetDilatedConv", "MobileNetV2Cifar10", "ModelWord2Vec"]

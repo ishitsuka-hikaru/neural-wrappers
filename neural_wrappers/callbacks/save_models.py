@@ -5,6 +5,7 @@ from overrides import overrides
 
 from .callback import Callback
 from .callback_name import CallbackName
+from tqdm import tqdm
 
 # TODO: add format to saving files
 # Note: This callback should be called after all (relevant) callbacks were called, otherwise we risk of storing a model
@@ -38,7 +39,7 @@ class SaveModels(Callback):
 			return
 		fileName = "model_improvement_%d_%s_%s.pkl" % (kwargs["epoch"], self.metricName, score)
 		kwargs["model"].saveModel(fileName)
-		print("[SaveModels] Epoch %d. Improvement (%s) from %s to %s" % \
+		tqdm.write("[SaveModels] Epoch %d. Improvement (%s) from %s to %s" % \
 				(kwargs["epoch"], self.metricName, self.best, score))
 		self.best = score
 
@@ -48,14 +49,14 @@ class SaveModels(Callback):
 			return
 		fileName = "model_best_%s.pkl" % (self.metricName)
 		kwargs["model"].saveModel(fileName)
-		print("[SaveModels] Epoch %d. Improvement (%s) from %s to %s" % \
+		tqdm.write("[SaveModels] Epoch %d. Improvement (%s) from %s to %s" % \
 				(kwargs["epoch"], self.metricName, self.best, score))
 		self.best = score
 
 	def saveModelsLast(self, **kwargs):
 		fileName = "model_last.pkl"
 		kwargs["model"].saveModel(fileName)
-		print("[SaveModels] Epoch %d. Saved last model" % (kwargs["epoch"]))
+		tqdm.write("[SaveModels] Epoch %d. Saved last model" % (kwargs["epoch"]))
 
 	# Saving by best train loss is validation is not available, otherwise validation. Nasty situation can occur if one
 	#  epoch there is a validation loss and the next one there isn't, so we need formats to avoid this and error out

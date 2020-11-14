@@ -7,7 +7,7 @@ from typing import Union, Callable
 from types import LambdaType
 
 from .node import MapNode, VectorNode
-from ..pytorch import NeuralNetworkPyTorch, trModuleWrapper
+from ..pytorch import FeedForwardNetwork, trModuleWrapper
 from ..pytorch.network_serializer import NetworkSerializer
 from ..callbacks import CallbackName
 from ..metrics import Metric, MetricWrapper
@@ -38,11 +38,11 @@ def defaultLossFn(y, t, obj):
 # @param[in] blockGradients If set to true, each output of this edge will be owned by the outputNode, rather than
 #  maintaing a history of its origin. This is used s.t. long graphs don't have to backpropagate to the source of each
 #  input.
-class Edge(NeuralNetworkPyTorch):
+class Edge(FeedForwardNetwork):
 	def __init__(self, inputNode, outputNode, edgeType="edge-edge", forwardFn=None, \
 		lossFn=None, dependencies=[], blockGradients=False, hyperParameters={}):
 		hyperParameters = self.getHyperParameters(hyperParameters, edgeType, blockGradients)
-		self.strInputnode = str(inputNode)
+		self.strInputNode = str(inputNode)
 		self.strOutputNode = str(outputNode)
 		super().__init__(hyperParameters=hyperParameters)
 		assert edgeType in ("node-node", "node-edge", "edge-node", "edge-edge")
@@ -195,7 +195,7 @@ class Edge(NeuralNetworkPyTorch):
 		self.topologicalSortDirty = False
 
 	def __str__(self):
-		return "%s -> %s" % (self.strInputnode, self.strOutputNode)
+		return "%s -> %s" % (self.strInputNode, self.strOutputNode)
 
 	def __repr__(self):
 		return str(self)

@@ -2,7 +2,7 @@ import torch.nn.functional as F
 import torch as tr
 import torch.nn as nn
 
-from neural_wrappers.pytorch import NeuralNetworkPyTorch
+from ..pytorch import FeedForwardNetwork
 
 class Block(nn.Module):
 	'''expand + depthwise + pointwise'''
@@ -33,7 +33,7 @@ class Block(nn.Module):
 		return out
 
 # Taken from https://raw.githubusercontent.com/kuangliu/pytorch-cifar/master/models/mobilenetv2.py
-class MobileNetV2Cifar10(NeuralNetworkPyTorch):
+class MobileNetV2Cifar10(FeedForwardNetwork):
 	# (expansion, out_planes, num_blocks, stride)
 	cfg = [(1,  16, 1, 1),
 			(6,  24, 2, 1),  # NOTE: change stride 2 -> 1 for CIFAR10

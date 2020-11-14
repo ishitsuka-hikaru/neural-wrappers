@@ -1,4 +1,4 @@
-# network_serializer.py Script that handles saving/loading a NeuralNetworkPyTorch class (weights, state etc.)
+# network_serializer.py Script that handles saving/loading a NWModule class (weights, state etc.)
 import torch as tr
 import numpy as np
 from copy import deepcopy
@@ -22,7 +22,7 @@ class NetworkSerializer:
 		tr.save(state, path)
 
 	# @brief Computes a serialized version of the model, by storing the state of all caveats that makes up a
-	#  NeuralNetworkPyTorch model: weights, optimizer, history and callbacks state.
+	#  NWModule model: weights, optimizer, history and callbacks state.
 	# @param[in] stateKeys A list of all keys that are to be stored (saveWeights just stores weights for example)
 	# @return returns a serialized version of the model
 	def doSerialization(self, stateKeys):
@@ -149,6 +149,7 @@ class NetworkSerializer:
 			if key == "weights":
 				assert "weights" in loadedState
 				self.doLoadWeights(loadedState["weights"])
+				print("Succesfully loaded weights (%d parameters) " % (_computeNumParams(loadedState["weights"])))
 			elif key == "optimizer":
 				assert "optimizer" in loadedState
 				self.doLoadOptimizer(loadedState["optimizer"])
@@ -187,7 +188,6 @@ class NetworkSerializer:
 			print("Loaded partial model. Missing %d keys (got %d keys)" % (len(missing), len(newParams)))
 		if len(unexpected):
 			print("Unexpected %d keys in the loaded model" % (len(unexpected)))
-		print("Succesfully loaded weights (%d parameters) " % (numLoadedParams))
 
 	def doLoadOptimizer(self, optimizerDict):
 		assert "kwargs" in optimizerDict
@@ -199,6 +199,7 @@ class NetworkSerializer:
 		print("Succesfully loaded optimizer: %s" % (self.model.getOptimizerStr()))
 
 		if "scheduler_state" in optimizerDict:
+			assert not self.model.optimizerScheduler is None, "Set scheduler first before loading the model."
 			loadedSchedulerType = type(self.model.optimizerScheduler)
 			assert optimizerDict["scheduler_type"] == loadedSchedulerType, \
 				"Schedulers: %s vs %s" % (optimizerDict["scheduler_type"], loadedSchedulerType)

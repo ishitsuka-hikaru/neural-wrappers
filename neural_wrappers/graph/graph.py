@@ -6,11 +6,11 @@ from overrides import overrides
 
 from .draw_graph import drawGraph
 from .graph_serializer import GraphSerializer
-from ..pytorch import NeuralNetworkPyTorch, npGetData, trGetData, npToTrCall, trToNpCall
-from ..utilities import MultiLinePrinter, getFormattedStr
-from ..callbacks import CallbackName
+from ..pytorch import NWModule, npGetData
+from ..utilities import isType
 
-class Graph(NeuralNetworkPyTorch):
+# A Graph is a list of Edges. Each edge is a FeedForward network between two nodes.
+class Graph(NWModule):
 	def __init__(self, edges, hyperParameters={}):
 		self.edges = edges
 		self.nodes = self.getNodes()
@@ -20,10 +20,25 @@ class Graph(NeuralNetworkPyTorch):
 		self.edges = nn.ModuleList(self.getEdges())
 		self.edgeIDsToEdges = self.getStrMapping()
 		self.edgeLoss = {}
-		self.linePrinter = MultiLinePrinter()
 		self.setCriterion(self.loss)
 
 		self.serializer = GraphSerializer(self)
+
+	@overrides
+	def networkAlgorithm(self, trInputs, trLabels, isTraining, isOptimizing):
+		trResults = {}
+		# TODO: Execution order. (synchronus vs asynchronus as well as topological sort at various levels.)
+		# For now, the execution is synchronous and linear as defined by the list of edges
+		for edge in self.edges:
+			edgeID = str(edge)
+			edgeInputs = edge.getInputs(trInputs)
+			edgeOutput = edge.forward(edgeInputs)
+			# Update the outputs of the whole graph as well
+			trResults[edgeID] = edgeOutput
+
+		trLoss = self.criterion(trResults, trLabels)
+		self.updateOptimizer(trLoss, isTraining, isOptimizing)
+		return trResults, trLoss
 
 	def loss(self, y, t):
 		loss = 0
@@ -44,19 +59,6 @@ class Graph(NeuralNetworkPyTorch):
 	#  and redundant, since the forward of the subgraphs will call getInputs of each edge anyway.
 	def getInputs(self, trInputs):
 		return trInputs
-
-	@overrides
-	def forward(self, trInputs):
-		trResults = {}
-		# TODO: Execution order. (synchronus vs asynchronus as well as topological sort at various levels.)
-		# For now, the execution is synchronous and linear as defined by the list of edges
-		for edge in self.edges:
-			edgeID = str(edge)
-			edgeInputs = edge.getInputs(trInputs)
-			edgeOutput = edge.forward(edgeInputs)
-			# Update the outputs of the whole graph as well
-			trResults[edgeID] = edgeOutput
-		return trResults
 
 	def getEdges(self):
 		edges = []
@@ -115,15 +117,18 @@ class Graph(NeuralNetworkPyTorch):
 
 	@overrides
 	def setOptimizer(self, optimizer, **kwargs):
-		if isinstance(optimizer, optim.Optimizer):
-			self.optimizer = optimizer
-		else:
-			params = []
-			for edge in self.edges:
-				edgeParams =  list(filter(lambda p : p.requires_grad, edge.parameters()))
-				params.append({"params" : edgeParams})
-			self.optimizer = optimizer(params, **kwargs)
-		self.optimizer.storedArgs = kwargs
+		assert isinstance(optimizer, )
+		breakpoint()
+		assert isType(optimizer, "type"), "TODO For more special cases: %s" % type(optimizer)
+	
+		# 	self.optimizer = optimizer
+		# else:
+		# 	params = []
+		# 	for edge in self.edges:
+		# 		edgeParams =  list(filter(lambda p : p.requires_grad, edge.parameters()))
+		# 		params.append({"params" : edgeParams})
+		# 	self.optimizer = optimizer(params, **kwargs)
+		# self.optimizer.storedArgs = kwargs
 
 	@overrides
 	def getOptimizerStr(self):
@@ -203,24 +208,6 @@ class Graph(NeuralNetworkPyTorch):
 				continue
 			summaryStr += "\n\t- %s:\n\t\t%s" % (strEdge, lines)
 		return summaryStr
-
-	@overrides
-	def computeIterPrintMessage(self, i, stepsPerEpoch, metricResults, iterFinishTime):
-		nonEdgeMetricResults = dict(filter(lambda x : isinstance(x[0], CallbackName), metricResults.items()))
-		messages = super().computeIterPrintMessage(i, stepsPerEpoch, nonEdgeMetricResults, iterFinishTime)
-
-		for edge in self.edges:
-			if type(edge) == Graph:
-				strEdge = "SubGraph"
-			else:
-				strEdge = str(edge)
-			edgeMetrics = metricResults[str(edge)]
-			if len(edgeMetrics) == 0:
-				continue
-			edgeIterPrintMessage = edge.computeIterPrintMessage(i, stepsPerEpoch, edgeMetrics, iterFinishTime)[1 :]
-			messages.append(strEdge)
-			messages.extend(edgeIterPrintMessage)
-		return messages
 
 	@overrides
 	def iterationEpilogue(self, isTraining, isOptimizing, trLabels):

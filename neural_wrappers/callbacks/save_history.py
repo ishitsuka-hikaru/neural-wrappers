@@ -1,6 +1,7 @@
 import os
 from overrides import overrides
 from .callback import Callback
+from ..pytorch.utils import _getOptimizerStr
 
 # TODO: add format to saving files
 class SaveHistory(Callback):
@@ -24,10 +25,11 @@ class SaveHistory(Callback):
 			print("Warning! Using SaveHistory callback with no history (probably testing mode).")
 			return
 
-		message = kwargs["trainHistory"][-1]["message"]
-		if type(message) in (list, tuple):
-			message = "\n".join(message)
-		self.file.write(message + "\n")
+		history = kwargs["trainHistory"]
+		Str = "\nEpoch %d:" % (len(history))
+		Str += "\n%s" % str(history[-1])
+		Str += "\n %s" % _getOptimizerStr(kwargs["model"].getOptimizer())
+		self.file.write(Str)
 
 	@overrides
 	def onCallbackSave(self, **kwargs):

@@ -1,84 +1,85 @@
 import numpy as np
 import transforms3d.euler as txe
 from typing import Dict, Union
-from ....utilities import resize_batch, h5ReadDict, npGetInfo
+from media_processing_lib.image import imgResize_batch
+
 from .carla_generic_reader import CarlaGenericReader
+from ....utilities import h5ReadDict, npGetInfo
 
 # TODO: All norms now put data in [0 : 1]. We should look at the rederObj and if some dims want other range, transform
 #  the data to that range.
 
-def rgbNorm(x : np.ndarray, readerObj : Union[CarlaGenericReader]) -> np.ndarray:
+def rgbNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 	# x [MBx854x854x3] => [MBx256x256x3] :: [0 : 255]
-	x = resize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
+	x = imgResize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
 	# x :: [0 : 255] => [0: 1]
 	x = x.astype(np.float32) / 255
 	return x
 
-def depthNorm(x : np.ndarray, readerObj : Union[CarlaGenericReader]) -> np.ndarray:
+def wireframeNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
+	# Wireframe is stored as RGB with 3 identical channels
+	# x :: [0 : 255] ; (MB, H, W, 3) => (MB, H, W)
+	x = x[..., 0]
+	# Binarize it x :: [0 : 255] => [0 : 1]
+	x = (x > 0).astype(np.uint8)
+	# Resize it to desired shape
+	x = imgResize_batch(x, interpolation="nearest", height=readerObj.desiredShape[0], \
+		width=readerObj.desiredShape[1], resizeLib="opencv")
+	return x.astype(np.float32)
+
+def wireframeRegressionNorm(x : np.ndarray, readerObj : CarlaGenericReader) -> np.ndarray:
+	return rgbNorm(x, readerObj)
+
+def halftoneNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
+	return rgbNorm(x, readerObj)
+
+def depthNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 	depthStats = {"min" : 0, "max" : readerObj.hyperParameters["maxDepthMeters"]}
 
-	x = resize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
+	x = imgResize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
 	# Depth is stored in [0 : 1] representing up to 1000m from simulator
 	x = np.clip(x * 1000, depthStats["min"], depthStats["max"])
 	x = (x - depthStats["min"]) / (depthStats["max"] - depthStats["min"])
 	return np.expand_dims(x, axis=-1)
 
-def positionNorm(x : np.ndarray, readerObj : Union[CarlaGenericReader]) -> np.ndarray:
-	positionStats = h5ReadDict(readerObj.dataset["others"]["dataStatistics"]["position"])
+def poseNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
+	def positionNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
+		if readerObj.hyperParameters["positionNormalization"] == "min_max":
+			positionStats = h5ReadDict(readerObj.dataset["others"]["dataStatistics"]["position"])
+			minPos, maxPos = positionStats["min"][0 : 3], positionStats["max"][0 : 3]
+			x = (x - minPos) / (maxPos - minPos)
+		elif readerObj.hyperParameters["positionNormalization"] == "none":
+			pass
 
-	minPos, maxPos = positionStats["min"][0 : 3], positionStats["max"][0 : 3]
-	translation, rotation = x[:, 0 : 3], x[:, 3 :]
-	# Now, just for [0 : 1]
-	translation = (translation - minPos) / (maxPos - minPos)
-	rotation = ((rotation / 180) + 1) / 2
-	position = np.concatenate([translation, rotation], axis=-1)
+		return x
 
-	return position
+	def orientationNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
+		assert readerObj.hyperParameters["orientationRepresentation"] == "euler"
 
-def positionQuatNorm(x : np.ndarray, readerObj : Union[CarlaGenericReader]) -> np.ndarray:
-	pass
-	# positionStats = h5ReadDict(readerObj.dataset["others"]["dataStatistics"]["position"])
+		if readerObj.hyperParameters["orientationNormalization"] == "min_max":
+			# -180 : 180 => [-1 : 1]
+			x = x / 180
+			# [-1 : 1] => [0 : 1]
+			x = (x + 1) / 2
+		elif readerObj.hyperParameters["orientationNormalization"] == "none":
+			pass
+		elif readerObj.hyperParameters["orientationNormalization"] == "sin_cos":
+			# -180 : 180 => [-1 : 1]
+			x = x / 180
+			# [-1 : 1] => [-pi : pi]
+			x = x * np.pi
+			# [-pi : pi] => [-1 : 1]
+			xSin = np.sin(x)
+			xCos = np.cos(x)
+			x = np.concatenate([xSin, xCos], axis=-1)
+		return x
 
-	# minPos, maxPos = positionStats["min"][0 : 3], positionStats["max"][0 : 3]
-	# translation, rotation = x[:, 0 : 3], x[:, 3 :]
-	# # Now, just for [0 : 1]
-	# # Translation is easy, just min max it
-	# translation = (translation - minPos) / (maxPos - minPos)
 
-	# # Rotation is in [-180 : 180], move to [-1 : 1], then call getQuatFromRotation
-	# rotation = rotation / 180
-	# quatRotation = getQuatFromRotation(rotation)
-	# # The returned quaternion is in [-1 : 1], we move it to [0 : 1]
-	# quatRotation = (quatRotation + 1) / 2
-	# position = np.concatenate([translation, quatRotation], axis=-1)
+	position = positionNorm(x[..., 0 : 3], readerObj)
+	orientation = orientationNorm(x[..., 3 : ], readerObj)
+	return np.concatenate([position, orientation], axis=-1)
 
-	# return position
-
-def positionDotTranslationOnlyNorm(x : np.ndarray, readerObj : Union[CarlaGenericReader]) -> np.ndarray:
-	import cv2
-	positionStats = h5ReadDict(readerObj.dataset["others"]["dataStatistics"]["position"])
-	radius = readerObj.hyperParameters["dotRadius"]
-	assert not radius is None
-
-	minPos, maxPos = positionStats["min"][0 : 3], positionStats["max"][0 : 3]
-	translation = x[:, 0 : 3]
-	# Now, just for [0 : 1]
-	# Translation is easy, just min max it
-	translation = (translation - minPos) / (maxPos - minPos)
-	translation = translation[:, 0 : 2]
-	MB = translation.shape[0]
-	positionDot = np.zeros((MB, readerObj.desiredShape[0], readerObj.desiredShape[1]), dtype=np.float32)
-
-	for i in range(MB):
-		translation_x, translation_y = translation[i]
-		center_x = int(translation_x * readerObj.desiredShape[1])
-		center_y = int(translation_y * readerObj.desiredShape[0])
-		positionDot[i] = cv2.circle(positionDot[i], (center_x, center_y), radius=radius, color=1, thickness=-1)
-
-	positionDot = np.expand_dims(positionDot, axis=-1)
-	return positionDot
-
-def opticalFlowNorm(x : np.ndarray, readerObj : Union[CarlaGenericReader]) -> np.ndarray:
+def opticalFlowNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 	# Optical flow is in [-1:1] and 100% of percentage. Result is in [0:1] using only [-x%:x%] of data.
 	def opticalFlowPercentageTransform(x, opticalFlowPercentage):
 		# x :: [0 : 1], centered in 0
@@ -108,7 +109,7 @@ def opticalFlowNorm(x : np.ndarray, readerObj : Union[CarlaGenericReader]) -> np
 		return np.expand_dims(norm, axis=-1)
 
 	# Data in [0 : 1]
-	x = resize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
+	x = imgResize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
 
 	if readerObj.hyperParameters["opticalFlowPercentage"] != (100, 100):
 		x = opticalFlowPercentageTransform(x, readerObj.hyperParameters["opticalFlowPercentage"])
@@ -121,21 +122,21 @@ def opticalFlowNorm(x : np.ndarray, readerObj : Union[CarlaGenericReader]) -> np
 		return np.concatenate([x, opticalFlowMagnitude(x)], axis=-1)
 	assert False
 
-# def opticalFlowNorm(x : np.ndarray, readerObj : Union[DatasetReader]) -> np.ndarray:
+# def opticalFlowNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 # 	# Data in [0 : 1]
 # 	width, height = readerObj.desiredShape
-# 	x = resize_batch(x, height=height, width=width, resizeLib="opencv")
+# 	x = imgResize_batch(x, height=height, width=width, resizeLib="opencv")
 # 	x[..., 0] = np.float32(np.int32(x[..., 0] * width))
 # 	x[..., 1] = np.float32(np.int32(x[..., 1] * height))
 # 	return x
 
-def normalNorm(x : np.ndarray, readerObj : Union[CarlaGenericReader]) -> np.ndarray:
-	x = resize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
+def normalNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
+	x = imgResize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
 	# Normals are stored as [0 - 255] on 3 channels, representing orientation of the 3 axes.
 	x = x.astype(np.float32) / 255
 	return x
 
-def semanticSegmentationNorm(x : np.ndarray, readerObj : Union[CarlaGenericReader]) -> np.ndarray:
+def semanticSegmentationNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 	labelKeys = list({
 		(0, 0, 0): "Unlabeled",
 		(70, 70, 70): "Building",
@@ -152,14 +153,14 @@ def semanticSegmentationNorm(x : np.ndarray, readerObj : Union[CarlaGenericReade
 		(0, 220, 220): "Traffic sign"
 	}.keys())
 	numClasses = len(labelKeys)
-	labelKeys = list(map(lambda x : x[0] + x[1] * 256 + x[2] * 256 * 256, labelKeys)) # type: ignore
+	sumLabelKeys = list(map(lambda x : x[0] + x[1] * 256 + x[2] * 256 * 256, labelKeys))
 
 	x = x.astype(np.uint32)
 	x = x[..., 0] + x[..., 1] * 256 + x[..., 2] * 256 * 256
-	for i in range(len(labelKeys)):
-		x[x == labelKeys[i]] = i
+	for i in range(numClasses):
+		x[x == sumLabelKeys[i]] = i
 	x = x.astype(np.uint8)
-	x = resize_batch(x, interpolation="nearest", height=readerObj.desiredShape[0], \
+	x = imgResize_batch(x, interpolation="nearest", height=readerObj.desiredShape[0], \
 		width=readerObj.desiredShape[1], resizeLib="opencv")
 
 	# Some fancy way of doing one-hot encoding.

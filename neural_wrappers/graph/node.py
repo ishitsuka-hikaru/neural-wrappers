@@ -1,14 +1,15 @@
 from __future__ import annotations
 import torch as tr
+import torch.nn as nn
 from typing import Optional, Dict, Type, Union, Callable, Any
 from abc import ABC, abstractmethod
 from overrides import overrides
-from ..pytorch import trGetData, trDetachData, NeuralNetworkPyTorch
+from ..pytorch import trGetData, trDetachData, NWModule
 from ..metrics import Metric
 
 GTType = Optional[Union[Dict[Any, Any], tr.Tensor]]
 
-class Node(NeuralNetworkPyTorch):
+class Node(ABC, nn.Module):
 	# A dictionary that gives a unique tag to all nodes by appending an increasing number to name.
 	lastNodeID = 0
 
@@ -31,11 +32,11 @@ class Node(NeuralNetworkPyTorch):
 		return type(self)
 
 	@abstractmethod
-	def getEncoder(self, outputNodeType : Optional[Node]=None) -> NeuralNetworkPyTorch:
+	def getEncoder(self, outputNodeType : Optional[Node]=None) -> NWModule:
 		pass
 
 	@abstractmethod
-	def getDecoder(self, inputNodeType : Optional[Node]=None) -> NeuralNetworkPyTorch:
+	def getDecoder(self, inputNodeType : Optional[Node]=None) -> NWModule:
 		pass
 
 	@abstractmethod
