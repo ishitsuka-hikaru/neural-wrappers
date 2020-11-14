@@ -158,7 +158,7 @@ def semanticSegmentationNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np
 	x = x.astype(np.uint32)
 	x = x[..., 0] + x[..., 1] * 256 + x[..., 2] * 256 * 256
 	for i in range(numClasses):
-		x[x == sumLabelKeys] = i
+		x[x == sumLabelKeys[i]] = i
 	x = x.astype(np.uint8)
 	x = imgResize_batch(x, interpolation="nearest", height=readerObj.desiredShape[0], \
 		width=readerObj.desiredShape[1], resizeLib="opencv")

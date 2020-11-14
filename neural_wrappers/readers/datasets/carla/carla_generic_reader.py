@@ -12,7 +12,7 @@ class CarlaGenericReader(H5DatasetReader):
 		rawReadFunction:Callable[[str], np.ndarray], desiredShape:Tuple[int, int], \
 		numNeighboursAhead:int, hyperParameters:Dict[str, Any]):
 		from .normalizers import rgbNorm, depthNorm, poseNorm, opticalFlowNorm, normalNorm, \
-			semanticSegmentationNorm, wireframeNorm, halftoneNorm
+			semanticSegmentationNorm, wireframeNorm, halftoneNorm, wireframeRegressionNorm
 		from .utils import opticalFlowReader, rgbNeighbourReader, depthReadFunction, pathsReader
 
 		dimGetter = {
@@ -24,6 +24,7 @@ class CarlaGenericReader(H5DatasetReader):
 			"semantic_segmentation":partial(pathsReader, readerObj=self, readFunction=rawReadFunction, \
 				dim="semantic_segmentation"),
 			"wireframe":partial(pathsReader, readerObj=self, readFunction=rawReadFunction, dim="wireframe"),
+			"wireframe_regression":partial(pathsReader, readerObj=self, readFunction=rawReadFunction, dim="wireframe"),
 			"halftone":partial(pathsReader, readerObj=self, readFunction=rawReadFunction, dim="halftone"),
 			"normal":partial(pathsReader, readerObj=self, readFunction=rawReadFunction, dim="normal"),
 			"cameranormal":partial(pathsReader, readerObj=self, readFunction=rawReadFunction, dim="cameranormal"),
@@ -37,6 +38,7 @@ class CarlaGenericReader(H5DatasetReader):
 				"pose":partial(poseNorm, readerObj=self),
 				"semantic_segmentation":partial(semanticSegmentationNorm, readerObj=self),
 				"wireframe":partial(wireframeNorm, readerObj=self),
+				"wireframe_regression":partial(wireframeRegressionNorm, readerObj=self),
 				"halftone":partial(halftoneNorm, readerObj=self),
 				"normal":partial(normalNorm, readerObj=self),
 				"cameranormal":partial(normalNorm, readerObj=self),
@@ -44,10 +46,8 @@ class CarlaGenericReader(H5DatasetReader):
 			}
 		}
 
-		breakpoint()
 		for i in range(abs(numNeighboursAhead)):
 			ix = i * np.sign(numNeighboursAhead)
-			breakpoint()
 			key = "rgbNeighbour(t%+d)" % (i + 1)
 			dimGetter[key] = partial(rgbNeighbourReader, skip=i + 1, readerObj=self)
 			dimTransform["data"][key] = partial(rgbNorm, readerObj=self)
