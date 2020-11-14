@@ -165,6 +165,7 @@ class Graph(FeedForwardNetwork):
 		print("Training for %d epochs starting from epoch %d\n" % (N, self.currentEpoch))
 
 		Range = range(N)
+		startTime = datetime.now()
 		for i in Range:
 			if len(self.trainHistory) != self.currentEpoch - 1:
 				breakpoint()
@@ -190,17 +191,30 @@ class Graph(FeedForwardNetwork):
 								isTraining=True, isOptimizing=False, Prefix="Validation", printMessage=printMessage)
 						epochResults["Validation"] = res
 
-			message = self.computePrintMessage(epochMetrics["Train"], epochMetrics["Validation"], \
-				numEpochs, epochMetrics["duration"])
-			epochMetrics["message"] = message
+			epochResults["duration"] = datetime.now() - startTime
+			message = self.computePrintMessage(epochResults["Train"], epochResults["Validation"], \
+				numEpochs, epochResults["duration"])
+			epochResults["message"] = message
 			self.epochPrologue(epochResults, numEpochs, isTraining=True)
 
 	def getGroundTruth(self, x):
 		return x
 
 	@overrides
-	def epochPrologue(self, epochMetrics, isTraining):
-		self.linePrinter(epochMetrics["message"], reset=False)
+	def test_generator(self, generator, stepsPerEpoch, printMessage=None):
+		assert stepsPerEpoch > 0
+		self.epochEpilogue(isTraining=False)
+		with StorePrevState(self):
+			self.eval()
+			with tr.no_grad():
+				res = self.run_one_epoch(generator, stepsPerEpoch, \
+					isTraining=False, isOptimizing=False, Prefix="Test", printMessage=printMessage)
+				epochResults = {"Test" : res}
+		self.epochPrologue(epochResults, numEpochs=1, isTraining=False)
+		return epochResults
+
+	@overrides
+	def epochPrologue(self, epochMetrics, numEpochs, isTraining):
 		self.trainHistory.append(epochMetrics)
 		self.callbacksOnEpochEnd(isTraining=isTraining)
 		if not self.optimizerScheduler is None:
@@ -294,11 +308,41 @@ class Graph(FeedForwardNetwork):
 			messages.extend(edgeIterPrintMessage)
 		return messages
 
+	def newtorkComputePrintMessage(self, trainMetrics, validationMetrics, numEpochs, duration):
+		messages = []
+		done = self.currentEpoch / numEpochs * 100
+		message = "Epoch %d/%d. Done: %2.2f%%. Took: %s." % (self.currentEpoch, numEpochs, done, duration)
+		messages.append(message)
+
+		if self.optimizer:
+			messages.append("  - Optimizer: %s" % self.getOptimizerStr())
+
+		if len(trainMetrics) == 0:
+			return messages
+
+		messages.append("  - Metrics:")
+		# trainMetrics = dict(filter(lambda x, y : isinstance(x, CallbackName), trainMetrics.items()))
+		trainMetrics = {k : trainMetrics[k] \
+			for k in filter(lambda x : isinstance(x, CallbackName), trainMetrics)}
+		printableMetrics = filter(lambda x : x in self.iterPrintMessageKeys, sorted(trainMetrics))
+		trainMessage, validationMessage = "    - [Train]", "    - [Validation]"
+		for metric in printableMetrics:
+			formattedStr = getFormattedStr(trainMetrics[metric], precision=3)
+			trainMessage += " %s: %s." % (metric, formattedStr)
+			if not validationMetrics is None:
+				formattedStr = getFormattedStr(validationMetrics[metric], precision=3)
+				validationMessage += " %s: %s." % (metric, formattedStr)
+		messages.append(trainMessage)
+		if not validationMetrics is None:
+			messages.append(validationMessage)
+		return messages
+
 	# Computes the message that is printed to the stdout. This method is also called by SaveHistory callback.
 	# @param[in] kwargs The arguments sent to any regular callback.
 	# @return A string that contains the one-line message that is printed at each end of epoch.
 	def computePrintMessage(self, trainMetrics, validationMetrics, numEpochs, duration):
-		messages = super().computePrintMessage(trainMetrics, validationMetrics, numEpochs, duration)
+		messages = self.newtorkComputePrintMessage(trainMetrics, \
+			validationMetrics, numEpochs, duration)
 		for edge in self.edges:
 			if type(edge) == Graph:
 				strEdge = "SubGraph"

@@ -127,6 +127,30 @@ class Edge(FeedForwardNetwork):
 	def getNodes(self):
 		return [self.inputNode, self.outputNode]
 
+	def computePrintMessage(self, trainMetrics, validationMetrics, numEpochs, duration):
+		from .utils import getFormattedStr
+		messages = []
+		done = self.currentEpoch / numEpochs * 100
+		if len(trainMetrics) == 0:
+			return messages
+
+		messages.append("  - Metrics:")
+		# trainMetrics = dict(filter(lambda x, y : isinstance(x, CallbackName), trainMetrics.items()))
+		trainMetrics = {k : trainMetrics[k] \
+			for k in filter(lambda x : isinstance(x, CallbackName), trainMetrics)}
+		printableMetrics = filter(lambda x : x in self.iterPrintMessageKeys, sorted(trainMetrics))
+		trainMessage, validationMessage = "    - [Train]", "    - [Validation]"
+		for metric in printableMetrics:
+			formattedStr = getFormattedStr(trainMetrics[metric], precision=3)
+			trainMessage += " %s: %s." % (metric, formattedStr)
+			if not validationMetrics is None:
+				formattedStr = getFormattedStr(validationMetrics[metric], precision=3)
+				validationMessage += " %s: %s." % (metric, formattedStr)
+		messages.append(trainMessage)
+		if not validationMetrics is None:
+			messages.append(validationMessage)
+		return messages
+
 	@overrides
 	def addMetric(self, metricName, metric):
 		super().addMetric(metricName, metric)
