@@ -33,7 +33,7 @@ def pickTypeFromMRO(Type, switchType):
 #  well, by checking __args__, which works on Unions.
 # @param[in] item The item whose type is checked
 # @param[in] Type The type 
-def isType(item, Type : Union[type, _GenericAlias]) -> bool: # type: ignore
+def isType(item, Type) -> bool:
 	itemType = item if isinstance(item, type) else type(item)
 	if hasattr(Type, "__args__"): # type: ignore
 		return itemType in Type.__args__ # type: ignore
