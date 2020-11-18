@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Union, _GenericAlias, TypeVar, List, Sequence # type: ignore
+from typing import Union, TypeVar, List, Sequence # type: ignore
 
 from collections import OrderedDict
 
