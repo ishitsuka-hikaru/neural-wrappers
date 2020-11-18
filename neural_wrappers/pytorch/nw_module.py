@@ -113,6 +113,15 @@ class NWModule(nn.Module, ABC):
 
 	# TODO: Add clearMetrics. Store dependencies, so we can call topological sort before/after clearCallbacks.
 	# Store dependencies on model store. Make clearCallbacks clear only callbacks, not metrics as well.
+	def clearMetrics(self):
+		metrics = [x.name for x in filter(lambda x : isBaseOf(x, Metric), self.callbacks.values())]
+		newCallbacks = OrderedDict({})
+		for key in self.callbacks:
+			callback = self.callbacks[key]
+			if not isBaseOf(callback, Metric):
+				newCallbacks[key] = callback
+		self.callbacks = newCallbacks
+		self.invalidateTopologicalSort()
 
 	def clearCallbacks(self):
 		metric = MetricWrapper(lambda y, t, **k : k["loss"])
