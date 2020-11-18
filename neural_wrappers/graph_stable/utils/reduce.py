@@ -5,8 +5,12 @@ from ..node import Node
 from ...pytorch import trModuleWrapper
 
 class ReduceNode(Edge):
-	def __init__(self, inputNode, forwardFn, *args, **kwargs):
-		super().__init__(inputNode, inputNode, forwardFn=forwardFn, *args, **kwargs)
+	def __init__(self, inputNode, forwardFn, name=None, useMetrics=False, *args, **kwargs):
+		if name is None:
+			name = "ReduceNode %s" % (str(inputNode))
+		super().__init__(inputNode, inputNode, forwardFn=forwardFn, name=name, *args, **kwargs)
+		if not useMetrics:
+			self.clearMetrics()
 
 	def forward(self, x):
 		self.inputs = x
@@ -22,8 +26,5 @@ class ReduceNode(Edge):
 
 	def getEncoder(self):
 		return trModuleWrapper(lambda x : x)
-
-	def __str__(self):
-		return "ReduceNode %s" % (str(self.inputNode))
 
 class ReduceEdge: pass
