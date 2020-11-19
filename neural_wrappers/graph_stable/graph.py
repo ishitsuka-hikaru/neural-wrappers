@@ -144,12 +144,14 @@ class Graph(FeedForwardNetwork):
 
 			if i == stepsPerEpoch - 1:
 				break
+		took = datetime.now() - startTime
 
 		if i != stepsPerEpoch - 1:
 			self.linePrinter(("Warning! Number of iterations (%d) does not match expected ") + \
 				("iterations in reader (%d)") % (i, stepsPerEpoch - 1))
 
 		res = self.reduceEpochMetrics(metricResults)
+		res["duration"] = took
 		return res
 
 	def train_generator(self, generator, stepsPerEpoch, numEpochs, validationGenerator=None, \
@@ -175,6 +177,7 @@ class Graph(FeedForwardNetwork):
 			# Run for training data and append the results
 			# No iteration callbacks are used if there is a validation set (so iteration callbacks are only
 			#  done on validation set). If no validation set is used, the iteration callbacks are used on train set.
+			startTime = datetime.now()
 			with StorePrevState(self):
 				# self.train()
 				res = self.run_one_epoch(generator, stepsPerEpoch, \
@@ -190,10 +193,11 @@ class Graph(FeedForwardNetwork):
 								isTraining=True, isOptimizing=False, Prefix="Validation", printMessage=printMessage)
 						epochResults["Validation"] = res
 
-			message = self.computePrintMessage(epochMetrics["Train"], epochMetrics["Validation"], \
-				numEpochs, epochMetrics["duration"])
-			epochMetrics["message"] = message
-			self.epochPrologue(epochResults, numEpochs, isTraining=True)
+			epochResults["duration"] = datetime.now() - startTime
+			message = self.computePrintMessage(epochResults["Train"], epochResults["Validation"], \
+				numEpochs, epochResults["duration"])
+			epochResults["message"] = message
+			self.epochPrologue(epochResults, isTraining=True)
 
 	def getGroundTruth(self, x):
 		return x
@@ -250,67 +254,96 @@ class Graph(FeedForwardNetwork):
 					summaryStr += "\t%s\n" % (line)
 		return summaryStr
 
-	def networkComputeIterPrintMessage(self, i, stepsPerEpoch, metricResults, iterFinishTime, iterPrintMessageKeys):
-		messages = []
-		message = "Epoch: %d. Iteration: %d/%d." % (self.currentEpoch, i + 1, stepsPerEpoch)
-		# iterFinishTime / (i + 1) is the current estimate per iteration. That value times stepsPerEpoch is
-		#  the current estimation per epoch. That value minus current time is the current estimation for
-		#  time remaining for this epoch. It can also go negative near end of epoch, so use abs.
-		ETA = abs(iterFinishTime / (i + 1) * stepsPerEpoch - iterFinishTime)
-		message += " ETA: %s" % (ETA)
-		messages.append(message)
-
-		if self.optimizer:
-			messages.append("  - Optimizer: %s" % self.getOptimizerStr())
-
-		message = "  - Metrics."
-		metricKeys = filter(lambda x : isinstance(x, CallbackName), metricResults.keys())
-		metricKeys = sorted(list(set(metricKeys)))
-		Keys = list(filter(lambda x : x in iterPrintMessageKeys, metricKeys))
+	def metricsStr(metrics):
+		message = ""
+		metricKeys = filter(lambda x : isinstance(x, CallbackName), metrics.keys())
+		Keys = sorted(list(set(metricKeys)))
 		for key in Keys:
-			# X = metricResults[key].get()
-			# breakpoint()
-			formattedStr = getFormattedStr(metricResults[key].get(), precision=3)
+			formattedStr = getFormattedStr(metrics[key], precision=3)
 			message += " %s: %s." % (key, formattedStr)
-		if len(Keys) > 0:
-			messages.append(message)
+		return message
+
+	def trainValMetricsStr(trainMetrics, validationMetrics, depth):
+		def padding(depth):
+			return "  " * depth
+		
+		messages = []
+		if len(trainMetrics) > 0:
+			messages.append("%s- Metrics:" % padding(depth + 1))
+			trainMessage = "%s- [Train] %s" % (padding(depth + 2), Graph.metricsStr(trainMetrics))
+			messages.append(trainMessage)
+			if not validationMetrics is None:
+				validationMessage = "%s- [Validation] %s" % (padding(depth + 2), Graph.metricsStr(validationMetrics))
+				messages.append(validationMessage)
 		return messages
 
-	def computeIterPrintMessage(self, i, stepsPerEpoch, metricResults, iterFinishTime):
-		messages = self.networkComputeIterPrintMessage(i, stepsPerEpoch, metricResults, \
-			iterFinishTime, self.iterPrintMessageKeys)
+	def computeIterPrintMessage(self, i, stepsPerEpoch, metricResults, iterFinishTime, depth=0):
+		def padding(depth):
+			return "  " * depth
+
+		messages = []
+		if depth == 0:
+			# iterFinishTime / (i + 1) is the current estimate per iteration. That value times stepsPerEpoch is
+			#  the current estimation per epoch. That value minus current time is the current estimation for
+			#  time remaining for this epoch. It can also go negative near end of epoch, so use abs.
+			ETA = abs(iterFinishTime / (i + 1) * stepsPerEpoch - iterFinishTime)
+
+			message = "Epoch: %d. Iteration: %d/%d. ETA: %s" % (self.currentEpoch, i + 1, stepsPerEpoch, ETA)
+			messages.append(message)
+			if self.optimizer:
+				messages.append("  - Optimizer: %s" % self.getOptimizerStr())
+
+		if len(metricResults) > 0:
+			messages.append("%s- Metrics: %s" % (padding(depth + 1), Graph.metricsStr(metricResults)))
 
 		for edge in self.edges:
-			if type(edge) == Graph:
-				strEdge = "SubGraph"
-			else:
-				strEdge = str(edge)
 			edgeMetrics = metricResults[str(edge)]
 			if len(edgeMetrics) == 0:
 				continue
-			edgeIterPrintMessage = self.networkComputeIterPrintMessage(i, stepsPerEpoch, \
-				edgeMetrics, iterFinishTime, edge.iterPrintMessageKeys)[1 :]
-			messages.append(strEdge)
-			messages.extend(edgeIterPrintMessage)
+
+			if isinstance(edge, Graph):
+				messages.append("%s- [SubGraph]" % padding(depth + 1))
+				subGraphMessage = edge.computeIterPrintMessage(None, None, edgeMetrics, None, depth + 1)
+				messages.extend(subGraphMessage)
+			else:
+				messages.append("%s- [%s]" % (padding(depth + 1), str(edge)))
+				messages.append("%s- Metrics: %s" % (padding(depth + 2), Graph.metricsStr(edgeMetrics)))
+
 		return messages
 
 	# Computes the message that is printed to the stdout. This method is also called by SaveHistory callback.
 	# @param[in] kwargs The arguments sent to any regular callback.
 	# @return A string that contains the one-line message that is printed at each end of epoch.
-	def computePrintMessage(self, trainMetrics, validationMetrics, numEpochs, duration):
-		messages = super().computePrintMessage(trainMetrics, validationMetrics, numEpochs, duration)
+	def computePrintMessage(self, trainMetrics, validationMetrics, numEpochs, duration, depth=0):
+		def padding(depth):
+			return "  " * depth
+
+		messages = []
+		if depth == 0:
+			done = self.currentEpoch / numEpochs * 100
+			message = "Epoch %d/%d. Done: %2.2f%%. Took: %s." % (self.currentEpoch, numEpochs, done, duration)
+			messages.append(message)
+
+			if self.optimizer:
+				messages.append("  - Optimizer: %s" % self.getOptimizerStr())
+
+		if len(trainMetrics) > 0:
+			messages.extend(Graph.trainValMetricsStr(trainMetrics, validationMetrics, depth))
+
 		for edge in self.edges:
-			if type(edge) == Graph:
-				strEdge = "SubGraph"
-			else:
-				strEdge = str(edge)
 			edgeTrainMetrics = trainMetrics[str(edge)]
 			edgeValMetrics = validationMetrics[str(edge)]
 			if len(edgeTrainMetrics) == 0:
 				continue
-			edgePrintMessage = edge.computePrintMessage(edgeTrainMetrics, edgeValMetrics, numEpochs, duration)[1 : ]
-			messages.append(strEdge)
-			messages.extend(edgePrintMessage)
+
+			if isinstance(edge, Graph):
+				messages.append("%s- [SubGraph]" % padding(depth + 1))
+				subGraphMessage = edge.computePrintMessage(edgeTrainMetrics, validationMessage, None, None, depth + 1)
+				messages.extend(subGraphMessage)
+			else:
+				messages.append("%s- [%s]" % (padding(depth + 1), str(edge)))
+				messages.extend(Graph.trainValMetricsStr(edgeTrainMetrics, edgeValMetrics, depth + 1))
+
 		return messages
 
 	def iterationEpilogue(self, isTraining, isOptimizing, trLabels):
