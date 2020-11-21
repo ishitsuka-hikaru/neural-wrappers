@@ -1,0 +1,12 @@
+matplotlib
+tqdm
+opencv-python
+lycon
+h5py
+overrides
+scikit-learn
+graphviz
+transforms3d
+prefetch_generator
+returns
+pims

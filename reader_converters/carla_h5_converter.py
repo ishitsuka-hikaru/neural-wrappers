@@ -58,8 +58,8 @@ def getPaths(baseDir):
 	def depthFunc(rgbItem):
 		return rgbItem.replace("rgb", "depth")
 
-	def rgbDomain2Func(rgbItem):
-		return rgbItem.replace("rgb", "rgbDomain2")
+	# def rgbDomain2Func(rgbItem):
+	# 	return rgbItem.replace("rgb", "rgbDomain2")
 
 	def semanticFunc(rgbItem):
 		return rgbItem.replace("rgb", "semanticSegmentation")
@@ -76,9 +76,9 @@ def getPaths(baseDir):
 	def halftoneFunc(rgbItem):
 		return rgbItem.replace("rgb", "halftone")
 
-	def flowFunc(rgbItem, skip):
-		# X and Y vectors are stored in 2 different files
-		a = [rgbItem.replace("rgb", "flowx%d" % (skip)), rgbItem.replace("rgb", "flowy%d" % (skip))]
+	# def flowFunc(rgbItem, skip):
+	# 	# X and Y vectors are stored in 2 different files
+	# 	a = [rgbItem.replace("rgb", "flowr2"), rgbItem.replace("rgb", "flowr3")]
 		return a
 
 	rgbList = sorted(list(filter(lambda x : x.find("rgb_") != -1, os.listdir(baseDir))))
@@ -94,7 +94,7 @@ def getPaths(baseDir):
 		"cameranormal" : np.array(list(map(cameraNormalFunc, rgbList)), "S"),
 		"wireframe" : np.array(list(map(wireframeFunc, rgbList)), "S"),
 		"halftone" : np.array(list(map(halftoneFunc, rgbList)), "S"),
-		"optical_flow(t-1, t)" : np.array(list(map(partial(flowFunc, skip=1), rgbList)), "S"),
+		# "optical_flow(t-1, t)" : np.array(list(map(partial(flowFunc, skip=1), rgbList)), "S"),
 		# "optical_flow(t+2)" : np.array(list(map(partial(flowFunc, skip=2), rgbList)), "S"),
 		# "optical_flow(t+3)" : np.array(list(map(partial(flowFunc, skip=3), rgbList)), "S"),
 		# "optical_flow(t+4)" : np.array(list(map(partial(flowFunc, skip=4), rgbList)), "S")

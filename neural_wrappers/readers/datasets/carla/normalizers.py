@@ -11,7 +11,8 @@ from ....utilities import h5ReadDict, npGetInfo
 
 def rgbNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 	# x [MBx854x854x3] => [MBx256x256x3] :: [0 : 255]
-	x = imgResize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
+	x = imgResize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], \
+		resizeLib="opencv", onlyUint8=False)
 	# x :: [0 : 255] => [0: 1]
 	x = x.astype(np.float32) / 255
 	return x
@@ -24,7 +25,7 @@ def wireframeNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 	x = (x > 0).astype(np.uint8)
 	# Resize it to desired shape
 	x = imgResize_batch(x, interpolation="nearest", height=readerObj.desiredShape[0], \
-		width=readerObj.desiredShape[1], resizeLib="opencv")
+		width=readerObj.desiredShape[1], resizeLib="opencv", onlyUint8=False)
 	return x.astype(np.float32)
 
 def wireframeRegressionNorm(x : np.ndarray, readerObj : CarlaGenericReader) -> np.ndarray:
@@ -36,7 +37,8 @@ def halftoneNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 def depthNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 	depthStats = {"min" : 0, "max" : readerObj.hyperParameters["maxDepthMeters"]}
 
-	x = imgResize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
+	x = imgResize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], \
+		resizeLib="opencv", onlyUint8=False)
 	# Depth is stored in [0 : 1] representing up to 1000m from simulator
 	x = np.clip(x * 1000, depthStats["min"], depthStats["max"])
 	x = (x - depthStats["min"]) / (depthStats["max"] - depthStats["min"])
@@ -109,7 +111,8 @@ def opticalFlowNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 		return np.expand_dims(norm, axis=-1)
 
 	# Data in [0 : 1]
-	x = imgResize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
+	x = imgResize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], \
+		resizeLib="opencv", onlyUint8=False)
 
 	if readerObj.hyperParameters["opticalFlowPercentage"] != (100, 100):
 		x = opticalFlowPercentageTransform(x, readerObj.hyperParameters["opticalFlowPercentage"])
@@ -125,13 +128,14 @@ def opticalFlowNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 # def opticalFlowNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
 # 	# Data in [0 : 1]
 # 	width, height = readerObj.desiredShape
-# 	x = imgResize_batch(x, height=height, width=width, resizeLib="opencv")
+# 	x = imgResize_batch(x, height=height, width=width, resizeLib="opencv", onlyUint8=False)
 # 	x[..., 0] = np.float32(np.int32(x[..., 0] * width))
 # 	x[..., 1] = np.float32(np.int32(x[..., 1] * height))
 # 	return x
 
 def normalNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np.ndarray:
-	x = imgResize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], resizeLib="opencv")
+	x = imgResize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], \
+		resizeLib="opencv", onlyUint8=False)
 	# Normals are stored as [0 - 255] on 3 channels, representing orientation of the 3 axes.
 	x = x.astype(np.float32) / 255
 	return x
@@ -161,7 +165,7 @@ def semanticSegmentationNorm(x : np.ndarray, readerObj:CarlaGenericReader) -> np
 		x[x == sumLabelKeys[i]] = i
 	x = x.astype(np.uint8)
 	x = imgResize_batch(x, interpolation="nearest", height=readerObj.desiredShape[0], \
-		width=readerObj.desiredShape[1], resizeLib="opencv")
+		width=readerObj.desiredShape[1], resizeLib="opencv", onlyUint8=False)
 
 	# Some fancy way of doing one-hot encoding.
 	return np.eye(numClasses)[x].astype(np.float32)

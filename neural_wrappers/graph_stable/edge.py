@@ -34,11 +34,17 @@ def defaultLossFn(y, t, obj):
 #  maintaing a history of its origin. This is used s.t. long graphs don't have to backpropagate to the source of each
 #  input.
 class Edge(FeedForwardNetwork):
-	def __init__(self, inputNode, outputNode, edgeType="edge-edge", forwardFn=None, \
+	def __init__(self, inputNode, outputNode, name=None, edgeType="edge-edge", forwardFn=None, \
 		lossFn=None, dependencies=[], blockGradients=False, hyperParameters={}):
 		hyperParameters = self.getHyperParameters(hyperParameters, edgeType, blockGradients)
 		self.iterPrintMessageKeys = [CallbackName("Loss")]
+		self.strInputNode = str(inputNode)
+		self.strOutputNode = str(outputNode)
+		if name is None:
+			name = "%s -> %s" % (self.strInputNode, self.strOutputNode)
+		self.name = name
 		super().__init__(hyperParameters=hyperParameters)
+
 		assert edgeType in ("node-node", "node-edge", "edge-node", "edge-edge")
 		self.inputNode = inputNode
 		self.outputNode = outputNode
@@ -190,7 +196,7 @@ class Edge(FeedForwardNetwork):
 		return metricResults
 
 	def __str__(self):
-		return "%s -> %s" % (str(self.inputNode), str(self.outputNode))
+		return self.name
 
 	def __repr__(self):
 		return str(self)

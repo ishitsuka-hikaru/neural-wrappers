@@ -19,7 +19,8 @@ class RunningMeanNumber:
 		self.update(value.sum(axis=0), value.shape[0])
 
 	def get(self):
-		return self.value / (self.count + 1e-5)
+		assert self.count > 0
+		return self.value / self.count
 
 class RunningMeanSequence:
 	def __init__(self, initValue : NWSequence):
@@ -39,7 +40,8 @@ class RunningMeanSequence:
 		self.update(value.sum(axis=0), value.shape[0])
 
 	def get(self):
-		return self.value / (self.count + 1e-5)
+		assert self.count > 0
+		return self.value / self.count
 
 class RunningMeanDict:
 	def __init__(self, initValue : NWDict):
@@ -56,6 +58,7 @@ class RunningMeanDict:
 		assert False, "Only valid for NWNumber and NWSequence"
 
 	def get(self):
+		assert self.count > 0
 		return {k : self.value[k] / self.count for k in self.value}
 
 class RunningMean:

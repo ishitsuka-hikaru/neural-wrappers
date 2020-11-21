@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 from typing import Union
-from ...utilities import NWNumber, NWSequence, NWDict
+from ...utilities import NWNumber, NWSequence, NWDict, RunningMean
 
 def getFormattedStr(item : Union[np.ndarray, NWNumber, NWSequence, NWDict], precision : int) -> str: \
 	# type: ignore
@@ -12,6 +12,8 @@ def getFormattedStr(item : Union[np.ndarray, NWNumber, NWSequence, NWDict], prec
 		return [formatStr % (x) for x in item] # type: ignore
 	elif type(item) in NWDict.__args__: # type: ignore
 		return {k : formatStr % (item[k]) for k in item} # type: ignore
+	elif isinstance(item, RunningMean):
+		return getFormattedStr(item.get(), precision)
 	assert False, "Unknown type: %s" % (type(item))
 
 class MessagePrinter:
