@@ -43,7 +43,7 @@ class DatasetReader(ABC):
 	# @param[in] topLevel The top-level dimension that is iterated over (example: train, validation, test, etc.)
 	# @param[in] batchSize The size of a batch that is yielded at each iteration
 	# @return A DatasetIndex object with the indexes of this iteration for a specific dimension
-	@abstractmethod
+	# @abstractmethod
 	def getBatchDatasetIndex(self, i:int, topLevel:str, batchSize:int) -> DatasetIndex:
 		raise NotImplementedError("Should have implemented this")
 

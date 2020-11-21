@@ -11,6 +11,7 @@ class FeedForwardNetwork(NWModule):
 
 	@overrides
 	def networkAlgorithm(self, trInputs, trLabels, isTraining, isOptimizing):
+		assert not self.criterion is None, "Set criterion before training or testing"
 		trResults = self.forward(trInputs)
 		trLoss = self.criterion(trResults, trLabels)
 		self.updateOptimizer(trLoss, isTraining, isOptimizing)

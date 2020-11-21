@@ -211,6 +211,7 @@ class NWModule(nn.Module, ABC):
 	def updateOptimizer(self, trLoss, isTraining, isOptimizing, retain_graph=False):
 		if not trLoss is None:
 			if isTraining and isOptimizing:
+				assert not self.getOptimizer() is None, "Set optimizer when training"
 				self.getOptimizer().zero_grad()
 				trLoss.backward(retain_graph=retain_graph)
 				self.getOptimizer().step()
@@ -239,10 +240,6 @@ class NWModule(nn.Module, ABC):
 		assert stepsPerEpoch > 0
 		if isOptimizing == False and tr.is_grad_enabled():
 			print("Warning! Not optimizing, but grad is enabled.")
-		if isTraining and isOptimizing:
-			optimizer = self.getOptimizer()
-			assert not optimizer is None, "Set optimizer before training"
-		assert not self.criterion is None, "Set criterion before training or testing"
 		metricResults = self.initializeEpochMetrics()
 
 		# The protocol requires the generator to have 2 items, inputs and labels (both can be None). If there are more
