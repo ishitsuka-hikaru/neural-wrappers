@@ -46,6 +46,7 @@ class Edge(FeedForwardNetwork):
 		self.strOutputNode = str(outputNode)
 		if name is None:
 			name = "%s -> %s" % (self.strInputNode, self.strOutputNode)
+		self.name = name
 		super().__init__(hyperParameters=hyperParameters)
 		assert edgeType in ("node-node", "node-edge", "edge-node", "edge-edge")
 		self.inputNode = inputNode

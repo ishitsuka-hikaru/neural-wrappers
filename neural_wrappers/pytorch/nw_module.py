@@ -6,7 +6,7 @@ import numpy as np
 from datetime import datetime
 from copy import deepcopy
 from collections import OrderedDict
-from typing import List, Union, Dict, Callable
+from typing import List, Union, Dict, Callable, Optional
 from types import LambdaType
 from tqdm import trange, tqdm
 
@@ -26,7 +26,7 @@ np.set_printoptions(precision=3, suppress=True)
 class NWModule(nn.Module, ABC):
 	def __init__(self, hyperParameters={}):
 		assert type(hyperParameters) == dict
-		self.optimizer = None
+		self.optimizer:Optional[optim.Optim] = None
 		self.optimizerScheduler = None
 		self.criterion = None
 		self.currentEpoch = 1

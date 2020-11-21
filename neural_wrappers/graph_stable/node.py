@@ -1,7 +1,7 @@
 from __future__ import annotations
 import torch as tr
 from ..pytorch import trGetData, trDetachData, NWModule
-from typing import Optional, Dict, Type, Union
+from typing import Optional, Dict, Type, Union, Any
 
 class Node:
 	# A dictionary that gives a unique tag to all nodes by appending an increasing number to name.
@@ -15,7 +15,7 @@ class Node:
 
 		# Set up hyperparameters for this node (used for saving/loading identical node)
 		self.hyperParameters = self.getHyperParameters(hyperParameters)
-		self.groundTruth = None
+		self.groundTruth:Any = None
 		# Messages are the items received at this node via all its incoming edges.
 		self.messages : Dict[str, tr.Tensor] = {}
 
@@ -34,7 +34,7 @@ class Node:
 			return self.nodeEncoder
 		raise Exception("Must be implemented by each node!")
 
-	def getDecoder(self, inputNodeType : Optional[Node]=None) -> NWModule:
+	def getDecoder(self, inputNodeType : Optional[Node]=None) -> Optional[NWModule]:
 		if not self.getDecoder is None:
 			return self.nodeDecoder
 		raise Exception("Must be implemented by each node!")
@@ -79,7 +79,7 @@ class Node:
 		raise Exception("Key %s required from GT data not in labels %s" % (self.groundTruthKey, list(labels.keys())))
 
 	# TODO: labels type
-	def setGroundTruth(self, labels : Optional[Union[Dict[str, tr.Tensor], tr.Tensor]]):
+	def setGroundTruth(self, labels:Any):
 		labels = self.getNodeLabelOnly(labels) #type: ignore
 		# Ground truth is always detached from the graph, so we don't optimize both sides of the graph, if the GT of
 		#  one particular node was generated from other side.

@@ -21,22 +21,22 @@ class CallbackName:
 	def __repr__(self) -> str:
 		return str(self)
 
-	def __lt__(self, other:CallbackName) -> bool: #type: ignore[override]
+	def __lt__(self, other:CallbackName) -> bool:  #type: ignore[override]
 		if not isinstance(other, CallbackName):
-			other = CallbackName(other)
+			other = CallbackName(other) #type: ignore
 
-		try:
-			return self.name < other.name
+		try: #type: ignore
+			return self.name < other.name #type: ignore
 		except Exception:
 			breakpoint()
 		return False
 
 	def __eq__(self, other:CallbackName) -> bool: # type: ignore[override]
 		if not isinstance(other, CallbackName):
-			other = CallbackName(other)
+			other = CallbackName(other) #type: ignore
 
 		try:
-			return self.name == other.name
+			return self.name == other.name #type: ignore
 		except Exception:
 			breakpoint()
 		return False

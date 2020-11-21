@@ -186,6 +186,7 @@ class Graph(FeedForwardNetwork):
 				epochResults["Train"] = res
 
 			# Run for validation data and append the results
+			epochResults["Validation"] = None
 			if not validationGenerator is None:
 				with StorePrevState(self):
 					self.eval()
@@ -356,11 +357,6 @@ class Graph(FeedForwardNetwork):
 	# Computes the message that is printed to the stdout. This method is also called by SaveHistory callback.
 	# @param[in] kwargs The arguments sent to any regular callback.
 	# @return A string that contains the one-line message that is printed at each end of epoch.
-<<<<<<< HEAD
-	def computePrintMessage(self, trainMetrics, validationMetrics, numEpochs, duration):
-		messages = self.newtorkComputePrintMessage(trainMetrics, \
-			validationMetrics, numEpochs, duration)
-=======
 	def computePrintMessage(self, trainMetrics, validationMetrics, numEpochs, duration, depth=0):
 		def padding(depth):
 			return "  " * depth
@@ -377,10 +373,9 @@ class Graph(FeedForwardNetwork):
 		if len(trainMetrics) > 0:
 			messages.extend(Graph.trainValMetricsStr(trainMetrics, validationMetrics, depth))
 
->>>>>>> master
 		for edge in self.edges:
 			edgeTrainMetrics = trainMetrics[str(edge)]
-			edgeValMetrics = validationMetrics[str(edge)]
+			edgeValMetrics = validationMetrics[str(edge)] if not validationMetrics is None else None
 			if len(edgeTrainMetrics) == 0:
 				continue
 
