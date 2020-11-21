@@ -8,7 +8,7 @@ from copy import deepcopy
 from collections import OrderedDict
 from typing import List, Union, Dict, Callable, Optional
 from types import LambdaType
-from tqdm import trange, tqdm
+from tqdm.auto import trange, tqdm
 
 from abc import abstractmethod, ABC
 from .network_serializer import NetworkSerializer

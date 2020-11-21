@@ -156,11 +156,11 @@ class TestGraphStable:
 		edges = [(A, C), (B, C), (C, E), (D, E)]
 		graph = Graph([Edge(nodes[a], nodes[b]) for (a, b) in edges]).to(device)
 		graph.setOptimizer(optim.SGD, lr=0.01)
-		# print(graph.summary())
+		print(graph.summary())
 
-		# generator = reader.iterate("train", batchSize=11)
-		# numSteps = reader.getNumIterations("train", batchSize=11)
-		# graph.train_generator(generator, numSteps, numEpochs=5)
+		generator = reader.iterate("train", batchSize=11)
+		numSteps = reader.getNumIterations("train", batchSize=11)
+		graph.train_generator(generator, numSteps, numEpochs=5)
 
 if __name__ == "__main__":
 	# TestGraph().test_get_inputs_1()
