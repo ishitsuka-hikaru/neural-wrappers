@@ -10,7 +10,9 @@ from returns.curry import partial
 def defaultH5DimGetter(dataset : h5py._hl.group.Group, index : DatasetIndex, dim : str):
 	if isType(index, DatasetRange):
 		return dataset[dim][index.start : index.end][()] #type: ignore
-	elif isType(index, np.ndarray):
+	elif isType(index, range):
+		return dataset[dim][index.start : index.stop][()]
+	elif isType(index, np.ndarray) or isType(index, list) or isType(index, tuple):
 		return smartIndexWrapper(dataset[dim], index)
 	assert False
 
