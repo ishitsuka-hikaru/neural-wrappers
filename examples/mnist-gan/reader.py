@@ -5,8 +5,9 @@ from overrides import overrides
 
 # For some reasons, results are much better if provided data is in range -1 : 1 (not 0 : 1 or standardized).
 class GANReader(H5DatasetReader):
-	def __init__(self, datasetPath:str):
+	def __init__(self, datasetPath:str, latentSpaceSize:int):
 		self.datasetPath = datasetPath
+		self.latentSpaceSize = latentSpaceSize
 
 		super().__init__(
 			datasetPath,
@@ -22,7 +23,9 @@ class GANReader(H5DatasetReader):
 	def iterateOneEpoch(self, topLevel : str, batchSize : int):
 		for items in super().iterateOneEpoch(topLevel, batchSize):
 			rgb = items["data"]["rgb"]
-			yield rgb, rgb
+			MB = len(rgb)
+			noise = np.random.randn(MB, self.latentSpaceSize).astype(np.float32)
+			yield noise, rgb
 
 	@overrides
 	def getNumData(self, topLevel : str) -> int:

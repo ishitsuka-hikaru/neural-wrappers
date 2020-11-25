@@ -29,7 +29,7 @@ def main():
 	args = getArgs()
 
 	# Define reader, generator and callbacks
-	reader = GANReader(datasetPath=args.dataset_path)
+	reader = GANReader(datasetPath=args.dataset_path, latentSpaceSize=args.latent_space_size)
 	print(reader.summary())
 	generator, numIterations = getGenerators(reader, batchSize=args.batch_size, keys=["train"])
 

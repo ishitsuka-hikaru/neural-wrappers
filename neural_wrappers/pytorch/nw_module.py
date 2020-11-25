@@ -74,7 +74,7 @@ class NWModule(nn.Module, ABC):
 
 	def addMetric(self, metricName:Union[str, CallbackName], metric:Union[Callable, Metric]):
 		# partial or lambda but not metric
-		if isinstance(metric, (Callable, LambdaType)) and (not isinstance(metric, Metric)): #type: ignore
+		if isinstance(metric, (Callable, LambdaType, Callback)) and (not isinstance(metric, Metric)): #type: ignore
 			metric = MetricWrapper(metric) #type: ignore
 		if not isinstance(metricName, CallbackName): #type: ignore
 			metricName = CallbackName(metricName) #type: ignore
@@ -83,7 +83,6 @@ class NWModule(nn.Module, ABC):
 
 		metric.setName(metricName) #type: ignore
 		self.callbacks[metricName] = metric
-		# self.iterPrintMessageKeys.append(metricName)
 
 	# Sets the user provided list of metrics as callbacks and adds them to the callbacks list.
 	def addMetrics(self, metrics:Dict[str, Union[Callable, Metric]]):
@@ -124,14 +123,8 @@ class NWModule(nn.Module, ABC):
 		self.invalidateTopologicalSort()
 
 	def clearCallbacks(self):
-		metric = MetricWrapper(lambda y, t, **k : k["loss"])
-		metricName = CallbackName("Loss")
-		metric.setName(metricName)
-		self.callbacks = OrderedDict({metricName : metric})
-		# self.iterPrintMessageKeys = [metricName]
-		self.topologicalSort = np.array([0], dtype=np.uint8)
-		self.topologicalKeys = np.array([metricName])
-		self.topologicalSortDirty = False
+		self.callbacks = OrderedDict()
+		self.addMetric("Loss", lambda y, t, **k : k["loss"])
 
 	# Does a topological sort on the given list of callback dependencies. This MUST be called after all addMetrics and
 	#  addCallbacks are called, as these functions invalidate the topological sort.
