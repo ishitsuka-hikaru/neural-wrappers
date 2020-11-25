@@ -18,13 +18,11 @@ class GANOptimizer(optim.Optimizer):
 		self.model = model
 		model.generator.setOptimizer(optimizer, **kwargs)
 		model.discriminator.setOptimizer(optimizer, **kwargs)
-		self.param_groups = model.generator.getOptimizer().param_groups + \
-			model.discriminator.getOptimizer().param_groups
 
 	def state_dict(self):
 		return {
-			"discriminator" : self.model.discriminator.getOptimizer(),
-			"generator" : self.model.generator.getOptimizer()
+			"discriminator" : self.model.discriminator.getOptimizer().state_dict(),
+			"generator" : self.model.generator.getOptimizer().state_dict()
 		}
 
 	def load_state_dict(self, state):
@@ -44,8 +42,14 @@ class GANOptimizer(optim.Optimizer):
 		return Str
 
 	def __getattr__(self, key):
-		assert key in ("discriminator", "generator")
-		return self.state_dict()[key]
+		assert key in ("discriminator", "generator", "param_groups")
+		if key == "param_groups":
+			for pg in self.model.generator.getOptimizer().param_groups:
+				yield pg
+			for pg in self.model.discriminator.getOptimizer().param_groups:
+				yield pg
+		else:
+			return self.state_dict()[key]
 
 class GenerativeAdversarialNetwork(NWModule):
 	def __init__(self, generator:NWModule, discriminator:NWModule):
