@@ -14,23 +14,38 @@ def lossFn(y, t):
 	return -(t * tr.log(y + 1e-5) + (1 - t) * tr.log(1 - y + 1e-5)).mean()
 
 class GANOptimizer(optim.Optimizer):
-	def __init__(self, optimizerDict):
-		assert "generator" in optimizerDict
-		assert "discriminator" in optimizerDict
-		self.optimizer = optimizerDict
+	def __init__(self, model, optimizer, **kwargs):
+		self.model = model
+		model.generator.setOptimizer(optimizer, **kwargs)
+		model.discriminator.setOptimizer(optimizer, **kwargs)
+		self.param_groups = model.generator.getOptimizer().param_groups + \
+			model.discriminator.getOptimizer().param_groups
 
 	def state_dict(self):
 		return {
-			"generator" : self.optimizer["generator"].state_dict(),
-			"discriminator" : self.optimizer["discriminator"].state_dict()
+			"discriminator" : self.model.discriminator.getOptimizer(),
+			"generator" : self.model.generator.getOptimizer()
 		}
 
 	def load_state_dict(self, state):
-		for k in ["generator", "discriminator"]:
-			self.optimizer[k].load_state_dict(state[k])
+		self.model.discriminator.getOptimizer().load_state_dict(state["discriminator"])
+		self.model.generator.getOptimizer().load_state_dict(state["generator"])
 
+	@overrides
+	def step(self, closure=None):
+		self.model.discriminator.getOptimizer().step(closure)
+		self.model.generator.getOptimizer().step(closure)
+
+	@overrides
 	def __str__(self):
-		return "GAN OPTIMIZER"
+		Str = "[Gan Optimizer]"
+		Str += "\n - Generator: %s" % self.model.generator.getOptimizerStr()
+		Str += "\n - Discriminator: %s" % self.model.discriminator.getOptimizerStr()
+		return Str
+
+	def __getattr__(self, key):
+		assert key in ("discriminator", "generator")
+		return self.state_dict()[key]
 
 class GenerativeAdversarialNetwork(NWModule):
 	def __init__(self, generator:NWModule, discriminator:NWModule):
@@ -43,34 +58,9 @@ class GenerativeAdversarialNetwork(NWModule):
 
 	@overrides
 	def setOptimizer(self, optimizer, **kwargs):
-		optimizerDict = {
-			"generator" : optimizer(self.generator.parameters(), **kwargs),
-			"discriminator" : optimizer(self.discriminator.parameters(), **kwargs)
-		}
-
-		optimizer = GANOptimizer(optimizerDict)
-		super().setOptimizer(optimizer)
-
-		# if isType(optimizer, dict):
-		# 	Keys = list(optimizer.keys())
-		# 	assert len(Keys) == 2
-		# 	assert "generator" in Keys
-		# 	assert "discriminator" in Keys
-		# 	assert "generator" in kwargs
-		# 	assert "discriminator" in kwargs
-
-
-		# 	# self.generator.setOptimizer(optimizer["generator"], **kwargs["generator"])
-		# 	# self.discriminator.setOptimizer(optimizer["discriminator"], **kwargs["discriminator"])
-		# else:
-		# 	self.generator.setOptimizer(optimizer, **kwargs)
-		# 	self.discriminator.setOptimizer(optimizer, **kwargs)
-
-		# self.optimizer = {
-		# 	"generator" : self.generator.getOptimizer(),
-		# 	"discriminator" : self.discriminator.getOptimizer()
-		# }
-		# self.optimizer.storedArgs = kwargs
+		assert not isinstance(optimizer, optim.Optimizer)
+		ganOptimizer = GANOptimizer(self, optimizer, **kwargs)
+		super().setOptimizer(ganOptimizer, **kwargs)
 
 	def updateOptimizer(self, trLoss, isTraining, isOptimizing, retain_graph=False):
 		if not trLoss is None:

@@ -534,9 +534,7 @@ class NWModule(nn.Module, ABC):
 			self.optimizer = optimizer
 		else:
 			trainableParams = list(filter(lambda p : p.requires_grad, self.parameters()))
-			if len(trainableParams) == 0:
-				print("[setOptimizer] Warning, number of trainable parameters is 0. Doing nothing.")
-				return
+			assert len(trainableParams) > 0, "Optimizer must have some trainable parameters."
 			self.optimizer = optimizer(trainableParams, **kwargs)
 		self.optimizer.storedArgs = kwargs
 

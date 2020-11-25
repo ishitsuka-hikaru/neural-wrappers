@@ -218,6 +218,8 @@ def _getOptimizerStr(optimizer):
 		params = "Learning rate: %s, Momentum: %s. Alpha: %s, Eps: %s, Weight Decay: %s" % (groups["lr"], \
 			groups["momentum"], groups["alpha"], groups["eps"], groups["weight_decay"])
 		optimizerType = "RMSprop"
+	elif isinstance(optimizer, tr.optim.Optimizer):
+		return str(optimizer)
 	else:
 		optimizerType = "Generic Optimizer"
 		params = str(optimizer)
