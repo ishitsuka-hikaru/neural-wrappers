@@ -182,6 +182,11 @@ class NetworkSerializer:
 				(nameLoadedParam, str(trainableParam.shape), str(loadedParam.shape))
 		newParams = loadedParams
 
+		# This may come in handy at some points when we have renamed/reclassed a model that is already trained.
+		# newParams = {}
+		# for param, loadedParam in zip(namedTrainableParams, namedLoadedParams):
+		# 	newParams[param] = loadedParams[loadedParam]
+
 		# TODO: Make strict=True and add fake params in the if above (including BN/Dropout).
 		missing, unexpected = self.model.load_state_dict(newParams, strict=False)
 		if len(missing) > 0:

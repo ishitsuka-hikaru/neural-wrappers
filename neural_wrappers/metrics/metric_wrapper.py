@@ -17,5 +17,5 @@ class MetricWrapper(Metric):
 			res = self.wrappedMetric(results, labels, **kwargs)
 			return res
 		except Exception as e:
-			print(str(e))
+			print("\n____________________________________________\n%s" % str(e))
 			breakpoint()
