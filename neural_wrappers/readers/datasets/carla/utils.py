@@ -64,7 +64,11 @@ def depthReadFunction(path:str, readerObj:CarlaGenericReader) -> np.ndarray:
 # Append base directory to all paths read from the h5, and then call the reading function for each full path.
 def pathsReader(dataset : h5py._hl.group.Group, index : DatasetRange, readerObj:CarlaGenericReader,
 	readFunction : Callable[[str], np.ndarray], dim:str) -> np.ndarray:
-	baseDirectory = str(readerObj.dataset["others"]["baseDirectory"][()], "utf8")
+	baseDirectory = readerObj.dataset["others"]["baseDirectory"][()]
+	try:
+		baseDirectory = str(baseDirectory, "utf8")
+	except Exception:
+		pass
 	paths = dataset[dim][index.start : index.end]
 
 	results = []

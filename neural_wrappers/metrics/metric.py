@@ -24,7 +24,7 @@ class Metric(Callback):
 	# @brief The default value of the metric, used by some implementations to define defaults for various statistics
 	# @return A value that represents the default value of the metric
 	def defaultValue(self) -> NWNumber:
-		return 0
+		return 0.0
 
 	def getExtremes(self) -> Dict[str, NWNumber]:
 		return {"min" : -1<<31, "max" : 1<<31}

@@ -125,6 +125,7 @@ class NWModule(nn.Module, ABC):
 	def clearCallbacks(self):
 		self.callbacks = OrderedDict()
 		self.addMetric("Loss", lambda y, t, **k : k["loss"])
+		self.invalidateTopologicalSort()
 
 	# Does a topological sort on the given list of callback dependencies. This MUST be called after all addMetrics and
 	#  addCallbacks are called, as these functions invalidate the topological sort.

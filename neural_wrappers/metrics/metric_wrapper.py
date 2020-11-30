@@ -18,4 +18,5 @@ class MetricWrapper(Metric):
 			return res
 		except Exception as e:
 			print("\n____________________________________________\n%s" % str(e))
+			print("Probably the metric '%s' doesn't have the **kwargs parameter defined on __call__" % self.name)
 			breakpoint()

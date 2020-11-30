@@ -62,7 +62,10 @@ class Node:
 	def getMessages(self) -> Dict[str, tr.Tensor]:
 		return {k : trGetData(self.messages[k]) for k in self.messages}
 
-	def addMessage(self, edgeID : str, message : tr.Tensor) -> None:
+	def addMessage(self, edgeID:str, message:tr.Tensor) -> None:
+		from .edge import Edge
+		if isinstance(edgeID, Edge):
+			edgeID:str = str(edgeID)
 		self.messages[edgeID] = message
 
 	# TODO return type
