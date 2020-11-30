@@ -20,7 +20,6 @@ class Graph(FeedForwardNetwork):
 		super().__init__(hyperParameters=hyperParameters)
 
 		self.edges = nn.ModuleList(self.getEdges())
-		self.edgeIDsToEdges = self.getStrMapping()
 		self.edgeLoss = {}
 		self.linePrinter = MessagePrinter(None)
 		self.setCriterion(self.loss)
@@ -67,19 +66,6 @@ class Graph(FeedForwardNetwork):
 		for edge in self.edges:
 			edges.append(edge)
 		return edges
-
-	def getStrMapping(self):
-		res = {}
-		for edge in self.edges:
-			edgeMapping = edge.getStrMapping()
-			# This adds graphs too
-			res[str(edge)] = edge
-			if type(edgeMapping) == str:
-				res[edgeMapping] = edge
-			else:
-				for k in edgeMapping:
-					res[k] = edgeMapping[k]
-		return res
 
 	def getNodes(self):
 		nodes = set()
@@ -232,7 +218,7 @@ class Graph(FeedForwardNetwork):
 		#  all children (topological sort).
 		# Iteration callbacks are called here. These include metrics or random callbacks such as plotting results
 		#  in testing mode.
-		self.callbacksOnIterationEnd(data=inputs, labels=labels, results=results, \
+		self.callbacksOnIterationEnd(inputs, labels, results=results, \
 			loss=loss, iteration=iteration, numIterations=stepsPerEpoch, metricResults=metricResults, \
 			isTraining=isTraining, isOptimizing=isOptimizing)
 
