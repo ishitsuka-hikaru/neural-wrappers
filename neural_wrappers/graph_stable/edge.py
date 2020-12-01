@@ -12,7 +12,7 @@ from overrides import overrides
 def defaultLossFn(y, t, obj):
 	B = obj.outputNode
 	L = 0
-	t = B.getGroundTruth()
+	t = obj.getGroundTruth(t)
 	for y in obj.outputs:
 		res = obj.criterion(y, t)
 		if not res is None:
@@ -65,6 +65,7 @@ class Edge(FeedForwardNetwork):
 		self.serializer = GraphSerializer(self)
 
 	def getInputs(self, x):
+		self.fullGT = x
 		# print("[Edge::getInputs]", type(self.inputNode), type(self.inputNode).mro(), self.inputNode.getInputs(x))
 		inputs = self.inputNode.getInputs(x)
 		if self.blockGradients:
@@ -90,9 +91,6 @@ class Edge(FeedForwardNetwork):
 
 	def loss(self, y, t):
 		return self.lossFn(y, t)
-
-	def getStrMapping(self):
-		return str(self)
 
 	def getGroundTruth(self, x):
 		return self.outputNode.getGroundTruthInput(x)
@@ -190,9 +188,25 @@ class Edge(FeedForwardNetwork):
 
 	def callbacksOnIterationEnd(self, data, labels, results, loss, iteration, numIterations, \
 		metricResults, isTraining, isOptimizing):
+		results = list(results.values()) if isinstance(results, dict) else results
 		for i in range(len(results)):
-			metricResults = super().callbacksOnIterationEnd(data, labels, results[i], loss, iteration, \
-				numIterations, metricResults, isTraining, isOptimizing)
+			try:
+				metricResults = super().callbacksOnIterationEnd(data, labels, results[i], loss, iteration, \
+					numIterations, metricResults, isTraining, isOptimizing)
+			except Exception as e:
+				breakpoint()
+				metricResults = super().callbacksOnIterationEnd(data, labels, results[i], loss, iteration, \
+					numIterations, metricResults, isTraining, isOptimizing)
+		# res = []
+		# metricResults = super().callbacksOnIterationEnd(data, labels, results[0], loss, iteration, \
+		# 	numIterations, metricResults, isTraining, isOptimizing)
+		# for i in range(1, len(results)):
+		# 	item = results[i]
+		# 	_metricResults = super().callbacksOnIterationEnd(data, labels, item, loss, iteration, \
+		# 		numIterations, metricResults, isTraining, isOptimizing)
+		# 	for k in _metricResults:
+		# 		res = _metricResults[k].get()
+		# 		metricResults[k].update(res)
 		return metricResults
 
 	def __str__(self):

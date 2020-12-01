@@ -1,7 +1,21 @@
 from __future__ import annotations
 import torch as tr
-from ..pytorch import trGetData, trDetachData, NWModule
 from typing import Optional, Dict, Type, Union, Any
+from ..pytorch import trGetData, trDetachData, NWModule
+# from .utils import _getGroundTruth
+
+# TODO return type
+def _getGroundTruth(labels:dict, groundTruthKey:str): #type: ignore
+    # Combination of two functions. To be refactored :)
+    if groundTruthKey is None:
+        return None
+    elif groundTruthKey == "*":
+        return labels
+    elif isinstance(groundTruthKey, str):
+        return labels[groundTruthKey]
+    elif isinstance(groundTruthKey, (list, tuple)):
+        return {k : labels[k] for k in groundTruthKey}
+    raise Exception("Key %s required from GT data not in labels %s" % (groundTruthKey, list(labels.keys())))
 
 class Node:
 	# A dictionary that gives a unique tag to all nodes by appending an increasing number to name.
@@ -68,22 +82,10 @@ class Node:
 			edgeID:str = str(edgeID)
 		self.messages[edgeID] = message
 
-	# TODO return type
-	def getNodeLabelOnly(self, labels : dict): #type: ignore
-		# Combination of two functions. To be refactored :)
-		if self.groundTruthKey is None:
-			return None
-		elif self.groundTruthKey == "*":
-			return labels
-		elif (type(self.groundTruthKey) is str) and (self.groundTruthKey != "*"):
-			return labels[self.groundTruthKey]
-		elif type(self.groundTruthKey) in (list, tuple):
-			return {k : labels[k] for k in self.groundTruthKey}
-		raise Exception("Key %s required from GT data not in labels %s" % (self.groundTruthKey, list(labels.keys())))
-
 	# TODO: labels type
 	def setGroundTruth(self, labels:Any):
-		labels = self.getNodeLabelOnly(labels) #type: ignore
+		# labels = self.getNodeLabelOnly(labels) #type: ignore
+		labels = _getGroundTruth(labels, self.groundTruthKey)
 		# Ground truth is always detached from the graph, so we don't optimize both sides of the graph, if the GT of
 		#  one particular node was generated from other side.
 		labels = trDetachData(labels)
