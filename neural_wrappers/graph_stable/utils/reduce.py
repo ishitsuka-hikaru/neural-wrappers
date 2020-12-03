@@ -9,11 +9,8 @@ class ReduceNode(Edge):
 		useLoss=False, *args, **kwargs):
 		if name is None:
 			name = "ReduceNode %s" % (str(inputNode))
-		super().__init__(inputNode, inputNode, forwardFn=forwardFn, name=name, *args, **kwargs)
-		if not useMetrics:
-			self.clearMetrics()
-		if not useLoss:
-			self.lossFn = lambda y, t : None
+		super().__init__(inputNode, inputNode, forwardFn=forwardFn, name=name, useMetrics=useMetrics, \
+			useLoss=useLoss, *args, **kwargs)
 		if groundTruthKey is None:
 			groundTruthKey = self.inputNode.groundTruthKey
 		self.groundTruthKey = groundTruthKey

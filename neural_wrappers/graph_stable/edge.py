@@ -34,8 +34,8 @@ def defaultLossFn(y, t, obj):
 #  maintaing a history of its origin. This is used s.t. long graphs don't have to backpropagate to the source of each
 #  input.
 class Edge(FeedForwardNetwork):
-	def __init__(self, inputNode, outputNode, name=None, edgeType="edge-edge", forwardFn=None, \
-		lossFn=None, dependencies=[], blockGradients=False, hyperParameters={}):
+	def __init__(self, inputNode, outputNode, name=None, useMetrics=True, useLoss=True, edgeType="edge-edge", \
+		forwardFn=None, lossFn=None, dependencies=[], blockGradients=False, hyperParameters={}):
 		hyperParameters = self.getHyperParameters(hyperParameters, edgeType, blockGradients)
 		self.iterPrintMessageKeys = [CallbackName("Loss")]
 		self.strInputNode = str(inputNode)
@@ -55,6 +55,8 @@ class Edge(FeedForwardNetwork):
 		self.model = None
 		self.forwardFn = forwardFn
 		self.lossFn = lossFn
+		self.useLoss = useLoss
+		self.useMetrics = useMetrics
 		self.setupModel()
 
 		self.inputs = []
@@ -171,9 +173,15 @@ class Edge(FeedForwardNetwork):
 		if not self.forwardFn:
 			from .utils import forwardUseAll
 			self.forwardFn = forwardUseAll
+
 		if not self.lossFn:
 			self.lossFn = partial(defaultLossFn, obj=self)
-		self.addMetrics(self.outputNode.getMetrics())
+
+		if not self.useLoss:
+			self.lossFn = lambda y, t : 0
+
+		if self.useMetrics:
+			self.addMetrics(self.outputNode.getMetrics())
 		self.setCriterion(self.outputNode.getCriterion())
 
 	def setBlockGradients(self, value):
