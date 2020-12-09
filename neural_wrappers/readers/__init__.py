@@ -1,7 +1,11 @@
 # from .dataset_reader import DatasetReader, ClassificationDatasetReader
 from .dataset_reader import DatasetReader
-from .percent_dataset_reader import PercentDatasetReader
 from .h5_dataset_reader import H5DatasetReader
+
+# Composite readers (built on top of existing readers)
+from .percent_dataset_reader import PercentDatasetReader
+from .cached_dataset_reader import CachedDatasetReader
+
 # from .classification_dataset_reader import ClassificationDatasetReader
 # from .dataset_reader_old import ClassificationDatasetReader
 
