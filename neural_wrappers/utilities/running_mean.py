@@ -70,7 +70,8 @@ class RunningMean:
 		elif type(initValue) in NWDict.__args__: # type: ignore
 			self.obj = RunningMeanDict(initValue) # type: ignore
 		else:
-			assert False, "Unknown type: %s" % (type(initValue))
+			print("[RunningMean] Doing a running mean on unknown type %s" % type(initValue))
+			self.obj = RunningMeanNumber(initValue)
 
 	def update(self, value:Union[NWNumber, NWSequence, NWDict], count:Optional[int] = 0):
 		self.obj.update(value, count)

@@ -10,3 +10,5 @@ transforms3d
 prefetch_generator
 returns
 pims
+git+git://gitlab.com/mihaicristianpirvu/media-processing-lib
+git+git://gitlab.com/mihaicristianpirvu/pycache
