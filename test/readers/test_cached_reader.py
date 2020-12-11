@@ -109,17 +109,12 @@ class TestCachedReader:
 		cacheDir = "%s/.cache" % baseDir
 		createDataset(baseDir, nVideos)
 		reader = Reader(baseDir)
-		readerNpyFS = CachedDatasetReader(reader, NpyFS(cacheDir))
+		readerNpyFS = CachedDatasetReader(reader, NpyFS(cacheDir), buildCache=True)
 
 		g1 = getGenerators(reader, batchSize=-1, keys=["train"])[0]
 		g2 = getGenerators(readerNpyFS, batchSize=-1, keys=["train"])[0]
 
-		# First time both should compute
-		item1 = next(g1)
-		item2 = next(g2)
-		assert deepCheckEqual(item1, item2)
-
-		# Second time only basic reader should compute
+		# Only basic reader should compute ever
 		item1 = next(g1)
 		item2 = next(g2)
 		assert deepCheckEqual(item1, item2)
@@ -136,12 +131,7 @@ class TestCachedReader:
 		g1 = getGenerators(reader, batchSize=-1, keys=["train"])[0]
 		g2 = getGenerators(readerDictMemory, batchSize=-1, keys=["train"])[0]
 
-		# First time both should compute
-		item1 = next(g1)
-		item2 = next(g2)
-		assert deepCheckEqual(item1, item2)
-
-		# Second time only basic reader should compute
+		# Only basic reader should compute ever
 		item1 = next(g1)
 		item2 = next(g2)
 		assert deepCheckEqual(item1, item2)
