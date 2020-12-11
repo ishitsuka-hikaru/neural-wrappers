@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import shutil
-# from readers import getReader
+import tempfile
 from datetime import datetime, timedelta
 from overrides import overrides
 from media_processing_lib.video import MPLVideo, tryReadVideo
@@ -62,9 +62,10 @@ class TestCachedReader:
 		nVideos = 5
 		N = 2
 		baseDir = "/tmp/test_cached_reader"
+		cacheDir = "%s/.cache" % baseDir
 		createDataset(baseDir, nVideos)
 		reader = Reader(baseDir)
-		readerNpyFS = CachedDatasetReader(reader, NpyFS("/tmp/test_cached_reader/.cache"))
+		readerNpyFS = CachedDatasetReader(reader, NpyFS(cacheDir))
 
 		g1 = getGenerators(reader, batchSize=-1, keys=["train"])[0]
 		g2 = getGenerators(readerNpyFS, batchSize=-1, keys=["train"])[0]
@@ -78,6 +79,7 @@ class TestCachedReader:
 		item1 = next(g1)
 		item2 = next(g2)
 		assert deepCheckEqual(item1, item2)
+		shutil.rmtree(cacheDir)
 
 	def test_cached_dict_memory(self):
 		nVideos = 5
@@ -86,6 +88,50 @@ class TestCachedReader:
 		createDataset(baseDir, nVideos)
 		reader = Reader(baseDir)
 		readerDictMemory = CachedDatasetReader(reader, DictMemory())
+
+		g1 = getGenerators(reader, batchSize=-1, keys=["train"])[0]
+		g2 = getGenerators(readerDictMemory, batchSize=-1, keys=["train"])[0]
+
+		# First time both should compute
+		item1 = next(g1)
+		item2 = next(g2)
+		assert deepCheckEqual(item1, item2)
+
+		# Second time only basic reader should compute
+		item1 = next(g1)
+		item2 = next(g2)
+		assert deepCheckEqual(item1, item2)
+
+	def test_cached_reader_npy_build_cache(self):
+		nVideos = 5
+		N = 2
+		baseDir = "/tmp/test_cached_reader"
+		cacheDir = "%s/.cache" % baseDir
+		createDataset(baseDir, nVideos)
+		reader = Reader(baseDir)
+		readerNpyFS = CachedDatasetReader(reader, NpyFS(cacheDir))
+
+		g1 = getGenerators(reader, batchSize=-1, keys=["train"])[0]
+		g2 = getGenerators(readerNpyFS, batchSize=-1, keys=["train"])[0]
+
+		# First time both should compute
+		item1 = next(g1)
+		item2 = next(g2)
+		assert deepCheckEqual(item1, item2)
+
+		# Second time only basic reader should compute
+		item1 = next(g1)
+		item2 = next(g2)
+		assert deepCheckEqual(item1, item2)
+		shutil.rmtree(cacheDir)
+
+	def test_cached_dict_memory_build_cache(self):
+		nVideos = 5
+		N = 2
+		baseDir = "/tmp/test_cached_reader"
+		createDataset(baseDir, nVideos)
+		reader = Reader(baseDir)
+		readerDictMemory = CachedDatasetReader(reader, DictMemory(), buildCache=True)
 
 		g1 = getGenerators(reader, batchSize=-1, keys=["train"])[0]
 		g2 = getGenerators(readerDictMemory, batchSize=-1, keys=["train"])[0]
