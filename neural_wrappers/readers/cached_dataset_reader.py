@@ -5,6 +5,7 @@ from pathlib import Path
 from pycache import Cache
 from tqdm import trange
 from .dataset_reader import DatasetReader, DatasetIndex
+from ..utilities import deepCheckEqual
 
 # @brief A composite dataset reader that has a base reader attribute which, will use as a descriptor for caching
 #  purposes during iteration based on its hash (thus the base reader can define its own hash function for better
@@ -49,9 +50,16 @@ class CachedDatasetReader(DatasetReader):
 			buildRegular(generator, N, topLevel, batchSize)
 		else:
 			# Do a consistency check
-			item = self.cache.get(cacheFile)
 			itemGen = next(generator)
-			if not deepCheckEqual(item, itemGen):
+			item = self.cache.get(cacheFile)
+
+			try:
+				item = type(itemGen)(item)
+				dirty = not deepCheckEqual(item, itemGen)
+			except Exception:
+				dirty = True
+
+			if dirty:
 				print("[CachedDatasetReader] Cache is dirty. Rebuilding...")
 				self.cache.set(cacheFile, itemGen)
 				buildDirty(generator, N, topLevel, batchSize)
