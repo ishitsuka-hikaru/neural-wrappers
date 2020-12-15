@@ -2,10 +2,10 @@ import numpy as np
 import os
 import pickle
 from collections import OrderedDict
-from .np_utils import npCloseEnough
-from .type_utils import NWNumber, NWSequence, NWDict, isBaseOf, T
 from typing import Dict, Sequence, Union, Iterable, List
 from functools import reduce
+from .np_utils import npCloseEnough
+from .type_utils import NWNumber, NWSequence, NWDict, isBaseOf, T
 
 def minMaxImage(image):
 	Min, Max = image.min(), image.max()
@@ -117,15 +117,13 @@ def topologicalSort(depGraph):
 # @param[in] keys The keys used to return pairs of (generator, iterations). Defaults to "train", "validation"
 # @return A flattened list of pairs of type (generator, iteraions). For the values, we get 4 items.
 def getGenerators(reader, batchSize:int, maxPrefetch:int=1, keys:List[str]=["train", "validation"]):
+	from ..readers import BatchedDatasetReader
 	items = []
+	assert isinstance(reader, BatchedDatasetReader)
+	reader.setBatchSize(batchSize)
 	for key in keys:
-		# Automatically infer number of iterations s.t. we get the entire data group.
-		N = batchSize
-		if batchSize == -1:
-			N = reader.getNumData(key)
-
-		generator = reader.iterate(key, batchSize=N, maxPrefetch=maxPrefetch)
-		numIters = reader.getNumIterations(key, batchSize=N)
+		generator = reader.iterateForever(key, maxPrefetch=maxPrefetch)
+		numIters = reader.getNumIterations(key)
 		items.extend([generator, numIters])
 	return items
 

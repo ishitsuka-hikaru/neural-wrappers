@@ -1,18 +1,26 @@
 from overrides import overrides
-from typing import Iterator, Dict, List, Callable, Union
+from typing import Iterator, Dict, List, Callable, Union, Optional
 from .batched_dataset_reader import BatchedDatasetReader, DimGetterCallable
 
 class StaticBatchedDatasetReader(BatchedDatasetReader):
 	def __init__(self, dataBuckets:Dict[str, List[str]], dimGetter:Dict[str, DimGetterCallable], \
-		dimTransform:Dict[str, Dict[str, Callable]], batchSize:Union[int, Dict[str, int]]):
+		dimTransform:Dict[str, Dict[str, Callable]], batchSize:Optional[Union[int, Dict[str, int]]]=None):
 		super().__init__(dataBuckets, dimGetter, dimTransform)
-		self.batchSize = batchSize
+		self.setBatchSize(batchSize)
 	
+	def setBatchSize(self, batchSize):
+		self.batchSize = batchSize
+
 	@overrides
 	def getBatchSize(self, topLevel:str, i:int=0):
 		if isinstance(self.batchSize, int):
-			return self.batchSize
-		return self.batchSize[topLevel]
+			N = self.batchSize
+		elif isinstance(self.batchSize, dict):
+			N = self.batchSize[topLevel]
+
+		if N == -1:
+			N = self.getNumData(topLevel)
+		return N
 
 	@overrides
 	def getNumIterations(self, topLevel:str) -> int:
