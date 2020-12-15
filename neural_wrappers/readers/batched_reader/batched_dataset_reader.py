@@ -1,9 +1,9 @@
 import numpy as np
 from overrides import overrides
-from typing import Iterator, Dict, List, Callable, Union
+from typing import Iterator, Dict
 from abc import abstractmethod
 
-from .dataset_reader import DatasetReader, DimGetterCallable
+from ..dataset_reader import DatasetReader, DimGetterCallable
 
 class BatchedDatasetReader(DatasetReader):
 	@abstractmethod
@@ -50,15 +50,3 @@ class BatchedDatasetReader(DatasetReader):
 		startIndex = i * batchSize
 		endIndex = min((i + 1) * batchSize, self.getNumData(topLevel))
 		return list(range(startIndex, endIndex))
-
-class StaticBatchedDatasetReader(BatchedDatasetReader):
-	def __init__(self, dataBuckets:Dict[str, List[str]], dimGetter:Dict[str, DimGetterCallable], \
-		dimTransform:Dict[str, Dict[str, Callable]], batchSize:Union[int, Dict[str, int]]):
-		super().__init__(dataBuckets, dimGetter, dimTransform)
-		self.batchSize = batchSize
-	
-	@overrides
-	def getBatchSize(self, topLevel:str, i:int):
-		if isinstance(self.batchSize, int):
-			return self.batchSize
-		return self.batchSize[topLevel]

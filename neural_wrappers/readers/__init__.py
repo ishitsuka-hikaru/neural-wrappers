@@ -1,6 +1,6 @@
 # from .dataset_reader import DatasetReader, ClassificationDatasetReader
 from .dataset_reader import DatasetReader
-from .batched_dataset_reader import BatchedDatasetReader, StaticBatchedDatasetReader
+from .batched_reader import BatchedDatasetReader, StaticBatchedDatasetReader
 from .h5_dataset_reader import H5DatasetReader
 
 # Composite readers (built on top of existing readers)

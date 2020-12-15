@@ -30,11 +30,15 @@ class DatasetReader(ABC):
 	def getDataset(self, topLevel:str) -> Any:
 		pass
 
+	@abstractmethod
+	def getNumData(self, topLevel:str) -> int:
+		pass
+
 	# @brief Returns the number of items in a given top level name
 	# @param[in] topLevel The top-level dimension that is iterated over (example: train, validation, test, etc.)
 	# @return The number of items in a given top level name
 	@abstractmethod
-	def getNumData(self, topLevel:str) -> int:
+	def getNumIterations(self, topLevel:str) -> int:
 		pass
 
 	# @brief The main iterator of a dataset. It will run over the data for one logical epoch.
@@ -162,7 +166,7 @@ class DatasetReader(ABC):
 
 		summaryStr += "Data buckets:\n"
 		for dataBucket in self.dataBuckets:
-			summaryStr += " -  %s:%s\n" % (dataBucket, self.dataBuckets[dataBucket])
+			summaryStr += " - %s:%s\n" % (dataBucket, self.dataBuckets[dataBucket])
 		return summaryStr
 
 	def __str__(self) -> str:
