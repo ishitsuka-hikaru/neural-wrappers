@@ -12,25 +12,25 @@ from neural_wrappers.graph import Graph, Edge, Node
 from neural_wrappers.utilities import pickTypeFromMRO
 from neural_wrappers.models import IdentityLayer
 from neural_wrappers.metrics import Metric
-from neural_wrappers.readers import DatasetReader
+from neural_wrappers.readers import StaticBatchedDatasetReader
 from neural_wrappers.readers.internal import DatasetRange, DatasetIndex
-from neural_wrappers.readers.h5_dataset_reader import defaultH5DimGetter
 
-class Reader(DatasetReader):
-	def __init__(self, dataStuff:Dict[Node, int]):
+class Reader(StaticBatchedDatasetReader):
+	def __init__(self, dataStuff:Dict[Node, int], batchSize:int):
 		self.N = 100
 		self.dataset = {
 			"data" : {a.groundTruthKey : np.random.randn(self.N, dataStuff[a]).astype(np.float32) for a in dataStuff}
 		}
 		#  dataBuckets : Dict[str, List[str]], dimGetter : Dict[str, DimGetterCallable], \
 		# dimTransform : Dict[str, Dict[str, Callable]]
-		dimGetterFn = lambda dataset, index, dim : dataset["data"][dim][index.start : index.end]
+		dimGetterFn = lambda dataset, index, dim : dataset["data"][dim][index.start : index.stop]
 		super().__init__(
 			dataBuckets = {"data" : ["A", "B", "C", "D", "E"]}, \
 			dimGetter = {"A" : partial(dimGetterFn, dim="A"), "B" : partial(dimGetterFn, dim="B"), \
 				"C" : partial(dimGetterFn, dim="C"), "D" : partial(dimGetterFn, dim="D"), \
 				"E" : partial(dimGetterFn, dim="E")}, \
-			dimTransform = {}
+			dimTransform = {},
+			batchSize=batchSize
 		)
 
 	@overrides
@@ -44,22 +44,9 @@ class Reader(DatasetReader):
 	def getNumData(self, topLevel:str) -> int:
 		return self.N
 
-	# @brief Returns the index object specific to this dataset for a requested batch index. This is used to logically
-	#  iterate through a dataset
-	# @param[in] i The index of the epoch we're trying to get dataset indexes for
-	# @param[in] topLevel The top-level dimension that is iterated over (example: train, validation, test, etc.)
-	# @param[in] batchSize The size of a batch that is yielded at each iteration
-	# @return A DatasetIndex object with the indexes of this iteration for a specific dimension
 	@overrides
-	def getBatchDatasetIndex(self, i:int, topLevel:str, batchSize:int) -> DatasetIndex:
-		startIndex = i * batchSize
-		endIndex = min((i + 1) * batchSize, self.getNumData(topLevel))
-		assert startIndex < endIndex, "startIndex < endIndex. Got values: %d %d" % (startIndex, endIndex)
-		return DatasetRange(startIndex, endIndex)
-
-	@overrides
-	def iterateOneEpoch(self, topLevel : str, batchSize : int) -> Iterator[Tuple[Dict, Dict]]:
-		for item in super().iterateOneEpoch(topLevel, batchSize):
+	def iterateOneEpoch(self, topLevel : str) -> Iterator[Tuple[Dict, Dict]]:
+		for item in super().iterateOneEpoch(topLevel):
 			yield item["data"], item["data"]
 
 class Model(FeedForwardNetwork):
@@ -154,14 +141,15 @@ class TestGraph:
 
 	def test_train_1(self):
 		nodes = {A : A(), B : B(), C : C(), D : D(), E : E()}
-		reader = Reader(dataStuff={nodes[A] : 5, nodes[B] : 7, nodes[C] : 10, nodes[D] : 6, nodes[E] : 3})
+		reader = Reader(dataStuff={nodes[A] : 5, nodes[B] : 7, nodes[C] : 10, nodes[D] : 6, nodes[E] : 3}, \
+			batchSize=11)
 		edges = [(A, C), (B, C), (C, E), (D, E)]
 		graph = Graph([Edge(nodes[a], nodes[b]) for (a, b) in edges]).to(device)
 		graph.setOptimizer(optim.SGD, lr=0.01)
 		print(graph.summary())
 
-		generator = reader.iterate("train", batchSize=11)
-		numSteps = reader.getNumIterations("train", batchSize=11)
+		generator = reader.iterateForever("train")
+		numSteps = reader.getNumIterations("train")
 		graph.train_generator(generator, numSteps, numEpochs=5)
 
 if __name__ == "__main__":
