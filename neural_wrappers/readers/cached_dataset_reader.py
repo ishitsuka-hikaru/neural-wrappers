@@ -29,7 +29,7 @@ class CachedDatasetReader(DatasetReader):
 		generator = self.baseReader.iterateOneEpoch(topLevel, batchSize)
 
 		def buildRegular(generator, N, topLevel, batchSize):
-			for i in trange(1, N, desc="[CachedDatasetReader] Building (regular)"):
+			for i in trange(N, desc="[CachedDatasetReader] Building (regular)"):
 				cacheFile = "%s/%d/%d" % (topLevel, batchSize, i)
 				if self.cache.check(cacheFile):
 					continue
