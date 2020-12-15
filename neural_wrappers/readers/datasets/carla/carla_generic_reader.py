@@ -3,7 +3,7 @@ import h5py
 from typing import Callable, Any, Dict, List, Tuple
 from returns.curry import partial
 
-from ...h5_dataset_reader import H5DatasetReader, defaultH5DimGetter
+from ...batched_reader.h5_dataset_reader import H5DatasetReader, defaultH5DimGetter
 from ...internal import DatasetRange
 from ....utilities import smartIndexWrapper
 

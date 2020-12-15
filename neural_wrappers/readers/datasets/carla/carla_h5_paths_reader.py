@@ -3,7 +3,7 @@ from typing import Dict, List, Tuple, Any
 from .carla_generic_reader import CarlaGenericReader
 from .utils import unrealFloatFromPng
 from ...internal import DatasetIndex
-from ...h5_dataset_reader import H5DatasetReader, defaultH5DimGetter
+from ...batched_reader.h5_dataset_reader import H5DatasetReader, defaultH5DimGetter
 from media_processing_lib.image import tryReadImage
 
 class CarlaH5PathsReader(CarlaGenericReader):

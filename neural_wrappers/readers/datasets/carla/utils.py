@@ -6,7 +6,7 @@ from typing import Callable
 from .carla_generic_reader import CarlaGenericReader
 from ....utilities import npCloseEnough, npGetInfo, smartIndexWrapper
 from ...internal import DatasetRange
-from ...h5_dataset_reader import H5DatasetReader
+from ...batched_reader.h5_dataset_reader import H5DatasetReader, defaultH5DimGetter
 
 def unrealFloatFromPng(x : np.ndarray) -> np.ndarray:
 	x = x.astype(np.float32)
