@@ -6,9 +6,6 @@ class StaticBatchedDatasetReader(BatchedDatasetReader):
 	def __init__(self, dataBuckets:Dict[str, List[str]], dimGetter:Dict[str, DimGetterCallable], \
 		dimTransform:Dict[str, Dict[str, Callable]], batchSize:Optional[Union[int, Dict[str, int]]]=None):
 		super().__init__(dataBuckets, dimGetter, dimTransform)
-		self.setBatchSize(batchSize)
-	
-	def setBatchSize(self, batchSize):
 		self.batchSize = batchSize
 
 	@overrides

@@ -111,12 +111,10 @@ def topologicalSort(depGraph):
 # @brief Utility function that returns a generator and the number of iterations for that generator.
 #  Supports multiple keys.
 # @param[in] reader A DatasetReader object for the used dataset
-# @param[in] batchSize The batch size used for iterating through the dataset. If -1 is used, the size is automatically
-#  deduced as to use only 1 batch that yields the entire dataset
 # @param[in] maxPrefetch Whether to use prefetch_generator library to use multiple threads to read N iterations ahead.
 # @param[in] keys The keys used to return pairs of (generator, iterations). Defaults to "train", "validation"
 # @return A flattened list of pairs of type (generator, iteraions). For the values, we get 4 items.
-def getGenerators(reader, batchSize:int, maxPrefetch:int=1, keys:List[str]=["train", "validation"]):
+def getGenerators(reader, maxPrefetch:int=1, keys:List[str]=["train", "validation"]):
 	from ..readers import BatchedDatasetReader
 	items = []
 	assert isinstance(reader, BatchedDatasetReader)
