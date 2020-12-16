@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Union, Callable, Sequence
+from typing import Union, Callable, Sequence, Any
 
 # @brief Internal class used for indexing with random "iterators" that preserve shapes:
 #  [[1, 10], [2], [1, 2, [3, 5]]] shall return the values at those indices for this shape
@@ -15,3 +15,4 @@ DimGetterParams = [str, DatasetIndex]
 DimGetterCallable = Callable[DimGetterParams, np.ndarray]
 DimTransformParams = [str, np.ndarray]
 DimTransformCallable = Callable[DimTransformParams, np.ndarray]
+Item = Any

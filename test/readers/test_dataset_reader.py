@@ -5,25 +5,20 @@ from neural_wrappers.readers import DatasetReader, DatasetIndex
 
 class DummyDataset(DatasetReader):
 	@overrides
-	def getDataset(self, topLevel:str) -> Any:
+	def getDataset(self) -> Any:
 		return None
 
 	@overrides
-	def getNumData(self, topLevel:str) -> int:
+	def getNumData(self) -> int:
 		return 0
 
 	@overrides
-	def getNumIterations(self, topLevel:str) -> int:
+	def getNumData(self) -> int:
 		return 0
 
 	@overrides
-	def getIndex(self, topLevel:str, i:int) -> DatasetIndex:
-		return DatasetIndex()
-
-	@overrides
-	def iterateOneEpoch(self, topLevel) -> Iterator[Dict[str, np.ndarray]]:
+	def getItem(self, i):
 		pass
-
 
 class TestDatasetReader:
 	dataBuckets = {
@@ -48,6 +43,7 @@ class TestDatasetReader:
 	def test_constructor_1(self):
 		reader = DummyDataset(dataBuckets=TestDatasetReader.dataBuckets, \
 			dimGetter=TestDatasetReader.dimGetter, dimTransform=TestDatasetReader.dimTransform)
+		print(reader)
 		assert not reader is None
 		assert reader.datasetFormat.dataBuckets == {"data" : ["rgb", "depth"], "labels" : ["depth", "semantic"]}
 		assert list(reader.datasetFormat.dimGetter.keys()) == ["rgb", "depth", "semantic"]
