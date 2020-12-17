@@ -23,10 +23,6 @@ class DummyDataset(DatasetReader):
 	def getNumData(self) -> int:
 		return len(self.dataset)
 
-	@overrides
-	def getIndex(self, i):
-		return i
-
 class TestDatasetReader:
 	def test_constructor_1(self):
 		reader = DummyDataset()

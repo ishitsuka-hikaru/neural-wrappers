@@ -66,11 +66,13 @@ class DatasetReader(ABC):
 	def getNumData(self) -> int:
 		pass
 
-	@abstractmethod
-	def getIndex(self, i:int) -> DatasetIndex:
-		pass
-
 	# Public interface
+
+	# Returns the logical index of this item for this dataset. Since DatasetReader has no concept of
+	#  batching, this must be overriden by higher level dataset readers that implement a logic where
+	#  getIndex(i) != i (such as i => [i * B, (i + 1) * B] for batching)
+	def getIndex(self, i:int) -> DatasetIndex:
+		return i
 
 	# @brief Returns the item at index i. Basically g(i) -> Item(i). Item(i) will follow dataBuckets schema,
 	#  and will call dimGetter for each dimension for this index.
@@ -84,12 +86,17 @@ class DatasetReader(ABC):
 		dataset = self.getDataset()
 		dimToDataBuckets = self.datasetFormat.dimToDataBuckets
 
+		# The result is simply a dictionary that follows the (shallow, for now) dataBuckets of format.
 		result = {k : {k2 : None for k2 in dataBuckets[k]} for k in dataBuckets}
 		# rawItems = {k : None for k in allDims}
 		for dim in allDims:
 			getterFn = dimGetter[dim]
+			# Call the getter only once for efficiency
 			rawItem = getterFn(dataset, index)
 			# rawItems[dim] = rawItem
+			# Call the transformer for each data bucket independently (labels and data may use same
+			#  dim but do a different transformation (such as normalized in data and unnormalized in
+			#  labels for metrics or plotting or w/e.
 			for bucket in dimToDataBuckets[dim]:
 				transformFn = dimTransforms[bucket][dim]
 				item = transformFn(deepcopy(rawItem))
@@ -100,8 +107,7 @@ class DatasetReader(ABC):
 	def iterateOneEpoch(self) -> Iterator[Dict[str, Any]]:
 		n = self.getNumData()
 		for i in range(n):
-			index = self.getIndex(i)
-			item = self.getItem(index)
+			item = self.getItem(i)
 			yield item
 
 	# Generic infinite generator, that simply does a while True over the iterate_once method, which only goes one epoch
@@ -111,11 +117,16 @@ class DatasetReader(ABC):
 	#  normal in most cases, due to the multi-threaded nature. For length > 1, the queue size is just increased.
 	def iterateForever(self, maxPrefetch:int=0) -> Iterator[Dict[str, np.ndarray]]:
 		assert maxPrefetch >= 0
-		N = self.getNumData()
 		while True:
+			# Instantaite the epoch generator, use BackgroundGenerator if required on top of it
+			#  and then iterate forever. After N iterations, we're reinstantiating it. We call
+			#  getNumData each time, because it can change between iterations!
 			iterateGenerator = self.iterateOneEpoch()
+			N = self.getNumData()
+
 			if maxPrefetch > 0:
 				iterateGenerator = BackgroundGenerator(iterateGenerator, max_prefetch=maxPrefetch)
+
 			for i, items in enumerate(iterateGenerator):
 				if i == N:
 					break
