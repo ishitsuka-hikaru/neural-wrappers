@@ -2,9 +2,10 @@ import numpy as np
 from abc import ABC, abstractmethod
 from typing import Dict, List, Callable, Any, Iterator, Union, Tuple
 from prefetch_generator import BackgroundGenerator
-from ..utilities import flattenList
+from copy import deepcopy
 
 from .dataset_types import DimGetterCallable, DimTransformCallable, DatasetIndex, Item
+from ..utilities import flattenList
 
 # @param[in] dataBuckets A dictionary with all available data bucket names (data, label etc.) and, for each bucket,
 #  a list of dimensions (rgb, depth, etc.).
@@ -22,6 +23,12 @@ class DatasetFormat:
 		self.dataBuckets = dataBuckets
 		self.dimGetter = self.sanitizeDimGetter(dimGetter)
 		self.dimTransform = self.sanitizeDimTransform(dimTransform)
+
+		self.dimToDataBuckets = {dim : [] for dim in self.allDims}
+		for dim in self.allDims:
+			for bucket in self.dataBuckets:
+				if dim in self.dataBuckets[bucket]:
+					self.dimToDataBuckets[dim].append(bucket)
 
 	def sanitizeDimGetter(self, dimGetter:Dict[str, Callable]) -> Dict[str, Callable]:
 		for key in self.allDims:
@@ -59,36 +66,48 @@ class DatasetReader(ABC):
 	def getNumData(self) -> int:
 		pass
 
-	# TODO: move to BatchedDatasetReader
-	# @abstractmethod
-	# # @brief Batches of current epoch. May or may not change after this epoch ends.
-	# def getBatchSizes(self) -> List[int]:
-	# 	pass
-
-	# @brief Returns the item at index i. Basically g(i) -> Item(i), B(i)
-	# @return The item at index i and the batch count of this item (number of items inside the item)
 	@abstractmethod
-	def getItem(self, i:DatasetIndex) -> Tuple[Item, int]:
+	def getIndex(self, i:int) -> DatasetIndex:
 		pass
 
-	# TODO: implement based on getItem/getDataset/getNumData ?
-	# # @brief The main iterator of a dataset. It will run over the data for one logical epoch.
+	# @brief Returns the item at index i. Basically g(i) -> Item(i)
+	# @return The item at index i
 	# @abstractmethod
-	# def iterateOneEpoch(self) -> Iterator[Dict[str, Any]]:
+	def getItem(self, i:int) -> Item:
+		index = self.getIndex(i)
+		dataBuckets = self.datasetFormat.dataBuckets
+		allDims = self.datasetFormat.allDims
+		dimGetter = self.datasetFormat.dimGetter
+		dimTransforms = self.datasetFormat.dimTransform
+		dataset = self.getDataset()
+		dimToDataBuckets = self.datasetFormat.dimToDataBuckets
+
+		result = {k : {k2 : None for k2 in dataBuckets[k]} for k in dataBuckets}
+		# rawItems = {k : None for k in allDims}
+		for dim in allDims:
+			getterFn = dimGetter[dim]
+			rawItem = getterFn(dataset, index)
+			# rawItems[dim] = rawItem
+			for bucket in dimToDataBuckets[dim]:
+				transformFn = dimTransforms[bucket][dim]
+				item = transformFn(deepcopy(rawItem))
+				result[bucket][dim] = item
+		return result
+
+	# # TODO: implement based on getItem/getDataset/getNumData ?
+	# # # @brief The main iterator of a dataset. It will run over the data for one logical epoch.
+	# # @abstractmethod
+	# # def iterateOneEpoch(self) -> Iterator[Dict[str, Any]]:
+	# # 	pass
+
+	# # Nice to have methods
+	# # merge(i1, b1, i2, b2) -> i(1,2)
+	# def mergeItems(self, item1:Item, batch1:int, item2:Item, batch2:int) -> Item:
 	# 	pass
 
-	# @abstractmethod
-	# def getIndex(self, topLevel:str, i:int) -> Any:
+	# # split(i(1,2), sz1, sz2) -> i1, i2
+	# def splitItems(self, item:Item, size1:int, size2:int) -> Tuple[Item, Item]:
 	# 	pass
-
-	# Nice to have methods
-	# merge(i1, b1, i2, b2) -> i(1,2)
-	def mergeItems(self, item1:Item, batch1:int, item2:Item, batch2:int) -> Item:
-		pass
-
-	# split(i(1,2), sz1, sz2) -> i1, i2
-	def splitItems(self, item:Item, size1:int, size2:int) -> Tuple[Item, Item]:
-		pass
 
 	# Basic methods
 

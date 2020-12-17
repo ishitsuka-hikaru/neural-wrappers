@@ -1,4 +1,3 @@
-import pims
 import numpy as np
 from functools import partial
 from typing import Dict, Any, Callable, List
@@ -28,6 +27,7 @@ class SfmLearnerVideoReader(SfmLearnerGenericReader):
 
 	def __init__(self, datasetPath:str, sequenceSize:int, dataSplitIndices:Dict[str, List[int]], \
 		intrinsicMatrix:np.ndarray = np.eye(3), dimTransform:Dict[str, Dict[str, Callable]]={}):
+		import pims
 		self.datasetPath = datasetPath
 		self.video = pims.Video(self.datasetPath)
 		self.fps = self.video.frame_rate

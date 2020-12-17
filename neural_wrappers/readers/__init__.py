@@ -1,6 +1,7 @@
-# from .dataset_reader import DatasetReader, ClassificationDatasetReader
-from .dataset_reader import DatasetReader
 from .dataset_types import DatasetIndex, DatasetRandomIndex, DimGetterCallable
+from .dataset_reader import DatasetReader
+from .compound_dataset_reader import CompoundDatasetReader
+from .batched_dataset_reader import BatchedDatasetReader
 # Implementations of various dataset readers
 # from .batched_reader import BatchedDatasetReader, StaticBatchedDatasetReader
 

@@ -1,36 +1,12 @@
 import numpy as np
 from overrides import overrides
 from typing import Any, Iterator, Dict, Callable
-from neural_wrappers.readers import DatasetReader, DatasetIndex
+from neural_wrappers.readers import CompoundDatasetReader, DatasetIndex
+from test_dataset_reader import DummyDataset
 
-class DummyDataset(DatasetReader):
-	def __init__(self):
-		super().__init__(
-			dataBuckets = {"data" : ["rgb"], "labels" : ["class"]},
-			dimGetter = {
-				"rgb" : (lambda dataset, index : dataset[index]),
-				"class" : (lambda dataset, index : 0)
-			},
-			dimTransform = {}
-		)
-		self.dataset = np.random.randn(10, 3)
-
-	@overrides
-	def getDataset(self) -> Any:
-		return self.dataset
-
-	@overrides
-	def getNumData(self) -> int:
-		return len(self.dataset)
-
-	@overrides
-	def getIndex(self, i):
-		return 0
-
-class TestDatasetReader:
+class TestCompoundDatasetReader:
 	def test_constructor_1(self):
-		reader = DummyDataset()
-		print(reader)
+		reader = CompoundDatasetReader(DummyDataset())
 		assert not reader is None
 		assert reader.datasetFormat.dataBuckets == {"data" : ["rgb"], "labels" : ["class"]}
 		assert list(reader.datasetFormat.dimGetter.keys()) == ["rgb", "class"]
@@ -44,15 +20,8 @@ class TestDatasetReader:
 		for v in reader.datasetFormat.dimTransform["labels"].values():
 			assert isinstance(v, Callable)
 
-	def test_getItem_1(self):
-		reader = DummyDataset()
-		item = reader.getItem(0)
-		rgb = item["data"]["rgb"]
-		assert np.abs(reader.dataset[0] - rgb).sum() < 1e-5
-
 def main():
-	TestDatasetReader().test_constructor_1()
-	TestDatasetReader().test_getItem_1()
+	TestCompoundDatasetReader().test_constructor_1()
 
 if __name__ == "__main__":
 	main()
