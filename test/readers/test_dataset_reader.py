@@ -25,7 +25,7 @@ class DummyDataset(DatasetReader):
 
 	@overrides
 	def getIndex(self, i):
-		return 0
+		return i
 
 class TestDatasetReader:
 	def test_constructor_1(self):
@@ -49,6 +49,29 @@ class TestDatasetReader:
 		item = reader.getItem(0)
 		rgb = item["data"]["rgb"]
 		assert np.abs(reader.dataset[0] - rgb).sum() < 1e-5
+
+	def test_getNumData_1(self):
+		reader = DummyDataset()
+		numData = reader.getNumData()
+		assert numData == len(reader.dataset)
+
+	def test_iterateOneEpoch_1(self):
+		reader = DummyDataset()
+		generator = reader.iterateOneEpoch()
+		for i, item in enumerate(generator):
+			rgb = item["data"]["rgb"]
+			assert np.abs(rgb - reader.dataset[i]).sum() < 1e-5
+		assert i == len(reader.dataset) - 1
+
+	def test_iterateForever_1(self):
+		reader = DummyDataset()
+		generator = reader.iterateForever()
+		for i, item in enumerate(generator):
+			rgb = item["data"]["rgb"]
+			ix = i % len(reader.dataset)
+			assert np.abs(rgb - reader.dataset[ix]).sum() < 1e-5
+			if i == len(reader.dataset) * 3:
+				break
 
 def main():
 	TestDatasetReader().test_constructor_1()
