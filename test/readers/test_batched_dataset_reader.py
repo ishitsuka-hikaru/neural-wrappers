@@ -19,10 +19,17 @@ class Reader(BatchedDatasetReader):
 		rgbStacked = np.concatenate([rgb1, rgb2], axis=0)
 		return {"data" : {"rgb" : rgbStacked}, "labels" : {"class" : [0, 0]}}
 
-	# split(i(1,2), sz1, sz2) -> i1, i2
+	# split(i(1,2), sz1) -> i1, i2 (with sized sz1 and len(item) - sz1)
 	@overrides
-	def splitItems(self, item:DatasetItem, size1:int, size2:int) -> Tuple[DatasetItem, DatasetItem]:
-		pass
+	def splitItems(self, item:DatasetItem, size1:int) -> Tuple[DatasetItem, DatasetItem]:
+		rgbStacked = item["data"]["rgb"]
+		rgb1 = rgbStacked[0 : size1]
+		rgb2 = rgbStacked[size1 :]
+		size2 = len(rgbStacked) - size1
+
+		item1 = {"data" : {"rgb" : rgb1}, "labels" : {"class" : [0] * size1}}
+		item2 = {"data" : {"rgb" : rgb2}, "labels" : {"class" : [0] * size2}}
+		return item1, item2
 
 	@overrides
 	def getItem(self, i:DatasetIndex) -> Tuple[DatasetItem, int]:
@@ -50,9 +57,39 @@ class TestDatasetReader:
 		assert np.abs(rgb1 - rgbMerged[0]).sum() < 1e-5
 		assert np.abs(rgb2 - rgbMerged[1]).sum() < 1e-5
 
+	def test_splitItems_1(self):
+		reader = Reader(DummyDataset())
+		rgbMerged = reader.dataset[0 : 2]
+		itemMerged = {"data" : {"rgb" : rgbMerged}, "labels" : {"class" : [0, 0]}}
+		item1, item2 = reader.splitItems(itemMerged, 1)
+		rgb1 = item1["data"]["rgb"]
+		rgb2 = item2["data"]["rgb"]
+		assert np.abs(rgb1 - rgbMerged[0]).sum() < 1e-5
+		assert np.abs(rgb2 - rgbMerged[1]).sum() < 1e-5
+
+	def test_mergeSplit_1(self):
+		reader = Reader(DummyDataset())
+		item1, B1 = reader.getItem(0)
+		item2, B2 = reader.getItem(1)
+		rgb1 = item1["data"]["rgb"]
+		rgb2 = item2["data"]["rgb"]
+
+		for i in range(3):
+			itemMerged = reader.mergeItems(item1, B1, item2, B2)
+			item1_split, item2_split = reader.splitItems(itemMerged, 1)
+			rgb1_split = item1_split["data"]["rgb"]
+			rgb2_split = item2_split["data"]["rgb"]
+			assert np.abs(rgb1 - rgb1_split).sum() < 1e-5
+			assert np.abs(rgb2 - rgb2_split).sum() < 1e-5
+
+			item1 = {"data" : {"rgb" : rgb1_split}, "labels" : {"class" : [0]}}
+			item2 = {"data" : {"rgb" : rgb2_split}, "labels" : {"class" : [0]}}
+
 def main():
 	TestDatasetReader().test_constructor_1()
 	TestDatasetReader().test_mergeItems_1()
+	TestDatasetReader().test_splitItems_1()
+	TestDatasetReader().test_mergeSplit_1()
 
 if __name__ == "__main__":
 	main()
