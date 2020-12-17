@@ -4,7 +4,7 @@ from typing import Dict, List, Callable, Any, Iterator, Union, Tuple
 from prefetch_generator import BackgroundGenerator
 from copy import deepcopy
 
-from .dataset_types import DimGetterCallable, DimTransformCallable, DatasetIndex, Item
+from .dataset_types import DimGetterCallable, DimTransformCallable, DatasetIndex, DatasetItem
 from ..utilities import flattenList
 
 # @param[in] dataBuckets A dictionary with all available data bucket names (data, label etc.) and, for each bucket,
@@ -75,7 +75,7 @@ class DatasetReader(ABC):
 	# @brief Returns the item at index i. Basically g(i) -> Item(i). Item(i) will follow dataBuckets schema,
 	#  and will call dimGetter for each dimension for this index.
 	# @return The item at index i
-	def getItem(self, i:int) -> Item:
+	def getItem(self, i:int) -> DatasetItem:
 		index = self.getIndex(i)
 		dataBuckets = self.datasetFormat.dataBuckets
 		allDims = self.datasetFormat.allDims

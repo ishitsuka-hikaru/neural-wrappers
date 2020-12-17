@@ -14,18 +14,18 @@ class BatchedDatasetReader(CompoundDatasetReader):
 
 	# merge(i1, b1, i2, b2) -> i(1,2)
 	@abstractmethod
-	def mergeItems(self, item1:Item, batch1:int, item2:Item, batch2:int) -> Item:
+	def mergeItems(self, item1:DatasetItem, batch1:int, item2:DatasetItem, batch2:int) -> DatasetItem:
 		pass
 
 	# split(i(1,2), sz1, sz2) -> i1, i2
 	@abstractmethod
-	def splitItems(self, item:Item, size1:int, size2:int) -> Tuple[Item, Item]:
+	def splitItems(self, item:DatasetItem, size1:int, size2:int) -> Tuple[DatasetItem, DatasetItem]:
 		pass
 
 	# @brief Returns the item at index i. Basically g(i) -> Item(i), B(i)
 	# @return The item at index i and the batch count of this item (number of items inside the item)
 	@overrides
-	def getItem(self, i:DatasetIndex) -> Tuple[Item, int]:
+	def getItem(self, i:DatasetIndex) -> Tuple[DatasetItem, int]:
 		item = self.baseReader.getItem(i)
-		b = self.baseReader.getBatchSizes()[i]
+		b = self.getBatchSizes()[i]
 		return item, b

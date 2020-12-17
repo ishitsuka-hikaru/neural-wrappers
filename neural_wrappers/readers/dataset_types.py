@@ -15,4 +15,4 @@ DimGetterParams = [str, DatasetIndex]
 DimGetterCallable = Callable[DimGetterParams, np.ndarray]
 DimTransformParams = [str, np.ndarray]
 DimTransformCallable = Callable[DimTransformParams, np.ndarray]
-Item = Any
+DatasetItem = Any

@@ -1,4 +1,4 @@
-from .dataset_types import DatasetIndex, DatasetRandomIndex, DimGetterCallable
+from .dataset_types import DatasetIndex, DatasetRandomIndex, DimGetterCallable, DatasetItem
 from .dataset_reader import DatasetReader
 from .compound_dataset_reader import CompoundDatasetReader
 from .batched_dataset_reader import BatchedDatasetReader
