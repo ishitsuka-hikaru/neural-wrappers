@@ -72,11 +72,17 @@ class DatasetReader(ABC):
 
 	# Public interface
 
-	# Returns the logical index of this item for this dataset. Since DatasetReader has no concept of
-	#  batching, this must be overriden by higher level dataset readers that implement a logic where
-	#  getIndex(i) != i (such as i => [i * B, (i + 1) * B] for batching)
+	# Returns the logical index of this item for this dataset. Since DatasetReader has no concept of batching, this
+	# must be overriden by higher level dataset readers that implement a logic where getIndex(i) != i.
+	#  For example: i => [i * B, (i + 1) * B] for batching
 	def getIndex(self, i:int) -> DatasetIndex:
 		return i
+
+	# The number of iterations for this epochis equal to the number of data as provided by self.getNumData, because this
+	#  default dataset reader has no concept of batching or advanced indexing. If a raw dataset has a different logic
+	#  (i.e. using PercentDatasetReader or such), this method must be overriden.
+	def getNumIterations(self) -> int:
+		return self.getNumData()
 
 	# @brief Returns the item at index i. Basically g(i) -> Item(i). Item(i) will follow dataBuckets schema,
 	#  and will call dimGetter for each dimension for this index.
@@ -109,7 +115,7 @@ class DatasetReader(ABC):
 
 	# @brief The main iterator of a dataset. It will run over the data for one logical epoch.
 	def iterateOneEpoch(self) -> Iterator[Dict[str, Any]]:
-		n = self.getNumData()
+		n = self.getNumIterations()
 		for i in range(n):
 			item = self.getItem(i)
 			yield item

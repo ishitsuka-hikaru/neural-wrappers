@@ -69,7 +69,7 @@ class TestBatchedDatasetReader:
 				break
 
 def main():
-	TestBatchedDatasetReader().test_constructor_1()
+	TestBatchedDatasetReader().test_iterateForever_1()
 
 if __name__ == "__main__":
 	main()

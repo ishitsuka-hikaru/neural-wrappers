@@ -12,10 +12,9 @@ from neural_wrappers.graph_stable import Graph, Edge, Node
 from neural_wrappers.utilities import pickTypeFromMRO
 from neural_wrappers.models import IdentityLayer
 from neural_wrappers.metrics import Metric
-from neural_wrappers.readers import StaticBatchedDatasetReader
-from neural_wrappers.readers.internal import DatasetRange, DatasetIndex
+from neural_wrappers.readers import DatasetReader
 
-class Reader(StaticBatchedDatasetReader):
+class Reader(DatasetReader):
 	def __init__(self, dataStuff:Dict[Node, int], batchSize:int):
 		self.N = 100
 		self.dataset = {

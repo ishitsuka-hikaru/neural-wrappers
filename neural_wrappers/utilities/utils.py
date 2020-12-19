@@ -114,16 +114,12 @@ def topologicalSort(depGraph):
 # @param[in] maxPrefetch Whether to use prefetch_generator library to use multiple threads to read N iterations ahead.
 # @param[in] keys The keys used to return pairs of (generator, iterations). Defaults to "train", "validation"
 # @return A flattened list of pairs of type (generator, iteraions). For the values, we get 4 items.
-def getGenerators(reader, maxPrefetch:int=1, keys:List[str]=["train", "validation"]):
-	from ..readers import BatchedDatasetReader
-	items = []
-	assert isinstance(reader, BatchedDatasetReader)
+def getGenerators(reader, batchSize:int, maxPrefetch:int=1):
+	assert hasattr(reader, "setBatchSize")
 	reader.setBatchSize(batchSize)
-	for key in keys:
-		generator = reader.iterateForever(key, maxPrefetch=maxPrefetch)
-		numIters = reader.getNumIterations(key)
-		items.extend([generator, numIters])
-	return items
+	generator = reader.iterateForever(maxPrefetch=maxPrefetch)
+	numIterations = reader.getNumIterations()
+	return generator, numIterations
 
 # Deep check if two items are equal. Dicts are checked value by value and numpy array are compared using "closeEnough"
 #  method

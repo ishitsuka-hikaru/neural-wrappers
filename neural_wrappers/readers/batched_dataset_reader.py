@@ -14,20 +14,26 @@ class BatchedDatasetReader(DatasetReader):
 		# [1, 5, 4, 2]
 		batches = self.getBatchSizes()
 		# [0, 1, 6, 10, 12]
-		cumsum = np.insert(batches.cumsum(), 0, 0)
+		cumsum = np.insert(np.cumsum(batches), 0, 0)
 		# i = 2 => B = [6, 7, 8, 9]
 		# batchIndex = np.arange(cumsum[i], cumsum[i + 1])
-		batchIndex = slice(cumsum[i], cumsum[i + 1])
+		try:
+			batchIndex = slice(cumsum[i], cumsum[i + 1])
+		except Exception:
+			breakpoint()
 		return batchIndex
 
 	@overrides
 	def iterateOneEpoch(self) -> Iterator[Dict[str, Any]]:
 		batchSizes = self.getBatchSizes()
-		n = len(batchSizes)
-		for i in range(n):
+		for i, (item, b) in enumerate(super().iterateOneEpoch()):
 			item, b = self.getItem(i)
 			assert b == batchSizes[i]
 			yield item, b
+
+	@overrides
+	def getNumIterations(self) -> int:
+		return len(self.getBatchSizes())
 
 	# @brief Returns the item at index i. Basically g(i) -> Item(i), B(i)
 	# @return The item at index i and the batch count of this item (number of items inside the item)

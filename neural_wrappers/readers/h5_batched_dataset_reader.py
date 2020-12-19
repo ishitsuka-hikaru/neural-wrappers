@@ -20,18 +20,29 @@ def defaultH5DimGetter(dataset:h5py._hl.group.Group, index:DatasetIndex, dim:str
 	assert False
 
 class H5BatchedDatasetReader(BatchedDatasetReader):
+	# @param[in] datasetPath can be a dataset or a h5py opened file/group etc. If it's str, we're opening it.
 	def __init__(self, datasetPath:str, dataBuckets, dimTransform, dimGetter={}):
-		self.datasetPath = datasetPath
-		self.dataset = h5py.File(self.datasetPath, "r")
+		if isinstance(datasetPath, str):
+			self.datasetPath = datasetPath
+			self.dataset = h5py.File(self.datasetPath, "r")
+		else:
+			# Assume h5 or h5 group or such. Either way, we can use the file attribute of h5py to get the h5py.File
+			#  object, which has a filename attribute to get the original h5py file path.
+			self.dataset = datasetPath
+			self.datasetPath = self.dataset.file.filename
 
 		allDims = list(set(flattenList(dataBuckets.values())))
 		# H5 assumption. If diGetter is not provided, assume the default getter. However, if provided, then perhaps
 		#  that particular dimension is read somehow different (or is computed from another raw dimension).
 		for key in allDims:
+			# breakpoint()
 			if not key in dimGetter:
-				assert key in self.dataset
+				assert key in self.dataset, "Key %s vs %s" % (key, self.dataset.keys())
 				dimGetter[key] = partial(defaultH5DimGetter, dim=key)
 				print("[H5BatchedDatasetReader] Dim '%s' has no dim getter. Adding the default h5 dim getter." % key)
+
+		# Some weird shit going on hit sometimes when we get some previous (?) dimGetters in pytest.
+		dimGetter = {k : dimGetter[k] for k in filter(lambda x : x in allDims, dimGetter.keys())}
 		super().__init__(dataBuckets, dimGetter, dimTransform)
 
 	@overrides

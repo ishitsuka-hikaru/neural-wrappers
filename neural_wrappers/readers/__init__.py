@@ -11,4 +11,4 @@ from .h5_batched_dataset_reader import H5BatchedDatasetReader
 # from .cached_dataset_reader import CachedDatasetReader
 
 # Implementations of various readers (as conveted by reader_converters), used for ML pipelines
-# from .datasets import *
+from .datasets import *
