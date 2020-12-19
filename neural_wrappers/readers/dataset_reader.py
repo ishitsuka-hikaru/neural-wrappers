@@ -23,6 +23,11 @@ class DatasetFormat:
 		self.dataBuckets = dataBuckets
 		self.dimGetter = self.sanitizeDimGetter(dimGetter)
 		self.dimTransform = self.sanitizeDimTransform(dimTransform)
+		# Used for CachedDatasetReader. Update this if the dataset is cachable (thus immutable). This means that, we
+		#  enforce the condition that self.getItem(X) will return the same Item(X) from now until the end of the
+		#  universe. If this assumtpion is ever broken, the cache and the _actual_ Item(X) will be different. And we
+		#  don't want that.
+		self.isCacheable = False
 
 		self.dimToDataBuckets = {dim : [] for dim in self.allDims}
 		for dim in self.allDims:
@@ -56,7 +61,6 @@ class DatasetReader(ABC):
 	def __init__(self, dataBuckets:Dict[str, List[str]], dimGetter:Dict[str, DimGetterCallable], \
 		dimTransform:Dict[str, Dict[str, DimTransformCallable]]):
 		self.datasetFormat = DatasetFormat(dataBuckets, dimGetter, dimTransform)
-		self.dataset = None
 
 	@abstractmethod
 	def getDataset(self) -> Any:
@@ -133,13 +137,7 @@ class DatasetReader(ABC):
 				yield items
 				del items
 
-	def summary(self) -> str:
-		return str(self)
-
-	# # @brief Number of iterations of current epoch. May or may not change after this epoch ends.
-	# def getNumIterations(self) -> int:
-	# 	return len(self.getBatchSizes())
-
+	# We just love to reinvent the wheel. But also let's reuse the existing wheels just in case.
 	def __str__(self) -> str:
 		summaryStr = "[Dataset Reader]"
 		summaryStr += "\n - Type: %s" % type(self)
@@ -150,3 +148,6 @@ class DatasetReader(ABC):
 
 	def __len__(self) -> int:
 		return self.getNumData()
+
+	def __getitem__(self, key):
+		return self.getIndex(key)
