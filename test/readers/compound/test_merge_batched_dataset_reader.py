@@ -44,7 +44,7 @@ class TestMergeBatchedDatasetReader:
 		for j in range(100):
 			batchItem, B = reader.getItem(j % n)
 			rgb = batchItem["data"]["rgb"]
-			index = reader.getIndex(j % n)
+			index = reader.getBatchIndex(j % n)
 			start, end = index[0], index[-1] + 1
 			assert B == batchSizes[j % n]
 			assert np.abs(rgb - reader.baseReader.dataset[start : end]).sum() < 1e-5
@@ -89,7 +89,7 @@ class TestMergeBatchedDatasetReader:
 	# 		item2 = {"data" : {"rgb" : rgb2_split}, "labels" : {"class" : [0]}}
 
 def main():
-	TestMergeBatchedDatasetReader().test_constructor_1()
+	TestMergeBatchedDatasetReader().test_getItem_1()
 	# TestBatchedDatasetReader().test_mergeItems_1()
 	# TestBatchedDatasetReader().test_splitItems_1()
 	# TestBatchedDatasetReader().test_mergeSplit_1()

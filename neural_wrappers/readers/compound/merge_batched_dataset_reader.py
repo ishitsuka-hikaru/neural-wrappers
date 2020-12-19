@@ -23,19 +23,17 @@ class MergeBatchedDatasetReader(BatchedDatasetReader):
 		return self.baseReader.getNumData()
 
 	@overrides
-	def getIndex(self, i:int) -> DatasetIndex:
-		batchIndex = super().getIndex(i)
-		if isinstance(batchIndex, slice):
-			batchIndex = np.arange(batchIndex.start, batchIndex.stop)
+	def getBatchIndex(self, i:int) -> DatasetIndex:
+		batchIndex = super().getBatchIndex(i)
+		batchIndex = np.arange(batchIndex.start, batchIndex.stop)
 		return batchIndex
 
 	# @brief Gets the items of this batch, one by one, from the base reader, and then
 	#  merges them together using the provided merge method.
 	# @reutrn The current batch of items.
 	@overrides
-	def getItem(self, i:DatasetIndex) -> Tuple[DatasetItem, int]:
-		batchIndex = self.getIndex(i)
-		items = [self.baseReader.getItem(j) for j in batchIndex]
-		b = len(items)
-		items = self.mergeItems(items, b)
-		return items, b
+	def getBatchItem(self, i:DatasetIndex) -> Tuple[DatasetItem, int]:
+		assert isinstance(i, np.ndarray)
+		items = [self.baseReader.getItem(j) for j in i]
+		items = self.mergeItems(items, len(items))
+		return items

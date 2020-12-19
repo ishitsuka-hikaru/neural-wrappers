@@ -44,8 +44,8 @@ class StaticBatchedDatasetReader(BatchedDatasetReader):
 	#  merges them together using the provided merge method.
 	# @reutrn The current batch of items.
 	@overrides
-	def getItem(self, i:DatasetIndex) -> Tuple[DatasetItem, int]:
-		return self.baseReader.getItem(i)
+	def getBatchItem(self, i:DatasetIndex) -> Tuple[DatasetItem, int]:
+		return self.baseReader.getBatchItem(i)
 
 	@overrides
 	def __str__(self) -> str:

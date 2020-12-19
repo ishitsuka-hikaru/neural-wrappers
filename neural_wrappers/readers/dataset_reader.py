@@ -75,8 +75,8 @@ class DatasetReader(ABC):
 	# Returns the logical index of this item for this dataset. Since DatasetReader has no concept of batching, this
 	# must be overriden by higher level dataset readers that implement a logic where getIndex(i) != i.
 	#  For example: i => [i * B, (i + 1) * B] for batching
-	def getIndex(self, i:int) -> DatasetIndex:
-		return i
+	# def getIndex(self, i:int) -> DatasetIndex:
+		# return i
 
 	# The number of iterations for this epochis equal to the number of data as provided by self.getNumData, because this
 	#  default dataset reader has no concept of batching or advanced indexing. If a raw dataset has a different logic
@@ -87,8 +87,8 @@ class DatasetReader(ABC):
 	# @brief Returns the item at index i. Basically g(i) -> Item(i). Item(i) will follow dataBuckets schema,
 	#  and will call dimGetter for each dimension for this index.
 	# @return The item at index i
-	def getItem(self, i:int) -> DatasetItem:
-		index = self.getIndex(i)
+	def getItem(self, index:DatasetIndex) -> DatasetItem:
+		# index = self.getIndex(i)
 		dataBuckets = self.datasetFormat.dataBuckets
 		allDims = self.datasetFormat.allDims
 		dimGetter = self.datasetFormat.dimGetter
