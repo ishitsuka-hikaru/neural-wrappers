@@ -253,6 +253,7 @@ class NWModule(nn.Module, ABC):
 		if printMessage:
 			pbar = tqdm(pbar, desc="[%s] Iteration" % Prefix, postfix={str(k) : 0.000 for k in metricResults})
 		for i in pbar:
+			# TODO: we still assume inputs, labels = data. Update this to be generic!
 			items = next(generator)
 			npInputs, npLabels = items
 			trInputs, trLabels = trGetData(npInputs), trGetData(npLabels)

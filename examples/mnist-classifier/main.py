@@ -1,9 +1,11 @@
 import sys
+import h5py
 import numpy as np
 import torch as tr
 import torch.optim as optim
 import torch.nn as nn
 import torch.nn.functional as F
+from argparse import ArgumentParser
 from functools import partial
 from models import ModelFC, ModelConv
 from neural_wrappers.readers import MNISTReader
@@ -12,10 +14,6 @@ from neural_wrappers.schedulers import ReduceLRAndBacktrackOnPlateau
 from neural_wrappers.utilities import getGenerators
 from neural_wrappers.metrics import Accuracy
 from neural_wrappers.pytorch import device
-
-from neural_wrappers.utilities import isBaseOf
-
-from argparse import ArgumentParser
 
 def getArgs():
 	parser = ArgumentParser()
@@ -36,6 +34,12 @@ def getArgs():
 		assert not args.numEpochs is None
 	return args
 
+# Small wrapper used for current NWModule implementation of runOneEpoch. Will update when NWModule is updated.
+class Reader(MNISTReader):
+	def iterateOneEpoch(self):
+		for items, batch in super().iterateOneEpoch():
+			yield (items["data"]["images"], items["labels"]["labels"])
+
 def lossFn(y, t):
 	# Negative log-likeklihood (used for softmax+NLL for classification), expecting targets are one-hot encoded
 	y = F.softmax(y, dim=1)
@@ -45,10 +49,13 @@ def lossFn(y, t):
 def main():
 	args = getArgs()
 
-	reader = MNISTReader(args.dataset_path)
-	print(reader.summary())
-	trainGenerator, trainSteps, valGenerator, valSteps = getGenerators(reader, \
-		batchSize=args.batchSize, keys=["train", "test"])
+	trainReader = Reader(h5py.File(args.dataset_path, "r")["train"])
+	validationReader = Reader(h5py.File(args.dataset_path, "r")["test"])
+	print(trainReader)
+	print(validationReader)
+
+	trainGenerator, trainSteps = getGenerators(trainReader, batchSize=args.batchSize)
+	validationGenerator, validationSteps = getGenerators(validationReader, batchSize=args.batchSize)
 
 	model = {
 		"model_fc" : ModelFC(inputShape=(28, 28, 1), outputNumClasses=10),
@@ -64,14 +71,14 @@ def main():
 
 	if args.type == "train":
 		model.train_generator(trainGenerator, trainSteps, numEpochs=args.numEpochs, \
-			validationGenerator=valGenerator, validationSteps=valSteps)
+			validationGenerator=validationGenerator, validationSteps=validationSteps)
 	elif args.type == "retrain":
 		model.loadModel(args.weightsFile)
 		model.train_generator(trainGenerator, trainSteps, numEpochs=args.numEpochs, \
-			validationGenerator=valGenerator, validationSteps=valSteps)
+			validationGenerator=validationGenerator, validationSteps=validationSteps)
 	elif args.type == "test":
 		model.loadModel(args.weightsFile)
-		metrics = model.test_generator(valGenerator, valSteps)
+		metrics = model.test_generator(validationGenerator, validationSteps)
 		print("Metrics: %s" % (metrics))
 
 if __name__ == "__main__":
