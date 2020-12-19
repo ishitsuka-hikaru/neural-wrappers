@@ -21,6 +21,8 @@ class MNISTReader(H5BatchedDatasetReader):
 				"labels" : {"labels" : lambda x : toCategorical(x, numClasses=10)}
 			}
 		)
+		self.batchSizes = []
+		self.batchSize = 0
 
 	def setBatchSize(self, batchSize:int):
 		N = self.getNumData()
@@ -28,6 +30,7 @@ class MNISTReader(H5BatchedDatasetReader):
 		batchSizes = n * [batchSize]
 		if N % batchSize != 0:
 			batchSizes.append(N % batchSize)
+		self.batchSize = batchSize
 		self.batchSizes = batchSizes
 
 	@overrides
