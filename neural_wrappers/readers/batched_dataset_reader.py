@@ -42,3 +42,15 @@ class BatchedDatasetReader(DatasetReader):
 		item = super().getItem(i)
 		b = self.getBatchSizes()[i]
 		return item, b
+
+	@overrides
+	def __str__(self) -> str:
+		summaryStr = "[Batched Dataset Reader]"
+		summaryStr += "\n - Path: %s" % self.datasetPath
+		summaryStr += "\n - Type: %s" % type(self)
+		summaryStr += "\n - Data buckets:"
+		for dataBucket in self.datasetFormat.dataBuckets:
+			summaryStr += "\n   - %s => %s" % (dataBucket, self.datasetFormat.dataBuckets[dataBucket])
+		summaryStr += "\n - Num data: %d. Num batches: %d. Num iterations this epoch: %d" % \
+			(self.getNumData(), len(self.getBatchSizes()), self.getNumIterations())
+		return summaryStr
