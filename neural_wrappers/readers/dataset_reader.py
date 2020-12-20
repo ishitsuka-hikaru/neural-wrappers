@@ -129,19 +129,15 @@ class DatasetReader(ABC):
 		assert maxPrefetch >= 0
 		while True:
 			# Instantaite the epoch generator, use BackgroundGenerator if required on top of it
-			#  and then iterate forever. After N iterations, we're reinstantiating it. We call
-			#  getNumData each time, because it can change between iterations!
+			#  and then iterate forever.
+			print("[iterateForever] New epoch")
 			iterateGenerator = self.iterateOneEpoch()
-			N = self.getNumData()
-
 			if maxPrefetch > 0:
 				iterateGenerator = BackgroundGenerator(iterateGenerator, max_prefetch=maxPrefetch)
-
-			for i, items in enumerate(iterateGenerator):
-				if i == N:
-					break
+			
+			for j, items in enumerate(iterateGenerator):
+				print("[iterateForever] j=%d" % j)
 				yield items
-				del items
 
 	# We just love to reinvent the wheel. But also let's reuse the existing wheels just in case.
 	def __str__(self) -> str:

@@ -8,9 +8,6 @@ from ..dataset_types import *
 class StaticBatchedDatasetReader(CompoundBatchedDatasetReader):
 	def __init__(self, baseReader:BatchedDatasetReader, batchSize:int):
 		assert isinstance(baseReader, BatchedDatasetReader)
-		# super().__init__(dataBuckets=baseReader.datasetFormat.dataBuckets, \
-		# 	dimGetter=baseReader.datasetFormat.dimGetter, dimTransform=baseReader.datasetFormat.dimTransform)
-		# self.baseReader = baseReader
 		super().__init__(baseReader)
 		self.setBatchSize(batchSize)
 

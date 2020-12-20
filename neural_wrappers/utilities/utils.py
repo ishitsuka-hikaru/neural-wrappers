@@ -114,9 +114,10 @@ def topologicalSort(depGraph):
 # @param[in] maxPrefetch Whether to use prefetch_generator library to use multiple threads to read N iterations ahead.
 # @param[in] keys The keys used to return pairs of (generator, iterations). Defaults to "train", "validation"
 # @return A flattened list of pairs of type (generator, iteraions). For the values, we get 4 items.
-def getGenerators(reader, batchSize:int, maxPrefetch:int=1):
-	assert hasattr(reader, "setBatchSize")
-	reader.setBatchSize(batchSize)
+def getGenerators(reader, batchSize:int=None, maxPrefetch:int=1):
+	if not batchSize is None:
+		assert hasattr(reader, "setBatchSize"), "reader has no method setBatchSizes. Call getGenerators with None."
+		reader.setBatchSize(batchSize)
 	generator = reader.iterateForever(maxPrefetch=maxPrefetch)
 	numIterations = reader.getNumIterations()
 	return generator, numIterations
