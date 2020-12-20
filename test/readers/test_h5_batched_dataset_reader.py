@@ -55,7 +55,7 @@ class TestH5BatchedDatasetReader:
 		for j in range(100):
 			batchItem, B = reader.getItem(j % n)
 			rgb = batchItem["data"]["rgb"]
-			index = reader.getBatchIndex(j % n)
+			index = reader.getBatchIndex(batchSizes, j % n)
 			assert B == batchSizes[j % n]
 			assert np.abs(rgb - reader.dataset["rgb"][index.start : index.stop]).sum() < 1e-5
 
@@ -69,7 +69,7 @@ class TestH5BatchedDatasetReader:
 			except Exception:
 				breakpoint()
 			rgb = batchItem["data"]["rgb"]
-			index = reader.getBatchIndex(j % n)
+			index = reader.getBatchIndex(batchSizes, j % n)
 			assert np.abs(rgb - reader.dataset["rgb"][index.start : index.stop]).sum() < 1e-5
 
 			if j == 100:

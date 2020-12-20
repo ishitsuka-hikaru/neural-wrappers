@@ -23,8 +23,8 @@ class MergeBatchedDatasetReader(BatchedDatasetReader):
 		return self.baseReader.getNumData()
 
 	@overrides
-	def getBatchIndex(self, i:int) -> DatasetIndex:
-		batchIndex = super().getBatchIndex(i)
+	def getBatchIndex(self, batches:List[int], i:int) -> DatasetIndex:
+		batchIndex = super().getBatchIndex(batches, i)
 		batchIndex = np.arange(batchIndex.start, batchIndex.stop)
 		return batchIndex
 
