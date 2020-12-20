@@ -24,10 +24,14 @@ class Reader(H5BatchedDatasetReader):
 			dataBuckets = {"data" : ["rgb"], "labels" : ["class"]},
 			dimTransform = {}
 		)
-		self.batches = self.dataset["batches"][()]
+		self.setBatches(self.dataset["batches"][()])
 
 	@overrides
-	def getBatchSizes(self) -> List[int]:
+	def setBatches(self, batches):
+		self.batches = batches
+
+	@overrides
+	def getBatches(self) -> List[int]:
 		return self.batches
 
 class TestH5BatchedDatasetReader:
@@ -46,7 +50,7 @@ class TestH5BatchedDatasetReader:
 
 	def test_getItem_2(self):
 		reader = Reader()
-		batchSizes = reader.getBatchSizes()
+		batchSizes = reader.getBatches()
 		n = len(batchSizes)
 		for j in range(100):
 			batchItem, B = reader.getItem(j % n)
@@ -57,7 +61,7 @@ class TestH5BatchedDatasetReader:
 
 	def test_iterateForever_1(self):
 		reader = Reader()
-		batchSizes = reader.getBatchSizes()
+		batchSizes = reader.getBatches()
 		n = len(batchSizes)
 		for j, (batchItem, B) in enumerate(reader.iterateForever()):
 			try:

@@ -1,7 +1,7 @@
 import numpy as np
 from functools import partial
 from overrides import overrides
-from typing import Iterator, Tuple
+from typing import Iterator, Tuple, List
 from ..h5_batched_dataset_reader import H5BatchedDatasetReader
 from ...utilities import toCategorical
 
@@ -21,18 +21,28 @@ class MNISTReader(H5BatchedDatasetReader):
 				"labels" : {"labels" : lambda x : toCategorical(x, numClasses=10)}
 			}
 		)
-		self.batchSizes = []
+		self.batches = []
 		self.batchSize = 0
 
+	# @param[in] batchSize The static batch size required to iterate one epoch. If the batch size is not divisible by
+	#  the number of items, the last batch will trimmed accordingly. If the provided value is -1, it is set to the
+	#  default value of the entire dataset, based on self.getNumData()
 	def setBatchSize(self, batchSize:int):
+		assert batchSize == 1 or batchSize > 0
 		N = self.getNumData()
+		if batchSize == -1:
+			batchSize = N
 		n = N // batchSize
-		batchSizes = n * [batchSize]
+		batches = n * [batchSize]
 		if N % batchSize != 0:
-			batchSizes.append(N % batchSize)
+			batches.append(N % batchSize)
 		self.batchSize = batchSize
-		self.batchSizes = batchSizes
+		self.setBatches(batches)
 
 	@overrides
-	def getBatchSizes(self):
-		return self.batchSizes
+	def setBatches(self, batches:List[int]):
+		self.batches = batches
+
+	@overrides
+	def getBatches(self) -> List[int]:
+		return self.batches

@@ -6,16 +6,20 @@ from .dataset_types import *
 
 class BatchedDatasetReader(DatasetReader):
 	@abstractmethod
-	def getBatchSizes(self) -> List[int]:
+	def getBatches(self) -> List[int]:
+		pass
+
+	@abstractmethod
+	def setBatches(self, batches:List[int]):
 		pass
 
 	@overrides
 	def getNumIterations(self) -> int:
-		return len(self.getBatchSizes())
+		return len(self.getBatches())
 
 	def getBatchIndex(self, i:int) -> DatasetIndex:
 		# [1, 5, 4, 2]
-		batches = self.getBatchSizes()
+		batches = self.getBatches()
 		# [0, 1, 6, 10, 12]
 		cumsum = np.insert(np.cumsum(batches), 0, 0)
 		# i = 2 => B = [6, 7, 8, 9]
@@ -36,7 +40,7 @@ class BatchedDatasetReader(DatasetReader):
 	def getItem(self, i:int) -> Tuple[DatasetItem, int]:
 		index = self.getBatchIndex(i)
 		batchItem = self.getBatchItem(index)
-		B = self.getBatchSizes()[i]
+		B = self.getBatches()[i]
 		return batchItem, B
 
 	@overrides

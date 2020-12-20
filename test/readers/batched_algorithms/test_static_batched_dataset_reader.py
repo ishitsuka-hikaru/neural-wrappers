@@ -23,7 +23,7 @@ class TestStaticBatchedDatasetReader:
 
 	def test_getItem_2(self):
 		reader = StaticBatchedDatasetReader(BaseReader(), batchSize=1)
-		batchSizes = reader.getBatchSizes()
+		batchSizes = reader.getBatches()
 		n = len(batchSizes)
 		for j in range(100):
 			batchItem, B = reader.getItem(j % n)
@@ -34,7 +34,7 @@ class TestStaticBatchedDatasetReader:
 
 	def test_iterateForever_1(self):
 		reader = StaticBatchedDatasetReader(BaseReader(), batchSize=1)
-		batchSizes = reader.getBatchSizes()
+		batchSizes = reader.getBatches()
 		n = len(batchSizes)
 		for j, (batchItem, B) in enumerate(reader.iterateForever()):
 			try:

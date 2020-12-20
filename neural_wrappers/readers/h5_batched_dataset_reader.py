@@ -64,5 +64,5 @@ class H5BatchedDatasetReader(BatchedDatasetReader):
 		for dataBucket in self.datasetFormat.dataBuckets:
 			summaryStr += "\n   - %s => %s" % (dataBucket, self.datasetFormat.dataBuckets[dataBucket])
 		summaryStr += "\n - Num data: %d. Num batches: %d. Num iterations this epoch: %d" % \
-			(self.getNumData(), len(self.getBatchSizes()), self.getNumIterations())
+			(self.getNumData(), len(self.getBatches()), self.getNumIterations())
 		return summaryStr

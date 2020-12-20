@@ -14,7 +14,7 @@ class Reader(BatchedDatasetReader):
 			dimTransform = {}
 		)
 		self.dataset = np.random.randn(10, 3)
-		self.batches = np.array([4, 1, 2, 3], dtype=np.int32)
+		self.setBatches(np.array([4, 1, 2, 3], dtype=np.int32))
 
 	@overrides
 	def getDataset(self) -> Any:
@@ -25,7 +25,11 @@ class Reader(BatchedDatasetReader):
 		return len(self.dataset)
 
 	@overrides
-	def getBatchSizes(self) -> List[int]:
+	def setBatches(self, batches):
+		self.batches = batches
+
+	@overrides
+	def getBatches(self) -> List[int]:
 		return self.batches
 
 class TestBatchedDatasetReader:
@@ -43,7 +47,7 @@ class TestBatchedDatasetReader:
 
 	def test_getItem_2(self):
 		reader = Reader()
-		batchSizes = reader.getBatchSizes()
+		batchSizes = reader.getBatches()
 		n = len(batchSizes)
 		for j in range(100):
 			batchItem, B = reader.getItem(j % n)
@@ -54,7 +58,7 @@ class TestBatchedDatasetReader:
 
 	def test_iterateForever_1(self):
 		reader = Reader()
-		batchSizes = reader.getBatchSizes()
+		batchSizes = reader.getBatches()
 		n = len(batchSizes)
 		for j, (batchItem, B) in enumerate(reader.iterateForever()):
 			try:

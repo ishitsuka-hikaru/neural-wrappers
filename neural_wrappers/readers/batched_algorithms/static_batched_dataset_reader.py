@@ -1,17 +1,18 @@
 from overrides import overrides
 from typing import List, Tuple
 from ..batched_dataset_reader import BatchedDatasetReader
+from .compound_batched_dataset_reader import CompoundBatchedDatasetReader
 from ..dataset_reader import DatasetReader
 from ..dataset_types import *
 
-class StaticBatchedDatasetReader(BatchedDatasetReader):
+class StaticBatchedDatasetReader(CompoundBatchedDatasetReader):
 	def __init__(self, baseReader:BatchedDatasetReader, batchSize:int):
 		assert isinstance(baseReader, BatchedDatasetReader)
-		super().__init__(dataBuckets=baseReader.datasetFormat.dataBuckets, \
-			dimGetter=baseReader.datasetFormat.dimGetter, dimTransform=baseReader.datasetFormat.dimTransform)
-		self.baseReader = baseReader
+		# super().__init__(dataBuckets=baseReader.datasetFormat.dataBuckets, \
+		# 	dimGetter=baseReader.datasetFormat.dimGetter, dimTransform=baseReader.datasetFormat.dimTransform)
+		# self.baseReader = baseReader
+		super().__init__(baseReader)
 		self.setBatchSize(batchSize)
-		self.baseReader.getBatchSizes = self.getBatchSizes
 
 	# @param[in] batchSize The static batch size required to iterate one epoch. If the batch size is not divisible by
 	#  the number of items, the last batch will trimmed accordingly. If the provided value is -1, it is set to the
@@ -22,30 +23,19 @@ class StaticBatchedDatasetReader(BatchedDatasetReader):
 		if batchSize == -1:
 			batchSize = N
 		n = N // batchSize
-		batchSizes = n * [batchSize]
+		batches = n * [batchSize]
 		if N % batchSize != 0:
-			batchSizes.append(N % batchSize)
+			batches.append(N % batchSize)
 		self.batchSize = batchSize
-		self.batchSizes = batchSizes
+		self.setBatches(batches)
 
 	@overrides
-	def getBatchSizes(self) -> List[int]:
-		return self.batchSizes
+	def setBatches(self, batches:List[int]):
+		self.batches = batches
 
 	@overrides
-	def getDataset(self):
-		return self.baseReader
-
-	@overrides
-	def getNumData(self):
-		return self.baseReader.getNumData()
-
-	# @brief Gets the items of this batch, one by one, from the base reader, and then
-	#  merges them together using the provided merge method.
-	# @reutrn The current batch of items.
-	@overrides
-	def getBatchItem(self, i:DatasetIndex) -> Tuple[DatasetItem, int]:
-		return self.baseReader.getBatchItem(i)
+	def getBatches(self) -> List[int]:
+		return self.batches
 
 	@overrides
 	def __str__(self) -> str:
