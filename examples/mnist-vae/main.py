@@ -3,11 +3,12 @@
 # Notes: loss is used using the empirical (latent_loss / reconstruction_loss) * reconstruction_loss + latent_loss
 # If you get NaNs during training, lower the learning rate or change the optimizer.
 
+import h5py
 from argparse import ArgumentParser
 
 import torch.optim as optim
 
-from neural_wrappers.readers import MNISTReader
+from neural_wrappers.readers import MNISTReader, StaticBatchedDatasetReader
 from neural_wrappers.pytorch import VariationalAutoencoderNetwork, device
 from neural_wrappers.pytorch.variational_autoencoder_network import latentLossFn, decoderLossFn
 from neural_wrappers.pytorch.utils import npToTrCall
@@ -33,8 +34,9 @@ def getArgs():
 def main():
 	args = getArgs()
 
-	reader = BinaryMNISTReader(args.datasetPath)
-	generator, numSteps = getGenerators(reader, args.batchSize, keys=["train"])
+	reader = StaticBatchedDatasetReader(BinaryMNISTReader(h5py.File(args.datasetPath, "r")["train"]), args.batchSize)
+	print(reader)
+	generator, numSteps = getGenerators(reader)
 
 	encoder = Encoder(noiseSize=args.noiseSize)
 	decoder = Decoder(noiseSize=args.noiseSize)
