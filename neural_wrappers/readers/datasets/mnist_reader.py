@@ -29,7 +29,7 @@ class MNISTReader(H5BatchedDatasetReader):
 	#  default value of the entire dataset, based on self.getNumData()
 	def setBatchSize(self, batchSize:int):
 		assert batchSize == 1 or batchSize > 0
-		N = self.getNumData()
+		N = len(self)
 		if batchSize == -1:
 			batchSize = N
 		n = N // batchSize

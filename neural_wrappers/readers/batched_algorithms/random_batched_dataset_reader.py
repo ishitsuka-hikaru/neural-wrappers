@@ -33,6 +33,7 @@ class RandomBatchedDatasetReader(CompoundBatchedDatasetReader):
 		assert sum(batches) == N
 		self.numShuffles += 1
 		# print("[getShuffle] New shuffle. N=%d. batches=%s. numShuffles=%d" % (len(batches), batches, self.numShuffles))
+		# breakpoint()
 		return batches
 
 	@overrides
@@ -51,6 +52,6 @@ class RandomBatchedDatasetReader(CompoundBatchedDatasetReader):
 		summaryStr += "\n - Data buckets:"
 		for dataBucket in self.datasetFormat.dataBuckets:
 			summaryStr += "\n   - %s => %s" % (dataBucket, self.datasetFormat.dataBuckets[dataBucket])
-		summaryStr += "\n - Num data: %d. Num batches this trial: %d. Num iterations this epoch: %d" % \
-			(self.getNumData(), len(self.getBatchSizes()), self.getNumIterations())
+		summaryStr += "\n - Num data: %d. Num batches this trial: %d. Num shuffles so far: %d" % \
+			(len(self), len(self.getBatches(), self.numShuffles))
 		return summaryStr

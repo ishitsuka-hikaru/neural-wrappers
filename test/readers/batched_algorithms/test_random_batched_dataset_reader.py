@@ -52,14 +52,15 @@ class TestRandomBatchedDatasetReader:
 			if j == 100:
 				break
 
-	# def test_iterateOneEpoch_1(self):
-	# 	reader = RandomBatchedDatasetReader(BaseReader())
-	# 	assert reader.numShuffles == 1
-	# 	g = reader.iterateOneEpoch()
-	# 	N = reader.getNumIterations()
-	# 	assert reader.numShuffles == 1
-	# 	_ = next(g)
-	# 	assert reader.numShuffles == 1 + (N == 1)
+	def test_iterateOneEpoch_1(self):
+		reader = RandomBatchedDatasetReader(BaseReader())
+		assert reader.numShuffles == 0
+		g = reader.iterateOneEpoch()
+		N = len(g)
+		print(reader.numShuffles)
+		assert reader.numShuffles == 1
+		_ = next(g)
+		assert reader.numShuffles == 1
 
 	# def test_getGenerators_2(self):
 	# 	reader = RandomBatchedDatasetReader(BaseReader())
@@ -98,7 +99,7 @@ class TestRandomBatchedDatasetReader:
 	# 		assert np.abs(rgb2[1] - rgb1_1[0]).sum() < 1e-5
 
 def main():
-	TestRandomBatchedDatasetReader().test_iterateForever_1()
+	TestRandomBatchedDatasetReader().test_iterateOneEpoch_1()
 
 if __name__ == "__main__":
 	main()

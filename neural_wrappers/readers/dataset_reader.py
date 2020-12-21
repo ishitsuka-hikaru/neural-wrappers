@@ -38,7 +38,7 @@ class DatasetIterator:
 	def __init__(self, reader:DatasetReader):
 		self.reader = reader
 		self.ix = -1
-		self.len = self.reader.getNumIterations()
+		self.len = self.reader.getNumData()
 	
 	def __len__(self):
 		return self.len
@@ -126,12 +126,6 @@ class DatasetReader(ABC):
 	#  For example: i => [i * B, (i + 1) * B] for batching
 	# def getIndex(self, i:int) -> DatasetIndex:
 		# return i
-
-	# The number of iterations for this epochis equal to the number of data as provided by self.getNumData, because this
-	#  default dataset reader has no concept of batching or advanced indexing. If a raw dataset has a different logic
-	#  (i.e. using PercentDatasetReader or such), this method must be overriden.
-	def getNumIterations(self) -> int:
-		return self.getNumData()
 
 	# @brief Returns the item at index i. Basically g(i) -> Item(i). Item(i) will follow dataBuckets schema,
 	#  and will call dimGetter for each dimension for this index.

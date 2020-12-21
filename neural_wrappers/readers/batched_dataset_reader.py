@@ -12,8 +12,7 @@ class BatchedDatasetIterator(DatasetIterator):
 		# Each iterator hgas it's own batches (can change for some readers, such as RandomBatchedDatasetReader, where
 		#  each epoch has its own set of batches).
 		self.batches = self.reader.getBatches()
-		self.len = self.reader.getNumIterations()
-		assert self.len == len(self.batches)
+		self.len = len(self.batches)
 
 	def __len__(self):
 		return self.len
@@ -27,10 +26,6 @@ class BatchedDatasetReader(DatasetReader):
 	@abstractmethod
 	def getBatches(self) -> List[int]:
 		pass
-
-	@overrides
-	def getNumIterations(self) -> int:
-		return len(self.getBatches())
 
 	def getBatchIndex(self, batches:List[int], i:int) -> DatasetIndex:
 		# batches = [1, 5, 4, 2] => cumsum = [0, 1, 6, 10, 12]
@@ -69,6 +64,5 @@ class BatchedDatasetReader(DatasetReader):
 		summaryStr += "\n - Data buckets:"
 		for dataBucket in self.datasetFormat.dataBuckets:
 			summaryStr += "\n   - %s => %s" % (dataBucket, self.datasetFormat.dataBuckets[dataBucket])
-		summaryStr += "\n - Num data: %d. Num batches: %d. Num iterations this epoch: %d" % \
-			(self.getNumData(), len(self.getBatchSizes()), self.getNumIterations())
+		summaryStr += "\n - Num data: %d. Num batches: %d." % (len(self), len(self.getBatches()))
 		return summaryStr

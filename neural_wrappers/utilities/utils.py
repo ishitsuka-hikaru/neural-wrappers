@@ -119,8 +119,7 @@ def getGenerators(reader, batchSize:int=None, maxPrefetch:int=1):
 		assert hasattr(reader, "setBatchSize"), "reader has no method setBatchSizes. Call getGenerators with None."
 		reader.setBatchSize(batchSize)
 	generator = reader.iterateForever(maxPrefetch=maxPrefetch)
-	numIterations = reader.getNumIterations()
-	return generator, numIterations
+	return generator, len(generator)
 
 # Deep check if two items are equal. Dicts are checked value by value and numpy array are compared using "closeEnough"
 #  method
