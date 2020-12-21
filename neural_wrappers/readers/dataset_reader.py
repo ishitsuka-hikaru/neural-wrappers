@@ -8,6 +8,32 @@ from copy import deepcopy
 from .dataset_types import DimGetterCallable, DimTransformCallable, DatasetIndex, DatasetItem
 from ..utilities import flattenList
 
+class DatasetGenerator:
+	def __init__(self, reader, maxPrefetch):
+		self.reader = reader
+		self.maxPrefetch = maxPrefetch
+		self.newEpoch()
+
+	def newEpoch(self):
+		self.currentGenerator = self.reader.iterateOneEpoch()
+		self.currentLen = len(self.currentGenerator)
+		if self.maxPrefetch > 0:
+			self.currentGenerator = BackgroundGenerator(self.currentGenerator, max_prefetch=self.maxPrefetch)
+		self.ix = -1
+		print("[iterateForever] New epoch. Len=%d" % self.currentLen)
+
+	def __len__(self):
+		return self.currentLen
+
+	def __next__(self):
+		if self.ix == self.currentLen - 1:
+			self.newEpoch()
+		self.ix += 1
+		return self.reader[self.ix]
+	
+	def __iter__(self):
+		return self
+
 class DatasetIterator:
 	def __init__(self, reader:DatasetReader):
 		self.reader = reader
@@ -17,14 +43,14 @@ class DatasetIterator:
 	def __len__(self):
 		return self.len
 
-	def __getitem__(self, key):
-		return self.reader[key]
-
 	def __next__(self):
 		self.ix += 1
 		if self.ix < len(self):
-			return self[self.ix]
+			return self.reader[self.ix]
 		raise StopIteration
+
+	def __iter__(self):
+		return self
 
 # @param[in] dataBuckets A dictionary with all available data bucket names (data, label etc.) and, for each bucket,
 #  a list of dimensions (rgb, depth, etc.).
@@ -146,17 +172,7 @@ class DatasetReader(ABC):
 	#  normal in most cases, due to the multi-threaded nature. For length > 1, the queue size is just increased.
 	def iterateForever(self, maxPrefetch:int=0) -> Iterator[Dict[str, np.ndarray]]:
 		assert maxPrefetch >= 0
-		while True:
-			# Instantaite the epoch generator, use BackgroundGenerator if required on top of it
-			#  and then iterate forever.
-			print("[iterateForever] New epoch")
-			iterateGenerator = self.iterateOneEpoch()
-			n = len(iterateGenerator)
-
-			if maxPrefetch > 0:
-				iterateGenerator = BackgroundGenerator(iterateGenerator, max_prefetch=maxPrefetch)
-			for i in range(n):
-				yield iterateGenerator[i]
+		return DatasetGenerator(self, maxPrefetch)
 
 	# We just love to reinvent the wheel. But also let's reuse the existing wheels just in case.
 	def __str__(self) -> str:

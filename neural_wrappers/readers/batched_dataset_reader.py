@@ -18,17 +18,16 @@ class BatchedDatasetIterator:
 	def __len__(self):
 		return self.len
 
-	def __getitem__(self, key):
-		assert isinstance(key, int)
-		index = self.reader.getBatchIndex(self.batches, key)
-		batchItem = self.reader.getBatchItem(index)
-		return batchItem, self.batches[key]
-
 	def __next__(self):
 		self.ix += 1
 		if self.ix < len(self):
-			return self[self.ix]
+			index = self.reader.getBatchIndex(self.batches, self.ix)
+			batchItem = self.reader.getBatchItem(index)
+			return batchItem, self.batches[self.ix]
 		raise StopIteration
+
+	def __iter__(self):
+		return self
 
 class BatchedDatasetReader(DatasetReader):
 	@abstractmethod

@@ -31,55 +31,57 @@ class TestRandomBatchedDatasetReader:
 			assert rgb.shape[0] == batches[j % n], "%d vs %d" % (rgb.shape[0], batches[j % n])
 			assert np.abs(rgb - reader.baseReader.dataset[index.start : index.stop]).sum() < 1e-5
 
-	def test_iterateForever_1(self):
-		reader = RandomBatchedDatasetReader(BaseReader())
-		n = 0
-		k = 0
-		batches = None
-		for j, (batchItem, B) in enumerate(reader.iterateForever()):
-			if k == 0 or k % n == 0:
-				oldBatches = batches
-				batches = reader.getBatches()
-				print("[tesT_iterate_forever_1] old: %s. new: %s" % (oldBatches, batches))
-				n = len(batches)
-				k = 0
+	# def test_iterateForever_1(self):
+	# 	reader = RandomBatchedDatasetReader(BaseReader())
+	# 	generator = reader.iterateForever()
+	# 	breakpoint()
+	# 	n = 0
+	# 	k = 0
+	# 	batches = None
+	# 	for j, (batchItem, B) in enumerate(reader.iterateForever()):
+	# 		if k == 0 or k % n == 0:
+	# 			oldBatches = batches
+	# 			batches = reader.getBatches()
+	# 			print("[tesT_iterate_forever_1] old: %s. new: %s" % (oldBatches, batches))
+	# 			n = len(batches)
+	# 			k = 0
 
-			rgb = batchItem["data"]["rgb"]
-			try:
-				assert B == batches[k % n]
-			except Exception:
-				print("j=", j, batches, n, "=>", B, batches[k % n])
-				# breakpoint()
+	# 		rgb = batchItem["data"]["rgb"]
+	# 		try:
+	# 			assert B == batches[k % n]
+	# 		except Exception:
+	# 			print("j=", j, batches, n, "=>", B, batches[k % n])
+	# 			# breakpoint()
 
-			index = reader.getBatchIndex(batches, k % n)
-			assert np.abs(rgb - reader.baseReader.dataset[index.start : index.stop]).sum() < 1e-5
+	# 		index = reader.getBatchIndex(batches, k % n)
+	# 		assert np.abs(rgb - reader.baseReader.dataset[index.start : index.stop]).sum() < 1e-5
 
-			k += 1
-			if j == 100:
-				break
+	# 		k += 1
+	# 		if j == 100:
+	# 			break
 
-	def test_iterateOneEpoch_1(self):
-		reader = RandomBatchedDatasetReader(BaseReader())
-		assert reader.numShuffles == 1
-		g = reader.iterateOneEpoch()
-		N = reader.getNumIterations()
-		assert reader.numShuffles == 1
-		_ = next(g)
-		assert reader.numShuffles == 1 + (N == 1)
+	# def test_iterateOneEpoch_1(self):
+	# 	reader = RandomBatchedDatasetReader(BaseReader())
+	# 	assert reader.numShuffles == 1
+	# 	g = reader.iterateOneEpoch()
+	# 	N = reader.getNumIterations()
+	# 	assert reader.numShuffles == 1
+	# 	_ = next(g)
+	# 	assert reader.numShuffles == 1 + (N == 1)
 
-	def test_getGenerators_2(self):
-		reader = RandomBatchedDatasetReader(BaseReader())
-		assert reader.numShuffles == 1
-		g, N = getGenerators(reader)
-		print("[test_getGenerators_2] N=%d" % N)
-		_ = next(g)
-		assert reader.numShuffles == 2
+	# def test_getGenerators_2(self):
+	# 	reader = RandomBatchedDatasetReader(BaseReader())
+	# 	assert reader.numShuffles == 1
+	# 	g, N = getGenerators(reader)
+	# 	print("[test_getGenerators_2] N=%d" % N)
+	# 	_ = next(g)
+	# 	assert reader.numShuffles == 2
 
-		# for i in range(N-1):
-		# 	_ = next(g)
-		# assert reader.numShuffles == 3
-		# _ = next(g)
-		# assert reader.numShuffles == 
+	# 	# for i in range(N-1):
+	# 	# 	_ = next(g)
+	# 	# assert reader.numShuffles == 3
+	# 	# _ = next(g)
+	# 	# assert reader.numShuffles == 
 
 	# # TODO: Make this test pass :) We need to edit StaticBatchedDatasetReader to not make side effect change to the
 	# #  underlying dataset reader, but instead use it accordingly

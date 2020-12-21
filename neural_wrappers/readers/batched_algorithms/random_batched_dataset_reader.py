@@ -9,7 +9,8 @@ from ..dataset_types import *
 class RandomBatchedDatasetIterator(BatchedDatasetIterator):
 	def __init__(self, reader:RandomBatchedDatasetReader):
 		assert isinstance(reader, RandomBatchedDatasetReader)
-		super().__init__(reader)
+		self.reader = reader
+		self.ix = -1
 		# Unique for this epoch!
 		self.batches = self.reader.getShuffle()
 		self.len = len(self.batches)
@@ -19,7 +20,6 @@ class RandomBatchedDatasetReader(CompoundBatchedDatasetReader):
 		assert isinstance(baseReader, BatchedDatasetReader)
 		super().__init__(baseReader)
 		self.numShuffles = 0
-		# self.setBatches(self.getShuffle())
 
 	def getShuffle(self):
 		N = self.getNumData()
@@ -33,10 +33,6 @@ class RandomBatchedDatasetReader(CompoundBatchedDatasetReader):
 		assert sum(batches) == N
 		self.numShuffles += 1
 		return batches
-
-	# @overrides
-	# def setBatches(self, batches):
-	# 	self.batches = batches
 
 	@overrides
 	def getBatches(self) -> List[int]:
