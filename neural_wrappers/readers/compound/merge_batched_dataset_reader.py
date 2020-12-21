@@ -1,3 +1,5 @@
+# Helper class that takes a non-batched dataset reader and makes it batched, by merging multiple items via a merging
+#  function that is provided by the user.
 from overrides import overrides
 from abc import abstractmethod
 from typing import Tuple, List
@@ -7,16 +9,17 @@ from ..dataset_types import *
 
 class MergeBatchedDatasetReader(BatchedDatasetReader):
 	def __init__(self, baseReader:DatasetReader):
+		assert not isinstance(baseReader, BatchedDatasetReader), "Already a batched dataset, sir!"
 		self.baseReader = baseReader
 
 	# merge(i1, b1, i2, b2) -> i(1,2)
 	@abstractmethod
-	def mergeItems(self, item:List[DatasetItem], batchSize:int) -> DatasetItem:
+	def mergeItems(self, item:List[DatasetItem]) -> DatasetItem:
 		pass
 
 	@overrides
 	def getDataset(self):
-		return self.baseReader
+		return self.baseReader.getDataset()
 
 	@overrides
 	def getNumData(self):
@@ -33,7 +36,10 @@ class MergeBatchedDatasetReader(BatchedDatasetReader):
 	# @reutrn The current batch of items.
 	@overrides
 	def getBatchItem(self, i:DatasetIndex) -> Tuple[DatasetItem, int]:
-		assert isinstance(i, np.ndarray)
+		assert isinstance(i, np.ndarray), "Type: %s" % type(i)
 		items = [self.baseReader.getItem(j) for j in i]
-		items = self.mergeItems(items, len(items))
+		items = self.mergeItems(items)
 		return items
+
+	def __getattr__(self, key):
+		return getattr(self.baseReader, key)

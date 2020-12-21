@@ -1,8 +1,8 @@
 import numpy as np
 from overrides import overrides
 from typing import Tuple, List, Any
-from neural_wrappers.readers import DatasetItem, DatasetReader
-from neural_wrappers.readers.compound import MergeBatchedDatasetReader
+from neural_wrappers.readers import DatasetItem, DatasetReader, MergeBatchedDatasetReader, \
+	StaticBatchedDatasetReader, RandomBatchedDatasetReader
 import sys
 sys.path.append("..")
 from test_dataset_reader import DummyDataset
@@ -17,7 +17,7 @@ class Reader(MergeBatchedDatasetReader):
 
 	# # merge(i1, b1, i2, b2) -> i(1,2)
 	@overrides
-	def mergeItems(self, items:DatasetItem, batchSize:int) -> DatasetItem:
+	def mergeItems(self, items:List[DatasetItem]) -> DatasetItem:
 		rgbs = np.stack([item["data"]["rgb"] for item in items], axis=0)
 		classes = len(items) * [0]
 		item = {"data": {"rgb" : rgbs}, "labels" : {"class" : classes}}
@@ -46,44 +46,44 @@ class TestMergeBatchedDatasetReader:
 			start, end = index[0], index[-1] + 1
 			assert np.abs(rgb - reader.baseReader.dataset[start : end]).sum() < 1e-5
 
-	# def test_mergeItems_1(self):
-	# 	reader = Reader(DummyDataset())
-	# 	item1, B1 = reader.getItem(0)
-	# 	item2, B2 = reader.getItem(1)
-	# 	itemMerged = reader.mergeItems(item1, B1, item2, B2)
-	# 	rgb1 = item1["data"]["rgb"]
-	# 	rgb2 = item2["data"]["rgb"]
-	# 	rgbMerged = itemMerged["data"]["rgb"]
-	# 	assert np.abs(rgb1 - rgbMerged[0]).sum() < 1e-5
-	# 	assert np.abs(rgb2 - rgbMerged[1]).sum() < 1e-5
+	def test_mergeItems_1(self):
+		reader = Reader(DummyDataset())
+		item1 = reader.baseReader.getItem(0)
+		item2 = reader.baseReader.getItem(1)
+		itemMerged = reader.mergeItems([item1, item2])
+		rgb1 = item1["data"]["rgb"]
+		rgb2 = item2["data"]["rgb"]
+		rgbMerged = itemMerged["data"]["rgb"]
+		assert np.abs(rgb1 - rgbMerged[0]).sum() < 1e-5
+		assert np.abs(rgb2 - rgbMerged[1]).sum() < 1e-5
 
-	# def test_splitItems_1(self):
-	# 	reader = Reader(DummyDataset())
-	# 	rgbMerged = reader.dataset[0 : 2]
-	# 	itemMerged = {"data" : {"rgb" : rgbMerged}, "labels" : {"class" : [0, 0]}}
-	# 	item1, item2 = reader.splitItems(itemMerged, 1)
-	# 	rgb1 = item1["data"]["rgb"]
-	# 	rgb2 = item2["data"]["rgb"]
-	# 	assert np.abs(rgb1 - rgbMerged[0]).sum() < 1e-5
-	# 	assert np.abs(rgb2 - rgbMerged[1]).sum() < 1e-5
+	def test_iterateOneEpoch_1(self):
+		reader = Reader(DummyDataset())
+		generator = reader.iterateOneEpoch()
+		batches = reader.getBatches()
+		for i, (item, B) in enumerate(generator):
+			rgb = item["data"]["rgb"]
+			assert B == batches[i]
+			assert len(rgb) == batches[i]
+		assert i == len(generator) - 1
 
-	# def test_mergeSplit_1(self):
-	# 	reader = Reader(DummyDataset())
-	# 	item1, B1 = reader.getItem(0)
-	# 	item2, B2 = reader.getItem(1)
-	# 	rgb1 = item1["data"]["rgb"]
-	# 	rgb2 = item2["data"]["rgb"]
+	def test_iterateOneEpoch_StaticBatched_1(self):
+		reader = StaticBatchedDatasetReader(Reader(DummyDataset()), 4)
+		batches = reader.getBatches()
+		assert batches == [4, 4, 2]
+		item = reader.getBatchItem(reader.getBatchIndex(batches, 0))
+		rgb = item["data"]["rgb"]
+		assert len(rgb) == 4
 
-	# 	for i in range(3):
-	# 		itemMerged = reader.mergeItems(item1, B1, item2, B2)
-	# 		item1_split, item2_split = reader.splitItems(itemMerged, 1)
-	# 		rgb1_split = item1_split["data"]["rgb"]
-	# 		rgb2_split = item2_split["data"]["rgb"]
-	# 		assert np.abs(rgb1 - rgb1_split).sum() < 1e-5
-	# 		assert np.abs(rgb2 - rgb2_split).sum() < 1e-5
-
-	# 		item1 = {"data" : {"rgb" : rgb1_split}, "labels" : {"class" : [0]}}
-	# 		item2 = {"data" : {"rgb" : rgb2_split}, "labels" : {"class" : [0]}}
+	def test_iterateOneEpoch_RandomBatched_1(self):
+		reader = RandomBatchedDatasetReader(Reader(DummyDataset()))
+		generator = reader.iterateOneEpoch()
+		batches = generator.batches
+		for i, (item, B) in enumerate(generator):
+			rgb = item["data"]["rgb"]
+			assert B == batches[i]
+			assert len(rgb) == batches[i]
+		assert i == len(generator) - 1
 
 def main():
 	TestMergeBatchedDatasetReader().test_getItem_1()
