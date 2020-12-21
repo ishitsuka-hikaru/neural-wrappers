@@ -62,44 +62,61 @@ class TestRandomBatchedDatasetReader:
 		_ = next(g)
 		assert reader.numShuffles == 1
 
-	# def test_getGenerators_2(self):
-	# 	reader = RandomBatchedDatasetReader(BaseReader())
-	# 	assert reader.numShuffles == 1
-	# 	g, N = getGenerators(reader)
-	# 	print("[test_getGenerators_2] N=%d" % N)
-	# 	_ = next(g)
-	# 	assert reader.numShuffles == 2
+	def test_getGenerators_1(self):
+		reader = RandomBatchedDatasetReader(BaseReader())
+		assert reader.numShuffles == 0
+		g, N = getGenerators(reader)
+		_ = next(g)
+		assert reader.numShuffles == 1
 
-	# 	# for i in range(N-1):
-	# 	# 	_ = next(g)
-	# 	# assert reader.numShuffles == 3
-	# 	# _ = next(g)
-	# 	# assert reader.numShuffles == 
+		for i in range(N-1):
+			_ = next(g)
+		assert reader.numShuffles == 1
+		_ = next(g)
+		assert reader.numShuffles == 2
 
-	# # TODO: Make this test pass :) We need to edit StaticBatchedDatasetReader to not make side effect change to the
-	# #  underlying dataset reader, but instead use it accordingly
-	# def test_iterateOneEpoch(self):
-	# 	baseReader = BaseReader()
-	# 	reader1 = StaticBatchedDatasetReader(baseReader, batchSize=1)
-	# 	reader2 = StaticBatchedDatasetReader(baseReader, batchSize=1)
-	# 	g1, n1 = getGenerators(reader1, batchSize=1, maxPrefetch=0)
-	# 	g2, n2 = getGenerators(reader2, batchSize=2, maxPrefetch=0)
-	# 	for i in range(n1):
-	# 		i1_0, b1_0 = next(g1)
-	# 		i1_1, b1_1 = next(g1)
-	# 		i2, b2 = next(g2)
-	# 		rgb1_0 = i1_0["data"]["rgb"]
-	# 		rgb1_1 = i1_1["data"]["rgb"]
-	# 		rgb2 = i2["data"]["rgb"]
+	# Two generators going side by side 1 random epoch
+	def test_getGenerators_2(self):
+		reader = RandomBatchedDatasetReader(BaseReader(N=100))
+		g1, n1 = getGenerators(reader)
+		g2, n2 = getGenerators(reader)
 
-	# 		assert b1_0 == 1
-	# 		assert b1_1 == 1
-	# 		assert b2 == 2
-	# 		assert np.abs(rgb2[0] - rgb1_0[0]).sum() < 1e-5
-	# 		assert np.abs(rgb2[1] - rgb1_1[0]).sum() < 1e-5
+		i1, i2 = 0, 0
+		leftover1, leftover2 = np.zeros((0, 3)), np.zeros((0, 3))
+		# while i1 < n1 or i2 < n2:
+		for i in range(min(n1, n2)):
+			item1, b1 = next(g1)
+			item2, b2 = next(g2)
+			rgb1 = item1["data"]["rgb"]
+			rgb2 = item2["data"]["rgb"]
+
+			rgb1 = np.concatenate([leftover1, rgb1])
+			rgb2 = np.concatenate([leftover2, rgb2])
+			Min = min(len(rgb1), len(rgb2))
+			assert np.abs(rgb1[0 : Min] - rgb2[0 : Min]).sum() < 1e-5
+
+			leftover1 = rgb1[Min :]
+			leftover2 = rgb2[Min :]
+			i1 += b1
+			i2 += b2
+
+		i += 1
+		for j in range(i, n1):
+			item1, b1 = next(g1)
+			rgb1 = item1["data"]["rgb"]
+			assert np.abs(rgb1 - leftover2[0 : b1]).sum() < 1e-5
+			leftover2 = leftover2[b1 :]
+
+		for j in range(i, n2):
+			item2, b2 = next(g2)
+			rgb2 = item2["data"]["rgb"]
+			assert np.abs(rgb2 - leftover1[0 : b2]).sum() < 1e-5
+			leftover1 = leftover1[b2 :]
+		assert len(leftover1) == 0
+		assert len(leftover2) == 0
 
 def main():
-	TestRandomBatchedDatasetReader().test_iterateOneEpoch_1()
+	TestRandomBatchedDatasetReader().test_getGenerators_2()
 
 if __name__ == "__main__":
 	main()

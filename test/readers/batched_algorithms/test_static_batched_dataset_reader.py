@@ -54,8 +54,6 @@ class TestStaticBatchedDatasetReader:
 		halfN = getGenerators(reader, batchSize=2)[1]
 		assert N // 2 == halfN
 
-	# TODO: Make this test pass :) We need to edit StaticBatchedDatasetReader to not make side effect change to the
-	#  underlying dataset reader, but instead use it accordingly
 	def test_iterateOneEpoch(self):
 		baseReader = BaseReader()
 		reader1 = StaticBatchedDatasetReader(baseReader, batchSize=1)
