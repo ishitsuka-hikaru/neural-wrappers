@@ -70,8 +70,8 @@ class TestDatasetReader:
 				break
 
 def main():
-	TestDatasetReader().test_constructor_1()
-	TestDatasetReader().test_getItem_1()
+	# TestDatasetReader().test_constructor_1()
+	TestDatasetReader().test_iterateOneEpoch_1()
 
 if __name__ == "__main__":
 	main()

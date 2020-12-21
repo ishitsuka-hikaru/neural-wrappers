@@ -49,7 +49,7 @@ class TestRandomBatchedDatasetReader:
 				assert B == batches[k % n]
 			except Exception:
 				print("j=", j, batches, n, "=>", B, batches[k % n])
-				breakpoint()
+				# breakpoint()
 
 			index = reader.getBatchIndex(batches, k % n)
 			assert np.abs(rgb - reader.baseReader.dataset[index.start : index.stop]).sum() < 1e-5

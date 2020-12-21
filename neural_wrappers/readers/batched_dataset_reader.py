@@ -1,16 +1,38 @@
+from __future__ import annotations
 from overrides import overrides
 from abc import abstractmethod
 from typing import Tuple, List, Dict, Any, Iterator
 from .dataset_reader import DatasetReader
 from .dataset_types import *
 
+class BatchedDatasetIterator:
+	def __init__(self, reader:BatchedDatasetIterator):
+		self.reader = reader
+		self.ix = -1
+		# Each iterator hgas it's own batches (can change for some readers, such as RandomBatchedDatasetReader, where
+		#  each epoch has its own set of batches).
+		self.batches = self.reader.getBatches()
+		self.len = self.reader.getNumIterations()
+		assert self.len == len(self.batches)
+
+	def __len__(self):
+		return self.len
+
+	def __getitem__(self, key):
+		assert isinstance(key, int)
+		index = self.reader.getBatchIndex(self.batches, key)
+		batchItem = self.reader.getBatchItem(index)
+		return batchItem, self.batches[key]
+
+	def __next__(self):
+		self.ix += 1
+		if self.ix < len(self):
+			return self[self.ix]
+		raise StopIteration
+
 class BatchedDatasetReader(DatasetReader):
 	@abstractmethod
 	def getBatches(self) -> List[int]:
-		pass
-
-	@abstractmethod
-	def setBatches(self, batches:List[int]):
 		pass
 
 	@overrides
@@ -44,13 +66,7 @@ class BatchedDatasetReader(DatasetReader):
 
 	@overrides
 	def iterateOneEpoch(self) -> Iterator[Dict[str, Any]]:
-		batches = self.getBatches()
-		n = self.getNumIterations()
-		for i in range(n):
-			index = self.getBatchIndex(batches, i)
-			item = self.getBatchItem(index)
-			b = batches[i]
-			yield item, b
+		return BatchedDatasetIterator(self)
 
 	@overrides
 	def __str__(self) -> str:

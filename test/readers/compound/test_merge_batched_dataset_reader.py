@@ -10,15 +10,10 @@ from test_dataset_reader import DummyDataset
 class Reader(MergeBatchedDatasetReader):
 	def __init__(self, baseReader:DatasetReader):
 		super().__init__(baseReader)
-		self.setBatches(np.array([4, 1, 2, 3], dtype=np.int32))
-
-	@overrides
-	def setBatches(self, batches):
-		self.batches = batches
 
 	@overrides
 	def getBatches(self) -> List[int]:
-		return self.batches
+		return np.array([4, 1, 2, 3], dtype=np.int32)
 
 	# # merge(i1, b1, i2, b2) -> i(1,2)
 	@overrides

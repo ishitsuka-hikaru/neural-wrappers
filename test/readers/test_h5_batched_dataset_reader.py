@@ -24,15 +24,10 @@ class Reader(H5BatchedDatasetReader):
 			dataBuckets = {"data" : ["rgb"], "labels" : ["class"]},
 			dimTransform = {}
 		)
-		self.setBatches(self.dataset["batches"][()])
-
-	@overrides
-	def setBatches(self, batches):
-		self.batches = batches
 
 	@overrides
 	def getBatches(self) -> List[int]:
-		return self.batches
+		return self.dataset["batches"][()]
 
 class TestH5BatchedDatasetReader:
 	def test_constructor_1(self):

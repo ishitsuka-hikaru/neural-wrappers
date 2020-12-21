@@ -14,7 +14,6 @@ class Reader(BatchedDatasetReader):
 			dimTransform = {}
 		)
 		self.dataset = np.random.randn(10, 3)
-		self.setBatches(np.array([4, 1, 2, 3], dtype=np.int32))
 
 	@overrides
 	def getDataset(self) -> Any:
@@ -25,12 +24,8 @@ class Reader(BatchedDatasetReader):
 		return len(self.dataset)
 
 	@overrides
-	def setBatches(self, batches):
-		self.batches = batches
-
-	@overrides
 	def getBatches(self) -> List[int]:
-		return self.batches
+		return np.array([4, 1, 2, 3], dtype=np.int32)
 
 class TestBatchedDatasetReader:
 	def test_constructor_1(self):
@@ -63,7 +58,8 @@ class TestBatchedDatasetReader:
 		for j, (batchItem, B) in enumerate(reader.iterateForever()):
 			try:
 				assert B == batchSizes[j % n]
-			except Exception:
+			except Exception as e:
+				print(str(e))
 				breakpoint()
 			rgb = batchItem["data"]["rgb"]
 			index = reader.getBatchIndex(batchSizes, j % n)

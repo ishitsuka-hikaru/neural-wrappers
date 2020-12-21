@@ -15,10 +15,6 @@ class CompoundBatchedDatasetReader(BatchedDatasetReader):
 		return self.baseReader.getBatches(batches)
 
 	@overrides
-	def setBatches(self, batches:List[int]):
-		return self.baseReader.setBatches(batches)
-
-	@overrides
 	def getDataset(self):
 		return self.baseReader.getDataset()
 

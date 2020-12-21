@@ -37,10 +37,6 @@ class MNISTReader(H5BatchedDatasetReader):
 		if N % batchSize != 0:
 			batches.append(N % batchSize)
 		self.batchSize = batchSize
-		self.setBatches(batches)
-
-	@overrides
-	def setBatches(self, batches:List[int]):
 		self.batches = batches
 
 	@overrides

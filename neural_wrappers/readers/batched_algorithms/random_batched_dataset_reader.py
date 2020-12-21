@@ -1,16 +1,25 @@
+from __future__ import annotations
 from overrides import overrides
 from typing import List, Tuple
-from ..batched_dataset_reader import BatchedDatasetReader
+from ..batched_dataset_reader import BatchedDatasetReader, BatchedDatasetIterator
 from .compound_batched_dataset_reader import CompoundBatchedDatasetReader
 from ..dataset_reader import DatasetReader
 from ..dataset_types import *
+
+class RandomBatchedDatasetIterator(BatchedDatasetIterator):
+	def __init__(self, reader:RandomBatchedDatasetReader):
+		assert isinstance(reader, RandomBatchedDatasetReader)
+		super().__init__(reader)
+		# Unique for this epoch!
+		self.batches = self.reader.getShuffle()
+		self.len = len(self.batches)
 
 class RandomBatchedDatasetReader(CompoundBatchedDatasetReader):
 	def __init__(self, baseReader:BatchedDatasetReader):
 		assert isinstance(baseReader, BatchedDatasetReader)
 		super().__init__(baseReader)
 		self.numShuffles = 0
-		self.setBatches(self.getShuffle())
+		# self.setBatches(self.getShuffle())
 
 	def getShuffle(self):
 		N = self.getNumData()
@@ -25,23 +34,17 @@ class RandomBatchedDatasetReader(CompoundBatchedDatasetReader):
 		self.numShuffles += 1
 		return batches
 
-	@overrides
-	def setBatches(self, batches):
-		self.batches = batches
+	# @overrides
+	# def setBatches(self, batches):
+	# 	self.batches = batches
 
 	@overrides
 	def getBatches(self) -> List[int]:
-		return self.batches
+		return self.getShuffle()
 
-	# TODO ??
 	@overrides
-	def iterateOneEpoch(self):
-		N = self.getNumIterations()
-		for i, item in enumerate(super().iterateOneEpoch()):
-			# Prepare next batch at the end of this epoch.
-			# if i == N - 1:
-			# 	self.setBatches(self.getShuffle())
-			yield item
+	def iterateOneEpoch(self) -> Iterator[Dict[str, Any]]:
+		return RandomBatchedDatasetIterator(self)
 
 	@overrides
 	def __str__(self) -> str:
