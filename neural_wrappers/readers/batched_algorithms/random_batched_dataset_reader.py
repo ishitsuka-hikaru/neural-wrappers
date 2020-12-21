@@ -53,5 +53,5 @@ class RandomBatchedDatasetReader(CompoundBatchedDatasetReader):
 		for dataBucket in self.datasetFormat.dataBuckets:
 			summaryStr += "\n   - %s => %s" % (dataBucket, self.datasetFormat.dataBuckets[dataBucket])
 		summaryStr += "\n - Num data: %d. Num batches this trial: %d. Num shuffles so far: %d" % \
-			(len(self), len(self.getBatches(), self.numShuffles))
+			(len(self), len(self.getBatches()), self.numShuffles)
 		return summaryStr

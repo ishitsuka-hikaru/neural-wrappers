@@ -27,9 +27,11 @@ def toCategorical(data, numClasses):
 	data = np.array(data)
 	y = np.eye(numClasses)[data.reshape(-1)].astype(np.uint8)
 	# Some bugs for (1, 1) shapes return (1, ) instead of (1, NC)
-	if data.shape == (1, 1):
-		return y.reshape((1, numClasses))
-	return np.squeeze(y)
+	MB = data.shape[0]
+	y = np.squeeze(y)
+	if MB == 1:
+		y = np.expand_dims(y, axis=0)
+	return y
 
 # Labels can be None, in that case only data is available (testing cases without labels)
 def makeGenerator(data, labels, batchSize):

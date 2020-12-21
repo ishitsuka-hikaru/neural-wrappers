@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from argparse import ArgumentParser
 from functools import partial
 from models import ModelFC, ModelConv
-from neural_wrappers.readers import MNISTReader
+from neural_wrappers.readers import MNISTReader, StaticBatchedDatasetReader, RandomBatchedDatasetReader
 from neural_wrappers.callbacks import SaveModels, SaveHistory, ConfusionMatrix, PlotMetrics, EarlyStopping
 from neural_wrappers.schedulers import ReduceLRAndBacktrackOnPlateau
 from neural_wrappers.utilities import getGenerators
@@ -49,14 +49,15 @@ def lossFn(y, t):
 def main():
 	args = getArgs()
 
-	reader = Reader(h5py.File(args.dataset_path, "r")["train"])
-	trainReader = Reader(h5py.File(args.dataset_path, "r")["train"])
-	validationReader = Reader(h5py.File(args.dataset_path, "r")["test"])
-
-	trainGenerator, trainSteps = getGenerators(trainReader, batchSize=args.batchSize)
-	validationGenerator, validationSteps = getGenerators(validationReader, batchSize=args.batchSize)
+	trainReader = StaticBatchedDatasetReader(Reader(h5py.File(args.dataset_path, "r")["train"]), args.batchSize)
+	validationReader = StaticBatchedDatasetReader(Reader(h5py.File(args.dataset_path, "r")["test"]), args.batchSize)
+	# trainReader = RandomBatchedDatasetReader(Reader(h5py.File(args.dataset_path, "r")["train"]))
+	# validationReader = RandomBatchedDatasetReader(Reader(h5py.File(args.dataset_path, "r")["test"]))
 	print(trainReader)
 	print(validationReader)
+
+	trainGenerator, trainSteps = getGenerators(trainReader)
+	validationGenerator, validationSteps = getGenerators(validationReader)
 
 	model = {
 		"model_fc" : ModelFC(inputShape=(28, 28, 1), outputNumClasses=10),
