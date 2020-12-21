@@ -2,10 +2,10 @@ from __future__ import annotations
 from overrides import overrides
 from abc import abstractmethod
 from typing import Tuple, List, Dict, Any, Iterator
-from .dataset_reader import DatasetReader
+from .dataset_reader import DatasetReader, DatasetIterator
 from .dataset_types import *
 
-class BatchedDatasetIterator:
+class BatchedDatasetIterator(DatasetIterator):
 	def __init__(self, reader:BatchedDatasetIterator):
 		self.reader = reader
 		self.ix = -1
@@ -18,16 +18,10 @@ class BatchedDatasetIterator:
 	def __len__(self):
 		return self.len
 
-	def __next__(self):
-		self.ix += 1
-		if self.ix < len(self):
-			index = self.reader.getBatchIndex(self.batches, self.ix)
-			batchItem = self.reader.getBatchItem(index)
-			return batchItem, self.batches[self.ix]
-		raise StopIteration
-
-	def __iter__(self):
-		return self
+	def __getitem__(self, key):
+		index = self.reader.getBatchIndex(self.batches, self.ix)
+		batchItem = self.reader.getBatchItem(index)
+		return batchItem, self.batches[self.ix]
 
 class BatchedDatasetReader(DatasetReader):
 	@abstractmethod

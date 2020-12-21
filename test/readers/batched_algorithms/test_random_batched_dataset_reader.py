@@ -31,34 +31,26 @@ class TestRandomBatchedDatasetReader:
 			assert rgb.shape[0] == batches[j % n], "%d vs %d" % (rgb.shape[0], batches[j % n])
 			assert np.abs(rgb - reader.baseReader.dataset[index.start : index.stop]).sum() < 1e-5
 
-	# def test_iterateForever_1(self):
-	# 	reader = RandomBatchedDatasetReader(BaseReader())
-	# 	generator = reader.iterateForever()
-	# 	breakpoint()
-	# 	n = 0
-	# 	k = 0
-	# 	batches = None
-	# 	for j, (batchItem, B) in enumerate(reader.iterateForever()):
-	# 		if k == 0 or k % n == 0:
-	# 			oldBatches = batches
-	# 			batches = reader.getBatches()
-	# 			print("[tesT_iterate_forever_1] old: %s. new: %s" % (oldBatches, batches))
-	# 			n = len(batches)
-	# 			k = 0
+	def test_iterateForever_1(self):
+		reader = RandomBatchedDatasetReader(BaseReader())
+		generator = reader.iterateForever()
+		k = 0
+		for j, (batchItem, B) in enumerate(generator):
+			if k == 0 or k % n == 0:
+				n = len(generator)
+				currentBatch = generator.currentGenerator.batches
+				k = 0
 
-	# 		rgb = batchItem["data"]["rgb"]
-	# 		try:
-	# 			assert B == batches[k % n]
-	# 		except Exception:
-	# 			print("j=", j, batches, n, "=>", B, batches[k % n])
-	# 			# breakpoint()
+			rgb = batchItem["data"]["rgb"]
+			print("j=%d. batches: %s. rgb:%s" % (j, currentBatch, rgb.shape))
+			index = reader.getBatchIndex(currentBatch, k % n)
 
-	# 		index = reader.getBatchIndex(batches, k % n)
-	# 		assert np.abs(rgb - reader.baseReader.dataset[index.start : index.stop]).sum() < 1e-5
+			assert B == currentBatch[k % n]
+			assert np.abs(rgb - reader.baseReader.dataset[index.start : index.stop]).sum() < 1e-5
 
-	# 		k += 1
-	# 		if j == 100:
-	# 			break
+			k += 1
+			if j == 100:
+				break
 
 	# def test_iterateOneEpoch_1(self):
 	# 	reader = RandomBatchedDatasetReader(BaseReader())

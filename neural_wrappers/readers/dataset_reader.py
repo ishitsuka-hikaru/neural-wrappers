@@ -19,17 +19,17 @@ class DatasetGenerator:
 		self.currentLen = len(self.currentGenerator)
 		if self.maxPrefetch > 0:
 			self.currentGenerator = BackgroundGenerator(self.currentGenerator, max_prefetch=self.maxPrefetch)
-		self.ix = -1
-		print("[iterateForever] New epoch. Len=%d" % self.currentLen)
+		# print("[iterateForever] New epoch. Len=%d. Batches: %s" % (self.currentLen, self.currentGenerator.batches))
 
 	def __len__(self):
 		return self.currentLen
 
 	def __next__(self):
-		if self.ix == self.currentLen - 1:
+		try:
+			return next(self.currentGenerator)
+		except StopIteration:
 			self.newEpoch()
-		self.ix += 1
-		return self.reader[self.ix]
+			return next(self.currentGenerator)
 	
 	def __iter__(self):
 		return self
@@ -43,10 +43,14 @@ class DatasetIterator:
 	def __len__(self):
 		return self.len
 
+	def __getitem__(self, key):
+		assert isinstance(key, int)
+		return self.reader[key]
+
 	def __next__(self):
 		self.ix += 1
 		if self.ix < len(self):
-			return self.reader[self.ix]
+			return self[self.ix]
 		raise StopIteration
 
 	def __iter__(self):

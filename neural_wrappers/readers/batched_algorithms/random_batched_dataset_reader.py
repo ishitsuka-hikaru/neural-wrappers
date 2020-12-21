@@ -32,6 +32,7 @@ class RandomBatchedDatasetReader(CompoundBatchedDatasetReader):
 			batches.append(thisBatch)
 		assert sum(batches) == N
 		self.numShuffles += 1
+		# print("[getShuffle] New shuffle. N=%d. batches=%s. numShuffles=%d" % (len(batches), batches, self.numShuffles))
 		return batches
 
 	@overrides
