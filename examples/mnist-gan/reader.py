@@ -1,32 +1,28 @@
 import numpy as np
-from neural_wrappers.readers import H5DatasetReader
+from neural_wrappers.readers import H5BatchedDatasetReader
 from functools import partial
 from overrides import overrides
 
 # For some reasons, results are much better if provided data is in range -1 : 1 (not 0 : 1 or standardized).
-class GANReader(H5DatasetReader):
+class GANReader(H5BatchedDatasetReader):
 	def __init__(self, datasetPath:str, latentSpaceSize:int):
-		self.datasetPath = datasetPath
-		self.latentSpaceSize = latentSpaceSize
-
 		super().__init__(
 			datasetPath,
 			dataBuckets = {"data" : ["rgb"]},
 			dimGetter = {"rgb" : \
-				lambda dataset, index : dataset["images"][index.start : index.end]},
+				lambda dataset, index : dataset["images"][index.start : index.stop]},
 			dimTransform = {
 				"data" : {"rgb" : lambda x : (np.float32(x) / 255 - 0.5) * 2}
 			}
 		)
+		self.latentSpaceSize = latentSpaceSize
 
 	@overrides
-	def iterateOneEpoch(self, topLevel : str, batchSize : int):
-		for items in super().iterateOneEpoch(topLevel, batchSize):
-			rgb = items["data"]["rgb"]
-			MB = len(rgb)
-			noise = np.random.randn(MB, self.latentSpaceSize).astype(np.float32)
-			yield noise, rgb
+	def getNumData(self) -> int:
+		return len(self.getDataset()["images"])
 
 	@overrides
-	def getNumData(self, topLevel : str) -> int:
-		return len(self.dataset[topLevel]["images"])
+	def getBatchItem(self, index):
+		item = super().getBatchItem(index)
+		MB = index.stop - index.start
+		return np.random.randn(MB, self.latentSpaceSize).astype(np.float32), item["data"]["rgb"]

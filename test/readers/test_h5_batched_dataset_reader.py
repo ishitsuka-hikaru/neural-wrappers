@@ -29,6 +29,10 @@ class Reader(H5BatchedDatasetReader):
 	def getBatches(self) -> List[int]:
 		return self.dataset["batches"][()]
 
+	@overrides
+	def getNumData(self) -> int:
+		return len(self.dataset["data"]["rgb"])
+
 class TestH5BatchedDatasetReader:
 	def test_constructor_1(self):
 		reader = Reader()

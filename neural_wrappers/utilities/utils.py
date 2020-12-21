@@ -73,7 +73,7 @@ def isSubsetOf(subset, set):
 
 def changeDirectory(Dir, expectExist=None):
 	if expectExist in (True, False):
-		assert os.path.exists(Dir) == expectExist
+		assert os.path.exists(Dir) == expectExist, "Exists: %s" % Dir
 	print("Changing to working directory:", Dir)
 	if expectExist == False or (expectExist == None and not os.path.isdir(Dir)):
 		os.makedirs(Dir)

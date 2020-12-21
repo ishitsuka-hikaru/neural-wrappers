@@ -38,7 +38,6 @@ class StaticBatchedDatasetReader(CompoundBatchedDatasetReader):
 		summaryStr += "\n - Data buckets:"
 		for dataBucket in self.datasetFormat.dataBuckets:
 			summaryStr += "\n   - %s => %s" % (dataBucket, self.datasetFormat.dataBuckets[dataBucket])
-		summaryStr += "\n - Num data: %d. Num batches: %d. Num iterations this epoch: %d" % \
-			(self.getNumData(), len(self.getBatchSizes()), self.getNumIterations())
+		summaryStr += "\n - Num data: %d. Num batches: %d." % (self.getNumData(), len(self.getBatches()))
 		summaryStr += "\n - Static batch size: %d" % self.batchSize
 		return summaryStr

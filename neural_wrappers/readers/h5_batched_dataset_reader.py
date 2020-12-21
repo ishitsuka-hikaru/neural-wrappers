@@ -50,12 +50,6 @@ class H5BatchedDatasetReader(BatchedDatasetReader):
 		return self.dataset
 
 	@overrides
-	def getNumData(self) -> int:
-		# H5 assumtpion. All dims have the same number of data, so any of them is good enough to get length.
-		firstKey = tuple(self.datasetFormat.dimGetter.keys())[0]
-		return len(self.getDataset()[firstKey])
-
-	@overrides
 	def __str__(self) -> str:
 		summaryStr = "[H5 Batched Dataset Reader]"
 		summaryStr += "\n - Path: %s" % self.datasetPath

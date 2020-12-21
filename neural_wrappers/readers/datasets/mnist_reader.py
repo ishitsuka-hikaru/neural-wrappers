@@ -42,3 +42,7 @@ class MNISTReader(H5BatchedDatasetReader):
 	@overrides
 	def getBatches(self) -> List[int]:
 		return self.batches
+
+	@overrides
+	def getNumData(self) -> int:
+		return len(self.getDataset()["images"])

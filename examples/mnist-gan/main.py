@@ -1,8 +1,10 @@
 import torch.optim as optim
+import h5py
 from argparse import ArgumentParser
 from neural_wrappers.pytorch import GenerativeAdversarialNetwork, device
 from neural_wrappers.callbacks import SaveModels, PlotMetrics
 from neural_wrappers.utilities import getGenerators, changeDirectory
+from neural_wrappers.readers import StaticBatchedDatasetReader
 
 from mnist_models import GeneratorLinear as Generator, DiscriminatorLinear as Discriminator
 from reader import GANReader
@@ -29,9 +31,10 @@ def main():
 	args = getArgs()
 
 	# Define reader, generator and callbacks
-	reader = GANReader(datasetPath=args.dataset_path, latentSpaceSize=args.latent_space_size)
-	print(reader.summary())
-	generator, numIterations = getGenerators(reader, batchSize=args.batch_size, keys=["train"])
+	reader = StaticBatchedDatasetReader(GANReader(datasetPath=h5py.File(args.dataset_path, "r")["train"], \
+		latentSpaceSize=args.latent_space_size), args.batch_size)
+	generator, numIterations = getGenerators(reader)
+	print(reader)
 
 	generatorModel = Generator(inputSize=args.latent_space_size, outputSize=(28, 28, 1))
 	discriminatorModel = Discriminator(inputSize=(28, 28, 1))

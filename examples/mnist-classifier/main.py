@@ -55,12 +55,8 @@ def main():
 
 	trainGenerator, trainSteps = getGenerators(trainReader, batchSize=args.batchSize)
 	validationGenerator, validationSteps = getGenerators(validationReader, batchSize=args.batchSize)
-	trainReader.setBatchSize(args.batchSize)
-	validationReader.setBatchSize(args.batchSize)
 	print(trainReader)
 	print(validationReader)
-	trainGenerator = trainReader.iterateForever()
-	validationGenerator = validationReader.iterateForever()
 
 	model = {
 		"model_fc" : ModelFC(inputShape=(28, 28, 1), outputNumClasses=10),
@@ -75,8 +71,8 @@ def main():
 	print(model.summary())
 
 	if args.type == "train":
-		model.train_generator(trainGenerator, len(trainGenerator), numEpochs=args.numEpochs, \
-			validationGenerator=validationGenerator, validationSteps=len(validationGenerator))
+		model.train_generator(trainGenerator, trainSteps, numEpochs=args.numEpochs, \
+			validationGenerator=validationGenerator, validationSteps=validationSteps)
 	elif args.type == "retrain":
 		model.loadModel(args.weightsFile)
 		model.train_generator(trainGenerator, trainSteps, numEpochs=args.numEpochs, \
