@@ -27,7 +27,7 @@ class BatchedDatasetIterator(DatasetIterator):
 
 class BatchedDatasetReader(DatasetReader):
 	def getBatches(self) -> List[int]:
-		raise NotImplemented("Must be implemented by the reader!")
+		raise NotImplementedError("Must be implemented by the reader!")
 
 	def getBatchIndex(self, batches:List[int], i:int) -> DatasetIndex:
 		# batches = [1, 5, 4, 2] => cumsum = [0, 1, 6, 10, 12]
