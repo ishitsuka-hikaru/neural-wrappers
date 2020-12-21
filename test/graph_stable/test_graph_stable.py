@@ -12,10 +12,10 @@ from neural_wrappers.graph_stable import Graph, Edge, Node
 from neural_wrappers.utilities import pickTypeFromMRO
 from neural_wrappers.models import IdentityLayer
 from neural_wrappers.metrics import Metric
-from neural_wrappers.readers import DatasetReader
+from neural_wrappers.readers import BatchedDatasetReader, StaticBatchedDatasetReader
 
-class Reader(DatasetReader):
-	def __init__(self, dataStuff:Dict[Node, int], batchSize:int):
+class Reader(BatchedDatasetReader):
+	def __init__(self, dataStuff:Dict[Node, int]):
 		self.N = 100
 		self.dataset = {
 			"data" : {a.groundTruthKey : np.random.randn(self.N, dataStuff[a]).astype(np.float32) for a in dataStuff}
@@ -28,25 +28,33 @@ class Reader(DatasetReader):
 			dimGetter = {"A" : partial(dimGetterFn, dim="A"), "B" : partial(dimGetterFn, dim="B"), \
 				"C" : partial(dimGetterFn, dim="C"), "D" : partial(dimGetterFn, dim="D"), \
 				"E" : partial(dimGetterFn, dim="E")}, \
-			dimTransform = {},
-			batchSize=batchSize
+			dimTransform = {}
 		)
 
 	@overrides
-	def getDataset(self, topLevel:str) -> Any:
+	def getBatches(self):
+		pass
+
+	@overrides
+	def getDataset(self) -> Any:
 		return self.dataset
 
 	# @brief Returns the number of items in a given top level name
 	# @param[in] topLevel The top-level dimension that is iterated over (example: train, validation, test, etc.)
 	# @return The number of items in a given top level name
 	@overrides
-	def getNumData(self, topLevel:str) -> int:
+	def getNumData(self) -> int:
 		return self.N
 
 	@overrides
-	def iterateOneEpoch(self, topLevel : str) -> Iterator[Tuple[Dict, Dict]]:
-		for item in super().iterateOneEpoch(topLevel):
-			yield item["data"], item["data"]
+	def getBatchItem(self, index):
+		item = super().getBatchItem(index)
+		return item["data"], item["data"]
+
+	# @overrides
+	# def iterateOneEpoch(self, topLevel : str) -> Iterator[Tuple[Dict, Dict]]:
+	# 	for item in super().iterateOneEpoch(topLevel):
+	# 		yield item["data"], item["data"]
 
 class Model(FeedForwardNetwork):
 	def __init__(self, inDims, outDims):
@@ -138,15 +146,16 @@ class TestGraphStable:
 
 	def test_train_1(self):
 		nodes = {A : A(), B : B(), C : C(), D : D(), E : E()}
-		reader = Reader(dataStuff={nodes[A] : 5, nodes[B] : 7, nodes[C] : 10, nodes[D] : 6, nodes[E] : 3}, \
+		reader = StaticBatchedDatasetReader(
+			Reader(dataStuff={nodes[A] : 5, nodes[B] : 7, nodes[C] : 10, nodes[D] : 6, nodes[E] : 3}),
 			batchSize=11)
 		edges = [(A, C), (B, C), (C, E), (D, E)]
 		graph = Graph([Edge(nodes[a], nodes[b]) for (a, b) in edges]).to(device)
 		graph.setOptimizer(optim.SGD, lr=0.01)
 		print(graph.summary())
 
-		generator = reader.iterateForever("train")
-		numSteps = reader.getNumIterations("train")
+		generator = reader.iterateForever()
+		numSteps = len(generator)
 		graph.train_generator(generator, numSteps, numEpochs=5)
 
 if __name__ == "__main__":

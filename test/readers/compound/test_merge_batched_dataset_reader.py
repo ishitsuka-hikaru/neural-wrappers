@@ -28,24 +28,22 @@ class TestMergeBatchedDatasetReader:
 		reader = Reader(DummyDataset())
 		assert not reader is None
 
-	def test_getItem_1(self):
+	def test_getBatchItem_1(self):
 		reader = Reader(DummyDataset())
-		item, B = reader.getItem(0)
+		item = reader.getBatchItem(reader.getBatchIndex(reader.getBatches(), 0))
 		rgb = item["data"]["rgb"]
 		assert rgb.shape[0] == 4
-		assert B == 4
 		assert np.abs(rgb - reader.baseReader.dataset[0:4]).sum() < 1e-5
 
-	def test_getItem_2(self):
+	def test_getBatchItem_2(self):
 		reader = Reader(DummyDataset())
-		batchSizes = reader.getBatches()
-		n = len(batchSizes)
+		batches = reader.getBatches()
+		n = len(batches)
 		for j in range(100):
-			batchItem, B = reader.getItem(j % n)
+			index = reader.getBatchIndex(batches, j % n)
+			batchItem = reader.getBatchItem(index)
 			rgb = batchItem["data"]["rgb"]
-			index = reader.getBatchIndex(batchSizes, j % n)
 			start, end = index[0], index[-1] + 1
-			assert B == batchSizes[j % n]
 			assert np.abs(rgb - reader.baseReader.dataset[start : end]).sum() < 1e-5
 
 	# def test_mergeItems_1(self):

@@ -31,6 +31,7 @@ class Graph(NWModule):
 		# For now, the execution is synchronous and linear as defined by the list of edges
 		for edge in self.edges:
 			edgeID = str(edge)
+			trInputs, b = trInputs
 			edgeInputs = edge.getInputs(trInputs)
 			edgeOutput = edge.forward(edgeInputs)
 			# Update the outputs of the whole graph as well

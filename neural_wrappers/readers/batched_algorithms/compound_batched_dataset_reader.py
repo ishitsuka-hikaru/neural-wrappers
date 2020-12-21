@@ -22,5 +22,9 @@ class CompoundBatchedDatasetReader(BatchedDatasetReader):
 	def getNumData(self):
 		return self.baseReader.getNumData()
 
+	def getBatchItem(self, index):
+		assert not isinstance(index, int)
+		return self.baseReader.getBatchItem(index)
+
 	def __getattr__(self, key):
 		return getattr(self.baseReader, key)

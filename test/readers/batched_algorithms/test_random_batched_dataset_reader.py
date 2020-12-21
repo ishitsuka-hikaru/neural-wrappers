@@ -13,10 +13,12 @@ class TestRandomBatchedDatasetReader:
 		reader = RandomBatchedDatasetReader(BaseReader())
 		assert not reader is None
 
-	def test_getItem_1(self):
+	def test_getBatchedItem_1(self):
 		reader = RandomBatchedDatasetReader(BaseReader())
-		item, B = reader.getItem(0)
+		batches = reader.getBatches()
+		item = reader.getBatchItem(reader.getBatchIndex(batches, 0))
 		rgb = item["data"]["rgb"]
+		B = batches[0]
 		assert rgb.shape[0] == B
 		assert np.abs(rgb - reader.baseReader.dataset[0:B]).sum() < 1e-5
 

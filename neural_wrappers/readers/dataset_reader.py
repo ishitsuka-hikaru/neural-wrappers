@@ -43,14 +43,10 @@ class DatasetIterator:
 	def __len__(self):
 		return self.len
 
-	def __getitem__(self, key):
-		assert isinstance(key, int)
-		return self.reader[key]
-
 	def __next__(self):
 		self.ix += 1
 		if self.ix < len(self):
-			return self[self.ix]
+			return self.reader[self.ix]
 		raise StopIteration
 
 	def __iter__(self):

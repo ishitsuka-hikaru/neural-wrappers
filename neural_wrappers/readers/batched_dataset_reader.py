@@ -17,10 +17,13 @@ class BatchedDatasetIterator(DatasetIterator):
 	def __len__(self):
 		return self.len
 
-	def __getitem__(self, key):
-		index = self.reader.getBatchIndex(self.batches, self.ix)
-		batchItem = self.reader.getBatchItem(index)
-		return batchItem, self.batches[self.ix]
+	def __next__(self):
+		self.ix += 1
+		if self.ix < len(self):
+			index = self.reader.getBatchIndex(self.batches, self.ix)
+			batchItem = self.reader.getBatchItem(index)
+			return batchItem, self.batches[self.ix]
+		raise StopIteration
 
 class BatchedDatasetReader(DatasetReader):
 	@abstractmethod
@@ -38,19 +41,9 @@ class BatchedDatasetReader(DatasetReader):
 			breakpoint()
 		return batchIndex
 
-	# TODO: Specify this is a _batched index_
 	def getBatchItem(self, index:DatasetIndex) -> DatasetItem:
+		assert not isinstance(index, int)
 		return super().getItem(index)
-
-	# @brief Returns the item at index i. Basically g(i) -> Item(i), B(i)
-	# @return The item at index i and the batch count of this item (number of items inside the item)
-	# @overrides
-	def getItem(self, i:int) -> Tuple[DatasetItem, int]:
-		batches = self.getBatches()
-		index = self.getBatchIndex(batches, i)
-		batchItem = self.getBatchItem(index)
-		B = batches[i]
-		return batchItem, B
 
 	@overrides
 	def iterateOneEpoch(self) -> Iterator[Dict[str, Any]]:

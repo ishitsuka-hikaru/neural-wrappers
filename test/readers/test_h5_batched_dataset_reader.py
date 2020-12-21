@@ -35,23 +35,22 @@ class TestH5BatchedDatasetReader:
 		assert not reader is None
 		assert not reader.getDataset() is None
 
-	def test_getItem_1(self):
+	def test_getBatchItem_1(self):
 		reader = Reader()
-		item, B = reader.getItem(0)
+		b = reader.getBatches()
+		item = reader.getBatchItem(reader.getBatchIndex(reader.getBatches(), 0))
 		rgb = item["data"]["rgb"]
 		assert rgb.shape[0] == 4
-		assert B == 4
 		assert np.abs(rgb - reader.dataset["rgb"][0:4]).sum() < 1e-5
 
-	def test_getItem_2(self):
+	def test_getBatchItem_2(self):
 		reader = Reader()
-		batchSizes = reader.getBatches()
-		n = len(batchSizes)
+		batches = reader.getBatches()
+		n = len(batches)
 		for j in range(100):
-			batchItem, B = reader.getItem(j % n)
+			index = reader.getBatchIndex(batches, j % n)
+			batchItem = reader.getBatchItem(index)
 			rgb = batchItem["data"]["rgb"]
-			index = reader.getBatchIndex(batchSizes, j % n)
-			assert B == batchSizes[j % n]
 			assert np.abs(rgb - reader.dataset["rgb"][index.start : index.stop]).sum() < 1e-5
 
 	def test_iterateForever_1(self):

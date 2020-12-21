@@ -15,21 +15,23 @@ class TestStaticBatchedDatasetReader:
 
 	def test_getItem_1(self):
 		reader = StaticBatchedDatasetReader(BaseReader(), batchSize=1)
-		item, B = reader.getItem(0)
+		batches = reader.getBatches()
+		item = reader.getBatchItem(reader.getBatchIndex(batches, 0))
 		rgb = item["data"]["rgb"]
 		assert rgb.shape[0] == 1
-		assert B == 1
+		assert batches[0] == 1
 		assert np.abs(rgb - reader.baseReader.dataset[0:1]).sum() < 1e-5
 
 	def test_getItem_2(self):
 		reader = StaticBatchedDatasetReader(BaseReader(), batchSize=1)
-		batchSizes = reader.getBatches()
-		n = len(batchSizes)
+		batches = reader.getBatches()
+		n = len(batches)
 		for j in range(100):
-			batchItem, B = reader.getItem(j % n)
+			batchIndex = reader.getBatchIndex(batches, j % n)
+			batchItem = reader.getBatchItem(batchIndex)
 			rgb = batchItem["data"]["rgb"]
-			index = reader.getBatchIndex(batchSizes, j % n)
-			assert B == batchSizes[j % n]
+			index = reader.getBatchIndex(batches, j % n)
+			assert len(rgb) == batches[j % n]
 			assert np.abs(rgb - reader.baseReader.dataset[index.start : index.stop]).sum() < 1e-5
 
 	def test_iterateForever_1(self):

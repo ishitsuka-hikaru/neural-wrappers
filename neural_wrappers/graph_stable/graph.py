@@ -121,7 +121,7 @@ class Graph(FeedForwardNetwork):
 		#  inputs, they can be packed together (stacked) or put into a list, in which case the ntwork will receive the
 		#  same list, but every element in the list is tranasformed in torch format.
 		startTime = datetime.now()
-		for i, items in enumerate(generator):
+		for i, (items, b) in enumerate(generator):
 			npInputs, npLabels = items
 			npResults, npLoss = self.mainLoop(npInputs, npLabels, isTraining, isOptimizing)
 

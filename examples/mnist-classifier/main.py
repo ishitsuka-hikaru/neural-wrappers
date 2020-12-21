@@ -36,9 +36,9 @@ def getArgs():
 
 # Small wrapper used for current NWModule implementation of runOneEpoch. Will update when NWModule is updated.
 class Reader(MNISTReader):
-	def iterateOneEpoch(self):
-		for items, batch in super().iterateOneEpoch():
-			yield (items["data"]["images"], items["labels"]["labels"])
+	def getBatchItem(self, index):
+		item = super().getBatchItem(index)
+		return item["data"]["images"], item["labels"]["labels"]
 
 def lossFn(y, t):
 	# Negative log-likeklihood (used for softmax+NLL for classification), expecting targets are one-hot encoded
@@ -49,13 +49,18 @@ def lossFn(y, t):
 def main():
 	args = getArgs()
 
+	reader = Reader(h5py.File(args.dataset_path, "r")["train"])
 	trainReader = Reader(h5py.File(args.dataset_path, "r")["train"])
 	validationReader = Reader(h5py.File(args.dataset_path, "r")["test"])
-	print(trainReader)
-	print(validationReader)
 
 	trainGenerator, trainSteps = getGenerators(trainReader, batchSize=args.batchSize)
 	validationGenerator, validationSteps = getGenerators(validationReader, batchSize=args.batchSize)
+	trainReader.setBatchSize(args.batchSize)
+	validationReader.setBatchSize(args.batchSize)
+	print(trainReader)
+	print(validationReader)
+	trainGenerator = trainReader.iterateForever()
+	validationGenerator = validationReader.iterateForever()
 
 	model = {
 		"model_fc" : ModelFC(inputShape=(28, 28, 1), outputNumClasses=10),
@@ -70,8 +75,8 @@ def main():
 	print(model.summary())
 
 	if args.type == "train":
-		model.train_generator(trainGenerator, trainSteps, numEpochs=args.numEpochs, \
-			validationGenerator=validationGenerator, validationSteps=validationSteps)
+		model.train_generator(trainGenerator, len(trainGenerator), numEpochs=args.numEpochs, \
+			validationGenerator=validationGenerator, validationSteps=len(validationGenerator))
 	elif args.type == "retrain":
 		model.loadModel(args.weightsFile)
 		model.train_generator(trainGenerator, trainSteps, numEpochs=args.numEpochs, \

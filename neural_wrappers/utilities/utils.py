@@ -39,10 +39,11 @@ def makeGenerator(data, labels, batchSize):
 		for i in range(numIterations):
 			startIndex = i * batchSize
 			endIndex = np.minimum((i + 1) * batchSize, numData)
+			b = endIndex - startIndex
 			if not labels is None:
-				yield data[startIndex : endIndex], labels[startIndex : endIndex]
+				yield (data[startIndex : endIndex], labels[startIndex : endIndex]), b
 			else:
-				yield data[startIndex : endIndex]
+				yield data[startIndex : endIndex], b
 
 def NoneAssert(conndition, noneCheck, message=""):
 	if noneCheck:
@@ -118,6 +119,7 @@ def getGenerators(reader, batchSize:int=None, maxPrefetch:int=1):
 	if not batchSize is None:
 		assert hasattr(reader, "setBatchSize"), "reader has no method setBatchSizes. Call getGenerators with None."
 		reader.setBatchSize(batchSize)
+	# breakpoint()
 	generator = reader.iterateForever(maxPrefetch=maxPrefetch)
 	return generator, len(generator)
 
