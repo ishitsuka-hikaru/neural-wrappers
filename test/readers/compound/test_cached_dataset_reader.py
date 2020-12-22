@@ -36,6 +36,17 @@ class TestCachedDatasetReader:
 		rgbCache = itemCache["data"]["rgb"]
 		assert np.abs(rgb - rgbCache).sum() < 1e-5
 
+	def test_getItem_2(self):
+		reader = CachedDatasetReader(Reader(), cache=pycache.DictMemory(), buildCache=True)
+		index = 0
+		assert reader.cache.check(reader.cacheKey(index)) == True
+		item = reader.getItem(index)
+		rgb = item["data"]["rgb"]
+		assert reader.cache.check(reader.cacheKey(index)) == True
+		itemCache = reader.getItem(index)
+		rgbCache = itemCache["data"]["rgb"]
+		assert np.abs(rgb - rgbCache).sum() < 1e-5
+
 	def test_iterateOneEpoch_1(self):
 		reader = CachedDatasetReader(Reader(), cache=pycache.DictMemory())
 		generator = reader.iterateOneEpoch()
@@ -86,6 +97,18 @@ class TestCachedBatchedDatasetReader:
 		batches = reader.getBatches()
 		index = reader.getBatchIndex(batches, 0)
 		assert reader.cache.check(reader.cacheKey(index)) == False
+		item = reader.getBatchItem(index)
+		rgb = item["data"]["rgb"]
+		assert reader.cache.check(reader.cacheKey(index)) == True
+		itemCache = reader.getBatchItem(index)
+		rgbCache = itemCache["data"]["rgb"]
+		assert np.abs(rgb - rgbCache).sum() < 1e-5
+
+	def test_getBatchItem_2(self):
+		reader = CachedDatasetReader(BatchedReader(), cache=pycache.DictMemory(), buildCache=True)
+		batches = reader.getBatches()
+		index = reader.getBatchIndex(batches, 0)
+		assert reader.cache.check(reader.cacheKey(index)) == True
 		item = reader.getBatchItem(index)
 		rgb = item["data"]["rgb"]
 		assert reader.cache.check(reader.cacheKey(index)) == True
@@ -183,50 +206,8 @@ class TestCachedBatchedDatasetReader:
 				assert np.abs(rgb - rgbs[i - n]).sum() < 1e-5
 			i += 1
 
-	# def test_iterateForever_1(self):
-	# 	reader = StaticBatchedDatasetReader(BaseReader(), batchSize=1)
-	# 	batchSizes = reader.getBatches()
-	# 	n = len(batchSizes)
-	# 	for j, (batchItem, B) in enumerate(reader.iterateForever()):
-	# 		try:
-	# 			assert B == batchSizes[j % n]
-	# 		except Exception:
-	# 			breakpoint()
-	# 		rgb = batchItem["data"]["rgb"]
-	# 		index = reader.getBatchIndex(batchSizes, j % n)
-	# 		assert np.abs(rgb - reader.baseReader.dataset[index.start : index.stop]).sum() < 1e-5
-
-	# 		if j == 100:
-	# 			break
-
-	# def test_getNumIterations_1(self):
-	# 	reader = StaticBatchedDatasetReader(BaseReader(), batchSize=1)
-	# 	N = getGenerators(reader, batchSize=1)[1]
-	# 	halfN = getGenerators(reader, batchSize=2)[1]
-	# 	assert N // 2 == halfN
-
-	# def test_iterateOneEpoch(self):
-	# 	baseReader = BaseReader()
-	# 	reader1 = StaticBatchedDatasetReader(baseReader, batchSize=1)
-	# 	reader2 = StaticBatchedDatasetReader(baseReader, batchSize=1)
-	# 	g1, n1 = getGenerators(reader1, batchSize=1, maxPrefetch=0)
-	# 	g2, n2 = getGenerators(reader2, batchSize=2, maxPrefetch=0)
-	# 	for i in range(n1):
-	# 		i1_0, b1_0 = next(g1)
-	# 		i1_1, b1_1 = next(g1)
-	# 		i2, b2 = next(g2)
-	# 		rgb1_0 = i1_0["data"]["rgb"]
-	# 		rgb1_1 = i1_1["data"]["rgb"]
-	# 		rgb2 = i2["data"]["rgb"]
-
-	# 		assert b1_0 == 1
-	# 		assert b1_1 == 1
-	# 		assert b2 == 2
-	# 		assert np.abs(rgb2[0] - rgb1_0[0]).sum() < 1e-5
-	# 		assert np.abs(rgb2[1] - rgb1_1[0]).sum() < 1e-5
-
 def main():
-	TestCachedDatasetReader().test_iterateForever_1()
+	TestCachedBatchedDatasetReader().test_getBatchItem_2()
 
 if __name__ == "__main__":
 	main()

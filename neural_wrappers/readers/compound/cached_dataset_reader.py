@@ -1,6 +1,7 @@
 from __future__ import annotations
 from overrides import overrides
 from typing import List, Tuple
+from tqdm import trange
 from ..compound_dataset_reader import CompoundDatasetReader, CompoundBatchedDatasetReader
 from ..dataset_reader import DatasetReader
 from ..batched_dataset_reader import BatchedDatasetReader
@@ -12,8 +13,33 @@ class _CachedDatasetReader(CompoundDatasetReader):
 		self.cache = cache
 		self.buildCache = buildCache
 
-	def getItem(self, key):
-		return self.__getitem__(key)
+		if self.buildCache:
+			self.doBuildCache()
+
+	def doBuildCache(self):
+		if isinstance(self.baseReader, BatchedDatasetReader):
+			batches = self.baseReader.getBatches()
+			indexFn = lambda i : self.baseReader.getBatchIndex(batches, i)
+			n = len(batches)
+		else:
+			indexFn = lambda i : i
+			n = len(self.baseReader)
+
+		def buildRegular(reader, n, cache):
+			for i in trange(n, desc="[CachedDatasetReader] Building (regular)"):
+				index = indexFn(i)
+				key = reader.cacheKey(index)
+				if cache.check(key):
+					continue
+				else:
+					item = reader[index]
+					cache.set(key, item)
+
+		if not self.cache.check(self.baseReader.cacheKey(indexFn(0))):
+			buildRegular(self.baseReader, n, self.cache)
+		else:
+			# TODO buildDirty
+			return
 
 	@overrides
 	def __getitem__(self, index):
@@ -40,33 +66,13 @@ class _CachedDatasetReader(CompoundDatasetReader):
 class CachedBatchedDatasetReader(CompoundBatchedDatasetReader):
 	def __init__(self, baseReader:DatasetReader, cache:Cache, buildCache:bool=False):
 		super().__init__(baseReader)
-		self.cache = cache
-		self.buildCache = buildCache
+		self.impl = _CachedDatasetReader(baseReader, cache, buildCache)
+	
+	def __getitem__(self, key):
+		return self.impl.__getitem__(key)
 
-	def getBatchItem(self, key):
-		return self.__getitem__(key)
-
-	@overrides
-	def __getitem__(self, index):
-		cacheFile = self.cacheKey(index)
-		if self.cache.check(cacheFile):
-			item = self.cache.get(cacheFile)
-		else:
-			item = super().__getitem__(index)
-			self.cache.set(cacheFile, item)
-		return item
-
-	@overrides
-	def __str__(self) -> str:
-		summaryStr = "[Cached Dataset Reader]"
-		summaryStr += "\n - Path: %s" % self.datasetPath
-		summaryStr += "\n - Type: %s" % type(self)
-		summaryStr += "\n - Data buckets:"
-		for dataBucket in self.datasetFormat.dataBuckets:
-			summaryStr += "\n   - %s => %s" % (dataBucket, self.datasetFormat.dataBuckets[dataBucket])
-		summaryStr += "\n - Num data: %d. Num batches: %d." % (len(self), len(self.getBatches()))
-		summaryStr += "\n - Cache: %s. Build cache: %s" % (self.cache, self.buildCache)
-		return summaryStr
+	def __getattr__(self, key):
+		return getattr(self.impl, key)
 
 # @param[in] baseReader The base dataset reader which is used as composite for caching
 # @param[in] cache The PyCache Cache object used for caching purposes
