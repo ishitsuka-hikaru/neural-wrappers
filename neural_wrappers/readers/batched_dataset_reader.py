@@ -18,7 +18,8 @@ class BatchedDatasetEpochIterator(DatasetEpochIterator):
 		self.ix += 1
 		if self.ix < len(self):
 			index = self.reader.getBatchIndex(self.batches, self.ix)
-			batchItem = self.reader.getBatchItem(index)
+			batchItem = self.reader[index]
+			# BatchedDatasets return a tuple of (batchItem, batchSize)
 			return batchItem, self.batches[self.ix]
 		raise StopIteration
 
@@ -33,17 +34,22 @@ class BatchedDatasetReader(DatasetReader):
 		# batchIndex = np.arange(cumsum[i], cumsum[i + 1])
 		try:
 			batchIndex = slice(cumsum[i], cumsum[i + 1])
-		except Exception:
+		except Exception as e:
+			print(str(e))
 			breakpoint()
 		return batchIndex
 
 	def getBatchItem(self, index:DatasetIndex) -> DatasetItem:
-		assert not isinstance(index, int)
-		return super().getItem(index)
+		return self[index]
 
 	@overrides
 	def iterateOneEpoch(self) -> Iterator[Dict[str, Any]]:
 		return BatchedDatasetEpochIterator(self)
+
+	@overrides
+	def __getitem__(self, index:DatasetIndex) -> DatasetItem:
+		assert not isinstance(index, int)
+		return super().__getitem__(index)
 
 	@overrides
 	def __str__(self) -> str:

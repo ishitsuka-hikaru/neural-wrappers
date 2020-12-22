@@ -23,7 +23,6 @@ class Reader(BatchedDatasetReader):
 	def getNumData(self) -> int:
 		return len(self.dataset)
 
-	@overrides
 	def getBatches(self) -> List[int]:
 		return np.array([4, 1, 2, 3], dtype=np.int32)
 

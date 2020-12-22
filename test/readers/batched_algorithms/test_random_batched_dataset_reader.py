@@ -118,7 +118,7 @@ class TestRandomBatchedDatasetReader:
 		assert len(leftover2) == 0
 
 def main():
-	TestRandomBatchedDatasetReader().test_getGenerators_2()
+	TestRandomBatchedDatasetReader().test_iterateForever_1()
 
 if __name__ == "__main__":
 	main()

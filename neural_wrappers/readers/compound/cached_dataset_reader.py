@@ -1,40 +1,64 @@
-# import numpy as np
-# from typing import Any
-# from pathlib import Path
-# from pycache import Cache
-# from tqdm import trange
-# from .dataset_reader import DatasetReader, DatasetIndex
-# from ..utilities import deepCheckEqual
 from __future__ import annotations
 from overrides import overrides
 from typing import List, Tuple
-from ..batched_dataset_reader import BatchedDatasetReader, BatchedDatasetEpochIterator
-from ..compound_batched_dataset_reader import CompoundBatchedDatasetReader
+from ..compound_dataset_reader import CompoundDatasetReader, CompoundBatchedDatasetReader
 from ..dataset_reader import DatasetReader
+from ..batched_dataset_reader import BatchedDatasetReader
 from ..dataset_types import *
 
-
-class CachedBatchedDatasetReader(CompoundBatchedDatasetReader):
-	def __init__(self, baseReader:BatchedDatasetReader, cache:Cache, buildCache:bool):
+class _CachedDatasetReader(CompoundDatasetReader):
+	def __init__(self, baseReader:DatasetReader, cache:Cache, buildCache:bool=False):
 		super().__init__(baseReader)
 		self.cache = cache
 		self.buildCache = buildCache
 
-	@overrides
-	def getBatchItem(self, index):
-		assert not isinstance(index, int)
+	def getItem(self, key):
+		return self.__getitem__(key)
 
-		cacheFile = str(index)
+	@overrides
+	def __getitem__(self, index):
+		cacheFile = self.cacheKey(index)
 		if self.cache.check(cacheFile):
 			item = self.cache.get(cacheFile)
 		else:
-			item = self.baseReader.getBatchItem(index)
+			item = super().__getitem__(index)
 			self.cache.set(cacheFile, item)
 		return item
 
 	@overrides
 	def __str__(self) -> str:
-		summaryStr = "[Cached Batched Dataset Reader]"
+		summaryStr = "[Cached Dataset Reader]"
+		summaryStr += "\n - Path: %s" % self.datasetPath
+		summaryStr += "\n - Type: %s" % type(self)
+		summaryStr += "\n - Data buckets:"
+		for dataBucket in self.datasetFormat.dataBuckets:
+			summaryStr += "\n   - %s => %s" % (dataBucket, self.datasetFormat.dataBuckets[dataBucket])
+		summaryStr += "\n - Num data: %d. Num batches: %d." % (len(self), len(self.getBatches()))
+		summaryStr += "\n - Cache: %s. Build cache: %s" % (self.cache, self.buildCache)
+		return summaryStr
+
+class CachedBatchedDatasetReader(CompoundBatchedDatasetReader):
+	def __init__(self, baseReader:DatasetReader, cache:Cache, buildCache:bool=False):
+		super().__init__(baseReader)
+		self.cache = cache
+		self.buildCache = buildCache
+
+	def getBatchItem(self, key):
+		return self.__getitem__(key)
+
+	@overrides
+	def __getitem__(self, index):
+		cacheFile = self.cacheKey(index)
+		if self.cache.check(cacheFile):
+			item = self.cache.get(cacheFile)
+		else:
+			item = super().__getitem__(index)
+			self.cache.set(cacheFile, item)
+		return item
+
+	@overrides
+	def __str__(self) -> str:
+		summaryStr = "[Cached Dataset Reader]"
 		summaryStr += "\n - Path: %s" % self.datasetPath
 		summaryStr += "\n - Type: %s" % type(self)
 		summaryStr += "\n - Data buckets:"
@@ -52,7 +76,7 @@ def CachedDatasetReader(baseReader:Union[DatasetReader, BatchedDatasetReader], c
 	if isinstance(baseReader, BatchedDatasetReader):
 		return CachedBatchedDatasetReader(baseReader, cache, buildCache)
 	else:
-		assert False, "TODO"
+		return _CachedDatasetReader(baseReader, cache, buildCache)
 
 # # @brief A composite dataset reader that has a base reader attribute which, will use as a descriptor for caching
 # #  purposes during iteration based on its hash (thus the base reader can define its own hash function for better

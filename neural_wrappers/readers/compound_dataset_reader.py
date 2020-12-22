@@ -1,8 +1,32 @@
 from overrides import overrides
 from typing import List
+from .dataset_reader import DatasetReader
 from .batched_dataset_reader import BatchedDatasetReader
+from .dataset_types import *
 
 # Helper class for batched algorithms (or even more (?))
+class CompoundDatasetReader(DatasetReader):
+	def __init__(self, baseReader:DatasetReader):
+		assert isinstance(baseReader, DatasetReader)
+		super().__init__(dataBuckets=baseReader.datasetFormat.dataBuckets, \
+			dimGetter=baseReader.datasetFormat.dimGetter, dimTransform=baseReader.datasetFormat.dimTransform)
+		self.baseReader = baseReader
+
+	@overrides
+	def getDataset(self):
+		return self.baseReader.getDataset()
+
+	@overrides
+	def getNumData(self):
+		return self.baseReader.getNumData()
+
+	@overrides
+	def __getitem__(self, key):
+		return self.baseReader[key]
+
+	def __getattr__(self, key):
+		return getattr(self.baseReader, key)
+
 class CompoundBatchedDatasetReader(BatchedDatasetReader):
 	def __init__(self, baseReader:BatchedDatasetReader):
 		assert isinstance(baseReader, BatchedDatasetReader)
@@ -11,7 +35,7 @@ class CompoundBatchedDatasetReader(BatchedDatasetReader):
 		self.baseReader = baseReader
 
 	@overrides
-	def getBatches(self) -> List[int]:
+	def getBatches(self):
 		return self.baseReader.getBatches()
 
 	@overrides
@@ -22,13 +46,9 @@ class CompoundBatchedDatasetReader(BatchedDatasetReader):
 	def getNumData(self):
 		return self.baseReader.getNumData()
 
-	def getBatchItem(self, index):
-		assert not isinstance(index, int)
-		return self.baseReader.getBatchItem(index)
-
-	@overrides
-	def getBatchIndex(self, batches, i):
-		return self.baseReader.getBatchIndex(batches, i)
-
 	def __getattr__(self, key):
 		return getattr(self.baseReader, key)
+
+	@overrides
+	def __getitem__(self, key):
+		return self.baseReader[key]
