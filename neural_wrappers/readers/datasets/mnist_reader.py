@@ -23,6 +23,7 @@ class MNISTReader(H5BatchedDatasetReader):
 		)
 		self.batches = []
 		self.batchSize = 0
+		self.isCacheable = True
 
 	# @param[in] batchSize The static batch size required to iterate one epoch. If the batch size is not divisible by
 	#  the number of items, the last batch will trimmed accordingly. If the provided value is -1, it is set to the

@@ -1,5 +1,6 @@
 import sys
 import h5py
+import pycache
 import numpy as np
 import torch as tr
 import torch.optim as optim
@@ -8,7 +9,8 @@ import torch.nn.functional as F
 from argparse import ArgumentParser
 from functools import partial
 from models import ModelFC, ModelConv
-from neural_wrappers.readers import MNISTReader, StaticBatchedDatasetReader, RandomBatchedDatasetReader
+from neural_wrappers.readers import MNISTReader, StaticBatchedDatasetReader, \
+	RandomBatchedDatasetReader, CachedDatasetReader
 from neural_wrappers.callbacks import SaveModels, SaveHistory, ConfusionMatrix, PlotMetrics, EarlyStopping
 from neural_wrappers.schedulers import ReduceLRAndBacktrackOnPlateau
 from neural_wrappers.utilities import getGenerators
@@ -36,9 +38,9 @@ def getArgs():
 
 # Small wrapper used for current NWModule implementation of runOneEpoch. Will update when NWModule is updated.
 class Reader(MNISTReader):
-	def getBatchItem(self, index):
-		item = super().getBatchItem(index)
-		return item["data"]["images"], item["labels"]["labels"]
+	def __getitem__(self, index):
+		item = super().__getitem__(index)
+		return item["data"], item["labels"]["labels"]
 
 def lossFn(y, t):
 	# Negative log-likeklihood (used for softmax+NLL for classification), expecting targets are one-hot encoded
@@ -53,11 +55,13 @@ def main():
 	validationReader = StaticBatchedDatasetReader(Reader(h5py.File(args.dataset_path, "r")["test"]), args.batchSize)
 	# trainReader = RandomBatchedDatasetReader(Reader(h5py.File(args.dataset_path, "r")["train"]))
 	# validationReader = RandomBatchedDatasetReader(Reader(h5py.File(args.dataset_path, "r")["test"]))
+	trainReader = CachedDatasetReader(trainReader, cache=pycache.NpyFS(".cache/%s" % hash(trainReader)))
+	validationReader = CachedDatasetReader(validationReader, cache=pycache.NpyFS(".cache/%s" % hash(validationReader)))
 	print(trainReader)
 	print(validationReader)
 
-	trainGenerator, trainSteps = getGenerators(trainReader)
-	validationGenerator, validationSteps = getGenerators(validationReader)
+	trainGenerator, trainSteps = getGenerators(trainReader, maxPrefetch=0)
+	validationGenerator, validationSteps = getGenerators(validationReader, maxPrefetch=0)
 
 	model = {
 		"model_fc" : ModelFC(inputShape=(28, 28, 1), outputNumClasses=10),
