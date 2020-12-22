@@ -54,10 +54,14 @@ class BatchedDatasetReader(DatasetReader):
 	@overrides
 	def __str__(self) -> str:
 		summaryStr = "[Batched Dataset Reader]"
-		summaryStr += "\n - Path: %s" % self.datasetPath
+		# summaryStr += "\n - Path: %s" % self.datasetPath
 		summaryStr += "\n - Type: %s" % type(self)
 		summaryStr += "\n - Data buckets:"
 		for dataBucket in self.datasetFormat.dataBuckets:
 			summaryStr += "\n   - %s => %s" % (dataBucket, self.datasetFormat.dataBuckets[dataBucket])
-		summaryStr += "\n - Num data: %d. Num batches: %d." % (len(self), len(self.getBatches()))
+		try:
+			numBatches = "%d" % len(self.getBatches())
+		except Exception:
+			numBatches = "Not implemented"
+		summaryStr += "\n - Num data: %d. Num batches: %s." % (len(self), numBatches)
 		return summaryStr

@@ -43,3 +43,8 @@ class MergeBatchedDatasetReader(BatchedDatasetReader):
 
 	def __getattr__(self, key):
 		return getattr(self.baseReader, key)
+
+	def __str__(self) -> str:
+		summaryStr = "[MergeBatchedDatasetReader]"
+		summaryStr += "\n %s" % str(self.baseReader)
+		return summaryStr

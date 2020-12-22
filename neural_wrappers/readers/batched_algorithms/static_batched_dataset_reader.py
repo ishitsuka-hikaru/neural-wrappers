@@ -32,11 +32,6 @@ class StaticBatchedDatasetReader(CompoundBatchedDatasetReader):
 	@overrides
 	def __str__(self) -> str:
 		summaryStr = "[Static Batched Dataset Reader]"
-		summaryStr += "\n - Path: %s" % self.datasetPath
-		summaryStr += "\n - Type: %s" % type(self)
-		summaryStr += "\n - Data buckets:"
-		for dataBucket in self.datasetFormat.dataBuckets:
-			summaryStr += "\n   - %s => %s" % (dataBucket, self.datasetFormat.dataBuckets[dataBucket])
-		summaryStr += "\n - Num data: %d. Num batches: %d." % (self.getNumData(), len(self.getBatches()))
+		summaryStr += "\n %s" % super().__str__()
 		summaryStr += "\n - Static batch size: %d" % self.batchSize
 		return summaryStr
