@@ -44,8 +44,8 @@ class Reader(BatchedDatasetReader):
 		return self.N
 
 	@overrides
-	def getBatchItem(self, index):
-		item = super().getBatchItem(index)
+	def __getitem__(self, index):
+		item = super().__getitem__(index)
 		return item["data"], item["data"]
 
 class Model(FeedForwardNetwork):

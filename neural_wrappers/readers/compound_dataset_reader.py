@@ -35,6 +35,10 @@ class CompoundBatchedDatasetReader(BatchedDatasetReader):
 		self.baseReader = baseReader
 
 	@overrides
+	def getBatchIndex(self, batches, index):
+		return self.baseReader.getBatchIndex(batches, index)
+
+	@overrides
 	def getBatches(self):
 		return self.baseReader.getBatches()
 

@@ -6,6 +6,7 @@ from ..compound_dataset_reader import CompoundDatasetReader, CompoundBatchedData
 from ..dataset_reader import DatasetReader
 from ..batched_dataset_reader import BatchedDatasetReader
 from ..dataset_types import *
+from ...utilities import deepCheckEqual
 
 class _CachedDatasetReader(CompoundDatasetReader):
 	def __init__(self, baseReader:DatasetReader, cache:Cache, buildCache:bool=False):
@@ -48,7 +49,7 @@ class _CachedDatasetReader(CompoundDatasetReader):
 			buildRegular(self.baseReader, n, self.cache)
 		else:
 			# Do a consistency check
-			itemGen = reader[index]
+			itemGen = self.baseReader[index]
 			item = self.cache.get(key)
 
 			try:

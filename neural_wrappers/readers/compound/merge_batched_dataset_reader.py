@@ -35,9 +35,9 @@ class MergeBatchedDatasetReader(BatchedDatasetReader):
 	#  merges them together using the provided merge method.
 	# @reutrn The current batch of items.
 	@overrides
-	def getBatchItem(self, i:DatasetIndex) -> Tuple[DatasetItem, int]:
+	def __getitem__(self, i:DatasetIndex) -> Tuple[DatasetItem, int]:
 		assert isinstance(i, np.ndarray), "Type: %s" % type(i)
-		items = [self.baseReader.getItem(j) for j in i]
+		items = [self.baseReader[j] for j in i]
 		items = self.mergeItems(items)
 		return items
 
