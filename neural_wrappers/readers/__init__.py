@@ -7,9 +7,7 @@ from .batched_dataset_reader import BatchedDatasetReader
 from .h5_batched_dataset_reader import H5BatchedDatasetReader
 
 # Composite readers (built on top of existing readers)
-from .compound import MergeBatchedDatasetReader
-# from .percent_dataset_reader import PercentDatasetReader
-# from .cached_dataset_reader import CachedDatasetReader
+from .compound import *
 
 # Implementations of various batched dataset algorithms
 from .batched_algorithms import *

@@ -2,20 +2,17 @@ from __future__ import annotations
 from overrides import overrides
 from abc import abstractmethod
 from typing import Tuple, List, Dict, Any, Iterator
-from .dataset_reader import DatasetReader, DatasetIterator
+from .dataset_reader import DatasetReader, DatasetEpochIterator
 from .dataset_types import *
 
-class BatchedDatasetIterator(DatasetIterator):
-	def __init__(self, reader:BatchedDatasetIterator):
-		self.reader = reader
-		self.ix = -1
+class BatchedDatasetEpochIterator(DatasetEpochIterator):
+	def __init__(self, reader:BatchedDatasetReader):
+		assert isinstance(reader, BatchedDatasetReader)
+		super().__init__(reader)
 		# Each iterator hgas it's own batches (can change for some readers, such as RandomBatchedDatasetReader, where
 		#  each epoch has its own set of batches).
 		self.batches = self.reader.getBatches()
 		self.len = len(self.batches)
-
-	def __len__(self):
-		return self.len
 
 	def __next__(self):
 		self.ix += 1
@@ -46,7 +43,7 @@ class BatchedDatasetReader(DatasetReader):
 
 	@overrides
 	def iterateOneEpoch(self) -> Iterator[Dict[str, Any]]:
-		return BatchedDatasetIterator(self)
+		return BatchedDatasetEpochIterator(self)
 
 	@overrides
 	def __str__(self) -> str:

@@ -1,19 +1,10 @@
 from __future__ import annotations
 from overrides import overrides
 from typing import List, Tuple
-from ..batched_dataset_reader import BatchedDatasetReader, BatchedDatasetIterator
+from ..batched_dataset_reader import BatchedDatasetReader, BatchedDatasetEpochIterator
 from ..compound_batched_dataset_reader import CompoundBatchedDatasetReader
 from ..dataset_reader import DatasetReader
 from ..dataset_types import *
-
-class RandomBatchedDatasetIterator(BatchedDatasetIterator):
-	def __init__(self, reader:RandomBatchedDatasetReader):
-		assert isinstance(reader, RandomBatchedDatasetReader)
-		self.reader = reader
-		self.ix = -1
-		# Unique for this epoch!
-		self.batches = self.reader.getShuffle()
-		self.len = len(self.batches)
 
 class RandomBatchedDatasetReader(CompoundBatchedDatasetReader):
 	def __init__(self, baseReader:BatchedDatasetReader):
@@ -42,7 +33,7 @@ class RandomBatchedDatasetReader(CompoundBatchedDatasetReader):
 
 	@overrides
 	def iterateOneEpoch(self) -> Iterator[Dict[str, Any]]:
-		return RandomBatchedDatasetIterator(self)
+		return BatchedDatasetEpochIterator(self)
 
 	@overrides
 	def __str__(self) -> str:

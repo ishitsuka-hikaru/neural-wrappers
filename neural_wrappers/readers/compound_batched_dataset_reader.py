@@ -12,7 +12,7 @@ class CompoundBatchedDatasetReader(BatchedDatasetReader):
 
 	@overrides
 	def getBatches(self) -> List[int]:
-		return self.baseReader.getBatches(batches)
+		return self.baseReader.getBatches()
 
 	@overrides
 	def getDataset(self):
