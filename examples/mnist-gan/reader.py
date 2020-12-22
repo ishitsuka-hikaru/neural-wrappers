@@ -21,8 +21,7 @@ class GANReader(H5BatchedDatasetReader):
 	def getNumData(self) -> int:
 		return len(self.getDataset()["images"])
 
-	@overrides
-	def getBatchItem(self, index):
-		item = super().getBatchItem(index)
+	def __getitem__(self, index):
+		item = super().__getitem__(index)
 		MB = index.stop - index.start
 		return np.random.randn(MB, self.latentSpaceSize).astype(np.float32), item["data"]["rgb"]

@@ -55,8 +55,10 @@ def sample(model, reader, numIters, seedText=None):
 		output, hprev = model.forward([output, hprev])
 		p = output.detach().to("cpu").numpy()[0].flatten()
 		charIndex = np.random.choice(range(len(reader.charToIx)), p=p)
+		# breakpoint()
+		# charIndex = np.argmax(p)
 		result += reader.ixToChar[charIndex]
-		npOutput = toCategorical(charIndex, len(reader.charToIx)).astype(np.float32)
+		npOutput = toCategorical([charIndex], len(reader.charToIx)).astype(np.float32)[0]
 		output = tr.from_numpy(npOutput).unsqueeze(dim=0).unsqueeze(dim=1).to(device)
 	return seedText, result
 

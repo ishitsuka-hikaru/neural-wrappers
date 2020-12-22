@@ -30,7 +30,7 @@ class Reader(BatchedDatasetReader):
 		res = []
 		for c in sentence:
 			v = self.charToIx[c]
-			v = toCategorical([v], numClasses=len(self.charToIx))
+			v = toCategorical([v], numClasses=len(self.charToIx))[0]
 			res.append(v)
 		res = np.array(res, dtype=np.float32)
 		return res
@@ -60,8 +60,8 @@ class Reader(BatchedDatasetReader):
 	def getNumData(self):
 		return self.stepsPerEpoch
 
-	def getBatchItem(self, index):
-		item = super().getBatchItem(index)
+	def __getitem__(self, index):
+		item = super().__getitem__(index)
 		item = item["data"]["sentence"]
 		batchSize = len(item)
 
