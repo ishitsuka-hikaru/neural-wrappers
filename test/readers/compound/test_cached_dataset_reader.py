@@ -88,7 +88,7 @@ class TestCachedDatasetReader:
 				assert np.abs(rgb - rgbs[i - n]).sum() < 1e-5
 			i += 1
 
-class TestCachedDatasetReader:
+class TestCachedDatasetReaderBatched:
 	def test_constructor_1(self):
 		reader = CachedDatasetReader(BatchedReader(), cache=pycache.DictMemory())
 		assert not reader is None

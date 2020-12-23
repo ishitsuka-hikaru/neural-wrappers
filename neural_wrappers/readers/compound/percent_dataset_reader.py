@@ -1,30 +1,23 @@
+from overrides import overrides
+from ..dataset_reader import DatasetReader
 from ..compound_dataset_reader import CompoundDatasetReader
 
 # @brief A composite dataset reader that has a base reader attribute which it can partially use based on the percent
 #  defined in the constructor
 class PercentDatasetReader(CompoundDatasetReader):
 	def __init__(self, baseReader:DatasetReader, percent:float):
+		super().__init__(baseReader)
 		assert percent > 0 and percent <= 100
-		self.baseReader = baseReader
 		self.percent = percent
 
-	def __getattr__(self, x):
-		return getattr(self.baseReader, x)
-
 	@overrides
-	def getDataset(self, topLevel:str) -> Any:
-		return self.baseReader.getDataset(topLevel)
-
-	@overrides
-	def getNumData(self, topLevel:str) -> int:
-		N = self.baseReader.getNumData(topLevel)
+	def __len__(self) -> int:
+		N = super().__len__()
 		return int(N * self.percent / 100)
 
-	# @overrides
-	# def getBatchDatasetIndex(self, i:int, topLevel:str, batchSize:int) -> DatasetIndex:
-	# 	return self.baseReader.getBatchDatasetIndex(i, topLevel, batchSize)
-
 	@overrides
-	def iterateOneEpoch(self, topLevel : str, batchSize : int):
-		for x in self.baseReader.iterateOneEpoch(topLevel, batchSize):
-			yield x
+	def __str__(self) -> str:
+		summaryStr = "[PercentDatasetReader]"
+		summaryStr += "\n - Percent: %2.2f%%" % self.percent
+		summaryStr += "\n %s" % super().__str__()
+		return summaryStr

@@ -21,7 +21,7 @@ class CachedDatasetReader(CompoundDatasetReader):
 			self.doBuildCache()
 
 	def doBuildCache(self):
-		if isinstance(self.baseReader, BatchedDatasetReader):
+		if hasattr(self.baseReader, "getBatches"):
 			batches = self.baseReader.getBatches()
 			indexFn = lambda i : getBatchIndex(batches, i)
 			n = len(batches)

@@ -3,3 +3,4 @@
 #  reader itself, if the item is cached. PercentDatasetReader updates getNumData and works with a partial dataset
 #  instead of the whole dataset.
 from .cached_dataset_reader import CachedDatasetReader
+from .percent_dataset_reader import PercentDatasetReader

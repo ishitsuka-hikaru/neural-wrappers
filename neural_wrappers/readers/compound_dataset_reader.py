@@ -19,6 +19,12 @@ class CompoundDatasetReader(BatchedDatasetReader):
 		return self.baseReader.getBatches()
 
 	@overrides
+	def iterateOneEpoch(self):
+		if not hasattr(self.baseReader, "getBatches"):
+			return DatasetReader.iterateOneEpoch(self)
+		return super().iterateOneEpoch()
+
+	@overrides
 	def getDataset(self):
 		return self.baseReader.getDataset()
 

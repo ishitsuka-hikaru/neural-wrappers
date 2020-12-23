@@ -102,7 +102,7 @@ class TestMergeBatchedDatasetReader:
 		assert i == len(generator) - 1
 
 def main():
-	TestMergeBatchedDatasetReader().test_getItem_1()
+	TestMergeBatchedDatasetReader().test_iterateOneEpoch_1()
 	# TestBatchedDatasetReader().test_mergeItems_1()
 	# TestBatchedDatasetReader().test_splitItems_1()
 	# TestBatchedDatasetReader().test_mergeSplit_1()

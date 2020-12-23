@@ -3,7 +3,7 @@
 from overrides import overrides
 from abc import abstractmethod
 from typing import Tuple, List
-# from ..batched_dataset_reader import BatchedDatasetReader
+from ..batched_dataset_reader import BatchedDatasetReader
 from ..compound_dataset_reader import CompoundDatasetReader
 from ..dataset_reader import DatasetReader
 from ..dataset_types import *
@@ -12,25 +12,21 @@ class MergeBatchedDatasetReader(CompoundDatasetReader):
 	def __init__(self, baseReader:DatasetReader):
 		try:
 			batches = baseReader.getBatches()
-			# ix = baseReader.getBatchIndex(batches, 0)
 			assert False, "Already a batched dataset, sir!"
 		except Exception:
 			pass
 		super().__init__(baseReader)
 
-		# self.baseReader = baseReader
+	def getBatches(self) -> List[int]:
+		raise NotImplementedError("Must be implemented by the reader!")
+
+	def iterateOneEpoch(self):
+		return BatchedDatasetReader.iterateOneEpoch(self)
 
 	# merge(i1, b1, i2, b2) -> i(1,2)
 	@abstractmethod
 	def mergeItems(self, item:List[DatasetItem]) -> DatasetItem:
 		pass
-
-	# @brief Update getBatchIndex as this is by default working with slices.
-	# @overrides
-	# def getBatchIndex(self, batches:List[int], i:int) -> DatasetIndex:
-	# 	cumsum = np.insert(np.cumsum(batches), 0, 0)
-	# 	batchIndex = np.arange(cumsum[i], cumsum[i + 1])
-	# 	return batchIndex
 
 	# @brief Gets the items of this batch, one by one, from the base reader, and then
 	#  merges them together using the provided merge method.
