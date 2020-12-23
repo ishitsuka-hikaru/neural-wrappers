@@ -11,6 +11,13 @@ class PercentDatasetReader(CompoundDatasetReader):
 		self.percent = percent
 
 	@overrides
+	def getBatches(self):
+		batches = super().getBatches()
+		N = len(batches)
+		newN = int(N * self.percent / 100)
+		return batches[0 : newN]
+
+	@overrides
 	def __len__(self) -> int:
 		N = super().__len__()
 		return int(N * self.percent / 100)
