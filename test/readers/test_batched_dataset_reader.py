@@ -33,7 +33,7 @@ class TestBatchedDatasetReader:
 
 	def test_getBatchItem_1(self):
 		reader = Reader()
-		item = reader.getBatchItem(reader.getBatchIndex(reader.getBatches(), 0))
+		item = reader[reader.getBatchIndex(reader.getBatches(), 0)]
 		rgb = item["data"]["rgb"]
 		assert rgb.shape[0] == 4
 		assert np.abs(rgb - reader.dataset[0:4]).sum() < 1e-5
@@ -44,7 +44,7 @@ class TestBatchedDatasetReader:
 		n = len(batches)
 		for j in range(100):
 			index = reader.getBatchIndex(batches, j % n)
-			batchItem = reader.getBatchItem(index)
+			batchItem = reader[index]
 			rgb = batchItem["data"]["rgb"]
 			assert np.abs(rgb - reader.dataset[index.start : index.stop]).sum() < 1e-5
 

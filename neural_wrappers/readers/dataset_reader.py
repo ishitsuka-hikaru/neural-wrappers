@@ -75,7 +75,7 @@ class DatasetFormat:
 		#  don't want that.
 		self.isCacheable = False
 
-		self.dimToDataBuckets = {dim : [] for dim in self.allDims}
+		self.dimToDataBuckets:Dict[str, List[str]] = {dim : [] for dim in self.allDims}
 		for dim in self.allDims:
 			for bucket in self.dataBuckets:
 				if dim in self.dataBuckets[bucket]:
@@ -118,12 +118,6 @@ class DatasetReader(ABC):
 
 	# Public interface
 
-	# @brief Returns the item at index i. Basically g(i) -> Item(i). Item(i) will follow dataBuckets schema,
-	#  and will call dimGetter for each dimension for this index.
-	# @return The item at index i
-	def getItem(self, index:DatasetIndex) -> DatasetItem:
-		return self[index]
-
 	# @brief The main iterator of a dataset. It will run over the data for one logical epoch.
 	def iterateOneEpoch(self) -> Iterator[Dict[str, Any]]:
 		return DatasetEpochIterator(self)
@@ -156,8 +150,10 @@ class DatasetReader(ABC):
 	def __len__(self) -> int:
 		return self.getNumData()
 
+	# @brief Returns the item at index i. Basically g(i) -> Item(i). Item(i) will follow dataBuckets schema,
+	#  and will call dimGetter for each dimension for this index.
+	# @return The item at index i
 	def __getitem__(self, index):
-		# index = self.getIndex(i)
 		dataBuckets = self.datasetFormat.dataBuckets
 		allDims = self.datasetFormat.allDims
 		dimGetter = self.datasetFormat.dimGetter

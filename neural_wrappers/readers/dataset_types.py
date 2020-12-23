@@ -11,8 +11,8 @@ class DatasetRandomIndex:
 		return "DatasetRandomIndex: %s" % (str(self.sequence))
 
 DatasetIndex = Union[int, Sequence[int], np.ndarray, range, DatasetRandomIndex]
-DimGetterParams = [str, DatasetIndex]
-DimGetterCallable = Callable[DimGetterParams, np.ndarray]
-DimTransformParams = [str, np.ndarray]
-DimTransformCallable = Callable[DimTransformParams, np.ndarray]
+#DimGetterParams = [str, DatasetIndex]
+DimGetterCallable = Callable[[str, DatasetIndex], np.ndarray]
+#DimTransformParams = [str, np.ndarray]
+DimTransformCallable = Callable[[str, np.ndarray], np.ndarray]
 DatasetItem = Any

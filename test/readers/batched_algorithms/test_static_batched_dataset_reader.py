@@ -16,7 +16,7 @@ class TestStaticBatchedDatasetReader:
 	def test_getItem_1(self):
 		reader = StaticBatchedDatasetReader(BaseReader(), batchSize=1)
 		batches = reader.getBatches()
-		item = reader.getBatchItem(reader.getBatchIndex(batches, 0))
+		item = reader[reader.getBatchIndex(batches, 0)]
 		rgb = item["data"]["rgb"]
 		assert rgb.shape[0] == 1
 		assert batches[0] == 1
@@ -28,7 +28,7 @@ class TestStaticBatchedDatasetReader:
 		n = len(batches)
 		for j in range(100):
 			batchIndex = reader.getBatchIndex(batches, j % n)
-			batchItem = reader.getBatchItem(batchIndex)
+			batchItem = reader[batchIndex]
 			rgb = batchItem["data"]["rgb"]
 			index = reader.getBatchIndex(batches, j % n)
 			assert len(rgb) == batches[j % n]

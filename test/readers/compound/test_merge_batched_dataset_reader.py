@@ -30,7 +30,7 @@ class TestMergeBatchedDatasetReader:
 
 	def test_getBatchItem_1(self):
 		reader = Reader(DummyDataset())
-		item = reader.getBatchItem(reader.getBatchIndex(reader.getBatches(), 0))
+		item = reader[reader.getBatchIndex(reader.getBatches(), 0)]
 		rgb = item["data"]["rgb"]
 		assert rgb.shape[0] == 4
 		assert np.abs(rgb - reader.baseReader.dataset[0:4]).sum() < 1e-5
@@ -41,15 +41,15 @@ class TestMergeBatchedDatasetReader:
 		n = len(batches)
 		for j in range(100):
 			index = reader.getBatchIndex(batches, j % n)
-			batchItem = reader.getBatchItem(index)
+			batchItem = reader[index]
 			rgb = batchItem["data"]["rgb"]
 			start, end = index[0], index[-1] + 1
 			assert np.abs(rgb - reader.baseReader.dataset[start : end]).sum() < 1e-5
 
 	def test_mergeItems_1(self):
 		reader = Reader(DummyDataset())
-		item1 = reader.baseReader.getItem(0)
-		item2 = reader.baseReader.getItem(1)
+		item1 = reader.baseReader[0]
+		item2 = reader.baseReader[1]
 		itemMerged = reader.mergeItems([item1, item2])
 		rgb1 = item1["data"]["rgb"]
 		rgb2 = item2["data"]["rgb"]
@@ -71,7 +71,7 @@ class TestMergeBatchedDatasetReader:
 		reader = StaticBatchedDatasetReader(Reader(DummyDataset()), 4)
 		batches = reader.getBatches()
 		assert batches == [4, 4, 2]
-		item = reader.getBatchItem(reader.getBatchIndex(batches, 0))
+		item = reader[reader.getBatchIndex(batches, 0)]
 		rgb = item["data"]["rgb"]
 		assert len(rgb) == 4
 

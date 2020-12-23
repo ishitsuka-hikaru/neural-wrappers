@@ -39,9 +39,6 @@ class BatchedDatasetReader(DatasetReader):
 			breakpoint()
 		return batchIndex
 
-	def getBatchItem(self, index:DatasetIndex) -> DatasetItem:
-		return self[index]
-
 	@overrides
 	def iterateOneEpoch(self) -> Iterator[Dict[str, Any]]:
 		return BatchedDatasetEpochIterator(self)

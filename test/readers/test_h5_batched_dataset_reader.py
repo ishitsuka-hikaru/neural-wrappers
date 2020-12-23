@@ -42,7 +42,7 @@ class TestH5BatchedDatasetReader:
 	def test_getBatchItem_1(self):
 		reader = Reader()
 		b = reader.getBatches()
-		item = reader.getBatchItem(reader.getBatchIndex(reader.getBatches(), 0))
+		item = reader[reader.getBatchIndex(reader.getBatches(), 0)]
 		rgb = item["data"]["rgb"]
 		assert rgb.shape[0] == 4
 		assert np.abs(rgb - reader.dataset["rgb"][0:4]).sum() < 1e-5
@@ -53,7 +53,7 @@ class TestH5BatchedDatasetReader:
 		n = len(batches)
 		for j in range(100):
 			index = reader.getBatchIndex(batches, j % n)
-			batchItem = reader.getBatchItem(index)
+			batchItem = reader[index]
 			rgb = batchItem["data"]["rgb"]
 			assert np.abs(rgb - reader.dataset["rgb"][index.start : index.stop]).sum() < 1e-5
 

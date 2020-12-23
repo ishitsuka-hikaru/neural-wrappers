@@ -16,7 +16,7 @@ class TestRandomBatchedDatasetReader:
 	def test_getBatchedItem_1(self):
 		reader = RandomBatchedDatasetReader(BaseReader())
 		batches = reader.getBatches()
-		item = reader.getBatchItem(reader.getBatchIndex(batches, 0))
+		item = reader[reader.getBatchIndex(batches, 0)]
 		rgb = item["data"]["rgb"]
 		B = batches[0]
 		assert rgb.shape[0] == B
@@ -28,7 +28,7 @@ class TestRandomBatchedDatasetReader:
 		n = len(batches)
 		for j in range(100):
 			index = reader.getBatchIndex(batches, j % n)
-			batchItem = reader.getBatchItem(index)
+			batchItem = reader[index]
 			rgb = batchItem["data"]["rgb"]
 			assert rgb.shape[0] == batches[j % n], "%d vs %d" % (rgb.shape[0], batches[j % n])
 			assert np.abs(rgb - reader.baseReader.dataset[index.start : index.stop]).sum() < 1e-5

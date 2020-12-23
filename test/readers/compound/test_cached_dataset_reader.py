@@ -29,10 +29,10 @@ class TestCachedDatasetReader:
 		reader = CachedDatasetReader(Reader(), cache=pycache.DictMemory())
 		index = 0
 		assert reader.cache.check(reader.cacheKey(index)) == False
-		item = reader.getItem(index)
+		item = reader[index]
 		rgb = item["data"]["rgb"]
 		assert reader.cache.check(reader.cacheKey(index)) == True
-		itemCache = reader.getItem(index)
+		itemCache = reader[index]
 		rgbCache = itemCache["data"]["rgb"]
 		assert np.abs(rgb - rgbCache).sum() < 1e-5
 
@@ -40,10 +40,10 @@ class TestCachedDatasetReader:
 		reader = CachedDatasetReader(Reader(), cache=pycache.DictMemory(), buildCache=True)
 		index = 0
 		assert reader.cache.check(reader.cacheKey(index)) == True
-		item = reader.getItem(index)
+		item = reader[index]
 		rgb = item["data"]["rgb"]
 		assert reader.cache.check(reader.cacheKey(index)) == True
-		itemCache = reader.getItem(index)
+		itemCache = reader[index]
 		rgbCache = itemCache["data"]["rgb"]
 		assert np.abs(rgb - rgbCache).sum() < 1e-5
 
@@ -97,10 +97,10 @@ class TestCachedBatchedDatasetReader:
 		batches = reader.getBatches()
 		index = reader.getBatchIndex(batches, 0)
 		assert reader.cache.check(reader.cacheKey(index)) == False
-		item = reader.getBatchItem(index)
+		item = reader[index]
 		rgb = item["data"]["rgb"]
 		assert reader.cache.check(reader.cacheKey(index)) == True
-		itemCache = reader.getBatchItem(index)
+		itemCache = reader[index]
 		rgbCache = itemCache["data"]["rgb"]
 		assert np.abs(rgb - rgbCache).sum() < 1e-5
 
@@ -109,10 +109,10 @@ class TestCachedBatchedDatasetReader:
 		batches = reader.getBatches()
 		index = reader.getBatchIndex(batches, 0)
 		assert reader.cache.check(reader.cacheKey(index)) == True
-		item = reader.getBatchItem(index)
+		item = reader[index]
 		rgb = item["data"]["rgb"]
 		assert reader.cache.check(reader.cacheKey(index)) == True
-		itemCache = reader.getBatchItem(index)
+		itemCache = reader[index]
 		rgbCache = itemCache["data"]["rgb"]
 		assert np.abs(rgb - rgbCache).sum() < 1e-5
 

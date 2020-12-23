@@ -42,7 +42,7 @@ class TestDatasetReader:
 
 	def test_getItem_1(self):
 		reader = DummyDataset()
-		item = reader.getItem(0)
+		item = reader[0]
 		rgb = item["data"]["rgb"]
 		assert np.abs(reader.dataset[0] - rgb).sum() < 1e-5
 
