@@ -3,7 +3,7 @@ import os
 import h5py
 from overrides import overrides
 from typing import Tuple, List, Any
-from neural_wrappers.readers import H5BatchedDatasetReader, DatasetItem, DatasetIndex
+from neural_wrappers.readers import H5BatchedDatasetReader, DatasetItem, DatasetIndex, getBatchIndex
 
 def createDatasetIfNotExist():
 	tempFileName = "/tmp/dataset.h5"
@@ -42,7 +42,7 @@ class TestH5BatchedDatasetReader:
 	def test_getBatchItem_1(self):
 		reader = Reader()
 		b = reader.getBatches()
-		item = reader[reader.getBatchIndex(reader.getBatches(), 0)]
+		item = reader[getBatchIndex(reader.getBatches(), 0)]
 		rgb = item["data"]["rgb"]
 		assert rgb.shape[0] == 4
 		assert np.abs(rgb - reader.dataset["rgb"][0:4]).sum() < 1e-5
@@ -52,7 +52,7 @@ class TestH5BatchedDatasetReader:
 		batches = reader.getBatches()
 		n = len(batches)
 		for j in range(100):
-			index = reader.getBatchIndex(batches, j % n)
+			index = getBatchIndex(batches, j % n)
 			batchItem = reader[index]
 			rgb = batchItem["data"]["rgb"]
 			assert np.abs(rgb - reader.dataset["rgb"][index.start : index.stop]).sum() < 1e-5
@@ -67,7 +67,7 @@ class TestH5BatchedDatasetReader:
 			except Exception:
 				breakpoint()
 			rgb = batchItem["data"]["rgb"]
-			index = reader.getBatchIndex(batchSizes, j % n)
+			index = getBatchIndex(batchSizes, j % n)
 			assert np.abs(rgb - reader.dataset["rgb"][index.start : index.stop]).sum() < 1e-5
 
 			if j == 100:

@@ -2,10 +2,11 @@ import numpy as np
 from overrides import overrides
 from typing import Tuple, List, Any
 from neural_wrappers.readers import DatasetItem, DatasetReader, MergeBatchedDatasetReader, \
-	StaticBatchedDatasetReader, RandomBatchedDatasetReader
+	StaticBatchedDatasetReader, RandomBatchedDatasetReader, CachedDatasetReader, getBatchIndex
 import sys
 sys.path.append("..")
 from test_dataset_reader import DummyDataset
+from test_batched_dataset_reader import Reader as DummyBatchedReader
 
 class Reader(MergeBatchedDatasetReader):
 	def __init__(self, baseReader:DatasetReader):
@@ -28,9 +29,25 @@ class TestMergeBatchedDatasetReader:
 		reader = Reader(DummyDataset())
 		assert not reader is None
 
+	def test_constructor_2(self):
+		try:
+			reader = Reader(DummyBatchedReader())
+			assert False
+		except Exception:
+			pass
+
+	def test_constructor_3(self):
+		reader = Reader(CachedDatasetReader(DummyDataset(), cache=None))
+		assert not reader is None
+		try:
+			reader = Reader(CachedDatasetReader(DummyBatchedReader(), cache=None))
+			assert False
+		except Exception:
+			pass
+
 	def test_getBatchItem_1(self):
 		reader = Reader(DummyDataset())
-		item = reader[reader.getBatchIndex(reader.getBatches(), 0)]
+		item = reader[getBatchIndex(reader.getBatches(), 0)]
 		rgb = item["data"]["rgb"]
 		assert rgb.shape[0] == 4
 		assert np.abs(rgb - reader.baseReader.dataset[0:4]).sum() < 1e-5
@@ -40,11 +57,10 @@ class TestMergeBatchedDatasetReader:
 		batches = reader.getBatches()
 		n = len(batches)
 		for j in range(100):
-			index = reader.getBatchIndex(batches, j % n)
+			index = getBatchIndex(batches, j % n)
 			batchItem = reader[index]
 			rgb = batchItem["data"]["rgb"]
-			start, end = index[0], index[-1] + 1
-			assert np.abs(rgb - reader.baseReader.dataset[start : end]).sum() < 1e-5
+			assert np.abs(rgb - reader.baseReader.dataset[index.start : index.stop]).sum() < 1e-5
 
 	def test_mergeItems_1(self):
 		reader = Reader(DummyDataset())
@@ -71,7 +87,7 @@ class TestMergeBatchedDatasetReader:
 		reader = StaticBatchedDatasetReader(Reader(DummyDataset()), 4)
 		batches = reader.getBatches()
 		assert batches == [4, 4, 2]
-		item = reader[reader.getBatchIndex(batches, 0)]
+		item = reader[getBatchIndex(batches, 0)]
 		rgb = item["data"]["rgb"]
 		assert len(rgb) == 4
 

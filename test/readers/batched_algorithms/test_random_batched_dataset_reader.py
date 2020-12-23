@@ -1,7 +1,7 @@
 import numpy as np
 from overrides import overrides
 from typing import Tuple, List, Any
-from neural_wrappers.readers import RandomBatchedDatasetReader, DatasetItem, DatasetIndex
+from neural_wrappers.readers import RandomBatchedDatasetReader, DatasetItem, DatasetIndex, getBatchIndex
 from neural_wrappers.utilities import getGenerators
 
 import sys
@@ -16,7 +16,7 @@ class TestRandomBatchedDatasetReader:
 	def test_getBatchedItem_1(self):
 		reader = RandomBatchedDatasetReader(BaseReader())
 		batches = reader.getBatches()
-		item = reader[reader.getBatchIndex(batches, 0)]
+		item = reader[getBatchIndex(batches, 0)]
 		rgb = item["data"]["rgb"]
 		B = batches[0]
 		assert rgb.shape[0] == B
@@ -27,7 +27,7 @@ class TestRandomBatchedDatasetReader:
 		batches = reader.getBatches()
 		n = len(batches)
 		for j in range(100):
-			index = reader.getBatchIndex(batches, j % n)
+			index = getBatchIndex(batches, j % n)
 			batchItem = reader[index]
 			rgb = batchItem["data"]["rgb"]
 			assert rgb.shape[0] == batches[j % n], "%d vs %d" % (rgb.shape[0], batches[j % n])
@@ -45,7 +45,7 @@ class TestRandomBatchedDatasetReader:
 
 			rgb = batchItem["data"]["rgb"]
 			print("j=%d. batches: %s. rgb:%s" % (j, currentBatch, rgb.shape))
-			index = reader.getBatchIndex(currentBatch, k % n)
+			index = getBatchIndex(currentBatch, k % n)
 
 			assert B == currentBatch[k % n]
 			assert np.abs(rgb - reader.baseReader.dataset[index.start : index.stop]).sum() < 1e-5

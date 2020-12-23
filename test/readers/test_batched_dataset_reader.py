@@ -1,7 +1,7 @@
 import numpy as np
 from overrides import overrides
 from typing import Tuple, List, Any
-from neural_wrappers.readers import BatchedDatasetReader, DatasetItem, DatasetIndex
+from neural_wrappers.readers import BatchedDatasetReader, DatasetItem, DatasetIndex, getBatchIndex
 
 class Reader(BatchedDatasetReader):
 	def __init__(self, N=10):
@@ -33,7 +33,7 @@ class TestBatchedDatasetReader:
 
 	def test_getBatchItem_1(self):
 		reader = Reader()
-		item = reader[reader.getBatchIndex(reader.getBatches(), 0)]
+		item = reader[getBatchIndex(reader.getBatches(), 0)]
 		rgb = item["data"]["rgb"]
 		assert rgb.shape[0] == 4
 		assert np.abs(rgb - reader.dataset[0:4]).sum() < 1e-5
@@ -43,7 +43,7 @@ class TestBatchedDatasetReader:
 		batches = reader.getBatches()
 		n = len(batches)
 		for j in range(100):
-			index = reader.getBatchIndex(batches, j % n)
+			index = getBatchIndex(batches, j % n)
 			batchItem = reader[index]
 			rgb = batchItem["data"]["rgb"]
 			assert np.abs(rgb - reader.dataset[index.start : index.stop]).sum() < 1e-5
@@ -59,7 +59,7 @@ class TestBatchedDatasetReader:
 				print(str(e))
 				breakpoint()
 			rgb = batchItem["data"]["rgb"]
-			index = reader.getBatchIndex(batchSizes, j % n)
+			index = getBatchIndex(batchSizes, j % n)
 			assert np.abs(rgb - reader.dataset[index.start : index.stop]).sum() < 1e-5
 
 			if j == 100:

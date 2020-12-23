@@ -4,7 +4,7 @@ from typing import List, Tuple
 from tqdm import trange
 from ..compound_dataset_reader import CompoundDatasetReader
 from ..dataset_reader import DatasetReader
-from ..batched_dataset_reader import BatchedDatasetReader
+from ..batched_dataset_reader import BatchedDatasetReader, getBatchIndex
 from ..dataset_types import *
 from ...utilities import deepCheckEqual
 
@@ -23,7 +23,7 @@ class CachedDatasetReader(CompoundDatasetReader):
 	def doBuildCache(self):
 		if isinstance(self.baseReader, BatchedDatasetReader):
 			batches = self.baseReader.getBatches()
-			indexFn = lambda i : self.baseReader.getBatchIndex(batches, i)
+			indexFn = lambda i : getBatchIndex(batches, i)
 			n = len(batches)
 		else:
 			indexFn = lambda i : i

@@ -1,7 +1,7 @@
 import numpy as np
 from overrides import overrides
 from typing import Tuple, List, Any
-from neural_wrappers.readers import StaticBatchedDatasetReader, DatasetItem, DatasetIndex
+from neural_wrappers.readers import StaticBatchedDatasetReader, DatasetItem, DatasetIndex, getBatchIndex
 from neural_wrappers.utilities import getGenerators
 
 import sys
@@ -16,7 +16,7 @@ class TestStaticBatchedDatasetReader:
 	def test_getItem_1(self):
 		reader = StaticBatchedDatasetReader(BaseReader(), batchSize=1)
 		batches = reader.getBatches()
-		item = reader[reader.getBatchIndex(batches, 0)]
+		item = reader[getBatchIndex(batches, 0)]
 		rgb = item["data"]["rgb"]
 		assert rgb.shape[0] == 1
 		assert batches[0] == 1
@@ -27,10 +27,10 @@ class TestStaticBatchedDatasetReader:
 		batches = reader.getBatches()
 		n = len(batches)
 		for j in range(100):
-			batchIndex = reader.getBatchIndex(batches, j % n)
+			batchIndex = getBatchIndex(batches, j % n)
 			batchItem = reader[batchIndex]
 			rgb = batchItem["data"]["rgb"]
-			index = reader.getBatchIndex(batches, j % n)
+			index = getBatchIndex(batches, j % n)
 			assert len(rgb) == batches[j % n]
 			assert np.abs(rgb - reader.baseReader.dataset[index.start : index.stop]).sum() < 1e-5
 
@@ -44,7 +44,7 @@ class TestStaticBatchedDatasetReader:
 			except Exception:
 				breakpoint()
 			rgb = batchItem["data"]["rgb"]
-			index = reader.getBatchIndex(batchSizes, j % n)
+			index = getBatchIndex(batchSizes, j % n)
 			assert np.abs(rgb - reader.baseReader.dataset[index.start : index.stop]).sum() < 1e-5
 
 			if j == 100:

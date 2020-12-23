@@ -28,11 +28,12 @@ class CompoundDatasetReader(BatchedDatasetReader):
 
 	@overrides
 	def __getitem__(self, key):
-		return self.baseReader[key]
+		return self.baseReader.__getitem__(key)
 
 	def __getattr__(self, key):
 		return getattr(self.baseReader, key)
 
+	@overrides
 	def __str__(self) -> str:
 		summaryStr = "[CompoundDatasetReader]"
 		summaryStr += "\n - Type: %s" % type(self.baseReader)

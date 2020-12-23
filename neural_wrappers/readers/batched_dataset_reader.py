@@ -5,6 +5,18 @@ from typing import Tuple, List, Dict, Any, Iterator
 from .dataset_reader import DatasetReader, DatasetEpochIterator
 from .dataset_types import *
 
+def getBatchIndex(batches:List[int], i:int) -> DatasetIndex:
+	# batches = [1, 5, 4, 2] => cumsum = [0, 1, 6, 10, 12]
+	cumsum = np.insert(np.cumsum(batches), 0, 0)
+	# i = 2 => B = [6, 7, 8, 9]
+	# batchIndex = np.arange(cumsum[i], cumsum[i + 1])
+	try:
+		batchIndex = slice(cumsum[i], cumsum[i + 1])
+	except Exception as e:
+		print(str(e))
+		breakpoint()
+	return batchIndex
+
 class BatchedDatasetEpochIterator(DatasetEpochIterator):
 	def __init__(self, reader:BatchedDatasetReader):
 		assert isinstance(reader, BatchedDatasetReader)
@@ -17,7 +29,7 @@ class BatchedDatasetEpochIterator(DatasetEpochIterator):
 	def __next__(self):
 		self.ix += 1
 		if self.ix < len(self):
-			index = self.reader.getBatchIndex(self.batches, self.ix)
+			index = getBatchIndex(self.batches, self.ix)
 			batchItem = self.reader[index]
 			# BatchedDatasets return a tuple of (batchItem, batchSize)
 			return batchItem, self.batches[self.ix]
@@ -26,18 +38,6 @@ class BatchedDatasetEpochIterator(DatasetEpochIterator):
 class BatchedDatasetReader(DatasetReader):
 	def getBatches(self) -> List[int]:
 		raise NotImplementedError("Must be implemented by the reader!")
-
-	def getBatchIndex(self, batches:List[int], i:int) -> DatasetIndex:
-		# batches = [1, 5, 4, 2] => cumsum = [0, 1, 6, 10, 12]
-		cumsum = np.insert(np.cumsum(batches), 0, 0)
-		# i = 2 => B = [6, 7, 8, 9]
-		# batchIndex = np.arange(cumsum[i], cumsum[i + 1])
-		try:
-			batchIndex = slice(cumsum[i], cumsum[i + 1])
-		except Exception as e:
-			print(str(e))
-			breakpoint()
-		return batchIndex
 
 	@overrides
 	def iterateOneEpoch(self) -> Iterator[Dict[str, Any]]:

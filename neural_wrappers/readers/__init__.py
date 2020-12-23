@@ -1,7 +1,7 @@
 from .dataset_types import DatasetIndex, DatasetRandomIndex, DimGetterCallable, DatasetItem
 # Building blocks for DatasetReaders
 from .dataset_reader import DatasetReader
-from .batched_dataset_reader import BatchedDatasetReader
+from .batched_dataset_reader import BatchedDatasetReader, getBatchIndex
 
 # Specific underlying data types (npy file/h5py file/video dir etc.)
 from .h5_batched_dataset_reader import H5BatchedDatasetReader
