@@ -2,7 +2,7 @@ from __future__ import annotations
 from overrides import overrides
 from typing import List, Tuple
 from tqdm import trange
-from ..compound_dataset_reader import CompoundDatasetReader, CompoundBatchedDatasetReader
+from ..compound_dataset_reader import CompoundDatasetReader
 from ..dataset_reader import DatasetReader
 from ..batched_dataset_reader import BatchedDatasetReader
 from ..dataset_types import *
@@ -66,6 +66,10 @@ class CachedDatasetReader(CompoundDatasetReader):
 				self.cache.set(key, itemGen)
 				buildDirty(self.baseReader, n, self.cache)
 
+	# @overrides
+	# def __getattr__(self, key):
+	# 	return getattr(self.baseReader, key)
+
 	@overrides
 	def __getitem__(self, index):
 		cacheFile = self.cacheKey(index)
@@ -82,17 +86,3 @@ class CachedDatasetReader(CompoundDatasetReader):
 		summaryStr += "\n - Cache: %s. Build cache: %s" % (self.cache, self.buildCache)
 		summaryStr += "\n %s" % str(self.baseReader)
 		return summaryStr
-
-class CachedBatchedDatasetReader(CompoundBatchedDatasetReader):
-	def __init__(self, baseReader:DatasetReader, cache:Cache, buildCache:bool=False):
-		super().__init__(baseReader)
-		self.impl = CachedDatasetReader(baseReader, cache, buildCache)
-	
-	def __getitem__(self, key):
-		return self.impl.__getitem__(key)
-
-	def __getattr__(self, key):
-		return getattr(self.impl, key)
-
-	def __str__(self) -> str:
-		return str(self.impl)

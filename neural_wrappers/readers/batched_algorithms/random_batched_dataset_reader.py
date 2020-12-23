@@ -2,11 +2,11 @@ from __future__ import annotations
 from overrides import overrides
 from typing import List, Tuple
 from ..batched_dataset_reader import BatchedDatasetReader, BatchedDatasetEpochIterator
-from ..compound_dataset_reader import CompoundBatchedDatasetReader
+from ..compound_dataset_reader import CompoundDatasetReader
 from ..dataset_reader import DatasetReader
 from ..dataset_types import *
 
-class RandomBatchedDatasetReader(CompoundBatchedDatasetReader):
+class RandomBatchedDatasetReader(CompoundDatasetReader):
 	def __init__(self, baseReader:BatchedDatasetReader):
 		super().__init__(baseReader)
 		self.numShuffles = 0
