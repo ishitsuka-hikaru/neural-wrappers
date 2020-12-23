@@ -39,7 +39,7 @@ class DatasetEpochIterator:
 	def __init__(self, reader:DatasetReader):
 		self.reader = reader
 		self.ix = -1
-		self.len = self.reader.getNumData()
+		self.len = len(self.reader)
 	
 	def __len__(self):
 		return self.len
@@ -113,8 +113,9 @@ class DatasetReader(ABC):
 		pass
 
 	@abstractmethod
-	def getNumData(self) -> int:
+	def __len__(self) -> int:
 		pass
+
 
 	# Public interface
 
@@ -146,9 +147,6 @@ class DatasetReader(ABC):
 		for dataBucket in self.datasetFormat.dataBuckets:
 			summaryStr += "\n   - %s => %s" % (dataBucket, self.datasetFormat.dataBuckets[dataBucket])
 		return summaryStr
-
-	def __len__(self) -> int:
-		return self.getNumData()
 
 	# @brief Returns the item at index i. Basically g(i) -> Item(i). Item(i) will follow dataBuckets schema,
 	#  and will call dimGetter for each dimension for this index.

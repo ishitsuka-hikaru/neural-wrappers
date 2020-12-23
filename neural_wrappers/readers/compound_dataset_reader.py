@@ -23,8 +23,8 @@ class CompoundDatasetReader(BatchedDatasetReader):
 		return self.baseReader.getDataset()
 
 	@overrides
-	def getNumData(self):
-		return self.baseReader.getNumData()
+	def __len__(self):
+		return len(self.baseReader)
 
 	@overrides
 	def __getitem__(self, key):

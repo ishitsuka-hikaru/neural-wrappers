@@ -12,7 +12,7 @@ class RandomBatchedDatasetReader(CompoundDatasetReader):
 		self.numShuffles = 0
 
 	def getShuffle(self):
-		N = self.getNumData()
+		N = len(self)
 		S = 0
 		batches = []
 		while S < N:

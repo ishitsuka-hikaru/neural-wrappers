@@ -20,7 +20,7 @@ class Reader(BatchedDatasetReader):
 		return self.dataset
 
 	@overrides
-	def getNumData(self) -> int:
+	def __len__(self) -> int:
 		return len(self.dataset)
 
 	def getBatches(self) -> List[int]:

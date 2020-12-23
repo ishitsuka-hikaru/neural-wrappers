@@ -1,10 +1,8 @@
-from .dataset_reader import DatasetReader, DatasetIndex
-from overrides import overrides
-from typing import Any
+from ..compound_dataset_reader import CompoundDatasetReader
 
 # @brief A composite dataset reader that has a base reader attribute which it can partially use based on the percent
 #  defined in the constructor
-class PercentDatasetReader(DatasetReader):
+class PercentDatasetReader(CompoundDatasetReader):
 	def __init__(self, baseReader:DatasetReader, percent:float):
 		assert percent > 0 and percent <= 100
 		self.baseReader = baseReader

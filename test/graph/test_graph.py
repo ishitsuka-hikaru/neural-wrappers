@@ -32,15 +32,11 @@ class Reader(BatchedDatasetReader):
 		)
 
 	@overrides
-	def getBatches(self):
-		pass
-
-	@overrides
 	def getDataset(self) -> Any:
 		return self.dataset
 
 	@overrides
-	def getNumData(self) -> int:
+	def __len__(self) -> int:
 		return self.N
 
 	@overrides

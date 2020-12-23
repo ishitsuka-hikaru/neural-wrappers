@@ -27,7 +27,7 @@ class MNISTReader(H5BatchedDatasetReader):
 
 	# @param[in] batchSize The static batch size required to iterate one epoch. If the batch size is not divisible by
 	#  the number of items, the last batch will trimmed accordingly. If the provided value is -1, it is set to the
-	#  default value of the entire dataset, based on self.getNumData()
+	#  default value of the entire dataset, based on __len__.
 	def setBatchSize(self, batchSize:int):
 		assert batchSize == 1 or batchSize > 0
 		N = len(self)
@@ -45,5 +45,5 @@ class MNISTReader(H5BatchedDatasetReader):
 		return self.batches
 
 	@overrides
-	def getNumData(self) -> int:
+	def __len__(self) -> int:
 		return len(self.getDataset()["images"])

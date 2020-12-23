@@ -20,7 +20,7 @@ class DummyDataset(DatasetReader):
 		return self.dataset
 
 	@overrides
-	def getNumData(self) -> int:
+	def __len__(self) -> int:
 		return len(self.dataset)
 
 class TestDatasetReader:
@@ -48,7 +48,7 @@ class TestDatasetReader:
 
 	def test_getNumData_1(self):
 		reader = DummyDataset()
-		numData = reader.getNumData()
+		numData = len(reader)
 		assert numData == len(reader.dataset)
 
 	def test_iterateOneEpoch_1(self):

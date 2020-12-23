@@ -32,10 +32,6 @@ class Reader(BatchedDatasetReader):
 		)
 
 	@overrides
-	def getBatches(self):
-		pass
-
-	@overrides
 	def getDataset(self) -> Any:
 		return self.dataset
 
@@ -43,18 +39,13 @@ class Reader(BatchedDatasetReader):
 	# @param[in] topLevel The top-level dimension that is iterated over (example: train, validation, test, etc.)
 	# @return The number of items in a given top level name
 	@overrides
-	def getNumData(self) -> int:
+	def __len__(self) -> int:
 		return self.N
 
 	@overrides
 	def __getitem__(self, index):
 		item = super().__getitem__(index)
 		return item["data"], item["data"]
-
-	# @overrides
-	# def iterateOneEpoch(self, topLevel : str) -> Iterator[Tuple[Dict, Dict]]:
-	# 	for item in super().iterateOneEpoch(topLevel):
-	# 		yield item["data"], item["data"]
 
 class Model(FeedForwardNetwork):
 	def __init__(self, inDims, outDims):

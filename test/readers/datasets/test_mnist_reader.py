@@ -29,8 +29,8 @@ class TestMNISTReader:
 	def test_getNumData_1(self):
 		trainReader = MNISTReader(h5py.File(MNIST_READER_PATH, "r")["train"])
 		testReader = MNISTReader(h5py.File(MNIST_READER_PATH, "r")["test"])
-		assert trainReader.getNumData() == 60000
-		assert testReader.getNumData() == 10000
+		assert len(trainReader) == 60000
+		assert len(testReader) == 10000
 
 	@pytestmark
 	def test_getNumIterations_1(self):
