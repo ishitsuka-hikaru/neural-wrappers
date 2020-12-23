@@ -27,6 +27,12 @@ class CompoundDatasetReader(DatasetReader):
 	def __getattr__(self, key):
 		return getattr(self.baseReader, key)
 
+	def __str__(self) -> str:
+		summaryStr = "[CompoundDatasetReader]"
+		summaryStr += "\n - Type: %s" % type(self.baseReader)
+		summaryStr += "\n %s" % str(self.baseReader)
+		return summaryStr
+
 class CompoundBatchedDatasetReader(BatchedDatasetReader):
 	def __init__(self, baseReader:BatchedDatasetReader):
 		assert isinstance(baseReader, BatchedDatasetReader)

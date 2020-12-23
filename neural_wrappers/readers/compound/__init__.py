@@ -1,2 +1,2 @@
 from .merge_batched_dataset_reader import MergeBatchedDatasetReader
-from .cached_dataset_reader import CachedDatasetReader
+from .cached_dataset_reader import CachedDatasetReader, CachedBatchedDatasetReader

@@ -8,7 +8,10 @@ from ..batched_dataset_reader import BatchedDatasetReader
 from ..dataset_types import *
 from ...utilities import deepCheckEqual
 
-class _CachedDatasetReader(CompoundDatasetReader):
+class CachedDatasetReader(CompoundDatasetReader):
+	# @param[in] baseReader The base dataset reader which is used as composite for caching
+	# @param[in] cache The PyCache Cache object used for caching purposes
+	# @param[in] buildCache Whether to do a pass through the entire dataset once before starting the iteration
 	def __init__(self, baseReader:DatasetReader, cache:Cache, buildCache:bool=False):
 		super().__init__(baseReader)
 		self.cache = cache
@@ -83,7 +86,7 @@ class _CachedDatasetReader(CompoundDatasetReader):
 class CachedBatchedDatasetReader(CompoundBatchedDatasetReader):
 	def __init__(self, baseReader:DatasetReader, cache:Cache, buildCache:bool=False):
 		super().__init__(baseReader)
-		self.impl = _CachedDatasetReader(baseReader, cache, buildCache)
+		self.impl = CachedDatasetReader(baseReader, cache, buildCache)
 	
 	def __getitem__(self, key):
 		return self.impl.__getitem__(key)
@@ -93,13 +96,3 @@ class CachedBatchedDatasetReader(CompoundBatchedDatasetReader):
 
 	def __str__(self) -> str:
 		return str(self.impl)
-
-# @param[in] baseReader The base dataset reader which is used as composite for caching
-# @param[in] cache The PyCache Cache object used for caching purposes
-# @param[in] buildCache Whether to do a pass through the entire dataset once before starting the iteration
-def CachedDatasetReader(baseReader:Union[DatasetReader, BatchedDatasetReader], cache:Cache, buildCache:bool=False):
-	assert baseReader.isCacheable, "Base Reader %s must have the property isCacheble true" % type(baseReader)
-	if isinstance(baseReader, BatchedDatasetReader):
-		return CachedBatchedDatasetReader(baseReader, cache, buildCache)
-	else:
-		return _CachedDatasetReader(baseReader, cache, buildCache)
