@@ -21,7 +21,7 @@ def defaultH5DimGetter(dataset:h5py._hl.group.Group, index:DatasetIndex, dim:str
 
 class H5BatchedDatasetReader(BatchedDatasetReader):
 	# @param[in] datasetPath can be a dataset or a h5py opened file/group etc. If it's str, we're opening it.
-	def __init__(self, datasetPath:str, dataBuckets, dimTransform, dimGetter={}):
+	def __init__(self, datasetPath:str, dataBuckets, dimGetter={}, dimTransform={}):
 		if isinstance(datasetPath, str):
 			self.datasetPath = datasetPath
 			self.dataset = h5py.File(self.datasetPath, "r")
@@ -53,9 +53,5 @@ class H5BatchedDatasetReader(BatchedDatasetReader):
 	def __str__(self) -> str:
 		summaryStr = "[H5 Batched Dataset Reader]"
 		summaryStr += "\n - Path: %s" % self.datasetPath
-		summaryStr += "\n - Type: %s" % type(self)
-		summaryStr += "\n - Data buckets:"
-		for dataBucket in self.datasetFormat.dataBuckets:
-			summaryStr += "\n   - %s => %s" % (dataBucket, self.datasetFormat.dataBuckets[dataBucket])
-		summaryStr += "\n - Num data: %d. Num batches: %d." % (len(self), len(self.getBatches()))
+		summaryStr += "\n %s" % super().__str__()
 		return summaryStr

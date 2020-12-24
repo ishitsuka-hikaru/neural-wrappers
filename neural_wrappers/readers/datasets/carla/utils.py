@@ -3,10 +3,8 @@ import transforms3d.euler as txe
 import h5py
 from typing import Callable
 
-from .carla_generic_reader import CarlaGenericReader
+from .carla_h5_paths_reader import CarlaH5PathsReader
 from ....utilities import npCloseEnough, npGetInfo, smartIndexWrapper
-from ...internal import DatasetRange
-from ...batched_reader.h5_dataset_reader import H5DatasetReader, defaultH5DimGetter
 
 def unrealFloatFromPng(x : np.ndarray) -> np.ndarray:
 	x = x.astype(np.float32)
@@ -26,10 +24,10 @@ def unrealPngFromFloat(x : np.ndarray) -> np.ndarray:
 	assert npCloseEnough(x, unrealFloatFromPng(result), eps=1e-2)
 	return result
 
-def opticalFlowReader(dataset:h5py._hl.group.Group, index:DatasetRange, \
-	dim:str, readerObj:CarlaGenericReader) -> np.ndarray:
+def opticalFlowReader(dataset:h5py._hl.group.Group, index:range, \
+	dim:str, readerObj:CarlaH5PathsReader) -> np.ndarray:
 	baseDirectory = str(readerObj.dataset["others"]["baseDirectory"][()], "utf8")
-	paths = dataset[dim][index.start : index.end]
+	paths = dataset[dim][index.start : index.stop]
 
 	results = []
 	for path in paths:
@@ -40,8 +38,8 @@ def opticalFlowReader(dataset:h5py._hl.group.Group, index:DatasetRange, \
 		results.append(flow)
 	return np.array(results)
 
-def rgbNeighbourReader(dataset:h5py._hl.group.Group, index:DatasetRange, \
-	skip:int, readerObj:CarlaGenericReader) -> np.ndarray:
+def rgbNeighbourReader(dataset:h5py._hl.group.Group, index:range, \
+	skip:int, readerObj:CarlaH5PathsReader) -> np.ndarray:
 	baseDirectory = str(readerObj.dataset["others"]["baseDirectory"][()], "utf8")
 
 	# For optical flow we have the problem that the flow data for t->t+1 is stored at index t+1, which isn't
@@ -49,7 +47,7 @@ def rgbNeighbourReader(dataset:h5py._hl.group.Group, index:DatasetRange, \
 	#  of the next neighbours of this top level (train/test etc.), and then read the paths at those indexes.
 	topLevel = readerObj.getActiveTopLevel()
 	key = "t+%d" % (skip)
-	neighbourIds = readerObj.idOfNeighbour[topLevel][key][index.start : index.end]
+	neighbourIds = readerObj.idOfNeighbour[topLevel][key][index.start : index.stop]
 	paths = smartIndexWrapper(dataset["rgb"], neighbourIds)
 
 	results = []
@@ -58,18 +56,18 @@ def rgbNeighbourReader(dataset:h5py._hl.group.Group, index:DatasetRange, \
 		results.append(readerObj.rawReadFunction(path))
 	return np.array(results)
 
-def depthReadFunction(path:str, readerObj:CarlaGenericReader) -> np.ndarray:
+def depthReadFunction(path:str, readerObj:CarlaH5PathsReader) -> np.ndarray:
 	return readerObj.rawDepthReadFunction(path)
 
 # Append base directory to all paths read from the h5, and then call the reading function for each full path.
-def pathsReader(dataset : h5py._hl.group.Group, index : DatasetRange, readerObj:CarlaGenericReader,
-	readFunction : Callable[[str], np.ndarray], dim:str) -> np.ndarray:
-	baseDirectory = readerObj.dataset["others"]["baseDirectory"][()]
+def pathsReader(dataset:h5py._hl.group.Group, index:range, \
+	readFunction:Callable[[str], np.ndarray], dim:str) -> np.ndarray:
+	baseDirectory = dataset.file["others"]["baseDirectory"][()]
 	try:
 		baseDirectory = str(baseDirectory, "utf8")
 	except Exception:
 		pass
-	paths = dataset[dim][index.start : index.end]
+	paths = dataset[dim][index.start : index.stop]
 
 	results = []
 	for path in paths:
