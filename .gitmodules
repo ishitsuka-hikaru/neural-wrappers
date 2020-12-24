@@ -1,15 +1,6 @@
-[submodule "examples/Depth-HVN-Estimation-Aerial"]
-	path = examples/Depth-HVN-Estimation-Aerial
-	url = git@gitlab.com:mihaicristianpirvu/Depth-HVN-Estimation-Aerial.git
 [submodule "examples/examples/Depth-Estimation-Supervised"]
 	path = examples/examples/Depth-Estimation-Supervised
 	url = https://gitlab.com/mihaicristianpirvu/Depth-Estimation
 [submodule "examples/examples/Depth-HVN-Estimation-Aerial"]
 	path = examples/examples/Depth-HVN-Estimation-Aerial
 	url = https://gitlab.com/mihaicristianpirvu/Depth-HVN-Estimation-Aerial
-[submodule "examples/3D-bounding-box-estimation"]
-	path = examples/3D-bounding-box-estimation
-	url = git@gitlab.com:mihaicristianpirvu/3d-bounding-box-estimation.git
-[submodule "examples/Depth-Estimation-Supervised"]
-	path = examples/Depth-Estimation-Supervised
-	url = git@gitlab.com:mihaicristianpirvu/Depth-Estimation.git

@@ -2,10 +2,10 @@ import numpy as np
 import os
 import pickle
 from collections import OrderedDict
-from .np_utils import npCloseEnough
-from .type_utils import NWNumber, NWSequence, NWDict, isBaseOf, T
 from typing import Dict, Sequence, Union, Iterable, List
 from functools import reduce
+from .np_utils import npCloseEnough
+from .type_utils import NWNumber, NWSequence, NWDict, isBaseOf, T
 
 def minMaxImage(image):
 	Min, Max = image.min(), image.max()
@@ -27,9 +27,11 @@ def toCategorical(data, numClasses):
 	data = np.array(data)
 	y = np.eye(numClasses)[data.reshape(-1)].astype(np.uint8)
 	# Some bugs for (1, 1) shapes return (1, ) instead of (1, NC)
-	if data.shape == (1, 1):
-		return y.reshape((1, numClasses))
-	return np.squeeze(y)
+	MB = data.shape[0]
+	y = np.squeeze(y)
+	if MB == 1:
+		y = np.expand_dims(y, axis=0)
+	return y
 
 # Labels can be None, in that case only data is available (testing cases without labels)
 def makeGenerator(data, labels, batchSize):
@@ -39,10 +41,11 @@ def makeGenerator(data, labels, batchSize):
 		for i in range(numIterations):
 			startIndex = i * batchSize
 			endIndex = np.minimum((i + 1) * batchSize, numData)
+			b = endIndex - startIndex
 			if not labels is None:
-				yield data[startIndex : endIndex], labels[startIndex : endIndex]
+				yield (data[startIndex : endIndex], labels[startIndex : endIndex]), b
 			else:
-				yield data[startIndex : endIndex]
+				yield data[startIndex : endIndex], b
 
 def NoneAssert(conndition, noneCheck, message=""):
 	if noneCheck:
@@ -72,7 +75,7 @@ def isSubsetOf(subset, set):
 
 def changeDirectory(Dir, expectExist=None):
 	if expectExist in (True, False):
-		assert os.path.exists(Dir) == expectExist
+		assert os.path.exists(Dir) == expectExist, "Exists: %s" % Dir
 	print("Changing to working directory:", Dir)
 	if expectExist == False or (expectExist == None and not os.path.isdir(Dir)):
 		os.makedirs(Dir)
@@ -111,23 +114,16 @@ def topologicalSort(depGraph):
 # @brief Utility function that returns a generator and the number of iterations for that generator.
 #  Supports multiple keys.
 # @param[in] reader A DatasetReader object for the used dataset
-# @param[in] batchSize The batch size used for iterating through the dataset. If -1 is used, the size is automatically
-#  deduced as to use only 1 batch that yields the entire dataset
 # @param[in] maxPrefetch Whether to use prefetch_generator library to use multiple threads to read N iterations ahead.
 # @param[in] keys The keys used to return pairs of (generator, iterations). Defaults to "train", "validation"
 # @return A flattened list of pairs of type (generator, iteraions). For the values, we get 4 items.
-def getGenerators(reader, batchSize:int, maxPrefetch:int=1, keys:List[str]=["train", "validation"]):
-	items = []
-	for key in keys:
-		# Automatically infer number of iterations s.t. we get the entire data group.
-		N = batchSize
-		if batchSize == -1:
-			N = reader.getNumData(key)
-
-		generator = reader.iterate(key, batchSize=N, maxPrefetch=maxPrefetch)
-		numIters = reader.getNumIterations(key, batchSize=N)
-		items.extend([generator, numIters])
-	return items
+def getGenerators(reader, batchSize:int=None, maxPrefetch:int=1):
+	if not batchSize is None:
+		assert hasattr(reader, "setBatchSize"), "reader has no method setBatchSizes. Call getGenerators with None."
+		reader.setBatchSize(batchSize)
+	# breakpoint()
+	generator = reader.iterateForever(maxPrefetch=maxPrefetch)
+	return generator, len(generator)
 
 # Deep check if two items are equal. Dicts are checked value by value and numpy array are compared using "closeEnough"
 #  method

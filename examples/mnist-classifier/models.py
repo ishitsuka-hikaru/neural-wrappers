@@ -14,7 +14,7 @@ class ModelFC(FeedForwardNetwork):
 		self.fc3 = nn.Linear(100, outputNumClasses)
 
 	def forward(self, x):
-		x = x.view(-1, self.inputShapeProd)
+		x = x["images"].view(-1, self.inputShapeProd)
 		y1 = F.relu(self.fc1(x))
 		y2 = F.relu(self.fc2(y1))
 		y3 = self.fc3(y2)
@@ -36,7 +36,7 @@ class ModelConv(FeedForwardNetwork):
 		self.fc2 = nn.Linear(100, outputNumClasses)
 
 	def forward(self, x):
-		x = x.view(-1, self.inputShape[2], self.inputShape[0], self.inputShape[1])
+		x = x["images"].view(-1, self.inputShape[2], self.inputShape[0], self.inputShape[1])
 		y1 = F.relu(self.conv1(x))
 		y2 = F.relu(self.conv2(y1))
 		y2 = y2.view(-1, self.fc1InputShape)

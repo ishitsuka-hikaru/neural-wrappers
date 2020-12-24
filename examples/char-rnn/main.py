@@ -7,7 +7,7 @@ import time
 from argparse import ArgumentParser
 
 from neural_wrappers.pytorch import device, FeedForwardNetwork
-from neural_wrappers.readers import DatasetReader
+from neural_wrappers.readers import DatasetReader, StaticBatchedDatasetReader
 from neural_wrappers.callbacks import SaveModels, Callback
 from neural_wrappers.utilities import toCategorical
 
@@ -24,6 +24,15 @@ class SampleCallback(Callback):
 		print("Seed: %s" % seed)
 		print("Result: %s" % result)
 		print("\n___________________________________________________________________\n")
+
+	def onCallbackSave(self, **kwargs):
+		state = self.reader.datasetPath, self.reader.sequenceSize, self.reader.stepsPerEpoch
+		self.reader = None
+		return state
+
+	def onCallbackLoad(self, additional, **kwargs):
+		datasetPath, sequenceSize, stepsPerEpoch = additional
+		self.reader = Reader(datasetPath, sequenceSize, stepsPerEpoch)
 
 def lossFn(output, target):
 	# Batched binary cross entropy
@@ -46,8 +55,10 @@ def sample(model, reader, numIters, seedText=None):
 		output, hprev = model.forward([output, hprev])
 		p = output.detach().to("cpu").numpy()[0].flatten()
 		charIndex = np.random.choice(range(len(reader.charToIx)), p=p)
+		# breakpoint()
+		# charIndex = np.argmax(p)
 		result += reader.ixToChar[charIndex]
-		npOutput = toCategorical(charIndex, len(reader.charToIx)).astype(np.float32)
+		npOutput = toCategorical([charIndex], len(reader.charToIx)).astype(np.float32)[0]
 		output = tr.from_numpy(npOutput).unsqueeze(dim=0).unsqueeze(dim=1).to(device)
 	return seedText, result
 
@@ -56,10 +67,10 @@ def getArgs():
 	parser.add_argument("type")
 	parser.add_argument("datasetPath")
 	parser.add_argument("--weightsFile")
-	parser.add_argument("--batchSize", type=int, default=1)
+	parser.add_argument("--batchSize", type=int, default=5)
 	parser.add_argument("--numEpochs", type=int, default=100)
 	parser.add_argument("--stepsPerEpoch", type=int, default=10000)
-	parser.add_argument("--sequenceSize", type=int, default=5)
+	parser.add_argument("--sequenceSize", type=int, default=10)
 	parser.add_argument("--seedText")
 	parser.add_argument("--cellType", default="LSTM")
 	args = parser.parse_args()
@@ -67,8 +78,8 @@ def getArgs():
 
 def main():
 	args = getArgs()
-	reader = Reader(args.datasetPath, args.sequenceSize)
-	generator = reader.iterate(numSteps=args.stepsPerEpoch, batchSize=args.batchSize)
+	reader = StaticBatchedDatasetReader(Reader(args.datasetPath, args.sequenceSize, args.stepsPerEpoch), args.batchSize)
+	generator = reader.iterateForever()
 
 	model = Model(cellType=args.cellType, inputSize=len(reader.charToIx), hiddenSize=100).to(device)
 	model.setOptimizer(optim.SGD, lr=0.001, momentum=0.9)
@@ -77,7 +88,7 @@ def main():
 	print(model.summary())
 
 	if args.type == "train":
-		model.train_generator(generator, stepsPerEpoch=args.stepsPerEpoch, numEpochs=args.numEpochs)
+		model.train_generator(generator, stepsPerEpoch=len(generator), numEpochs=args.numEpochs)
 	elif args.type == "test":
 		model.loadModel(sys.argv[3])
 

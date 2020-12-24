@@ -1,51 +1,85 @@
+from __future__ import annotations
 import numpy as np
 from abc import ABC, abstractmethod
-from typing import Dict, List, Callable, Any, Iterator, Union
+from typing import Dict, List, Callable, Any, Iterator, Union, Tuple
 from prefetch_generator import BackgroundGenerator
-from .internal import DatasetIndex
+from copy import deepcopy
+
+from .dataset_types import DimGetterCallable, DimTransformCallable, DatasetIndex, DatasetItem
 from ..utilities import flattenList
 
-DimGetterCallable = Union[Callable[[str, DatasetIndex], Any]]
+class DatasetGenerator:
+	def __init__(self, reader, maxPrefetch):
+		self.reader = reader
+		self.maxPrefetch = maxPrefetch
+		self.newEpoch()
 
-class DatasetReader(ABC):
-	# @param[in] dataBuckets A dictionary with all available data bucket names (data, label etc.) and, for each bucket,
-	#  a list of dimensions (rgb, depth, etc.).
-	#  Example: {"data":["rgb", "depth"], "labels":["depth", "semantic"]}
-	# @param[in] dimGetter For each possible dimension defined above, we need to receive a method that tells us how
-	#  to retrieve a batch of items. Some dimensions may be overlapped in multiple data bucket names, however, they are
-	#  logically the same information before transforms, so we only read it once and copy in memory if needed.
-	# @param[in] dimTransform The transformations for each dimension of each topdata bucket name. Some dimensions may
-	#  overlap and if this happens we duplicate the data to ensure consistency. This may be needed for cases where
-	#  the same dimension may be required in 2 formats (i.e. position as quaternions as well as unnormalized 6DoF).
+	def newEpoch(self):
+		self.currentGenerator = self.reader.iterateOneEpoch()
+		self.currentLen = len(self.currentGenerator)
+		if self.maxPrefetch > 0:
+			self.currentGenerator = BackgroundGenerator(self.currentGenerator, max_prefetch=self.maxPrefetch)
+		# print("[iterateForever] New epoch. Len=%d. Batches: %s" % (self.currentLen, self.currentGenerator.batches))
+
+	def __len__(self):
+		return self.currentLen
+
+	def __next__(self):
+		try:
+			return next(self.currentGenerator)
+		except StopIteration:
+			self.newEpoch()
+			return next(self.currentGenerator)
+	
+	def __iter__(self):
+		return self
+
+# Iterator that iterates one epoch over this dataset.
+class DatasetEpochIterator:
+	def __init__(self, reader:DatasetReader):
+		self.reader = reader
+		self.ix = -1
+		self.len = len(self.reader)
+	
+	def __len__(self):
+		return self.len
+
+	def __next__(self):
+		self.ix += 1
+		if self.ix < len(self):
+			return self.reader[self.ix]
+		raise StopIteration
+
+	def __iter__(self):
+		return self
+
+# @param[in] dataBuckets A dictionary with all available data bucket names (data, label etc.) and, for each bucket,
+#  a list of dimensions (rgb, depth, etc.).
+#  Example: {"data":["rgb", "depth"], "labels":["depth", "semantic"]}
+# @param[in] dimGetter For each possible dimension defined above, we need to receive a method that tells us how
+#  to retrieve a batch of items. Some dimensions may be overlapped in multiple data bucket names, however, they are
+#  logically the same information before transforms, so we only read it once and copy in memory if needed.
+# @param[in] dimTransform The transformations for each dimension of each topdata bucket name. Some dimensions may
+#  overlap and if this happens we duplicate the data to ensure consistency. This may be needed for cases where
+#  the same dimension may be required in 2 formats (i.e. position as quaternions as well as unnormalized 6DoF).
+class DatasetFormat:
 	def __init__(self, dataBuckets:Dict[str, List[str]], dimGetter:Dict[str, DimGetterCallable], \
-		dimTransform:Dict[str, Dict[str, Callable]]):
+		dimTransform:Dict[str, Dict[str, DimTransformCallable]]):
+		self.allDims = list(set(flattenList(dataBuckets.values())))
 		self.dataBuckets = dataBuckets
-		# allDims is a list of all dimensions, irregardless of their data bucket
-		self.allDims = list(set(flattenList(self.dataBuckets.values())))
 		self.dimGetter = self.sanitizeDimGetter(dimGetter)
 		self.dimTransform = self.sanitizeDimTransform(dimTransform)
-		self.activeTopLevel:Union[str, None] = None
+		# Used for CachedDatasetReader. Update this if the dataset is cachable (thus immutable). This means that, we
+		#  enforce the condition that self.getItem(X) will return the same Item(X) from now until the end of the
+		#  universe. If this assumtpion is ever broken, the cache and the _actual_ Item(X) will be different. And we
+		#  don't want that.
+		self.isCacheable = False
 
-	@abstractmethod
-	def getDataset(self, topLevel:str) -> Any:
-		raise NotImplementedError("Should have implemented this")
-
-	# @brief Returns the number of items in a given top level name
-	# @param[in] topLevel The top-level dimension that is iterated over (example: train, validation, test, etc.)
-	# @return The number of items in a given top level name
-	@abstractmethod
-	def getNumData(self, topLevel:str) -> int:
-		raise NotImplementedError("Should have implemented this")
-
-	# @brief Returns the index object specific to this dataset for a requested batch index. This is used to logically
-	#  iterate through a dataset
-	# @param[in] i The index of the epoch we're trying to get dataset indexes for
-	# @param[in] topLevel The top-level dimension that is iterated over (example: train, validation, test, etc.)
-	# @param[in] batchSize The size of a batch that is yielded at each iteration
-	# @return A DatasetIndex object with the indexes of this iteration for a specific dimension
-	# @abstractmethod
-	def getBatchDatasetIndex(self, i:int, topLevel:str, batchSize:int) -> DatasetIndex:
-		raise NotImplementedError("Should have implemented this")
+		self.dimToDataBuckets:Dict[str, List[str]] = {dim : [] for dim in self.allDims}
+		for dim in self.allDims:
+			for bucket in self.dataBuckets:
+				if dim in self.dataBuckets[bucket]:
+					self.dimToDataBuckets[dim].append(bucket)
 
 	def sanitizeDimGetter(self, dimGetter:Dict[str, Callable]) -> Dict[str, Callable]:
 		for key in self.allDims:
@@ -67,92 +101,80 @@ class DatasetReader(ABC):
 					print((("[DatasetReader::sanitizeDimTransform] Dim '%s'=>'%s' not present in ") + \
 						("dimTransforms. Adding identity.")) % (dataBucket, dim))
 					dimTransform[dataBucket][dim] = lambda x:x
-		return dimTransform 
+		return dimTransform
 
-	def setActiveTopLevel(self, topLevel:Union[str, None]):
-		self.activeTopLevel = topLevel
+class DatasetReader(ABC):
+	def __init__(self, dataBuckets:Dict[str, List[str]], dimGetter:Dict[str, DimGetterCallable], \
+		dimTransform:Dict[str, Dict[str, DimTransformCallable]]):
+		self.datasetFormat = DatasetFormat(dataBuckets, dimGetter, dimTransform)
 
-	def getActiveTopLevel(self) -> Union[str, None]:
-		return self.activeTopLevel
+	@abstractmethod
+	def getDataset(self) -> Any:
+		pass
+
+	@abstractmethod
+	def __len__(self) -> int:
+		pass
+
+
+	# Public interface
+
+	# @brief The main iterator of a dataset. It will run over the data for one logical epoch.
+	def iterateOneEpoch(self) -> Iterator[Dict[str, Any]]:
+		return DatasetEpochIterator(self)
 
 	# Generic infinite generator, that simply does a while True over the iterate_once method, which only goes one epoch
 	# @param[in] type The type of processing that is generated by the generator (typicall train/test/validation)
-	# @param[in] miniBatchSize How many items are generated at each step
 	# @param[in] maxPrefetch How many items in advance to be generated and stored before they are consumed. If 0, the
 	#  thread API is not used at all. If 1, the thread API is used with a queue of length 1 (still works better than
 	#  normal in most cases, due to the multi-threaded nature. For length > 1, the queue size is just increased.
-	def iterate(self, topLevel:str, batchSize:int, maxPrefetch:int = 0) -> Iterator[Dict[str, np.ndarray]]:
+	def iterateForever(self, maxPrefetch:int=0) -> Iterator[Dict[str, np.ndarray]]:
 		assert maxPrefetch >= 0
-		N = self.getNumIterations(topLevel, batchSize)
-		while True:
-			iterateGenerator = self.iterateOneEpoch(topLevel, batchSize)
-			if maxPrefetch > 0:
-				iterateGenerator = BackgroundGenerator(iterateGenerator, max_prefetch=maxPrefetch)
-			for i, items in enumerate(iterateGenerator):
-				if i == N:
-					break
-				yield items
-				del items
+		return DatasetGenerator(self, maxPrefetch)
 
-	# @brief The main iterator of a dataset. It will run over the data for one logical epoch.
-	# @param[in] topLevel The top-level dimension that is iterated over (example: train, validation, test, etc.)
-	# @param[in] batchSize The size of a batch that is yielded at each iteration
-	# @return A generator that can be used to iterate over the dataset for one epoch
-	def iterateOneEpoch(self, topLevel:str, batchSize:int) -> Iterator[Dict[str, np.ndarray]]:
-		# This may be useful for some readers that want some additional information about the current top level.
-		self.setActiveTopLevel(topLevel)
+	def iterate(self):
+		return self.iterateForever()
 
-		dataset = self.getDataset(topLevel)
-		N = self.getNumIterations(topLevel, batchSize)
-		for i in range(N):
-			# Get the logical index in the dataset
-			index = self.getBatchDatasetIndex(i, topLevel, batchSize)
-			# Get the data before bucketing, as there could be overlapping items in each bucket, just
-			#  normalized differently, so we shouldn't read from disk more times.
-			items, copyDims = {}, {}
-			for dim in self.allDims:
-				items[dim] = self.dimGetter[dim](dataset, index)
-				copyDims[dim] = False
+	# Used by CachedDatasetReader to cache a key. By default, we call str(key), but this can be overriden by readers.
+	def cacheKey(self, key):
+		return str(key)
 
-			result:Dict[str, np.ndarray] = {}
-			# Go through all data buckets (data/labels etc.)
-			for dataBucket in self.dataBuckets:
-				result[dataBucket] = {}
-				# For each bucket, go through all dims (rgb/semantic/depth etc.)
-				for dim in self.dataBuckets[dataBucket]:
-					item = items[dim]
-					# We're making sure that if this item was in other bucket as well, it's copied so we don't alter
-					#  same data memory with multiple transforms
-					if copyDims[dim]:
-						item = item.copy()
-					copyDims[dim] = True
-
-					# Apply this item's data transform
-					item = self.dimTransform[dataBucket][dim](item)
-
-					# Store it in this batch
-					result[dataBucket][dim] = item
-			yield result
-
-		# Clear active top level as well after finishing the epoch
-		self.setActiveTopLevel(None)
-
-	# @brief Return the number of iterations in an epoch for a top level name, given a batch size.
-	# @param[in] topLevel The top-level dimension that is iterated over (example: train, validation, test, etc.)
-	# @param[in] batchSize The size of a batch that is yielded at each iteration
-	def getNumIterations(self, topLevel:str, batchSize:int) -> int:
-		N = self.getNumData(topLevel)
-		return N // batchSize + (N % batchSize != 0)
-
-	def summary(self) -> str:
-		summaryStr = "[Dataset summary]\n"
-		summaryStr += self.__str__() + "\n"
-
-		summaryStr += "Data buckets:\n"
-		for dataBucket in self.dataBuckets:
-			summaryStr += " -  %s:%s\n" % (dataBucket, self.dataBuckets[dataBucket])
+	# We just love to reinvent the wheel. But also let's reuse the existing wheels just in case.
+	def __str__(self) -> str:
+		summaryStr = "[Dataset Reader]"
+		summaryStr += "\n - Type: %s" % type(self)
+		summaryStr += "\n - Data buckets:"
+		for dataBucket in self.datasetFormat.dataBuckets:
+			summaryStr += "\n   - %s => %s" % (dataBucket, self.datasetFormat.dataBuckets[dataBucket])
 		return summaryStr
 
-	def __str__(self) -> str:
-		return "General dataset reader (%s). Update __str__ in your dataset for more details when using summary." \
-			% (type(self))
+	# @brief Returns the item at index i. Basically g(i) -> Item(i). Item(i) will follow dataBuckets schema,
+	#  and will call dimGetter for each dimension for this index.
+	# @return The item at index i
+	def __getitem__(self, index):
+		dataBuckets = self.datasetFormat.dataBuckets
+		allDims = self.datasetFormat.allDims
+		dimGetter = self.datasetFormat.dimGetter
+		dimTransforms = self.datasetFormat.dimTransform
+		dataset = self.getDataset()
+		dimToDataBuckets = self.datasetFormat.dimToDataBuckets
+
+		# The result is simply a dictionary that follows the (shallow, for now) dataBuckets of format.
+		result = {k : {k2 : None for k2 in dataBuckets[k]} for k in dataBuckets}
+		# rawItems = {k : None for k in allDims}
+		for dim in allDims:
+			getterFn = dimGetter[dim]
+			# Call the getter only once for efficiency
+			rawItem = getterFn(dataset, index)
+			# rawItems[dim] = rawItem
+			# Call the transformer for each data bucket independently (labels and data may use same
+			#  dim but do a different transformation (such as normalized in data and unnormalized in
+			#  labels for metrics or plotting or w/e.
+			for bucket in dimToDataBuckets[dim]:
+				transformFn = dimTransforms[bucket][dim]
+				item = transformFn(deepcopy(rawItem))
+				result[bucket][dim] = item
+		return result
+
+	def __iter__(self):
+		return self.iterateOneEpoch()
