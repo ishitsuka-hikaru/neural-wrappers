@@ -1,20 +1,21 @@
 import numpy as np
 import h5py
 from typing import Callable, Any, Dict, List, Tuple
+from copy import copy
 from returns.curry import partial
 from ...h5_batched_dataset_reader import H5BatchedDatasetReader, defaultH5DimGetter
 from ....utilities import tryReadNpy, tryStr
 
 def prevReader(dataset:h5py._hl.group.Group, index, dimGetter, neighbours, delta) -> np.ndarray:
-	assert delta == -1
-	Key = "t-1"
+	assert delta != 0
+	Key = "t%+d" % delta
 	prevIndex = neighbours[Key][index]
 	return dimGetter(dataset, prevIndex)
 
 def opticalFlowReader(dataset:h5py._hl.group.Group, index, neighbours, delta:int) -> np.ndarray:
 	baseDirectory = tryStr(dataset.file["others"]["baseDirectory"][()])
-	assert delta == -1
-	Key = "t-1"
+	assert delta != 0
+	Key = "t%+d" % delta
 	flowKey = "optical_flow(%s, t)" % Key
 
 	prevIndex = neighbours[Key][index]
@@ -28,7 +29,7 @@ def opticalFlowReader(dataset:h5py._hl.group.Group, index, neighbours, delta:int
 
 class CarlaH5PathsReader(H5BatchedDatasetReader):
 	def __init__(self, datasetPath:str, dataBuckets:Dict[str, List[str]], \
-		desiredShape:Tuple[int, int], numNeighboursAhead:int, hyperParameters:Dict[str, Any]):
+		deltas:List[int]=[], hyperParameters:Dict[str, Any]={}):
 		from .normalizers import rgbNorm, depthNorm, poseNorm, opticalFlowNorm, normalNorm, \
 			semanticSegmentationNorm, wireframeNorm, halftoneNorm, wireframeRegressionNorm
 		from .utils import pathsReader
@@ -41,8 +42,7 @@ class CarlaH5PathsReader(H5BatchedDatasetReader):
 			"rgb" : partial(pathsReader, readFunction=rawReadFunction, dim="rgb"),
 			"depth" : partial(pathsReader, readFunction=depthReadFunction, dim="depth"),
 			"pose" : partial(defaultH5DimGetter, dim="position"),
-			"semantic_segmentation" : partial(pathsReader, readFunction=rawReadFunction, \
-				dim="semantic_segmentation"),
+			"semantic_segmentation" : partial(pathsReader, readFunction=rawReadFunction, dim="semantic_segmentation"),
 			"wireframe" : partial(pathsReader, readFunction=rawReadFunction, dim="wireframe"),
 			"wireframe_regression" : partial(pathsReader, readFunction=rawReadFunction, dim="wireframe"),
 			"halftone" : partial(pathsReader, readFunction=rawReadFunction, dim="halftone"),
@@ -68,21 +68,32 @@ class CarlaH5PathsReader(H5BatchedDatasetReader):
 
 		# TODO: Make this more generic for use cases, not just (t-1 -> t)
 		ids = datasetPath["ids"][()]
-		neighbours = {"t-1" : self.getIdAtTimeDelta(ids, delta=-1)}
-		dimGetter["optical_flow(t-1, t)"] = partial(opticalFlowReader, neighbours=neighbours, delta=-1)
-		dimTransform["data"]["optical_flow(t-1, t)"] = partial(opticalFlowNorm, readerObj=self)
-		dimGetter["pose(t-1)"] = partial(prevReader, dimGetter=dimGetter["pose"], neighbours=neighbours, delta=-1)
-		dimTransform["data"]["pose(t-1)"] = dimTransform["data"]["pose"]
-		# Add all (t-1) items
-		for key in ["rgb", "depth", "wireframe_regression", "semantic_segmentation", "normal", \
-			"cameranormal", "halftone"]:
-			dimGetter["%s(t-1)" % key] = partial(prevReader, dimGetter=dimGetter[key], \
-				neighbours=neighbours, delta=-1)
-			dimTransform["data"]["%s(t-1)" % key] = dimTransform["data"][key]
+		neighbours = {"t%+d" % delta : self.getIdAtTimeDelta(ids, delta=delta) for delta in deltas}
+		Keys = copy(dataBuckets["data"])
+		for delta in deltas:
+			# optical_flow(t-1, t) for delta == -1
+			flowKey = "optical_flow(t%+d, t)" % delta
+			dimGetter[flowKey] = partial(flowReadFunction, neighbours=neighbours, delta=delta)
+			dimTransform["data"][flowKey] = partial(opticalFlowNorm, readerObj=self)
+			dataBuckets["data"].append(flowKey)
+
+			# Add pose regardless for depth warping (if needed)
+			poseKey = "pose(t%+d)" % delta
+			dimGetter[poseKey] = partial(prevReader, dimGetter=dimGetter["pose"], neighbours=neighbours, delta=delta)
+			dimTransform["data"][poseKey] = dimTransform["data"]["pose"]
+			dataBuckets["data"].append(poseKey)
+			# Add all (t-1) items
+			for key in Keys:
+				# dimKey == "rgb(t-1)" for key == "rgb" and delta == -1
+				dimKey = "%s(t%+d)" % (key, delta)
+				dimGetter[dimKey] = partial(prevReader, dimGetter=dimGetter[key], neighbours=neighbours, delta=delta)
+				dimTransform["data"][dimKey] = dimTransform["data"][key]
+				dataBuckets["data"].append(dimKey)
 
 		super().__init__(datasetPath, dataBuckets, dimGetter, dimTransform)
 		self.hyperParameters = hyperParameters
-		self.desiredShape = desiredShape
+		self.desiredShape = hyperParameters["resolution"]
+		self.deltas = deltas
 
 	# For each top level (train/tet/val) create a new array with the index of the frame at time t + skipFrames.
 	# For example result["train"][0] = 2550 means that, after randomization the frame at time=1 is at id 2550.
