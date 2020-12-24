@@ -3,7 +3,7 @@ import h5py
 from typing import Callable, Any, Dict, List, Tuple
 from returns.curry import partial
 from ...h5_batched_dataset_reader import H5BatchedDatasetReader, defaultH5DimGetter
-from ....utilities import tryReadNpy
+from ....utilities import tryReadNpy, tryStr
 
 def prevReader(dataset:h5py._hl.group.Group, index, dimGetter, neighbours, delta) -> np.ndarray:
 	assert delta == -1
@@ -12,7 +12,7 @@ def prevReader(dataset:h5py._hl.group.Group, index, dimGetter, neighbours, delta
 	return dimGetter(dataset, prevIndex)
 
 def opticalFlowReader(dataset:h5py._hl.group.Group, index, neighbours, delta:int) -> np.ndarray:
-	baseDirectory = str(dataset.file["others"]["baseDirectory"][()], "utf8")
+	baseDirectory = tryStr(dataset.file["others"]["baseDirectory"][()])
 	assert delta == -1
 	Key = "t-1"
 	flowKey = "optical_flow(%s, t)" % Key
@@ -20,8 +20,8 @@ def opticalFlowReader(dataset:h5py._hl.group.Group, index, neighbours, delta:int
 	prevIndex = neighbours[Key][index]
 	paths = np.array([dataset[flowKey][ix] for ix in prevIndex])
 	paths_x, paths_y = paths[:, 0], paths[:, 1]
-	paths_x = ["%s/%s" % (baseDirectory, str(x, "utf8")) for x in paths_x]
-	paths_y = ["%s/%s" % (baseDirectory, str(y, "utf8")) for y in paths_y]
+	paths_x = ["%s/%s" % (baseDirectory, tryStr(x)) for x in paths_x]
+	paths_y = ["%s/%s" % (baseDirectory, tryStr(y)) for y in paths_y]
 	flow_x = np.array([tryReadNpy(x) for x in paths_x])
 	flow_y = np.array([tryReadNpy(y) for y in paths_y])
 	return np.stack([flow_x, flow_y], axis=-1)

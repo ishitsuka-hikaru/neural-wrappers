@@ -189,3 +189,9 @@ def getFormattedStr(item : Union[np.ndarray, NWNumber, NWSequence, NWDict], prec
 
 def flattenList(x : Iterable[List[T]]) -> List[T]:
 	return reduce(lambda a, b : a + b, x)
+
+def tryStr(x) -> str:
+	try:
+		return str(x, "utf8")
+	except Exception:
+		return x
