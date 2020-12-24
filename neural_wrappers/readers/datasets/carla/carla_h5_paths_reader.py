@@ -5,6 +5,10 @@ from returns.curry import partial
 from ...h5_batched_dataset_reader import H5BatchedDatasetReader, defaultH5DimGetter
 from ....utilities import tryReadNpy
 
+def prevReader(dataset:h5py._hl.group.Group, index, readerObj, dim) -> np.ndarray:
+	prevIndex = readerObj.idOfNeighbour["t-1"][index.start : index.stop]
+	return readerObj.datasetFormat.dimGetter[dim](dataset, prevIndex)
+
 class CarlaH5PathsReader(H5BatchedDatasetReader):
 	def __init__(self, datasetPath:str, dataBuckets:Dict[str, List[str]], \
 		desiredShape:Tuple[int, int], numNeighboursAhead:int, hyperParameters:Dict[str, Any]):
@@ -45,34 +49,34 @@ class CarlaH5PathsReader(H5BatchedDatasetReader):
 			}
 		}
 
-		for i in range(abs(numNeighboursAhead)):
-			ix = i * np.sign(numNeighboursAhead)
-			key = "rgbNeighbour(t%+d)" % (i + 1)
-			dimGetter[key] = partial(rgbNeighbourReader, skip=i + 1, readerObj=self)
-			dimTransform["data"][key] = partial(rgbNorm, readerObj=self)
-
-			flowKey = "optical_flow(t%+d)" % (i + 1)
-			dimGetter[flowKey] = partial(opticalFlowReader, readerObj=self, dim=flowKey)
-			dimTransform["data"][flowKey] = partial(opticalFlowNorm, readerObj=self)
+		# TODO: Make this more generic for use cases, not just (t-1 -> t)
+		dimGetter["optical_flow(t-1, t)"] = partial(opticalFlowReader, readerObj=self, dim="optical_flow(t-1, t)")
+		dimTransform["data"]["optical_flow(t-1, t)"] = partial(opticalFlowNorm, readerObj=self)
+		# Add all (t-1) items
+		for key in ["rgb", "depth", "wireframe_regression", "pose", "semantic_segmentation", "normal", \
+			"cameranormal", "halftone"]:
+			dimGetter["%s(t-1)" % key] = partial(prevReader, readerObj=self, dim=key)
+			dimTransform["data"]["%s(t-1)" % key] = dimTransform["data"][key]
 
 		super().__init__(datasetPath, dataBuckets, dimGetter, dimTransform)
+
 		self.rawReadFunction = rawReadFunction
 		self.numNeighboursAhead = numNeighboursAhead
-		self.idOfNeighbour = self.getIdsOfNeighbour()
+		self.idOfNeighbour = {"t-1" : self.getIdAtTimeDelta(delta=-1)}
+
 		self.desiredShape = desiredShape
 		self.hyperParameters = hyperParameters
-
 		self.rawDepthReadFunction = lambda x : x
 		self.rawFlowReadFunction = lambda x : x
 
 	# For each top level (train/tet/val) create a new array with the index of the frame at time t + skipFrames.
 	# For example result["train"][0] = 2550 means that, after randomization the frame at time=1 is at id 2550.
-	def getIdsOfNeighbour(self):
-		def f(ids, skipFrames):
+	def getIdAtTimeDelta(self, delta:int):
+		def f(ids, delta):
 			N = len(ids)
 			closest = np.zeros(N, dtype=np.uint32)
 			for i in range(N):
-				where = np.where(ids == ids[i] + skipFrames)[0]
+				where = np.where(ids == ids[i] + delta)[0]
 				if len(where) == 0:
 					where = [i]
 				assert len(where) == 1
@@ -82,9 +86,7 @@ class CarlaH5PathsReader(H5BatchedDatasetReader):
 		result = {}
 		assert "ids" in self.getDataset()
 		ids = self.getDataset()["ids"][()]
-		for i in range(self.numNeighboursAhead):
-			key = "t+%d" % (i + 1)
-			result[key] = f(ids, i + 1)
+		result = f(ids, delta)
 		return result
 
 	def __getitem__(self, key):

@@ -26,7 +26,7 @@ def unrealPngFromFloat(x : np.ndarray) -> np.ndarray:
 
 def opticalFlowReader(dataset:h5py._hl.group.Group, index:range, \
 	dim:str, readerObj:CarlaH5PathsReader) -> np.ndarray:
-	baseDirectory = str(readerObj.dataset["others"]["baseDirectory"][()], "utf8")
+	baseDirectory = dataset.file["others"]["baseDirectory"][()]
 	paths = dataset[dim][index.start : index.stop]
 
 	results = []
@@ -40,7 +40,7 @@ def opticalFlowReader(dataset:h5py._hl.group.Group, index:range, \
 
 def rgbNeighbourReader(dataset:h5py._hl.group.Group, index:range, \
 	skip:int, readerObj:CarlaH5PathsReader) -> np.ndarray:
-	baseDirectory = str(readerObj.dataset["others"]["baseDirectory"][()], "utf8")
+	baseDirectory = dataset.file["others"]["baseDirectory"][()]
 
 	# For optical flow we have the problem that the flow data for t->t+1 is stored at index t+1, which isn't
 	#  necessarily 1 index to the right (trian set may be randomized beforehand). Thus, we need to get the indexes
@@ -60,14 +60,14 @@ def depthReadFunction(path:str, readerObj:CarlaH5PathsReader) -> np.ndarray:
 	return readerObj.rawDepthReadFunction(path)
 
 # Append base directory to all paths read from the h5, and then call the reading function for each full path.
-def pathsReader(dataset:h5py._hl.group.Group, index:range, \
+def pathsReader(dataset:h5py._hl.group.Group, index:np.ndarray, \
 	readFunction:Callable[[str], np.ndarray], dim:str) -> np.ndarray:
 	baseDirectory = dataset.file["others"]["baseDirectory"][()]
 	try:
 		baseDirectory = str(baseDirectory, "utf8")
 	except Exception:
 		pass
-	paths = dataset[dim][index.start : index.stop]
+	paths = dataset[dim][index]
 
 	results = []
 	for path in paths:
