@@ -146,6 +146,7 @@ class DatasetReader(ABC):
 		summaryStr += "\n - Data buckets:"
 		for dataBucket in self.datasetFormat.dataBuckets:
 			summaryStr += "\n   - %s => %s" % (dataBucket, self.datasetFormat.dataBuckets[dataBucket])
+		summaryStr += "\n - Len: %d" % len(self)
 		return summaryStr
 
 	# @brief Returns the item at index i. Basically g(i) -> Item(i). Item(i) will follow dataBuckets schema,

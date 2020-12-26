@@ -8,21 +8,20 @@ sys.path.append("..")
 from test_dataset_reader import DummyDataset
 from test_batched_dataset_reader import Reader as DummyBatchedReader
 
+def mergeItems(items:List[DatasetItem]) -> DatasetItem:
+	rgbs = np.stack([item["data"]["rgb"] for item in items], axis=0)
+	classes = len(items) * [0]
+	item = {"data": {"rgb" : rgbs}, "labels" : {"class" : classes}}
+	return item
+
 class Reader(MergeBatchedDatasetReader):
 	def __init__(self, baseReader:DatasetReader):
-		super().__init__(baseReader)
+		super().__init__(baseReader, mergeItems)
 
 	@overrides
 	def getBatches(self) -> List[int]:
 		return np.array([4, 1, 2, 3], dtype=np.int32)
 
-	# # merge(i1, b1, i2, b2) -> i(1,2)
-	@overrides
-	def mergeItems(self, items:List[DatasetItem]) -> DatasetItem:
-		rgbs = np.stack([item["data"]["rgb"] for item in items], axis=0)
-		classes = len(items) * [0]
-		item = {"data": {"rgb" : rgbs}, "labels" : {"class" : classes}}
-		return item
 
 class TestMergeBatchedDatasetReader:
 	def test_constructor_1(self):
@@ -66,7 +65,7 @@ class TestMergeBatchedDatasetReader:
 		reader = Reader(DummyDataset())
 		item1 = reader.baseReader[0]
 		item2 = reader.baseReader[1]
-		itemMerged = reader.mergeItems([item1, item2])
+		itemMerged = mergeItems([item1, item2])
 		rgb1 = item1["data"]["rgb"]
 		rgb2 = item2["data"]["rgb"]
 		rgbMerged = itemMerged["data"]["rgb"]
