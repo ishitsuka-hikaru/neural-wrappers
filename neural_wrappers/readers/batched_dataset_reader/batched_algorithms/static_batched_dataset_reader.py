@@ -1,9 +1,9 @@
 from overrides import overrides
 from typing import List, Tuple
 from ..batched_dataset_reader import BatchedDatasetReader
-from ..compound_dataset_reader import CompoundDatasetReader
-from ..dataset_reader import DatasetReader
-from ..dataset_types import *
+from ...compound_dataset_reader import CompoundDatasetReader
+from ...dataset_reader import DatasetReader
+from ...dataset_types import *
 
 class StaticBatchedDatasetReader(CompoundDatasetReader):
 	def __init__(self, baseReader:BatchedDatasetReader, batchSize:int):

@@ -9,8 +9,8 @@ import numpy as np
 from overrides import overrides
 from returns.curry import partial
 from .batched_dataset_reader import BatchedDatasetReader
-from .dataset_types import DatasetIndex
-from ..utilities import flattenList, smartIndexWrapper
+from ..dataset_types import DatasetIndex
+from ...utilities import flattenList, smartIndexWrapper
 
 def defaultH5DimGetter(dataset:h5py._hl.group.Group, index:DatasetIndex, dim:str):
 	if isinstance(index, (range, slice)):

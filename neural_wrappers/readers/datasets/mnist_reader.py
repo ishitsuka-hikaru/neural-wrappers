@@ -2,7 +2,7 @@ import numpy as np
 from functools import partial
 from overrides import overrides
 from typing import Iterator, Tuple, List
-from ..h5_batched_dataset_reader import H5BatchedDatasetReader
+from ..batched_dataset_reader import H5BatchedDatasetReader
 from ...utilities import toCategorical
 
 class MNISTReader(H5BatchedDatasetReader):

@@ -2,7 +2,8 @@ import numpy as np
 from overrides import overrides
 from typing import Tuple, List, Any
 from neural_wrappers.readers import DatasetItem, DatasetReader, MergeBatchedDatasetReader, \
-	StaticBatchedDatasetReader, RandomBatchedDatasetReader, CachedDatasetReader, getBatchIndex
+	StaticBatchedDatasetReader, RandomBatchedDatasetReader, CachedDatasetReader
+from neural_wrappers.readers.batched_dataset_reader.utils import getBatchIndex
 import sys
 sys.path.append("..")
 from test_dataset_reader import DummyDataset

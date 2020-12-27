@@ -4,7 +4,8 @@ from typing import List, Tuple
 from tqdm import trange
 from ..compound_dataset_reader import CompoundDatasetReader
 from ..dataset_reader import DatasetReader
-from ..batched_dataset_reader import BatchedDatasetReader, getBatchIndex
+from ..batched_dataset_reader import BatchedDatasetReader
+from ..batched_dataset_reader.batched_dataset_reader import getBatchIndex
 from ..dataset_types import *
 from ...utilities import deepCheckEqual
 
@@ -65,10 +66,6 @@ class CachedDatasetReader(CompoundDatasetReader):
 				print("[CachedDatasetReader] Cache is dirty. Rebuilding...")
 				self.cache.set(key, itemGen)
 				buildDirty(self.baseReader, n, self.cache)
-
-	# @overrides
-	# def __getattr__(self, key):
-	# 	return getattr(self.baseReader, key)
 
 	@overrides
 	def __getitem__(self, index):

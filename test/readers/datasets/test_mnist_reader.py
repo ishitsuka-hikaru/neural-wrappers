@@ -2,7 +2,7 @@ import numpy as np
 import h5py
 import os
 import pytest
-from neural_wrappers.readers import MNISTReader
+from neural_wrappers.readers.datasets import MNISTReader
 from neural_wrappers.utilities import getGenerators, npCloseEnough
 
 try:

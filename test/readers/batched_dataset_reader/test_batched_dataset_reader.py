@@ -1,7 +1,8 @@
 import numpy as np
 from overrides import overrides
 from typing import Tuple, List, Any
-from neural_wrappers.readers import BatchedDatasetReader, DatasetItem, DatasetIndex, getBatchIndex
+from neural_wrappers.readers import BatchedDatasetReader, DatasetItem, DatasetIndex
+from neural_wrappers.readers.batched_dataset_reader.utils import getBatchIndex
 
 class Reader(BatchedDatasetReader):
 	def __init__(self, N=10):

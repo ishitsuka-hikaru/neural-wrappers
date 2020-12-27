@@ -2,8 +2,8 @@ import numpy as np
 import pycache
 from overrides import overrides
 from typing import Tuple, List, Any
-from neural_wrappers.readers import CachedDatasetReader, DatasetItem, DatasetIndex, \
-	StaticBatchedDatasetReader, getBatchIndex
+from neural_wrappers.readers import CachedDatasetReader, DatasetItem, DatasetIndex, StaticBatchedDatasetReader
+from neural_wrappers.readers.batched_dataset_reader.utils import getBatchIndex
 from neural_wrappers.utilities import getGenerators
 
 import sys

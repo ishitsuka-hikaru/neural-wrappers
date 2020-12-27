@@ -116,7 +116,6 @@ class DatasetReader(ABC):
 	def __len__(self) -> int:
 		pass
 
-
 	# Public interface
 
 	# @brief The main iterator of a dataset. It will run over the data for one logical epoch.

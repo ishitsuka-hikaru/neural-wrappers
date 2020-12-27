@@ -3,7 +3,8 @@ import h5py
 from typing import Callable, Any, Dict, List, Tuple
 from copy import copy
 from returns.curry import partial
-from ...h5_batched_dataset_reader import H5BatchedDatasetReader, defaultH5DimGetter
+from ...batched_dataset_reader import H5BatchedDatasetReader
+from ...batched_dataset_reader.h5_batched_dataset_reader import defaultH5DimGetter
 from ....utilities import tryReadNpy, tryStr
 
 def prevReader(dataset:h5py._hl.group.Group, index, dimGetter, neighbours, delta) -> np.ndarray:

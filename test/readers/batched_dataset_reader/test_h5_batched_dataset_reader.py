@@ -3,7 +3,8 @@ import os
 import h5py
 from overrides import overrides
 from typing import Tuple, List, Any
-from neural_wrappers.readers import H5BatchedDatasetReader, DatasetItem, DatasetIndex, getBatchIndex
+from neural_wrappers.readers import H5BatchedDatasetReader, DatasetItem, DatasetIndex
+from neural_wrappers.readers.batched_dataset_reader.utils import getBatchIndex
 
 def createDatasetIfNotExist():
 	tempFileName = "/tmp/dataset.h5"
