@@ -1,3 +1,4 @@
+from __future__ import annotations
 from overrides import overrides
 from typing import List
 from .dataset_reader import DatasetReader
@@ -13,9 +14,8 @@ class CompoundDatasetEpochIterator(DatasetEpochIterator):
 		super().__init__(reader)
 		try:
 			self.batches = reader.getBatches()
-			self.isBatched = True
-			# self.batches = reader.baseReader.getBatches()
 			self.len = len(self.batches)
+			self.isBatched = True
 			self.batchFn = lambda x : getBatchIndex(self.batches, x)
 			self.returnFn = lambda index, index2 : (reader[index2], self.batches[index])
 		except Exception:
@@ -41,6 +41,10 @@ class CompoundDatasetReader(BatchedDatasetReader):
 		super().__init__(dataBuckets=baseReader.datasetFormat.dataBuckets, \
 			dimGetter=baseReader.datasetFormat.dimGetter, dimTransform=baseReader.datasetFormat.dimTransform)
 		self.baseReader = baseReader
+
+	@overrides
+	def getBatches(self):
+		return self.baseReader.getBatches()
 
 	@overrides
 	def iterateOneEpoch(self):

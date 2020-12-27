@@ -84,6 +84,8 @@ class TestPercentDatasetReaderBatched:
 
 		generator = reader.iterateOneEpoch()
 		generatorHalf = readerHalf.iterateOneEpoch()
+		assert len(generator) == 10
+		assert len(generatorHalf) == 5
 		assert len(generatorHalf) == len(generator) // 2
 
 		n = len(generator)
@@ -114,4 +116,4 @@ class TestPercentDatasetReaderBatched:
 				assert np.abs(rgbHalf - rgbs[i % (n//2)]).sum() < 1e-5
 
 if __name__ == "__main__":
-	TestPercentDatasetReader().test_iterateOneEpoch_1()
+	TestPercentDatasetReaderBatched().test_iterateOneEpoch_1()
