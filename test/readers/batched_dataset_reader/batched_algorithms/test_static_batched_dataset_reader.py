@@ -39,7 +39,8 @@ class TestStaticBatchedDatasetReader:
 		reader = StaticBatchedDatasetReader(BaseReader(), batchSize=1)
 		batchSizes = reader.getBatches()
 		n = len(batchSizes)
-		for j, (batchItem, B) in enumerate(reader.iterateForever()):
+		g = reader.iterateForever()
+		for j, (batchItem, B) in enumerate(g):
 			try:
 				assert B == batchSizes[j % n]
 			except Exception:
@@ -78,7 +79,8 @@ class TestStaticBatchedDatasetReader:
 			assert np.abs(rgb2[1] - rgb1_1[0]).sum() < 1e-5
 
 def main():
-	TestStaticBatchedDatasetReader().test_constructor_1()
+	# TestStaticBatchedDatasetReader().test_constructor_1()
+	TestStaticBatchedDatasetReader().test_iterateForever_1()
 
 if __name__ == "__main__":
 	main()

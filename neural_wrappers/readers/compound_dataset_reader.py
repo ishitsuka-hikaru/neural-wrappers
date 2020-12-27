@@ -4,6 +4,36 @@ from .dataset_reader import DatasetReader
 from .batched_dataset_reader import BatchedDatasetReader
 from .dataset_types import *
 
+from .dataset_epoch_iterator import DatasetEpochIterator
+from .batched_dataset_reader.utils import getBatchIndex
+
+class CompoundDatasetEpochIterator(DatasetEpochIterator):
+	def __init__(self, reader:DatasetReader):
+		assert isinstance(reader, DatasetReader)
+		super().__init__(reader)
+		try:
+			self.batches = reader.getBatches()
+			self.isBatched = True
+			# self.batches = reader.baseReader.getBatches()
+			self.len = len(self.batches)
+			self.batchFn = lambda x : getBatchIndex(self.batches, x)
+			self.returnFn = lambda index, index2 : (reader.baseReader[index2], self.batches[index])
+		except Exception:
+			self.batches = None
+			self.isBatched = False
+			self.len = len(reader.baseReader)
+			self.batchFn = lambda x : x
+			self.returnFn = lambda index, index2 : reader.baseReader[index2]
+
+	def __next__(self):
+		self.ix += 1
+		if self.ix < len(self):
+			index = self.getIndexMapping(self.ix)
+			index2 = self.batchFn(index)
+			item = self.returnFn(index, index2)
+			return item
+		raise StopIteration
+
 # Helper class for batched algorithms (or even more (?))
 class CompoundDatasetReader(BatchedDatasetReader):
 	def __init__(self, baseReader:DatasetReader):
@@ -12,17 +42,9 @@ class CompoundDatasetReader(BatchedDatasetReader):
 			dimGetter=baseReader.datasetFormat.dimGetter, dimTransform=baseReader.datasetFormat.dimTransform)
 		self.baseReader = baseReader
 
-	def getBatchIndex(self, batches, index):
-		return self.baseReader.getBatchIndex(batches, index)
-
-	def getBatches(self):
-		return self.baseReader.getBatches()
-
 	@overrides
 	def iterateOneEpoch(self):
-		if not hasattr(self.baseReader, "getBatches"):
-			return DatasetReader.iterateOneEpoch(self)
-		return super().iterateOneEpoch()
+		return CompoundDatasetEpochIterator(self)
 
 	@overrides
 	def getDataset(self):

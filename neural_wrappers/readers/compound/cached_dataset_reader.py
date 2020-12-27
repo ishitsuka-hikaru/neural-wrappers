@@ -5,7 +5,7 @@ from tqdm import trange
 from ..compound_dataset_reader import CompoundDatasetReader
 from ..dataset_reader import DatasetReader
 from ..batched_dataset_reader import BatchedDatasetReader
-from ..batched_dataset_reader.batched_dataset_reader import getBatchIndex
+from ..batched_dataset_reader.utils import getBatchIndex
 from ..dataset_types import *
 from ...utilities import deepCheckEqual
 
