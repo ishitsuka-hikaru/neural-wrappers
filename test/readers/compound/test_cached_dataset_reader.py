@@ -8,7 +8,7 @@ from neural_wrappers.utilities import getGenerators
 
 import sys
 sys.path.append("..")
-from test_batched_dataset_reader import Reader as BaseBatchedReader
+from batched_dataset_reader.test_batched_dataset_reader import Reader as BaseBatchedReader
 from test_dataset_reader import DummyDataset as BaseReader
 
 class BatchedReader(BaseBatchedReader):

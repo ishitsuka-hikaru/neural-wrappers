@@ -17,13 +17,13 @@ class CompoundDatasetEpochIterator(DatasetEpochIterator):
 			# self.batches = reader.baseReader.getBatches()
 			self.len = len(self.batches)
 			self.batchFn = lambda x : getBatchIndex(self.batches, x)
-			self.returnFn = lambda index, index2 : (reader.baseReader[index2], self.batches[index])
+			self.returnFn = lambda index, index2 : (reader[index2], self.batches[index])
 		except Exception:
 			self.batches = None
 			self.isBatched = False
-			self.len = len(reader.baseReader)
+			self.len = len(reader)
 			self.batchFn = lambda x : x
-			self.returnFn = lambda index, index2 : reader.baseReader[index2]
+			self.returnFn = lambda index, index2 : reader[index2]
 
 	def __next__(self):
 		self.ix += 1

@@ -3,7 +3,7 @@ from neural_wrappers.readers import PercentDatasetReader, StaticBatchedDatasetRe
 
 import sys
 sys.path.append("..")
-from test_batched_dataset_reader import Reader as BaseBatchedReader
+from batched_dataset_reader.test_batched_dataset_reader import Reader as BaseBatchedReader
 from test_dataset_reader import DummyDataset as BaseReader
 
 class TestPercentDatasetReader:
@@ -112,3 +112,6 @@ class TestPercentDatasetReaderBatched:
 
 			if i >= n // 2:
 				assert np.abs(rgbHalf - rgbs[i % (n//2)]).sum() < 1e-5
+
+if __name__ == "__main__":
+	TestPercentDatasetReader().test_iterateOneEpoch_1()
