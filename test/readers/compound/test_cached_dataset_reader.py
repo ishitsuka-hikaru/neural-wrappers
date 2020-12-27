@@ -208,7 +208,7 @@ class TestCachedDatasetReaderBatched:
 			i += 1
 
 def main():
-	TestCachedDatasetReaderBatched().test_iterateOneEpoch_1()
+	TestCachedDatasetReader().test_getItem_2()
 
 if __name__ == "__main__":
 	main()

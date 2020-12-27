@@ -9,6 +9,21 @@ from ..batched_dataset_reader.utils import getBatchIndex
 from ..dataset_types import *
 from ...utilities import deepCheckEqual
 
+def buildRegular(iterator, cache):
+	N = len(iterator)
+	for i in trange(N, desc="[CachedDatasetReader] Building regular"):
+		key = iterator.reader.cacheKey(iterator.getIndexMapping(i))
+		if not cache.check(key):
+			item = next(iterator)
+			cache.set(key, item)
+
+def buildDirty(iterator, cache):
+	N = len(iterator)
+	for i in trange(1, N, desc="[CachedDatasetReader] Building dirty"):
+		key = self.cacheKey(iterator.getIndexMapping(i))
+		item = next(iterator)
+		cache.set(key, item)
+
 class CachedDatasetReader(CompoundDatasetReader):
 	# @param[in] baseReader The base dataset reader which is used as composite for caching
 	# @param[in] cache The PyCache Cache object used for caching purposes
@@ -22,40 +37,13 @@ class CachedDatasetReader(CompoundDatasetReader):
 			self.doBuildCache()
 
 	def doBuildCache(self):
-		if hasattr(self.baseReader, "getBatches"):
-			batches = self.baseReader.getBatches()
-			indexFn = lambda i : getBatchIndex(batches, i)
-			n = len(batches)
-		else:
-			indexFn = lambda i : i
-			n = len(self.baseReader)
-
-		def buildRegular(reader, n, cache):
-			for i in trange(n, desc="[CachedDatasetReader] Building (regular)"):
-				index = indexFn(i)
-				key = reader.cacheKey(index)
-				if cache.check(key):
-					continue
-				else:
-					item = reader[index]
-					cache.set(key, item)
-
-		def buildDirty(reader, n, cache):
-			for i in trange(1, n, desc="[CachedDatasetReader] Building (dirty)"):
-				index = indexFn(i)
-				key = reader.cacheKey(index)
-				item = reader[index]
-				cache.set(key, item)
-
-		index = indexFn(0)
-		key = self.baseReader.cacheKey(index)
+		iterator = self.iterateOneEpoch()
+		key = self.cacheKey(iterator.getIndexMapping(0))
 		if not self.cache.check(key):
-			buildRegular(self.baseReader, n, self.cache)
+			buildRegular(iterator, self.cache)
 		else:
-			# Do a consistency check
-			itemGen = self.baseReader[index]
 			item = self.cache.get(key)
-
+			itemGen = next(iterator)
 			try:
 				item = type(itemGen)(item)
 				dirty = not deepCheckEqual(item, itemGen)
@@ -65,7 +53,7 @@ class CachedDatasetReader(CompoundDatasetReader):
 			if dirty:
 				print("[CachedDatasetReader] Cache is dirty. Rebuilding...")
 				self.cache.set(key, itemGen)
-				buildDirty(self.baseReader, n, self.cache)
+				buildDirty(iterator, self.cache)
 
 	@overrides
 	def __getitem__(self, index):
