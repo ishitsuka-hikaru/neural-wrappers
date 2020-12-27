@@ -3,7 +3,8 @@ from overrides import overrides
 from abc import abstractmethod
 from typing import Tuple, List, Dict, Any, Iterator
 from .utils import getBatchIndex
-from ..dataset_reader import DatasetReader, DatasetEpochIterator
+from ..dataset_reader import DatasetReader
+from ..dataset_epoch_iterator import DatasetEpochIterator
 from ..dataset_types import *
 
 class BatchedDatasetEpochIterator(DatasetEpochIterator):

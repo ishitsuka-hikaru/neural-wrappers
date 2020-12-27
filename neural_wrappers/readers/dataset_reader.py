@@ -2,56 +2,10 @@ from __future__ import annotations
 import numpy as np
 from abc import ABC, abstractmethod
 from typing import Dict, List, Callable, Any, Iterator, Union, Tuple
-from prefetch_generator import BackgroundGenerator
 from copy import deepcopy
 
 from .dataset_types import DimGetterCallable, DimTransformCallable, DatasetIndex, DatasetItem
 from ..utilities import flattenList
-
-class DatasetGenerator:
-	def __init__(self, reader, maxPrefetch):
-		self.reader = reader
-		self.maxPrefetch = maxPrefetch
-		self.newEpoch()
-
-	def newEpoch(self):
-		self.currentGenerator = self.reader.iterateOneEpoch()
-		self.currentLen = len(self.currentGenerator)
-		if self.maxPrefetch > 0:
-			self.currentGenerator = BackgroundGenerator(self.currentGenerator, max_prefetch=self.maxPrefetch)
-		# print("[iterateForever] New epoch. Len=%d. Batches: %s" % (self.currentLen, self.currentGenerator.batches))
-
-	def __len__(self):
-		return self.currentLen
-
-	def __next__(self):
-		try:
-			return next(self.currentGenerator)
-		except StopIteration:
-			self.newEpoch()
-			return next(self.currentGenerator)
-	
-	def __iter__(self):
-		return self
-
-# Iterator that iterates one epoch over this dataset.
-class DatasetEpochIterator:
-	def __init__(self, reader:DatasetReader):
-		self.reader = reader
-		self.ix = -1
-		self.len = len(self.reader)
-	
-	def __len__(self):
-		return self.len
-
-	def __next__(self):
-		self.ix += 1
-		if self.ix < len(self):
-			return self.reader[self.ix]
-		raise StopIteration
-
-	def __iter__(self):
-		return self
 
 # @param[in] dataBuckets A dictionary with all available data bucket names (data, label etc.) and, for each bucket,
 #  a list of dimensions (rgb, depth, etc.).
@@ -120,6 +74,7 @@ class DatasetReader(ABC):
 
 	# @brief The main iterator of a dataset. It will run over the data for one logical epoch.
 	def iterateOneEpoch(self) -> Iterator[Dict[str, Any]]:
+		from .dataset_epoch_iterator import DatasetEpochIterator
 		return DatasetEpochIterator(self)
 
 	# Generic infinite generator, that simply does a while True over the iterate_once method, which only goes one epoch
@@ -129,6 +84,7 @@ class DatasetReader(ABC):
 	#  normal in most cases, due to the multi-threaded nature. For length > 1, the queue size is just increased.
 	def iterateForever(self, maxPrefetch:int=0) -> Iterator[Dict[str, np.ndarray]]:
 		assert maxPrefetch >= 0
+		from .dataset_generator import DatasetGenerator
 		return DatasetGenerator(self, maxPrefetch)
 
 	def iterate(self):
