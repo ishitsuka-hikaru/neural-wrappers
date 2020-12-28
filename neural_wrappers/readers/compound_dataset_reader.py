@@ -4,6 +4,7 @@ from typing import List
 from .dataset_reader import DatasetReader, DatasetEpochIterator
 # from .batched_dataset_reader import BatchedDatasetReader
 from .dataset_types import *
+from copy import deepcopy
 
 # from .batched_dataset_reader.utils import getBatchIndex
 
@@ -12,29 +13,27 @@ class CompoundDatasetEpochIterator(DatasetEpochIterator):
 		assert isinstance(reader, DatasetReader)
 		super().__init__(reader)
 		self.readerIterator = reader.baseReader.iterateOneEpoch()
-		# try:
-		# 	self.batches = reader.getBatches()
-		# 	self.len = len(self.batches)
-		# 	self.isBatched = True
-		# 	self.batchFn = lambda x : getBatchIndex(self.batches, x)
-		# 	self.returnFn = lambda index, index2 : (reader[index2], self.batches[index])
-		# except Exception:
-		# 	self.batches = None
-		# 	self.isBatched = False
-		# 	self.len = len(reader)
-		# 	self.batchFn = lambda x : x
-		# 	self.returnFn = lambda index, index2 : reader[index2]
+		try:
+			from .batched_dataset_reader.utils import getBatchLens
+			self.batches = reader.getBatches()
+			self.batchLens = getBatchLens(self.batches)
+			self.len = len(self.batches)
+
+			self.readerIterator.batches = batches
+			self.readerIterator.batchLens = batchLens
+			self.readerIterator.len = Len
+		except Exception:
+			pass
 
 	def __next__(self):
 		self.ix += 1
 		if self.ix < len(self.readerIterator):
 			item = next(self.readerIterator)
 			return item
-			# index = self.getIndexMapping(self.ix)
-			# index2 = self.batchFn(index)
-			# item = self.returnFn(index, index2)
-			return item
 		raise StopIteration
+	
+	def __getattr__(self, key):
+		return getattr(self.readerIterator, key)
 
 # Helper class for batched algorithms (or even more (?))
 class CompoundDatasetReader(DatasetReader):
@@ -45,10 +44,7 @@ class CompoundDatasetReader(DatasetReader):
 		self.baseReader = baseReader
 
 	def getBatches(self):
-		try:
-			return self.baseReader.getBatches()
-		except Exception:
-			raise NotImplementedError("Must be implemented by the reader!")
+		return self.baseReader.getBatches()
 
 	@overrides
 	def iterateOneEpoch(self):

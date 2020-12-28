@@ -108,7 +108,7 @@ class TestCompoundDatasetReaderBatched:
 
 def main():
 	# TestDatasetReader().test_constructor_1()
-	TestCompoundDatasetReaderBatched().test_getBatchItem_1()
+	TestCompoundDatasetReaderBatched().test_iterateForever_1()
 
 if __name__ == "__main__":
 	main()

@@ -2,31 +2,20 @@ from __future__ import annotations
 from overrides import overrides
 from abc import abstractmethod
 from typing import List, Dict, Any, Iterator
+from .utils import getBatchLens
 from ..dataset_reader import DatasetReader, DatasetEpochIterator
 from ..dataset_types import *
 
 class BatchedDatasetEpochIterator(DatasetEpochIterator):
 	def __init__(self, reader:BatchedDatasetReader):
-		assert isinstance(reader, BatchedDatasetReader)
-		super().__init__(reader)
+		# assert isinstance(reader, BatchedDatasetReader)
+		# assert hasattr(reader, "getBatches")
 		# Each iterator hgas it's own batches (can change for some readers, such as RandomBatchedDatasetReader, where
 		#  each epoch has its own set of batches).
-		self.batches = self.reader.getBatches()
-		self.batchLens = self.getBatchLens()
+		super().__init__(reader)
+		self.batches = reader.getBatches()
+		self.batchLens = getBatchLens(self.batches)
 		self.len = len(self.batches)
-
-	def getBatchLens(self):
-		if isinstance(self.batches[0], slice):
-			def sliceLen(batchIndex):
-				step = batchIndex.step if not batchIndex.step is None else 1
-				N = batchIndex.stop - batchIndex.start
-				B = N // step + (N % step != 0)
-				return B
-			return [sliceLen(x) for x in self.batches]
-		elif hasattr(self.batches[0], "len"):
-			return [len(x) for x in self.batches]
-		else:
-			assert False, "Provide a way to find length of batches... Type: %s" % type(self.batches[0])
 
 	# We update the logic of getting as follows. For plain (non-batched) datasets we had
 	#  - items = reader[mapping(ix)] for ix in [0 : len(self) - 1]

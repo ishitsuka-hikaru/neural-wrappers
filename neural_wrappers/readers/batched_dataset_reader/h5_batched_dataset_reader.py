@@ -17,7 +17,7 @@ def defaultH5DimGetter(dataset:h5py._hl.group.Group, index:DatasetIndex, dim:str
 		return dataset[dim][index.start:index.stop][()]
 	elif isinstance(index, (np.ndarray, list, tuple)):
 		return smartIndexWrapper(dataset[dim], index)
-	assert False
+	assert False, "Unknown type: %s" % type(index)
 
 class H5BatchedDatasetReader(BatchedDatasetReader):
 	# @param[in] datasetPath can be a dataset or a h5py opened file/group etc. If it's str, we're opening it.

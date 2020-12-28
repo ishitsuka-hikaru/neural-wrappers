@@ -20,12 +20,12 @@ class StaticBatchedDatasetReader(CompoundDatasetReader):
 		if batchSize == -1:
 			batchSize = N
 		n = N // batchSize
-		batches = n * [batchSize]
+		batchLens = n * [batchSize]
 		if N % batchSize != 0:
-			batches.append(N % batchSize)
+			batchLens.append(N % batchSize)
 		self.batchSize = batchSize
-		self.batchSizes = batches
-		self.batches = batchIndexFromBatchSizes(self.batchSizes)
+		self.batchLens = batchLens
+		self.batches = batchIndexFromBatchSizes(self.batchLens)
 
 	@overrides
 	def getBatches(self) -> List[int]:

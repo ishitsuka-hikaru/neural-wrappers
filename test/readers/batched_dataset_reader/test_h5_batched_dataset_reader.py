@@ -11,7 +11,8 @@ def createDatasetIfNotExist():
 		file = h5py.File(tempFileName, "w")
 		file["rgb"] = np.random.randn(10, 3)
 		file["class"] = np.random.randint(0, 2, size=(10, ))
-		file["batches"] = [4, 1, 2, 3]
+		file.create_dataset("batches", (4, ), dtype=h5py.special_dtype(vlen=np.dtype("int32")))
+		file["batches"][:] = [[0, 1, 2, 3], [4], [5, 6], [7, 8, 9]]
 		file.flush()
 		file.close()
 	return tempFileName
@@ -42,7 +43,8 @@ class TestH5BatchedDatasetReader:
 	def test_getBatchItem_1(self):
 		reader = Reader()
 		b = reader.getBatches()
-		item = reader[getBatchIndex(reader.getBatches(), 0)]
+		index = b[0]
+		item = reader[index]
 		rgb = item["data"]["rgb"]
 		assert rgb.shape[0] == 4
 		assert np.abs(rgb - reader.dataset["rgb"][0:4]).sum() < 1e-5
@@ -52,29 +54,31 @@ class TestH5BatchedDatasetReader:
 		batches = reader.getBatches()
 		n = len(batches)
 		for j in range(100):
-			index = getBatchIndex(batches, j % n)
+			index = batches[j % n]
 			batchItem = reader[index]
 			rgb = batchItem["data"]["rgb"]
-			assert np.abs(rgb - reader.dataset["rgb"][index.start : index.stop]).sum() < 1e-5
+			Range = np.arange(index[0], index[-1] + 1)
+			assert np.abs(rgb - reader.dataset["rgb"][Range]).sum() < 1e-5
 
 	def test_iterateForever_1(self):
 		reader = Reader()
-		batchSizes = reader.getBatches()
-		n = len(batchSizes)
-		for j, (batchItem, B) in enumerate(reader.iterateForever()):
+		batches = reader.getBatches()
+		n = len(batches)
+		g = reader.iterateForever()
+		for j, (batchItem, B) in enumerate(g):
 			try:
-				assert B == batchSizes[j % n]
+				assert B == g.batchLens[j % n]
 			except Exception:
 				breakpoint()
 			rgb = batchItem["data"]["rgb"]
-			index = getBatchIndex(batchSizes, j % n)
-			assert np.abs(rgb - reader.dataset["rgb"][index.start : index.stop]).sum() < 1e-5
+			index = batches[j % n]
+			assert np.abs(rgb - reader.dataset["rgb"][index]).sum() < 1e-5
 
 			if j == 100:
 				break
 
 def main():
-	TestH5BatchedDatasetReader().test_constructor_1()
+	TestH5BatchedDatasetReader().test_iterateForever_1()
 
 if __name__ == "__main__":
 	main()
