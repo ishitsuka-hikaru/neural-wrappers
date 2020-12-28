@@ -2,7 +2,7 @@ from __future__ import annotations
 from overrides import overrides
 from typing import List
 from .dataset_reader import DatasetReader, DatasetEpochIterator
-from .batched_dataset_reader import BatchedDatasetReader
+# from .batched_dataset_reader import BatchedDatasetReader
 from .dataset_types import *
 
 # from .batched_dataset_reader.utils import getBatchIndex
@@ -11,7 +11,7 @@ class CompoundDatasetEpochIterator(DatasetEpochIterator):
 	def __init__(self, reader:DatasetReader):
 		assert isinstance(reader, DatasetReader)
 		super().__init__(reader)
-		self.readerIterator = reader.iterateOneEpoch()
+		self.readerIterator = reader.baseReader.iterateOneEpoch()
 		# try:
 		# 	self.batches = reader.getBatches()
 		# 	self.len = len(self.batches)
@@ -37,16 +37,18 @@ class CompoundDatasetEpochIterator(DatasetEpochIterator):
 		raise StopIteration
 
 # Helper class for batched algorithms (or even more (?))
-class CompoundDatasetReader(BatchedDatasetReader):
+class CompoundDatasetReader(DatasetReader):
 	def __init__(self, baseReader:DatasetReader):
 		assert isinstance(baseReader, DatasetReader)
 		super().__init__(dataBuckets=baseReader.datasetFormat.dataBuckets, \
 			dimGetter=baseReader.datasetFormat.dimGetter, dimTransform=baseReader.datasetFormat.dimTransform)
 		self.baseReader = baseReader
 
-	@overrides
 	def getBatches(self):
-		return self.baseReader.getBatches()
+		try:
+			return self.baseReader.getBatches()
+		except Exception:
+			raise NotImplementedError("Must be implemented by the reader!")
 
 	@overrides
 	def iterateOneEpoch(self):

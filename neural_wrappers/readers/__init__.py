@@ -1,5 +1,6 @@
 from .dataset_types import *
 from .dataset_reader import DatasetReader
+from .compound_dataset_reader import CompoundDatasetReader
 
 # BatchedDatasetReaders and batched algorithms
 from .batched_dataset_reader import *
