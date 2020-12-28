@@ -1,5 +1,6 @@
 from overrides import overrides
 from typing import List, Tuple
+from ..utils import batchIndexFromBatchSizes
 from ..batched_dataset_reader import BatchedDatasetReader
 from ...compound_dataset_reader import CompoundDatasetReader
 from ...dataset_reader import DatasetReader
@@ -23,7 +24,8 @@ class StaticBatchedDatasetReader(CompoundDatasetReader):
 		if N % batchSize != 0:
 			batches.append(N % batchSize)
 		self.batchSize = batchSize
-		self.batches = batches
+		self.batchSizes = batches
+		self.batches = batchIndexFromBatchSizes(self.batchSizes)
 
 	@overrides
 	def getBatches(self) -> List[int]:

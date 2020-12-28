@@ -26,7 +26,7 @@ class BatchedDatasetEpochIterator(DatasetEpochIterator):
 		elif hasattr(self.batches[0], "len"):
 			return [len(x) for x in self.batches]
 		else:
-			assert False, "Provide a way to find length of batches..."
+			assert False, "Provide a way to find length of batches... Type: %s" % type(self.batches[0])
 
 	# We update the logic of getting as follows. For plain (non-batched) datasets we had
 	#  - items = reader[mapping(ix)] for ix in [0 : len(self) - 1]

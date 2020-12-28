@@ -11,25 +11,28 @@ class CompoundDatasetEpochIterator(DatasetEpochIterator):
 	def __init__(self, reader:DatasetReader):
 		assert isinstance(reader, DatasetReader)
 		super().__init__(reader)
-		try:
-			self.batches = reader.getBatches()
-			self.len = len(self.batches)
-			self.isBatched = True
-			self.batchFn = lambda x : getBatchIndex(self.batches, x)
-			self.returnFn = lambda index, index2 : (reader[index2], self.batches[index])
-		except Exception:
-			self.batches = None
-			self.isBatched = False
-			self.len = len(reader)
-			self.batchFn = lambda x : x
-			self.returnFn = lambda index, index2 : reader[index2]
+		self.readerIterator = reader.iterateOneEpoch()
+		# try:
+		# 	self.batches = reader.getBatches()
+		# 	self.len = len(self.batches)
+		# 	self.isBatched = True
+		# 	self.batchFn = lambda x : getBatchIndex(self.batches, x)
+		# 	self.returnFn = lambda index, index2 : (reader[index2], self.batches[index])
+		# except Exception:
+		# 	self.batches = None
+		# 	self.isBatched = False
+		# 	self.len = len(reader)
+		# 	self.batchFn = lambda x : x
+		# 	self.returnFn = lambda index, index2 : reader[index2]
 
 	def __next__(self):
 		self.ix += 1
-		if self.ix < len(self):
-			index = self.getIndexMapping(self.ix)
-			index2 = self.batchFn(index)
-			item = self.returnFn(index, index2)
+		if self.ix < len(self.readerIterator):
+			item = next(self.readerIterator)
+			return item
+			# index = self.getIndexMapping(self.ix)
+			# index2 = self.batchFn(index)
+			# item = self.returnFn(index, index2)
 			return item
 		raise StopIteration
 
