@@ -1,15 +1,10 @@
 import numpy as np
 from typing import List
-from ..dataset_types import *
 
-# def getBatchIndex(batches:List[int], i:int) -> DatasetIndex:
-# 	# batches = [1, 5, 4, 2] => cumsum = [0, 1, 6, 10, 12]
-# 	cumsum = np.insert(np.cumsum(batches), 0, 0)
-# 	# i = 2 => B = [6, 7, 8, 9]
-# 	# batchIndex = np.arange(cumsum[i], cumsum[i + 1])
-# 	try:
-# 		batchIndex = slice(cumsum[i], cumsum[i + 1])
-# 	except Exception as e:
-# 		print(str(e))
-# 		breakpoint()
-# 	return batchIndex
+def batchIndexFromBatchSizes(batchSizes:List[int]) -> List[slice]:
+    # batchSizes = [4, 1, 2, 3], so batch[0] has a size of 4, batch[2] a size of 2 etc.
+    # actual batches are obtained by cumsum on lens: [0, 4, 5, 7, 10]. cumsum[0] = [0, 4), cumsum[1] = [4, 5) etc.
+    cumsum = np.insert(np.cumsum(batchSizes), 0, 0)
+    # We can further slice these batches for faster access
+    batches = [slice(cumsum[i], cumsum[i + 1]) for i in range(len(cumsum) - 1)]
+    return batches

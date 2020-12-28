@@ -2,7 +2,6 @@ from __future__ import annotations
 from overrides import overrides
 from abc import abstractmethod
 from typing import List, Dict, Any, Iterator
-# from .utils import getBatchIndex
 from ..dataset_reader import DatasetReader, DatasetEpochIterator
 from ..dataset_types import *
 
@@ -13,7 +12,21 @@ class BatchedDatasetEpochIterator(DatasetEpochIterator):
 		# Each iterator hgas it's own batches (can change for some readers, such as RandomBatchedDatasetReader, where
 		#  each epoch has its own set of batches).
 		self.batches = self.reader.getBatches()
+		self.batchLens = self.getBatchLens()
 		self.len = len(self.batches)
+
+	def getBatchLens(self):
+		if isinstance(self.batches[0], slice):
+			def sliceLen(batchIndex):
+				step = batchIndex.step if not batchIndex.step is None else 1
+				N = batchIndex.stop - batchIndex.start
+				B = N // step + (N % step != 0)
+				return B
+			return [sliceLen(x) for x in self.batches]
+		elif hasattr(self.batches[0], "len"):
+			return [len(x) for x in self.batches]
+		else:
+			assert False, "Provide a way to find length of batches..."
 
 	# We update the logic of getting as follows. For plain (non-batched) datasets we had
 	#  - items = reader[mapping(ix)] for ix in [0 : len(self) - 1]
@@ -32,10 +45,10 @@ class BatchedDatasetEpochIterator(DatasetEpochIterator):
 		if self.ix < self.len:
 			index = self.getIndexMapping(self.ix)
 			batchIndex = self.batches[index]
+			batchSize = self.batchLens[index]
 			batchItem = self.reader[batchIndex]
-			# The batch index should be lengthable! TODO: For slices.
-			B = len(batchIndex)
-			return batchItem, B
+			return batchItem, batchSize
+		raise StopIteration
 
 class BatchedDatasetReader(DatasetReader):
 	def getBatches(self) -> List[int]:

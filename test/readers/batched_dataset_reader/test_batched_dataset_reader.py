@@ -2,7 +2,7 @@ import numpy as np
 from overrides import overrides
 from typing import Tuple, List, Any
 from neural_wrappers.readers import BatchedDatasetReader, DatasetItem, DatasetIndex
-from neural_wrappers.readers.batched_dataset_reader.utils import getBatchIndex
+from neural_wrappers.readers.batched_dataset_reader.utils import batchIndexFromBatchSizes
 
 class Reader(BatchedDatasetReader):
 	def __init__(self, N=10):
@@ -25,7 +25,10 @@ class Reader(BatchedDatasetReader):
 		return len(self.dataset)
 
 	def getBatches(self) -> List[int]:
-		return np.array([4, 1, 2, 3], dtype=np.int32)
+		# batchSizes = [4, 1, 2, 3], so batch[0] has a size of 4, batch[2] a size of 2 etc.
+		batchSizes = np.array([4, 1, 2, 3], dtype=np.int32)
+		batches = batchIndexFromBatchSizes(batchSizes)
+		return batches
 
 class TestBatchedDatasetReader:
 	def test_constructor_1(self):
@@ -34,7 +37,8 @@ class TestBatchedDatasetReader:
 
 	def test_getBatchItem_1(self):
 		reader = Reader()
-		item = reader[getBatchIndex(reader.getBatches(), 0)]
+		batches = reader.getBatches()
+		item = reader[batches[0]]
 		rgb = item["data"]["rgb"]
 		assert rgb.shape[0] == 4
 		assert np.abs(rgb - reader.dataset[0:4]).sum() < 1e-5
@@ -42,17 +46,19 @@ class TestBatchedDatasetReader:
 	def test_getBatchItem_2(self):
 		reader = Reader()
 		batches = reader.getBatches()
+		item = reader[batches[0]]
 		n = len(batches)
 		for j in range(100):
-			index = getBatchIndex(batches, j % n)
+			index = batches[j % n]
 			batchItem = reader[index]
 			rgb = batchItem["data"]["rgb"]
 			assert np.abs(rgb - reader.dataset[index.start : index.stop]).sum() < 1e-5
 
 	def test_iterateForever_1(self):
 		reader = Reader()
-		batchSizes = reader.getBatches()
-		n = len(batchSizes)
+		batches = reader.getBatches()
+		batchSizes = [(x.stop - x.start) for x in batches]
+		n = len(batches)
 		for j, (batchItem, B) in enumerate(reader.iterateForever()):
 			try:
 				assert B == batchSizes[j % n]
@@ -60,7 +66,7 @@ class TestBatchedDatasetReader:
 				print(str(e))
 				breakpoint()
 			rgb = batchItem["data"]["rgb"]
-			index = getBatchIndex(batchSizes, j % n)
+			index = batches[j % n]
 			assert np.abs(rgb - reader.dataset[index.start : index.stop]).sum() < 1e-5
 
 			if j == 100:
