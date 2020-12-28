@@ -14,7 +14,7 @@ class CompoundDatasetEpochIterator(DatasetEpochIterator):
 	def __init__(self, reader:DatasetReader):
 		assert isinstance(reader, DatasetReader)
 		super().__init__(reader)
-		self.readerIterator = reader.baseReader.iterateOneEpoch()
+		# self.readerIterator = reader.baseReader.iterateOneEpoch()
 
 		try:
 			from .batched_dataset_reader.utils import getBatchLens
@@ -39,9 +39,6 @@ class CompoundDatasetEpochIterator(DatasetEpochIterator):
 			item = self.returnFn(index, batchIndex)
 			return item
 		raise StopIteration
-	
-	def __getattr__(self, key):
-		return getattr(self.readerIterator, key)
 
 # Helper class for batched algorithms (or even more (?))
 class CompoundDatasetReader(DatasetReader):

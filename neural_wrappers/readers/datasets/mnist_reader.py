@@ -3,6 +3,7 @@ from functools import partial
 from overrides import overrides
 from typing import Iterator, Tuple, List
 from ..batched_dataset_reader import H5BatchedDatasetReader
+from ..batched_dataset_reader.utils import batchIndexFromBatchSizes
 from ...utilities import toCategorical
 
 class MNISTReader(H5BatchedDatasetReader):
@@ -34,11 +35,12 @@ class MNISTReader(H5BatchedDatasetReader):
 		if batchSize == -1:
 			batchSize = N
 		n = N // batchSize
-		batches = n * [batchSize]
+		batchLens = n * [batchSize]
 		if N % batchSize != 0:
-			batches.append(N % batchSize)
+			batchLens.append(N % batchSize)
 		self.batchSize = batchSize
-		self.batches = batches
+		self.batchLens = batchLens
+		self.batches = batchIndexFromBatchSizes(self.batchLens)
 
 	@overrides
 	def getBatches(self) -> List[int]:

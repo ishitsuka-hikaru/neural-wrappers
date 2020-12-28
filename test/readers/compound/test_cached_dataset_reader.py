@@ -95,7 +95,7 @@ class TestCachedDatasetReaderBatched:
 	def test_getBatchItem_1(self):
 		reader = CachedDatasetReader(BatchedReader(), cache=pycache.DictMemory())
 		batches = reader.getBatches()
-		index = getBatchIndex(batches, 0)
+		index = batches[0]
 		assert reader.cache.check(reader.cacheKey(index)) == False
 		item = reader[index]
 		rgb = item["data"]["rgb"]
@@ -107,7 +107,7 @@ class TestCachedDatasetReaderBatched:
 	def test_getBatchItem_2(self):
 		reader = CachedDatasetReader(BatchedReader(), cache=pycache.DictMemory(), buildCache=True)
 		batches = reader.getBatches()
-		index = getBatchIndex(batches, 0)
+		index = batches[0]
 		assert reader.cache.check(reader.cacheKey(index)) == True
 		item = reader[index]
 		rgb = item["data"]["rgb"]
@@ -121,7 +121,7 @@ class TestCachedDatasetReaderBatched:
 		generator = reader.iterateOneEpoch()
 		rgbs = []
 		for i in range(len(generator)):
-			batchIndex = getBatchIndex(generator.batches, i)
+			batchIndex = generator.batches[i]
 			assert reader.cache.check(reader.cacheKey(batchIndex)) == False
 			item, B = next(generator)
 			rgb = item["data"]["rgb"]
@@ -129,7 +129,7 @@ class TestCachedDatasetReaderBatched:
 
 		generator = reader.iterateOneEpoch()
 		for i in range(len(generator)):
-			batchIndex = getBatchIndex(generator.batches, i)
+			batchIndex = generator.batches[i]
 			assert reader.cache.check(reader.cacheKey(batchIndex)) == True
 			item, B = next(generator)
 			rgb = item["data"]["rgb"]
@@ -141,7 +141,7 @@ class TestCachedDatasetReaderBatched:
 		generator = reader.iterateOneEpoch()
 		rgbs = []
 		for i in range(len(generator)):
-			batchIndex = getBatchIndex(generator.batches, i)
+			batchIndex = generator.batches[i]
 			assert reader.cache.check(reader.cacheKey(batchIndex)) == False
 			item, B = next(generator)
 			rgb = item["data"]["rgb"]
@@ -150,7 +150,7 @@ class TestCachedDatasetReaderBatched:
 		generator1 = reader.iterateOneEpoch()
 		assert len(generator) == len(generator1)
 		for i in range(len(generator1)):
-			batchIndex = getBatchIndex(generator1.batches, i)
+			batchIndex = generator1.batches[i]
 			assert reader.cache.check(reader.cacheKey(batchIndex)) == True
 			item, B = next(generator1)
 			rgb = item["data"]["rgb"]
@@ -160,7 +160,7 @@ class TestCachedDatasetReaderBatched:
 		generator2 = reader2.iterateOneEpoch()
 		assert len(generator) == len(generator2)
 		for i in range(len(generator2)):
-			batchIndex = getBatchIndex(generator2.batches, i)
+			batchIndex = generator2.batches[i]
 			assert reader.cache.check(reader.cacheKey(batchIndex)) == True
 			item, B = next(generator2)
 			rgb = item["data"]["rgb"]
@@ -170,7 +170,7 @@ class TestCachedDatasetReaderBatched:
 		generator3 = reader3.iterateOneEpoch()
 		assert len(generator) != len(generator3)
 		for i in range(len(generator3)):
-			batchIndex = getBatchIndex(generator3.batches, i)
+			batchIndex = generator3.batches[i]
 			assert reader.cache.check(reader.cacheKey(batchIndex)) == False
 			item, B = next(generator3)
 			rgb = item["data"]["rgb"]
@@ -180,7 +180,7 @@ class TestCachedDatasetReaderBatched:
 		generator4 = reader4.iterateOneEpoch()
 		assert len(generator3) == len(generator4)
 		for i in range(len(generator4)):
-			batchIndex = getBatchIndex(generator4.batches, i)
+			batchIndex = generator4.batches[i]
 			assert reader4.cache.check(reader.cacheKey(batchIndex)) == True
 
 	def test_iterateForever_1(self):
@@ -195,12 +195,12 @@ class TestCachedDatasetReaderBatched:
 				break
 
 			if i < n:
-				assert reader.cache.check(reader.cacheKey(getBatchIndex(batches, i))) == False
+				assert reader.cache.check(reader.cacheKey(batches[i])) == False
 				item, B = next(generator)
 				rgb = item["data"]["rgb"]
 				rgbs.append(rgb)
 			else:
-				assert reader.cache.check(reader.cacheKey(getBatchIndex(batches, i - n))) == True
+				assert reader.cache.check(reader.cacheKey(batches[i - n])) == True
 				item, B = next(generator)
 				rgb = item["data"]["rgb"]
 				assert np.abs(rgb - rgbs[i - n]).sum() < 1e-5
