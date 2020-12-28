@@ -1,20 +1,12 @@
 from __future__ import annotations
 from overrides import overrides
-from typing import List
 from .dataset_reader import DatasetReader, DatasetEpochIterator
-# from .batched_dataset_reader import BatchedDatasetReader
 from .dataset_types import *
-from copy import deepcopy
-
-# from .batched_dataset_reader.utils import getBatchIndex
-
-
 
 class CompoundDatasetEpochIterator(DatasetEpochIterator):
 	def __init__(self, reader:DatasetReader):
 		assert isinstance(reader, DatasetReader)
 		super().__init__(reader)
-		# self.readerIterator = reader.baseReader.iterateOneEpoch()
 
 		try:
 			from .batched_dataset_reader.utils import getBatchLens

@@ -31,7 +31,8 @@ class TestRandomIndexDatasetReader:
 		equal = []
 		for i in range(1, N):
 			ixItems = items[i]
-			equal.append(deepCheckEqual(firstItems, ixItems))
+			check = deepCheckEqual(firstItems, ixItems)
+			equal.append(check)
 		assert sum(equal) != N - 1
 
 class TestRandomIndexBatchedDatasetReader:
@@ -54,7 +55,12 @@ class TestRandomIndexBatchedDatasetReader:
 		equal = []
 		for i in range(1, N):
 			ixItems = items[i]
-			equal.append(deepCheckEqual(firstItems, ixItems))
+			try:
+				check = deepCheckEqual(firstItems, ixItems)
+			except Exception as e:
+				print(e)
+				breakpoint()
+			equal.append(check)
 		assert sum(equal) != N - 1
 
 def main():

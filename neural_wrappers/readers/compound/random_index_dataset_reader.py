@@ -1,9 +1,9 @@
 import numpy as np
 from overrides import overrides
-from ..dataset_reader import DatasetReader, DatasetEpochIterator
-from ..compound_dataset_reader import CompoundDatasetReader
+from ..dataset_reader import DatasetReader
+from ..compound_dataset_reader import CompoundDatasetReader, CompoundDatasetEpochIterator
 
-class RandomIndexDatasetEpochIterator(DatasetEpochIterator):
+class RandomIndexDatasetEpochIterator(CompoundDatasetEpochIterator):
 	def __init__(self, reader:DatasetReader):
 		super().__init__(reader)
 		self.permutation = np.random.permutation(len(self))

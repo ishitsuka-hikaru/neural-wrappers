@@ -138,6 +138,8 @@ def deepCheckEqual(a, b):
 				return False
 		return True
 	elif Type == np.ndarray:
+		if not a.shape == b.shape:
+			return False
 		return npCloseEnough(a, b)
 	elif Type in (list, tuple):
 		if not len(a) == len(b):

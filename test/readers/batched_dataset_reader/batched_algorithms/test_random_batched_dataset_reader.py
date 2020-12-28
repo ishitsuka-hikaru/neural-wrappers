@@ -2,6 +2,7 @@ import numpy as np
 from overrides import overrides
 from typing import Tuple, List, Any
 from neural_wrappers.readers import RandomBatchedDatasetReader, DatasetItem, DatasetIndex
+from neural_wrappers.readers.batched_dataset_reader.utils import getBatchLens
 from neural_wrappers.utilities import getGenerators
 
 import sys
@@ -16,9 +17,9 @@ class TestRandomBatchedDatasetReader:
 	def test_getBatchedItem_1(self):
 		reader = RandomBatchedDatasetReader(BaseReader())
 		batches = reader.getBatches()
-		item = reader[getBatchIndex(batches, 0)]
+		item = reader[batches[0]]
 		rgb = item["data"]["rgb"]
-		B = batches[0]
+		B = getBatchLens(batches)[0]
 		assert rgb.shape[0] == B
 		assert np.abs(rgb - reader.baseReader.dataset[0:B]).sum() < 1e-5
 
@@ -27,15 +28,15 @@ class TestRandomBatchedDatasetReader:
 		batches = reader.getBatches()
 		n = len(batches)
 		for j in range(100):
-			index = getBatchIndex(batches, j % n)
+			index = batches[j % n]
 			batchItem = reader[index]
 			rgb = batchItem["data"]["rgb"]
-			assert rgb.shape[0] == batches[j % n], "%d vs %d" % (rgb.shape[0], batches[j % n])
+			assert rgb.shape[0] == getBatchLens(batches)[j % n], "%d vs %d" % (rgb.shape[0], batches[j % n])
 			assert np.abs(rgb - reader.baseReader.dataset[index.start : index.stop]).sum() < 1e-5
 
 	def test_iterateForever_1(self):
 		reader = RandomBatchedDatasetReader(BaseReader())
-		generator = reader.iterateForever()
+		generator = reader.iterateForever(maxPrefetch=0)
 		k = 0
 		for j, (batchItem, B) in enumerate(generator):
 			if k == 0 or k % n == 0:
@@ -45,9 +46,9 @@ class TestRandomBatchedDatasetReader:
 
 			rgb = batchItem["data"]["rgb"]
 			print("j=%d. batches: %s. rgb:%s" % (j, currentBatch, rgb.shape))
-			index = getBatchIndex(currentBatch, k % n)
+			index = currentBatch[k % n]
 
-			assert B == currentBatch[k % n]
+			assert B == getBatchLens(currentBatch)[k % n]
 			assert np.abs(rgb - reader.baseReader.dataset[index.start : index.stop]).sum() < 1e-5
 
 			k += 1
@@ -118,7 +119,7 @@ class TestRandomBatchedDatasetReader:
 		assert len(leftover2) == 0
 
 def main():
-	TestRandomBatchedDatasetReader().test_iterateForever_1()
+	TestRandomBatchedDatasetReader().test_getBatchedItem_1()
 
 if __name__ == "__main__":
 	main()

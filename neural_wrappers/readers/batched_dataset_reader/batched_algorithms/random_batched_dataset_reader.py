@@ -2,6 +2,7 @@ from __future__ import annotations
 from overrides import overrides
 from typing import List, Tuple
 from ..batched_dataset_reader import BatchedDatasetReader
+from ..utils import batchIndexFromBatchSizes
 from ...compound_dataset_reader import CompoundDatasetReader
 from ...dataset_reader import DatasetReader
 from ...dataset_types import *
@@ -14,16 +15,17 @@ class RandomBatchedDatasetReader(CompoundDatasetReader):
 	def getShuffle(self):
 		N = len(self)
 		S = 0
-		batches = []
+		batchLens = []
 		while S < N:
 			nLeft = N - S
-			thisBatch = np.random.randint(1, nLeft + 1)
-			S += thisBatch
-			batches.append(thisBatch)
-		assert sum(batches) == N
+			thisLen = np.random.randint(1, nLeft + 1)
+			S += thisLen
+			batchLens.append(thisLen)
+		assert sum(batchLens) == N
 		self.numShuffles += 1
 		# print("[getShuffle] New shuffle. N=%d. batches=%s. numShuffles=%d" % (len(batches), batches, self.numShuffles))
 		# breakpoint()
+		batches = batchIndexFromBatchSizes(batchLens)
 		return batches
 
 	@overrides
