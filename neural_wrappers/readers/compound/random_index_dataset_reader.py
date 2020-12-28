@@ -1,8 +1,7 @@
 import numpy as np
 from overrides import overrides
-from ..dataset_reader import DatasetReader
+from ..dataset_reader import DatasetReader, DatasetEpochIterator
 from ..compound_dataset_reader import CompoundDatasetReader
-from ..dataset_epoch_iterator import DatasetEpochIterator
 
 class RandomIndexDatasetEpochIterator(DatasetEpochIterator):
 	def __init__(self, reader:DatasetReader):

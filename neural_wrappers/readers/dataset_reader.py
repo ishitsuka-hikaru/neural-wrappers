@@ -7,6 +7,37 @@ from copy import deepcopy
 from .dataset_types import DimGetterCallable, DimTransformCallable, DatasetIndex, DatasetItem
 from .dataset_format import DatasetFormat
 
+# Iterator that iterates one epoch over this dataset.
+# @brief Epoch iterator that goes through the provided dataset reader for exactly one epoch as defined by len(reader)
+# @param[in] reader The DatasetReader we are iterating one epoch upon
+class DatasetEpochIterator:
+	def __init__(self, reader:DatasetReader):
+		self.reader = reader
+		self.ix = -1
+		self.len = len(self.reader)
+	
+	def __len__(self):
+		return self.len
+
+	# @brief a function that maps a numeric index to the numeric index of the current epoch's item. By default
+	#  f(x) = x, but some datasets may want to update this mapping for more sophisticated indexing algorithms
+	def getIndexMapping(self, ix):
+		return ix
+
+	# The logic of getting an item is. ix is a number going in range [0 : len(self) - 1]. We are passing a "routing"
+	#  table as well, via getIndexMapping. Thus index = mapping(ix). Finally, we call dataset's __getitem__ on this
+	#  routed index. So item = reader[index].
+	# One-liner: items = reader[mapping(ix)] for ix in [0 : len(self) - 1]
+	def __next__(self):
+		self.ix += 1
+		if self.ix < len(self):
+			index = self.getIndexMapping(self.ix)
+			return self.reader[index]
+		raise StopIteration
+
+	def __iter__(self):
+		return self
+
 class DatasetReader(ABC):
 	def __init__(self, dataBuckets:Dict[str, List[str]], dimGetter:Dict[str, DimGetterCallable], \
 		dimTransform:Dict[str, Dict[str, DimTransformCallable]]):
@@ -24,7 +55,6 @@ class DatasetReader(ABC):
 
 	# @brief The main iterator of a dataset. It will run over the data for one logical epoch.
 	def iterateOneEpoch(self) -> Iterator[Dict[str, Any]]:
-		from .dataset_epoch_iterator import DatasetEpochIterator
 		return DatasetEpochIterator(self)
 
 	# Generic infinite generator, that simply does a while True over the iterate_once method, which only goes one epoch

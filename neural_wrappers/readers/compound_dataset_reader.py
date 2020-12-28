@@ -1,12 +1,11 @@
 from __future__ import annotations
 from overrides import overrides
 from typing import List
-from .dataset_reader import DatasetReader
+from .dataset_reader import DatasetReader, DatasetEpochIterator
 from .batched_dataset_reader import BatchedDatasetReader
 from .dataset_types import *
 
-from .dataset_epoch_iterator import DatasetEpochIterator
-from .batched_dataset_reader.utils import getBatchIndex
+# from .batched_dataset_reader.utils import getBatchIndex
 
 class CompoundDatasetEpochIterator(DatasetEpochIterator):
 	def __init__(self, reader:DatasetReader):

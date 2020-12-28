@@ -2,8 +2,40 @@ from __future__ import annotations
 from overrides import overrides
 from abc import abstractmethod
 from typing import List, Dict, Any, Iterator
-from ..dataset_reader import DatasetReader
+# from .utils import getBatchIndex
+from ..dataset_reader import DatasetReader, DatasetEpochIterator
 from ..dataset_types import *
+
+class BatchedDatasetEpochIterator(DatasetEpochIterator):
+	def __init__(self, reader:BatchedDatasetReader):
+		assert isinstance(reader, BatchedDatasetReader)
+		super().__init__(reader)
+		# Each iterator hgas it's own batches (can change for some readers, such as RandomBatchedDatasetReader, where
+		#  each epoch has its own set of batches).
+		self.batches = self.reader.getBatches()
+		self.len = len(self.batches)
+
+	# We update the logic of getting as follows. For plain (non-batched) datasets we had
+	#  - items = reader[mapping(ix)] for ix in [0 : len(self) - 1]
+	# However, we are in a batched situation, so for each index, we are receiving a batch of items
+	# batches = [ B1, B1, B1, B2, B2, B3, B4, B4, B5] where B1 is the batch for index 1 (len 3), B2 for index 2 etc.
+	# We are still passing a routing table, however this routing table is for batch indexes.
+	# Thus, for this epoch we have a list of batches, which can be anything iterable:
+	#  batches = reader.getBatches() and batches[ix] = the ixth batch, where ix is a number going from
+	#  [0 : len(batches) - 1]. What we get from batches[ix] is an access operator, which is understood by the underyling
+	#  __getitem__/dimGetter structure. It can be a list of raw indexes, a slice, a range etc.
+	#  We are also passing through the mapping, so index = mapping(ix) => batchItem = reader[index]
+	#    index = mapping(ix)
+	@overrides
+	def __next__(self):
+		self.ix += 1
+		if self.ix < self.len:
+			index = self.getIndexMapping(self.ix)
+			batchIndex = self.batches[index]
+			batchItem = self.reader[batchIndex]
+			# The batch index should be lengthable! TODO: For slices.
+			B = len(batchIndex)
+			return batchItem, B
 
 class BatchedDatasetReader(DatasetReader):
 	def getBatches(self) -> List[int]:
@@ -11,7 +43,6 @@ class BatchedDatasetReader(DatasetReader):
 
 	@overrides
 	def iterateOneEpoch(self) -> Iterator[Dict[str, Any]]:
-		from .batched_dataset_epoch_iterator import BatchedDatasetEpochIterator
 		return BatchedDatasetEpochIterator(self)
 
 	@overrides
