@@ -8,27 +8,35 @@ from copy import deepcopy
 
 # from .batched_dataset_reader.utils import getBatchIndex
 
+
+
 class CompoundDatasetEpochIterator(DatasetEpochIterator):
 	def __init__(self, reader:DatasetReader):
 		assert isinstance(reader, DatasetReader)
 		super().__init__(reader)
 		self.readerIterator = reader.baseReader.iterateOneEpoch()
+
 		try:
 			from .batched_dataset_reader.utils import getBatchLens
 			self.batches = reader.getBatches()
 			self.batchLens = getBatchLens(self.batches)
 			self.len = len(self.batches)
+			self.batchIndexFn = lambda index : self.batches[index]
+			self.returnFn = lambda index, batchIndex: (self.reader[batchIndex], self.batchLens[index])
 
-			self.readerIterator.batches = batches
-			self.readerIterator.batchLens = batchLens
-			self.readerIterator.len = Len
 		except Exception:
-			pass
+			self.batches = None
+			self.batchLens = None
+			self.len = len(reader)
+			self.batchIndexFn = lambda index : index
+			self.returnFn = lambda index, batchIndex : self.reader[index]
 
 	def __next__(self):
 		self.ix += 1
-		if self.ix < len(self.readerIterator):
-			item = next(self.readerIterator)
+		if self.ix < len(self):
+			index = self.getIndexMapping(self.ix)
+			batchIndex = self.batchIndexFn(index)
+			item = self.returnFn(index, batchIndex)
 			return item
 		raise StopIteration
 	
