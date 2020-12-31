@@ -24,6 +24,10 @@ class DatasetEpochIterator:
 	def getIndexMapping(self, ix):
 		return ix
 
+	def __getitem__(self, ix):
+		index = self.getIndexMapping(ix)
+		return self.reader[index]
+
 	# The logic of getting an item is. ix is a number going in range [0 : len(self) - 1]. We are passing a "routing"
 	#  table as well, via getIndexMapping. Thus index = mapping(ix). Finally, we call dataset's __getitem__ on this
 	#  routed index. So item = reader[index].
@@ -31,8 +35,7 @@ class DatasetEpochIterator:
 	def __next__(self):
 		self.ix += 1
 		if self.ix < len(self):
-			index = self.getIndexMapping(self.ix)
-			return self.reader[index]
+			return self.__getitem__(self.ix)
 		raise StopIteration
 
 	def __iter__(self):

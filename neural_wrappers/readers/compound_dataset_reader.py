@@ -23,14 +23,12 @@ class CompoundDatasetEpochIterator(DatasetEpochIterator):
 			self.batchIndexFn = lambda index : index
 			self.returnFn = lambda index, batchIndex : self.reader[index]
 
-	def __next__(self):
-		self.ix += 1
-		if self.ix < len(self):
-			index = self.getIndexMapping(self.ix)
-			batchIndex = self.batchIndexFn(index)
-			item = self.returnFn(index, batchIndex)
-			return item
-		raise StopIteration
+	@overrides
+	def __getitem__(self, ix):
+		index = self.getIndexMapping(self.ix)
+		batchIndex = self.batchIndexFn(index)
+		item = self.returnFn(index, batchIndex)
+		return item
 
 # Helper class for batched algorithms (or even more (?))
 class CompoundDatasetReader(DatasetReader):

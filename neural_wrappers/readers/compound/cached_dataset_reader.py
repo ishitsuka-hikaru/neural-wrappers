@@ -19,7 +19,7 @@ def buildRegular(iterator, cache):
 def buildDirty(iterator, cache):
 	N = len(iterator)
 	for i in trange(1, N, desc="[CachedDatasetReader] Building dirty"):
-		key = self.cacheKey(iterator.getIndexMapping(i))
+		key = iteartor.reader.cacheKey(iterator.getIndexMapping(i))
 		item = next(iterator)
 		cache.set(key, item)
 
@@ -37,11 +37,15 @@ class CachedDatasetReader(CompoundDatasetReader):
 
 	def doBuildCache(self):
 		iterator = self.iterateOneEpoch()
-		key = self.cacheKey(iterator.getIndexMapping(0))
+		# Try a random index to see if cache is built at all.
+		randomIx = np.random.randint(0, len(iterator))
+		key = iterator.reader.cacheKey(iterator.getIndexMapping(randomIx))
 		if not self.cache.check(key):
 			buildRegular(iterator, self.cache)
 		else:
+			return
 			item = self.cache.get(key)
+			# itemBaseReader = iterator.
 			itemGen = next(iterator)
 			try:
 				item = type(itemGen)(item)

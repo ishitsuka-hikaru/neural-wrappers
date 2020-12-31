@@ -29,15 +29,12 @@ class BatchedDatasetEpochIterator(DatasetEpochIterator):
 	#  We are also passing through the mapping, so index = mapping(ix) => batchItem = reader[index]
 	#    index = mapping(ix)
 	@overrides
-	def __next__(self):
-		self.ix += 1
-		if self.ix < self.len:
-			index = self.getIndexMapping(self.ix)
-			batchIndex = self.batches[index]
-			batchSize = self.batchLens[index]
-			batchItem = self.reader[batchIndex]
-			return batchItem, batchSize
-		raise StopIteration
+	def __getitem__(self, ix):
+		index = self.getIndexMapping(ix)
+		batchIndex = self.batches[index]
+		batchSize = self.batchLens[index]
+		batchItem = self.reader[batchIndex]
+		return batchItem, batchSize
 
 class BatchedDatasetReader(DatasetReader):
 	def getBatches(self) -> List[int]:
