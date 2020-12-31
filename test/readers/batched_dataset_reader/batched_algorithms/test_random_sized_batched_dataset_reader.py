@@ -1,7 +1,7 @@
 import numpy as np
 from overrides import overrides
 from typing import Tuple, List, Any
-from neural_wrappers.readers import RandomBatchedDatasetReader, DatasetItem, DatasetIndex
+from neural_wrappers.readers import RandomSizedBatchedDatasetReader, DatasetItem, DatasetIndex
 from neural_wrappers.readers.batched_dataset_reader.utils import getBatchLens
 from neural_wrappers.utilities import getGenerators
 
@@ -9,13 +9,13 @@ import sys
 sys.path.append("..")
 from test_batched_dataset_reader import Reader as BaseReader
 
-class TestRandomBatchedDatasetReader:
+class TestRandomSizedBatchedDatasetReader:
 	def test_constructor_1(self):
-		reader = RandomBatchedDatasetReader(BaseReader())
+		reader = RandomSizedBatchedDatasetReader(BaseReader())
 		assert not reader is None
 
 	def test_getBatchedItem_1(self):
-		reader = RandomBatchedDatasetReader(BaseReader())
+		reader = RandomSizedBatchedDatasetReader(BaseReader())
 		batches = reader.getBatches()
 		item = reader[batches[0]]
 		rgb = item["data"]["rgb"]
@@ -24,7 +24,7 @@ class TestRandomBatchedDatasetReader:
 		assert np.abs(rgb - reader.baseReader.dataset[0:B]).sum() < 1e-5
 
 	def test_getBatchItem_1(self):
-		reader = RandomBatchedDatasetReader(BaseReader())
+		reader = RandomSizedBatchedDatasetReader(BaseReader())
 		batches = reader.getBatches()
 		n = len(batches)
 		for j in range(100):
@@ -35,7 +35,7 @@ class TestRandomBatchedDatasetReader:
 			assert np.abs(rgb - reader.baseReader.dataset[index.start : index.stop]).sum() < 1e-5
 
 	def test_iterateForever_1(self):
-		reader = RandomBatchedDatasetReader(BaseReader())
+		reader = RandomSizedBatchedDatasetReader(BaseReader())
 		generator = reader.iterateForever(maxPrefetch=0)
 		k = 0
 		for j, (batchItem, B) in enumerate(generator):
@@ -56,7 +56,7 @@ class TestRandomBatchedDatasetReader:
 				break
 
 	def test_iterateOneEpoch_1(self):
-		reader = RandomBatchedDatasetReader(BaseReader())
+		reader = RandomSizedBatchedDatasetReader(BaseReader())
 		assert reader.numShuffles == 0
 		g = reader.iterateOneEpoch()
 		N = len(g)
@@ -66,7 +66,7 @@ class TestRandomBatchedDatasetReader:
 		assert reader.numShuffles == 1
 
 	def test_getGenerators_1(self):
-		reader = RandomBatchedDatasetReader(BaseReader())
+		reader = RandomSizedBatchedDatasetReader(BaseReader())
 		assert reader.numShuffles == 0
 		g, N = getGenerators(reader)
 		_ = next(g)
@@ -80,7 +80,7 @@ class TestRandomBatchedDatasetReader:
 
 	# Two generators going side by side 1 random epoch
 	def test_getGenerators_2(self):
-		reader = RandomBatchedDatasetReader(BaseReader(N=100))
+		reader = RandomSizedBatchedDatasetReader(BaseReader(N=100))
 		g1, n1 = getGenerators(reader)
 		g2, n2 = getGenerators(reader)
 
@@ -119,7 +119,7 @@ class TestRandomBatchedDatasetReader:
 		assert len(leftover2) == 0
 
 def main():
-	TestRandomBatchedDatasetReader().test_getBatchedItem_1()
+	TestRandomSizedBatchedDatasetReader().test_getBatchedItem_1()
 
 if __name__ == "__main__":
 	main()

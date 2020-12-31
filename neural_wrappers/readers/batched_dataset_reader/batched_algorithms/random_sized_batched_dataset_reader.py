@@ -7,7 +7,7 @@ from ...compound_dataset_reader import CompoundDatasetReader
 from ...dataset_reader import DatasetReader
 from ...dataset_types import *
 
-class RandomBatchedDatasetReader(CompoundDatasetReader):
+class RandomSizedBatchedDatasetReader(CompoundDatasetReader):
 	def __init__(self, baseReader:BatchedDatasetReader):
 		super().__init__(baseReader)
 		self.numShuffles = 0
@@ -34,12 +34,10 @@ class RandomBatchedDatasetReader(CompoundDatasetReader):
 
 	@overrides
 	def __str__(self) -> str:
-		summaryStr = "[Random Batched Dataset Reader]"
-		summaryStr += "\n - Path: %s" % self.datasetPath
-		summaryStr += "\n - Type: %s" % type(self)
-		summaryStr += "\n - Data buckets:"
-		for dataBucket in self.datasetFormat.dataBuckets:
-			summaryStr += "\n   - %s => %s" % (dataBucket, self.datasetFormat.dataBuckets[dataBucket])
-		summaryStr += "\n - Num data: %d. Num batches this trial: %d. Num shuffles so far: %d" % \
+		summaryStr = "[Random Sized Batched Dataset Reader]"
+		summaryStr += "\n %s" % super().__str__()
+		summaryStr += "\n Num batches this trial: %d. Num shuffles so far: %d" % \
 			(len(self), len(self.getBatches()), self.numShuffles)
 		return summaryStr
+
+class RandomBatchedDatasetReader(RandomSizedBatchedDatasetReader): pass

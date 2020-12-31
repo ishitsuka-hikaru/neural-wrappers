@@ -6,7 +6,7 @@ from ...compound_dataset_reader import CompoundDatasetReader
 from ...dataset_reader import DatasetReader
 from ...dataset_types import *
 
-class StaticBatchedDatasetReader(CompoundDatasetReader):
+class StaticSizedBatchedDatasetReader(CompoundDatasetReader):
 	def __init__(self, baseReader:BatchedDatasetReader, batchSize:int):
 		super().__init__(baseReader)
 		self.setBatchSize(batchSize)
@@ -33,7 +33,9 @@ class StaticBatchedDatasetReader(CompoundDatasetReader):
 
 	@overrides
 	def __str__(self) -> str:
-		summaryStr = "[Static Batched Dataset Reader]"
+		summaryStr = "[Static Sized Batched Dataset Reader]"
 		summaryStr += "\n %s" % super().__str__()
 		summaryStr += "\n - Static batch size: %d" % self.batchSize
 		return summaryStr
+
+class StaticBatchedDatasetReader(StaticSizedBatchedDatasetReader): pass

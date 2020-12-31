@@ -1,2 +1,2 @@
-from .static_batched_dataset_reader import StaticBatchedDatasetReader
-from .random_batched_dataset_reader import RandomBatchedDatasetReader
+from .static_sized_batched_dataset_reader import StaticSizedBatchedDatasetReader, StaticBatchedDatasetReader
+from .random_sized_batched_dataset_reader import RandomSizedBatchedDatasetReader, RandomBatchedDatasetReader
