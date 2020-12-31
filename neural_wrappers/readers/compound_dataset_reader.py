@@ -3,34 +3,36 @@ from overrides import overrides
 from .dataset_reader import DatasetReader, DatasetEpochIterator
 from .dataset_types import *
 
-class CompoundDatasetEpochIterator(DatasetEpochIterator):
-	def __init__(self, reader:DatasetReader):
-		assert isinstance(reader, DatasetReader)
-		super().__init__(reader)
+# class CompoundDatasetEpochIterator(DatasetEpochIterator):
+# 	def __init__(self, reader:DatasetReader):
+# 		assert isinstance(reader, DatasetReader)
+# 		# super().__init__(reader)
+# 		breakpoint()
+# 		super().__init__(reader.baseReader)
 
-		try:
-			from .batched_dataset_reader.utils import getBatchLens
-			self.batches = reader.getBatches()
-			self.len = len(self.batches)
-			self.batchLens = getBatchLens(self.batches)
-			self.getFn = self.batchedGetFn
-		except Exception:
-			self.len = len(reader)
-			self.getFn = self.regularGetFn
+# 		try:
+# 			from .batched_dataset_reader.utils import getBatchLens
+# 			self.batches = reader.getBatches()
+# 			self.len = len(self.batches)
+# 			self.batchLens = getBatchLens(self.batches)
+# 			self.getFn = self.batchedGetFn
+# 		except Exception:
+# 			self.len = len(reader)
+# 			self.getFn = self.regularGetFn
 
-	def batchedGetFn(self, ix):
-		batchIndex = self.batches[ix]
-		batchLen = self.batchLens[ix]
-		batchItem = self.reader[batchIndex]
-		return batchItem, batchLen
+# 	def batchedGetFn(self, ix):
+# 		batchIndex = self.batches[ix]
+# 		batchLen = self.batchLens[ix]
+# 		batchItem = self.reader[batchIndex]
+# 		return batchItem, batchLen
 
-	def regularGetFn(self, ix):
-		item = self.reader[ix]
-		return item
+# 	def regularGetFn(self, ix):
+# 		item = self.reader[ix]
+# 		return item
 
-	@overrides
-	def __getitem__(self, ix):
-		return self.getFn(ix)
+# 	@overrides
+# 	def __getitem__(self, ix):
+# 		return self.getFn(ix)
 
 # Helper class for batched algorithms (or even more (?))
 class CompoundDatasetReader(DatasetReader):
@@ -41,12 +43,16 @@ class CompoundDatasetReader(DatasetReader):
 		self.baseReader = baseReader
 
 	def getBatches(self):
-		batches = self.baseReader.getBatches()
-		return batches
+		try:
+			self.baseReader.getBatches()
+		except Exception:
+			pass
 
 	@overrides
 	def iterateOneEpoch(self):
-		return CompoundDatasetEpochIterator(self)
+		# breakpoint()
+		return self.baseReader.iterateOneEpoch()
+		# return CompoundDatasetEpochIterator(self)
 
 	@overrides
 	def getDataset(self):
