@@ -7,10 +7,10 @@ class RandomIndexDatasetEpochIterator(CompoundDatasetEpochIterator):
 	def __init__(self, reader:DatasetReader):
 		super().__init__(reader)
 		self.permutation = np.random.permutation(len(self))
-
-	@overrides	
-	def getIndexMapping(self, ix):
-		return self.permutation[ix]
+	
+	def __getitem__(self, ix):
+		permIx = self.permutation[ix]
+		return super().__getitem__(permIx)
 
 # @brief A composite dataset reader that has a base reader attribute which it can partially use based on the percent
 #  defined in the constructor

@@ -30,9 +30,8 @@ class BatchedDatasetEpochIterator(DatasetEpochIterator):
 	#    index = mapping(ix)
 	@overrides
 	def __getitem__(self, ix):
-		index = self.getIndexMapping(ix)
-		batchIndex = self.batches[index]
-		batchSize = self.batchLens[index]
+		batchIndex = self.batches[ix]
+		batchSize = self.batchLens[ix]
 		batchItem = self.reader[batchIndex]
 		return batchItem, batchSize
 

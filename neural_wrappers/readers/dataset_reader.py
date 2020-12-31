@@ -19,14 +19,8 @@ class DatasetEpochIterator:
 	def __len__(self):
 		return self.len
 
-	# @brief a function that maps a numeric index to the numeric index of the current epoch's item. By default
-	#  f(x) = x, but some datasets may want to update this mapping for more sophisticated indexing algorithms
-	def getIndexMapping(self, ix):
-		return ix
-
 	def __getitem__(self, ix):
-		index = self.getIndexMapping(ix)
-		return self.reader[index]
+		return self.reader[ix]
 
 	# The logic of getting an item is. ix is a number going in range [0 : len(self) - 1]. We are passing a "routing"
 	#  table as well, via getIndexMapping. Thus index = mapping(ix). Finally, we call dataset's __getitem__ on this

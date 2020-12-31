@@ -11,7 +11,7 @@ from ...utilities import deepCheckEqual
 def buildRegular(iterator, cache):
 	N = len(iterator)
 	for i in trange(N, desc="[CachedDatasetReader] Building regular"):
-		key = iterator.reader.cacheKey(iterator.getIndexMapping(i))
+		key = iterator.reader.cacheKey(i)
 		if not cache.check(key):
 			item = next(iterator)
 			cache.set(key, item)
@@ -19,7 +19,7 @@ def buildRegular(iterator, cache):
 def buildDirty(iterator, cache):
 	N = len(iterator)
 	for i in trange(N, desc="[CachedDatasetReader] Building dirty"):
-		key = iterator.reader.cacheKey(iterator.getIndexMapping(i))
+		key = iterator.reader.cacheKey(i)
 		# TODO: What about Compound(Compound...)
 		item = super(type(iterator.reader), iterator.reader).__getitem__(i)
 		cache.set(key, item)
@@ -40,7 +40,7 @@ class CachedDatasetReader(CompoundDatasetReader):
 		iterator = self.iterateOneEpoch()
 		# Try a random index to see if cache is built at all.
 		randomIx = np.random.randint(0, len(iterator))
-		key = iterator.reader.cacheKey(iterator.getIndexMapping(randomIx))
+		key = iterator.reader.cacheKey(randomIx)
 		if not self.cache.check(key):
 			buildRegular(iterator, self.cache)
 		else:

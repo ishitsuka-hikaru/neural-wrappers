@@ -11,24 +11,26 @@ class CompoundDatasetEpochIterator(DatasetEpochIterator):
 		try:
 			from .batched_dataset_reader.utils import getBatchLens
 			self.batches = reader.getBatches()
-			self.batchLens = getBatchLens(self.batches)
 			self.len = len(self.batches)
-			self.batchIndexFn = lambda index : self.batches[index]
-			self.returnFn = lambda index, batchIndex: (self.reader[batchIndex], self.batchLens[index])
-
+			self.batchLens = getBatchLens(self.batches)
+			self.getFn = self.batchedGetFn
 		except Exception:
-			self.batches = None
-			self.batchLens = None
 			self.len = len(reader)
-			self.batchIndexFn = lambda index : index
-			self.returnFn = lambda index, batchIndex : self.reader[index]
+			self.getFn = self.regularGetFn
+
+	def batchedGetFn(self, ix):
+		batchIndex = self.batches[ix]
+		batchLen = self.batchLens[ix]
+		batchItem = self.reader[batchIndex]
+		return batchItem, batchLen
+
+	def regularGetFn(self, ix):
+		item = self.reader[ix]
+		return item
 
 	@overrides
 	def __getitem__(self, ix):
-		index = self.getIndexMapping(ix)
-		batchIndex = self.batchIndexFn(index)
-		item = self.returnFn(index, batchIndex)
-		return item
+		return self.getFn(ix)
 
 # Helper class for batched algorithms (or even more (?))
 class CompoundDatasetReader(DatasetReader):
