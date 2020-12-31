@@ -18,9 +18,10 @@ def buildRegular(iterator, cache):
 
 def buildDirty(iterator, cache):
 	N = len(iterator)
-	for i in trange(1, N, desc="[CachedDatasetReader] Building dirty"):
-		key = iteartor.reader.cacheKey(iterator.getIndexMapping(i))
-		item = next(iterator)
+	for i in trange(N, desc="[CachedDatasetReader] Building dirty"):
+		key = iterator.reader.cacheKey(iterator.getIndexMapping(i))
+		# TODO: What about Compound(Compound...)
+		item = super(type(iterator.reader), iterator.reader).__getitem__(i)
 		cache.set(key, item)
 
 class CachedDatasetReader(CompoundDatasetReader):
@@ -43,10 +44,9 @@ class CachedDatasetReader(CompoundDatasetReader):
 		if not self.cache.check(key):
 			buildRegular(iterator, self.cache)
 		else:
-			return
 			item = self.cache.get(key)
-			# itemBaseReader = iterator.
-			itemGen = next(iterator)
+			# What about Compound(Compound...)
+			itemGen = super().__getitem__(randomIx)
 			try:
 				item = type(itemGen)(item)
 				dirty = not deepCheckEqual(item, itemGen)
@@ -55,7 +55,7 @@ class CachedDatasetReader(CompoundDatasetReader):
 
 			if dirty:
 				print("[CachedDatasetReader] Cache is dirty. Rebuilding...")
-				self.cache.set(key, itemGen)
+				# self.cache.set(key, itemGen)
 				buildDirty(iterator, self.cache)
 
 	@overrides

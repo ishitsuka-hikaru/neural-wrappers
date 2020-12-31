@@ -25,7 +25,7 @@ class CompoundDatasetEpochIterator(DatasetEpochIterator):
 
 	@overrides
 	def __getitem__(self, ix):
-		index = self.getIndexMapping(self.ix)
+		index = self.getIndexMapping(ix)
 		batchIndex = self.batchIndexFn(index)
 		item = self.returnFn(index, batchIndex)
 		return item
