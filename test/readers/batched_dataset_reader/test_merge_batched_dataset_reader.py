@@ -16,16 +16,21 @@ def mergeItems(items:List[DatasetItem]) -> DatasetItem:
 	item = {"data": {"rgb" : rgbs}, "labels" : {"class" : classes}}
 	return item
 
+def batchesFn() -> List[int]:
+	# batchSizes = [4, 1, 2, 3], so batch[0] has a size of 4, batch[2] a size of 2 etc.
+	batchSizes = np.array([4, 1, 2, 3], dtype=np.int32)
+	batches = batchIndexFromBatchSizes(batchSizes)
+	return batches
+
 class Reader(MergeBatchedDatasetReader):
 	def __init__(self, baseReader:DatasetReader):
 		super().__init__(baseReader, mergeItems)
-
-	@overrides
-	def getBatches(self) -> List[int]:
-		# batchSizes = [4, 1, 2, 3], so batch[0] has a size of 4, batch[2] a size of 2 etc.
-		batchSizes = np.array([4, 1, 2, 3], dtype=np.int32)
-		batches = batchIndexFromBatchSizes(batchSizes)
-		return batches
+		try:
+			_ = baseReader.getBatches()
+			assert not hasattr(baseReader, "getBatches")
+		except Exception:
+			pass
+		baseReader.getBatches = batchesFn
 
 class TestMergeBatchedDatasetReader:
 	def test_constructor_1(self):
@@ -109,7 +114,7 @@ class TestMergeBatchedDatasetReader:
 	# 	assert i == len(generator) - 1
 
 def main():
-	TestMergeBatchedDatasetReader().test_iterateOneEpoch_StaticBatched_1()
+	TestMergeBatchedDatasetReader().test_iterateOneEpoch_1()
 	# TestBatchedDatasetReader().test_mergeItems_1()
 	# TestBatchedDatasetReader().test_splitItems_1()
 	# TestBatchedDatasetReader().test_mergeSplit_1()

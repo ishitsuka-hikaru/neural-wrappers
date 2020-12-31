@@ -83,7 +83,7 @@ class TestStaticSizedBatchedDatasetReader:
 
 def main():
 	# TestStaticSizedBatchedDatasetReader().test_constructor_1()
-	TestStaticSizedBatchedDatasetReader().test_iterateOneEpoch()
+	TestStaticSizedBatchedDatasetReader().test_getNumIterations_1()
 
 if __name__ == "__main__":
 	main()

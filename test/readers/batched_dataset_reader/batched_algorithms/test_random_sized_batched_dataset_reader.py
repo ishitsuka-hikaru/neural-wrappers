@@ -119,7 +119,7 @@ class TestRandomSizedBatchedDatasetReader:
 		assert len(leftover2) == 0
 
 def main():
-	TestRandomSizedBatchedDatasetReader().test_getBatchedItem_1()
+	TestRandomSizedBatchedDatasetReader().test_iterateOneEpoch_1()
 
 if __name__ == "__main__":
 	main()

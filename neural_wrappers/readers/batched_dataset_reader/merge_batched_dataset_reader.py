@@ -19,11 +19,8 @@ class MergeBatchedDatasetReader(CompoundDatasetReader):
 		super().__init__(baseReader)
 		self.mergeFn = mergeFn
 
-	def getBatches(self) -> List[int]:
-		raise NotImplementedError("Must be implemented by the reader!")
-
-	# def iterateOneEpoch(self):
-	# 	return BatchedDatasetReader.iterateOneEpoch(self)
+	def iterateOneEpoch(self):
+		return BatchedDatasetReader.iterateOneEpoch(self.baseReader)
 
 	# @brief Gets the items of this batch, one by one, from the base reader, and then
 	#  merges them together using the provided merge method.

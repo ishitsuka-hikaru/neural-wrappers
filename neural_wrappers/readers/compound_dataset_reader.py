@@ -1,6 +1,7 @@
 from __future__ import annotations
 from overrides import overrides
 from .dataset_reader import DatasetReader, DatasetEpochIterator
+# from .batched_dataset_reader.batched_dataset_reader import BatchedDatasetReader
 from .dataset_types import *
 
 # class CompoundDatasetEpochIterator(DatasetEpochIterator):
@@ -42,17 +43,23 @@ class CompoundDatasetReader(DatasetReader):
 			dimGetter=baseReader.datasetFormat.dimGetter, dimTransform=baseReader.datasetFormat.dimTransform)
 		self.baseReader = baseReader
 
-	def getBatches(self):
 		try:
-			self.baseReader.getBatches()
+			from .batched_dataset_reader.batched_dataset_reader import BatchedDatasetEpochIterator
+			_ = self.baseReader.getBatches()
+			self.origGetBatches = self.baseReader.getBatches
+			self.baseReader.getBatches = self.getBatches
+			self.epochIterator = BatchedDatasetEpochIterator
 		except Exception:
-			pass
+			self.epochIterator = DatasetEpochIterator
+			if hasattr(self.baseReader, "getBatches"):
+				self.origGetBatches = self.baseReader.getBatches
+
+	def getBatches(self):
+		return self.origGetBatches()
 
 	@overrides
 	def iterateOneEpoch(self):
-		# breakpoint()
-		return self.baseReader.iterateOneEpoch()
-		# return CompoundDatasetEpochIterator(self)
+		return self.epochIterator(self)
 
 	@overrides
 	def getDataset(self):
