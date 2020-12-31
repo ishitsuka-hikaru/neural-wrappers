@@ -2,7 +2,7 @@ import numpy as np
 from overrides import overrides
 from typing import Tuple, List, Any
 from neural_wrappers.readers import BatchedDatasetReader, DatasetItem, DatasetIndex
-from neural_wrappers.readers.batched_dataset_reader.utils import batchIndexFromBatchSizes
+from neural_wrappers.readers.batched_dataset_reader.utils import batchIndexFromBatchSizes, getBatchIndexLen
 
 class Reader(BatchedDatasetReader):
 	def __init__(self, N=10):
@@ -10,7 +10,7 @@ class Reader(BatchedDatasetReader):
 			dataBuckets = {"data" : ["rgb"], "labels" : ["class"]},
 			dimGetter = {
 				"rgb" : (lambda dataset, index : dataset[index]),
-				"class" : (lambda dataset, index : (index.stop - index.start) * [0])
+				"class" : (lambda dataset, index : getBatchIndexLen(index) * [0])
 			},
 			dimTransform = {}
 		)

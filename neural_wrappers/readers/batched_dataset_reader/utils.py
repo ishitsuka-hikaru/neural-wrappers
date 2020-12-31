@@ -9,17 +9,17 @@ def batchIndexFromBatchSizes(batchSizes:List[int]) -> List[slice]:
     batches = [slice(cumsum[i], cumsum[i + 1]) for i in range(len(cumsum) - 1)]
     return batches
 
-def getBatchLens(batches):
-    if isinstance(batches[0], slice):
-        def sliceLen(batchIndex):
-            step = batchIndex.step if not batchIndex.step is None else 1
-            N = batchIndex.stop - batchIndex.start
-            B = N // step + (N % step != 0)
-            return B
-        return [sliceLen(x) for x in batches]
+def getBatchIndexLen(batchIndex):
+    if isinstance(batchIndex, slice):
+        step = batchIndex.step if not batchIndex.step is None else 1
+        N = batchIndex.stop - batchIndex.start
+        B = N // step + (N % step != 0)
+        return B
     else:
         try:
-            return [len(x) for x in batches]
+            return len(batchIndex)
         except Exception as e:
-            assert False, "Provide a way to find length of batches... Type: %s. Error: %s" % \
-                (type(batches[0]), str(e))
+            assert False, "Provide a way to find length of batches... Type: %s. Error: %s" % (type(batchIndex), str(e))
+
+def getBatchLens(batches):
+    return [getBatchIndexLen(x) for x in batches]

@@ -6,11 +6,7 @@ from ..compound_dataset_reader import CompoundDatasetReader, CompoundDatasetEpoc
 class RandomIndexDatasetEpochIterator(CompoundDatasetEpochIterator):
 	def __init__(self, reader:DatasetReader):
 		super().__init__(reader)
-		self.permutation = np.random.permutation(len(self))
-	
-	def __getitem__(self, ix):
-		permIx = self.permutation[ix]
-		return super().__getitem__(permIx)
+		self.reader.permutation = np.random.permutation(len(self))
 
 # @brief A composite dataset reader that has a base reader attribute which it can partially use based on the percent
 #  defined in the constructor
@@ -19,10 +15,20 @@ class RandomIndexDatasetReader(CompoundDatasetReader):
 		super().__init__(baseReader)
 		np.random.seed(seed)
 		self.seed = seed
+		self.permutation = None
 
 	@overrides
 	def iterateOneEpoch(self):
+		# print("HERE?")
 		return RandomIndexDatasetEpochIterator(self)
+
+	@overrides
+	def __getitem__(self, ix):
+		# print("HERE??")
+		# breakpoint()
+		assert not self.permutation is None, "Call iterateOneEpoch first to generate a permutation."
+		index = self.permutation[ix]
+		return super().__getitem__(index)
 
 	@overrides
 	def __str__(self) -> str:

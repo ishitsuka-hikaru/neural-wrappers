@@ -41,7 +41,8 @@ class CompoundDatasetReader(DatasetReader):
 		self.baseReader = baseReader
 
 	def getBatches(self):
-		return self.baseReader.getBatches()
+		batches = self.baseReader.getBatches()
+		return batches
 
 	@overrides
 	def iterateOneEpoch(self):
