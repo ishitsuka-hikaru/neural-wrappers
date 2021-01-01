@@ -86,6 +86,7 @@ class TestMergeBatchedDatasetReader:
 
 	def test_iterateOneEpoch_StaticBatched_1(self):
 		reader = StaticBatchedDatasetReader(MergeBatchedDatasetReader(DummyDataset(), mergeItems, batchesFn), 4)
+		reader.baseReader.getBatches = reader.getBatches
 		batches = reader.getBatches()
 		assert reader.batchLens == [4, 4, 2]
 		item = reader[batches[0]]

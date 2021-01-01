@@ -8,9 +8,7 @@ from ..dataset_types import *
 
 class BatchedDatasetEpochIterator(DatasetEpochIterator):
 	def __init__(self, reader:BatchedDatasetReader):
-		# assert isinstance(reader, BatchedDatasetReader)
-		# assert hasattr(reader, "getBatches")
-		# Each iterator hgas it's own batches (can change for some readers, such as RandomBatchedDatasetReader, where
+		# Each iterator has it's own batches (can change for some readers, such as RandomBatchedDatasetReader, where
 		#  each epoch has its own set of batches).
 		super().__init__(reader)
 		self.batches = reader.getBatches()

@@ -35,6 +35,52 @@ from .dataset_types import *
 # 	def __getitem__(self, ix):
 # 		return self.getFn(ix)
 
+class CompoundDatasetEpochIterator(DatasetEpochIterator):
+	def __init__(self, reader):
+		from .batched_dataset_reader.batched_dataset_reader import BatchedDatasetEpochIterator
+		from .batched_dataset_reader.utils import getBatchLens
+		self.reader = reader
+		self.baseReader = reader.baseReader
+
+
+		self.baseIterator = self.baseReader.iterateOneEpoch()
+		try:
+			batches = self.reader.getBatches()
+			self.batches = batches
+			self.batchLens = getBatchLens(batches)
+			self.len = len(self.batches)
+			self.isBatched = True
+		except Exception as e:
+			self.isBatched = False
+			self.len = len(self.reader)
+
+		# try:
+		# 	_ = self.baseReader.getBatches()
+		# 	self.origGetBatches = self.baseReader.getBatches
+		# 	self.baseReader.getBatches = self.getBatches
+		# 	self.epochIterator = BatchedDatasetEpochIterator
+		# except Exception:
+		# 	self.epochIterator = DatasetEpochIterator
+		# 	if hasattr(self.baseReader, "getBatches"):
+		# 		self.origGetBatches = self.baseReader.getBatches
+		# self.reader = reader
+		self.ix = -1
+
+	@overrides
+	def __getitem__(self, ix):
+		if self.isBatched:
+			batchIndex = self.batches[ix]
+			batchSize = self.batchLens[ix]
+			batchItem = self.reader[batchIndex]
+			item = batchItem, batchSize
+		else:
+			item = self.reader[ix]
+		return item
+
+	@overrides
+	def __iter__(self):
+		return self
+
 # Helper class for batched algorithms (or even more (?))
 class CompoundDatasetReader(DatasetReader):
 	def __init__(self, baseReader:DatasetReader):
@@ -48,18 +94,21 @@ class CompoundDatasetReader(DatasetReader):
 			_ = self.baseReader.getBatches()
 			self.origGetBatches = self.baseReader.getBatches
 			self.baseReader.getBatches = self.getBatches
-			self.epochIterator = BatchedDatasetEpochIterator
+			self.epochIterator = BlatchedDatasetEpochIterator
 		except Exception:
 			self.epochIterator = DatasetEpochIterator
 			if hasattr(self.baseReader, "getBatches"):
 				self.origGetBatches = self.baseReader.getBatches
 
+	# Batched Compound Readers (i.e. MergeBatchedDatasetReader) should update this!
 	def getBatches(self):
-		return self.origGetBatches()
+		raise NotImplementedError("Must be implemented by the reader!")
+		# return self.origGetBatches()
 
 	@overrides
 	def iterateOneEpoch(self):
-		return self.epochIterator(self)
+		return CompoundDatasetEpochIterator(self)
+		# return self.epochIterator(self)
 
 	@overrides
 	def getDataset(self):

@@ -10,7 +10,8 @@ from ..dataset_reader import DatasetReader
 from ..dataset_types import *
 
 class MergeBatchedDatasetReader(CompoundDatasetReader):
-	def __init__(self, baseReader:DatasetReader, mergeFn:Callable[[List[DatasetItem]], DatasetItem], batchesFn):
+	def __init__(self, baseReader:DatasetReader, mergeFn:Callable[[List[DatasetItem]], DatasetItem], \
+		batchesFn=lambda x : x):
 		try:
 			batches = baseReader.getBatches()
 			assert False, "Already a batched dataset, sir!"
@@ -23,8 +24,8 @@ class MergeBatchedDatasetReader(CompoundDatasetReader):
 	def getBatches(self):
 		return self.batchesFn()
 
-	def iterateOneEpoch(self):
-		return BatchedDatasetReader.iterateOneEpoch(self.baseReader)
+	# def iterateOneEpoch(self):
+	# 	return BatchedDatasetReader.iterateOneEpoch(self.baseReader)
 
 	# @brief Gets the items of this batch, one by one, from the base reader, and then
 	#  merges them together using the provided merge method.
@@ -33,7 +34,9 @@ class MergeBatchedDatasetReader(CompoundDatasetReader):
 	def __getitem__(self, i:DatasetIndex) -> Tuple[DatasetItem, int]:
 		if isinstance(i, slice):
 			i = np.arange(i.start, i.stop)
-		assert isinstance(i, Iterable)
+		if isinstance(i, int):
+			i = [i]
+		assert isinstance(i, Iterable), "Got type: %s" % type(i)
 
 		items = [self.baseReader[j] for j in i]
 		items = self.mergeFn(items)
