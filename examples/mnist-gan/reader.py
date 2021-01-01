@@ -18,7 +18,7 @@ class GANReader(H5BatchedDatasetReader):
 		self.latentSpaceSize = latentSpaceSize
 
 	@overrides
-	def getNumData(self) -> int:
+	def __len__(self) -> int:
 		return len(self.getDataset()["images"])
 
 	def __getitem__(self, index):

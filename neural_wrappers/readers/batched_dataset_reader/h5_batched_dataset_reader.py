@@ -41,7 +41,7 @@ class H5BatchedDatasetReader(BatchedDatasetReader):
 				dimGetter[key] = partial(defaultH5DimGetter, dim=key)
 				print("[H5BatchedDatasetReader] Dim '%s' has no dim getter. Adding the default h5 dim getter." % key)
 
-		# Some weird shit going on hit sometimes when we get some previous (?) dimGetters in pytest.
+		# Some weird shit going on, error sometimes when we get some previous (?) dimGetters in pytest.
 		dimGetter = {k : dimGetter[k] for k in filter(lambda x : x in allDims, dimGetter.keys())}
 		super().__init__(dataBuckets, dimGetter, dimTransform)
 

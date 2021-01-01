@@ -3,10 +3,8 @@ import torch as tr
 import torch.nn as nn
 import torch.nn.functional as F
 from neural_wrappers.pytorch import FeedForwardNetwork, device
-from neural_wrappers.metrics import MetricWrapper
-from neural_wrappers.graph import Graph, Edge, Node, ReduceNode
-
-accuracy = None
+from neural_wrappers.metrics import Accuracy
+from neural_wrappers.graph_stable import Graph, Edge, Node, ReduceNode
 
 def f(obj, x):
 	del x["GT"]
@@ -54,6 +52,12 @@ class RGB(Node):
 	def getNodeCriterion(self):
 		return lambda y, t : (y - t)**2
 
+	def getMetrics(self):
+		return self.getNodeMetrics()
+
+	def getCriterion(self):
+		return self.getNodeCriterion()
+
 class RGBTopLeft(RGB):
 	def __init__(self):
 		super().__init__(name="RGBTopLeft", groundTruthKey="rgb_top_left")
@@ -72,7 +76,7 @@ class RGBBottomRight(RGB):
 
 class Label(Node):
 	def __init__(self):
-		super().__init__(name="Label", groundTruthKey="label")
+		super().__init__(name="Label", groundTruthKey="labels")
 
 	def getEncoder(self, outputNodeType=None):
 		assert False
@@ -82,7 +86,7 @@ class Label(Node):
 
 	def getNodeMetrics(self):
 		return {
-			"Accuracy" : MetricWrapper(Label.accuracy, direction="max"),
+			"Accuracy" : Accuracy(),
 		}
 
 	def getNodeCriterion(self):
@@ -93,12 +97,11 @@ class Label(Node):
 		t = t.type(tr.bool)
 		return (-tr.log(y[t] + 1e-5)).mean()
 
-	@staticmethod
-	def accuracy(y, t, **k):
-		global accuracy
-		if not accuracy:
-			accuracy = Accuracy()
-		return accuracy(y, t, **k)
+	def getMetrics(self):
+		return self.getNodeMetrics()
+
+	def getCriterion(self):
+		return self.getNodeCriterion()
 
 def getModel():
 	rgb = RGB()

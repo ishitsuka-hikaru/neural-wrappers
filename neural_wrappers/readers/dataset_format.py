@@ -38,6 +38,8 @@ class DatasetFormat:
 	def sanitizeDimTransform(self, dimTransform:Dict[str, Dict[str, Callable]]):
 		for key in dimTransform:
 			assert key in self.dataBuckets, "Key '%s' not in data buckets: %s" % (key, self.dataBuckets)
+			for dim in dimTransform[key]:
+				assert dim in self.allDims, "Dim '%s' is not in allDims: %s" % (dim, self.allDims)
 
 		for dataBucket in self.dataBuckets:
 			if not dataBucket in dimTransform:

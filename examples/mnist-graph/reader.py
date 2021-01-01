@@ -1,6 +1,8 @@
 import numpy as np
 from overrides import overrides
-from neural_wrappers.readers import H5DatasetReader
+from functools import partial
+from neural_wrappers.readers import H5BatchedDatasetReader
+from neural_wrappers.readers.batched_dataset_reader.h5_batched_dataset_reader import defaultH5DimGetter
 from neural_wrappers.utilities import toCategorical
 
 def topLeftFn(x):
@@ -23,19 +25,21 @@ def bottomRightFn(x):
 	x[:, 14:, 14:] = 0
 	return x
 
-class Reader(H5DatasetReader):
-	def __init__(self, datasetPath:str):
+class Reader(H5BatchedDatasetReader):
+	def __init__(self, datasetPath:str, normalization:str = "min_max_0_1"):
+		assert normalization in ("none", "min_max_0_1")
+
+		getterFn = partial(defaultH5DimGetter, dim="images")
 		super().__init__(datasetPath,
 			dataBuckets = {
-				"data" : ["rgb", "rgb_top_left", "rgb_top_right", "rgb_bottom_left", "rgb_bottom_right", "label"],
+				"data" : ["rgb", "rgb_top_left", "rgb_top_right", "rgb_bottom_left", "rgb_bottom_right", "labels"],
 			},
 			dimGetter = {
-				"rgb" : lambda dataset, index : dataset["images"][index.start : index.end][()],
-				"rgb_top_left" : lambda dataset, index : dataset["images"][index.start : index.end][()],
-				"rgb_top_right" : lambda dataset, index : dataset["images"][index.start : index.end][()],
-				"rgb_bottom_left" : lambda dataset, index : dataset["images"][index.start : index.end][()],
-				"rgb_bottom_right" : lambda dataset, index : dataset["images"][index.start : index.end][()],
-				"label" : lambda dataset, index : dataset["labels"][index.start : index.end][()],
+				"rgb" : getterFn,
+				"rgb_top_left" : getterFn,
+				"rgb_top_right" : getterFn,
+				"rgb_bottom_left" : getterFn,
+				"rgb_bottom_right" : getterFn
 			},
 			dimTransform = {
 				"data" : {
@@ -44,19 +48,16 @@ class Reader(H5DatasetReader):
 					"rgb_top_right" : topRightFn,
 					"rgb_bottom_left" : bottomLeftFn,
 					"rgb_bottom_right" : bottomRightFn,
-					"label" : lambda x : toCategorical(x, numClasses=10)
+					"labels" : lambda x : toCategorical(x, numClasses=10)
 				},
 			}
 		)
 
 	@overrides
-	def getNumData(self, topLevel:str) -> int:
-		return {
-			"train" : 60000,
-			"test" : 10000
-		}[topLevel]
+	def __len__(self) -> int:
+		return len(self.getDataset()["images"])
 
 	@overrides
-	def iterateOneEpoch(self, topLevel:str, batchSize:int):
-		for items in super().iterateOneEpoch(topLevel, batchSize):
-			yield items["data"], items["data"]
+	def __getitem__(self, key):
+		item = super().__getitem__(key)
+		return item["data"], item["data"]
