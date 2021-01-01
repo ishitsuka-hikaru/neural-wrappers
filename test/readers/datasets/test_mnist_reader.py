@@ -2,7 +2,7 @@ import numpy as np
 import h5py
 import os
 import pytest
-from neural_wrappers.readers.datasets import MNISTReader
+from neural_wrappers.readers import MNISTReader, StaticBatchedDatasetReader
 from neural_wrappers.utilities import getGenerators, npCloseEnough
 
 try:
@@ -40,16 +40,15 @@ class TestMNISTReader:
 		trainExpected = [60000, 30000, 8572, 6000, 2609, 600, 136, 7, 6]
 		testExpected = [10000, 5000, 1429, 1000, 435, 100, 23, 2, 1]
 		for i in range(len(batches)):
-			trainReader.setBatchSize(batches[i])
-			testReader.setBatchSize(batches[i])
+			trainReader = StaticBatchedDatasetReader(trainReader, batches[i])
+			testReader = StaticBatchedDatasetReader(testReader, batches[i])
 			assert trainExpected[i] == len(trainReader.iterate())
 			assert testExpected[i] == len(testReader.iterate())
 
 	@pytestmark
 	def test_iterate_1(self):
-		reader = MNISTReader(h5py.File(MNIST_READER_PATH, "r")["train"])
 		MB = np.random.randint(1, 200)
-		reader.setBatchSize(MB)
+		reader = StaticBatchedDatasetReader(MNISTReader(h5py.File(MNIST_READER_PATH, "r")["train"]), MB)
 		generator = reader.iterateForever()
 		assert not generator is None
 		items, B = next(generator)
@@ -62,8 +61,7 @@ class TestMNISTReader:
 
 	@pytestmark
 	def test_iterate_2(self):
-		reader = MNISTReader(h5py.File(MNIST_READER_PATH, "r")["train"])
-		reader.setBatchSize(30)
+		reader = StaticBatchedDatasetReader(MNISTReader(h5py.File(MNIST_READER_PATH, "r")["train"]), 30)
 		generator = reader.iterateOneEpoch()
 		for _ in range(len(generator)):
 			_ = next(generator)
@@ -75,8 +73,8 @@ class TestMNISTReader:
 
 	@pytestmark
 	def test_iterate_3(self):
-		reader = MNISTReader(h5py.File(MNIST_READER_PATH, "r")["train"])
-		generator, numIters = getGenerators(reader, 30, maxPrefetch=0)
+		reader = StaticBatchedDatasetReader(MNISTReader(h5py.File(MNIST_READER_PATH, "r")["train"]), 30)
+		generator, numIters = getGenerators(reader,maxPrefetch=0)
 		firstItem, B = next(generator)
 		firstRgb, firstLabels = firstItem["data"]["images"], firstItem["labels"]["labels"]
 		for _ in range(numIters - 1):
@@ -90,16 +88,18 @@ class TestMNISTReader:
 
 	@pytestmark
 	def test_normalization_1(self):
-		reader = MNISTReader(h5py.File(MNIST_READER_PATH, "r")["train"], normalization="none")
-		generator, numIters = getGenerators(reader, 30, maxPrefetch=0)
+		reader = StaticBatchedDatasetReader(
+			MNISTReader(h5py.File(MNIST_READER_PATH, "r")["train"], normalization="none"), 30)
+		generator, numIters = getGenerators(reader, maxPrefetch=0)
 		firstRGBs = next(generator)[0]["data"]["images"]
 
 		assert firstRGBs.dtype == np.uint8 and firstRGBs.min() == 0 and firstRGBs.max() == 255
 
 	@pytestmark
 	def test_normalization_2(self):
-		reader = MNISTReader(h5py.File(MNIST_READER_PATH, "r")["train"], normalization="min_max_0_1")
-		generator, numIters = getGenerators(reader, 30, maxPrefetch=0)
+		reader = StaticBatchedDatasetReader(
+			MNISTReader(h5py.File(MNIST_READER_PATH, "r")["train"], normalization="min_max_0_1"), 30)
+		generator, numIters = getGenerators(reader, maxPrefetch=0)
 		firstRGBs = next(generator)[0]["data"]["images"]
 
 		assert firstRGBs.dtype == np.float32 and firstRGBs.min() == 0 and firstRGBs.max() == 1
