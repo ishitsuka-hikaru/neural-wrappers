@@ -57,7 +57,7 @@ class Reader(BatchedDatasetReader):
 	def getDataset(self):
 		return self.f
 
-	def getNumData(self):
+	def __len__(self):
 		return self.stepsPerEpoch
 
 	def __getitem__(self, index):
