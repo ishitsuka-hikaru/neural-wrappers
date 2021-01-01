@@ -107,16 +107,16 @@ class TestMergeBatchedDatasetReader:
 			assert len(rgb) == generator.batchLens[i]
 		assert i == len(generator) - 1
 
-	# def test_iterateOneEpoch_RandomBatched_1(self):
-	# 	reader = RandomBatchedDatasetReader(Reader(DummyDataset()))
-	# 	generator = reader.iterateOneEpoch()
-	# 	batches = generator.batches
-	# 	for i, (item, B) in enumerate(generator):
-	# 		rgb = item["data"]["rgb"]
-	# 		assert B == generator.batchLens[i]
-	# 		assert B == (batches[i].stop - batches[i].start)
-	# 		assert len(rgb) == generator.batchLens[i]
-	# 	assert i == len(generator) - 1
+	def test_iterateOneEpoch_4(self):
+		reader = RandomBatchedDatasetReader(MergeBatchedDatasetReader(DummyDataset(), mergeItems, batchesFn))
+		generator = reader.iterateOneEpoch()
+		batches = generator.batches
+		for i, (item, B) in enumerate(generator):
+			rgb = item["data"]["rgb"]
+			assert B == generator.batchLens[i]
+			assert B == (batches[i].stop - batches[i].start)
+			assert len(rgb) == generator.batchLens[i]
+		assert i == len(generator) - 1
 
 def main():
 	TestMergeBatchedDatasetReader().test_iterateOneEpoch_3()
