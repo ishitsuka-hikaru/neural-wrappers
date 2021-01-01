@@ -1,10 +1,10 @@
 import numpy as np
 from overrides import overrides
 from ..dataset_reader import DatasetReader, DatasetEpochIterator
-from ..compound_dataset_reader import CompoundDatasetReader
+from ..compound_dataset_reader import CompoundDatasetReader, CompoundDatasetEpochIterator
 # from ..batched_dataset_reader.batched_dataset_reader import BatchedDatasetEpochIterator
 
-class RandomIndexDatasetEpochIterator(DatasetEpochIterator):
+class RandomIndexDatasetEpochIterator(CompoundDatasetEpochIterator):
 	def __init__(self, reader:DatasetReader):
 		super().__init__(reader)
 		self.reader.permutation = np.random.permutation(len(self))
@@ -20,12 +20,10 @@ class RandomIndexDatasetReader(CompoundDatasetReader):
 
 	@overrides
 	def iterateOneEpoch(self):
-		return RandomIndexDatasetEpochIterator(self.baseReader)
+		return RandomIndexDatasetEpochIterator(self)
 
 	@overrides
 	def __getitem__(self, ix):
-		# print("HERE??")
-		# breakpoint()
 		assert not self.permutation is None, "Call iterateOneEpoch first to generate a permutation."
 		index = self.permutation[ix]
 		return super().__getitem__(index)

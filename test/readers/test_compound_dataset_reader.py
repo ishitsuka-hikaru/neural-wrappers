@@ -1,7 +1,7 @@
 import numpy as np
 from overrides import overrides
 from typing import Any, Iterator, Dict, Callable
-from neural_wrappers.readers import CompoundDatasetReader
+from neural_wrappers.readers import CompoundDatasetReader, StaticBatchedDatasetReader, BatchedDatasetReader
 
 from test_dataset_reader import DummyDataset
 from batched_dataset_reader.test_batched_dataset_reader import Reader as BatchedReader
@@ -106,9 +106,20 @@ class TestCompoundDatasetReaderBatched:
 			if j == 100:
 				break
 
+	def test_getBatchItem_3(self):
+		reader = BatchedReader()
+		reader.getBatches = lambda : BatchedDatasetReader.getBatches(reader)
+		reader = StaticBatchedDatasetReader(reader, batchSize=3)
+
+		batches = reader.getBatches()
+		generator = reader.iterateForever()
+		numSteps = len(generator)
+		# breakpoint()
+
+
 def main():
 	# TestDatasetReader().test_constructor_1()
-	TestCompoundDatasetReaderBatched().test_iterateForever_1()
+	TestCompoundDatasetReaderBatched().test_getBatchItem_3()
 
 if __name__ == "__main__":
 	main()
