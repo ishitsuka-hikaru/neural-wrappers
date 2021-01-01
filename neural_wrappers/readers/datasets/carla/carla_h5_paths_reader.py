@@ -52,20 +52,19 @@ class CarlaH5PathsReader(H5BatchedDatasetReader):
 			"rgbDomain2" : partial(pathsReader, readFunction=rawReadFunction, dim="rgbDomain2"),
 		}
 
-		dimTransform ={
-			"data":{
-				"rgb" : partial(rgbNorm, readerObj=self),
-				"depth" : partial(depthNorm, readerObj=self),
-				"pose" : partial(poseNorm, readerObj=self),
-				"semantic_segmentation" : partial(semanticSegmentationNorm, readerObj=self),
-				"wireframe" : partial(wireframeNorm, readerObj=self),
-				"wireframe_regression" : partial(wireframeRegressionNorm, readerObj=self),
-				"halftone" : partial(halftoneNorm, readerObj=self),
-				"normal" : partial(normalNorm, readerObj=self),
-				"cameranormal" : partial(normalNorm, readerObj=self),
-				"rgbDomain2" : partial(rgbNorm, readerObj=self),
-			}
+		dataDimTransforms = {
+			"rgb" : partial(rgbNorm, readerObj=self),
+			"depth" : partial(depthNorm, readerObj=self),
+			"pose" : partial(poseNorm, readerObj=self),
+			"semantic_segmentation" : partial(semanticSegmentationNorm, readerObj=self),
+			"wireframe" : partial(wireframeNorm, readerObj=self),
+			"wireframe_regression" : partial(wireframeRegressionNorm, readerObj=self),
+			"halftone" : partial(halftoneNorm, readerObj=self),
+			"normal" : partial(normalNorm, readerObj=self),
+			"cameranormal" : partial(normalNorm, readerObj=self),
+			"rgbDomain2" : partial(rgbNorm, readerObj=self),
 		}
+		dimTransform = {"data" : {k : dataDimTransforms[k] for k in dataBuckets["data"]}}
 
 		# TODO: Make this more generic for use cases, not just (t-1 -> t)
 		ids = datasetPath["ids"][()]
