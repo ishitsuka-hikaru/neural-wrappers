@@ -1,21 +1,19 @@
 from __future__ import annotations
 from overrides import overrides
 from .dataset_reader import DatasetReader, DatasetEpochIterator
-# from .batched_dataset_reader.batched_dataset_reader import BatchedDatasetReader
 from .dataset_types import *
 
 class CompoundDatasetEpochIterator(DatasetEpochIterator):
 	def __init__(self, reader):
-		from .batched_dataset_reader.batched_dataset_reader import BatchedDatasetEpochIterator
-		from .batched_dataset_reader.utils import getBatchLens
-		self.reader = reader
+		super().__init__(reader)
 		self.baseReader = reader.baseReader
 
-
-		# breakpoint()
-		# self.baseIterator = self.baseReader.iterateOneEpoch()
-
+		# Some compound algorithms require to call their iterateOneEpoch method too for initializations, for example
+		#  RandomIndexDatasetReader, to initialize the epoch's permutation for __getitem__.
+		if isinstance(reader.baseReader, CompoundDatasetReader):
+			_ = reader.baseReader.iterateOneEpoch()
 		try:
+			from .batched_dataset_reader.utils import getBatchLens
 			batches = self.reader.getBatches()
 			self.batches = batches
 			self.batchLens = getBatchLens(batches)
@@ -24,18 +22,6 @@ class CompoundDatasetEpochIterator(DatasetEpochIterator):
 		except Exception as e:
 			self.isBatched = False
 			self.len = len(self.reader)
-
-		# try:
-		# 	_ = self.baseReader.getBatches()
-		# 	self.origGetBatches = self.baseReader.getBatches
-		# 	self.baseReader.getBatches = self.getBatches
-		# 	self.epochIterator = BatchedDatasetEpochIterator
-		# except Exception:
-		# 	self.epochIterator = DatasetEpochIterator
-		# 	if hasattr(self.baseReader, "getBatches"):
-		# 		self.origGetBatches = self.baseReader.getBatches
-		# self.reader = reader
-		self.ix = -1
 
 	@overrides
 	def __getitem__(self, ix):

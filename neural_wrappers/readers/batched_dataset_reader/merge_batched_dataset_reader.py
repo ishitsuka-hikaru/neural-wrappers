@@ -1,5 +1,6 @@
 # Helper class that takes a non-batched dataset reader and makes it batched, by merging multiple items via a merging
 #  function that is provided by the user.
+from __future__ import annotations
 from overrides import overrides
 from abc import abstractmethod
 from collections.abc import Iterable
@@ -11,7 +12,8 @@ from ..dataset_types import *
 
 class MergeBatchedDatasetReader(CompoundDatasetReader):
 	def __init__(self, baseReader:DatasetReader, mergeFn:Callable[[List[DatasetItem]], DatasetItem], \
-		batchesFn=lambda x : x):
+		batchesFn=lambda: BatchedDatasetReader.getBatches(self)):
+
 		try:
 			batches = baseReader.getBatches()
 			assert False, "Already a batched dataset, sir!"
