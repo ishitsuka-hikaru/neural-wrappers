@@ -42,6 +42,28 @@ class TestCompoundDatasetReader:
 			assert np.abs(rgb - reader.dataset[i]).sum() < 1e-5
 		assert i == len(reader.dataset) - 1
 
+	def test_iterateOneEpoch_2(self):
+		reader = CompoundDatasetReader(DummyDataset())
+		generator = reader.iterateOneEpoch()
+		for i, item in enumerate(generator):
+			rgb = item["data"]["rgb"]
+			assert np.abs(rgb - reader.dataset[i]).sum() < 1e-5
+		assert i == len(reader.dataset) - 1
+
+		reader2 = CompoundDatasetReader(reader)
+		generator2 = reader2.iterateOneEpoch()
+		for i, item in enumerate(generator2):
+			rgb = item["data"]["rgb"]
+			assert np.abs(rgb - reader2.dataset[i]).sum() < 1e-5
+		assert i == len(reader2.dataset) - 1
+
+		reader3 = CompoundDatasetReader(reader2)
+		generator3 = reader3.iterateOneEpoch()
+		for i, item in enumerate(generator3):
+			rgb = item["data"]["rgb"]
+			assert np.abs(rgb - reader3.dataset[i]).sum() < 1e-5
+		assert i == len(reader3.dataset) - 1
+
 	def test_iterateForever_1(self):
 		reader = CompoundDatasetReader(DummyDataset())
 		generator = reader.iterateForever()
@@ -88,6 +110,26 @@ class TestCompoundDatasetReaderBatched:
 			rgb = batchItem["data"]["rgb"]
 			assert np.abs(rgb - reader.dataset[index.start : index.stop]).sum() < 1e-5
 
+	def test_getBatchItem_3(self):
+		reader = BatchedReader()
+		reader.getBatches = lambda : BatchedDatasetReader.getBatches(reader)
+		reader2 = StaticBatchedDatasetReader(reader, batchSize=3)
+
+		try:
+			_ = reader.getBatches()
+		except Exception:
+			pass
+
+		batches = reader2.getBatches()
+		generator = reader2.iterateOneEpoch()
+		assert batches == generator.batches
+		assert len(batches) == len(generator)
+		for i in range(len(generator)):
+			index = batches[i]
+			batchItem = reader[index]
+			rgb = batchItem["data"]["rgb"]
+			assert np.abs(rgb - reader.dataset[index.start : index.stop]).sum() < 1e-5
+
 	def test_iterateForever_1(self):
 		reader = CompoundDatasetReader(BatchedReader())
 		batches = reader.getBatches()
@@ -106,16 +148,23 @@ class TestCompoundDatasetReaderBatched:
 			if j == 100:
 				break
 
-	def test_getBatchItem_3(self):
-		reader = BatchedReader()
-		reader.getBatches = lambda : BatchedDatasetReader.getBatches(reader)
-		reader = StaticBatchedDatasetReader(reader, batchSize=3)
-
+	def test_iterateForever_2(self):
+		reader = CompoundDatasetReader(CompoundDatasetReader(CompoundDatasetReader(BatchedReader())))
 		batches = reader.getBatches()
-		generator = reader.iterateForever()
-		numSteps = len(generator)
-		# breakpoint()
+		batchSizes = [(x.stop - x.start) for x in batches]
+		n = len(batches)
+		for j, (batchItem, B) in enumerate(reader.iterateForever()):
+			try:
+				assert B == batchSizes[j % n]
+			except Exception as e:
+				print(str(e))
+				breakpoint()
+			rgb = batchItem["data"]["rgb"]
+			index = batches[j % n]
+			assert np.abs(rgb - reader.dataset[index.start : index.stop]).sum() < 1e-5
 
+			if j == 100:
+				break
 
 def main():
 	# TestDatasetReader().test_constructor_1()

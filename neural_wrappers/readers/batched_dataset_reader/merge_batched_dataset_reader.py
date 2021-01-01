@@ -24,9 +24,6 @@ class MergeBatchedDatasetReader(CompoundDatasetReader):
 	def getBatches(self):
 		return self.batchesFn()
 
-	# def iterateOneEpoch(self):
-	# 	return BatchedDatasetReader.iterateOneEpoch(self.baseReader)
-
 	# @brief Gets the items of this batch, one by one, from the base reader, and then
 	#  merges them together using the provided merge method.
 	# @reutrn The current batch of items.

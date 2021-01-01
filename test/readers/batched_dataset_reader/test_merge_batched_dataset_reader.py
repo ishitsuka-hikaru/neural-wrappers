@@ -2,7 +2,7 @@ import numpy as np
 from overrides import overrides
 from typing import Tuple, List, Any
 from neural_wrappers.readers import DatasetItem, DatasetReader, MergeBatchedDatasetReader, \
-	StaticBatchedDatasetReader, RandomBatchedDatasetReader, CachedDatasetReader
+	StaticBatchedDatasetReader, RandomBatchedDatasetReader, CachedDatasetReader, CompoundDatasetReader
 from neural_wrappers.readers.batched_dataset_reader.utils import batchIndexFromBatchSizes
 
 import sys
@@ -84,7 +84,7 @@ class TestMergeBatchedDatasetReader:
 			assert len(rgb) == generator.batchLens[i]
 		assert i == len(generator) - 1
 
-	def test_iterateOneEpoch_StaticBatched_1(self):
+	def test_iterateOneEpoch_2(self):
 		reader = StaticBatchedDatasetReader(MergeBatchedDatasetReader(DummyDataset(), mergeItems, batchesFn), 4)
 		reader.baseReader.getBatches = reader.getBatches
 		batches = reader.getBatches()
@@ -92,6 +92,20 @@ class TestMergeBatchedDatasetReader:
 		item = reader[batches[0]]
 		rgb = item["data"]["rgb"]
 		assert len(rgb) == 4
+
+	def test_iterateOneEpoch_3(self):
+		reader = DummyDataset()
+		reader2 = CompoundDatasetReader(reader)
+		reader3 = MergeBatchedDatasetReader(reader2, mergeItems, batchesFn)
+
+		generator = reader3.iterateOneEpoch()
+		batches = reader3.getBatches()
+		for i, (item, B) in enumerate(generator):
+			rgb = item["data"]["rgb"]
+			assert B == generator.batchLens[i]
+			assert B == (batches[i].stop - batches[i].start)
+			assert len(rgb) == generator.batchLens[i]
+		assert i == len(generator) - 1
 
 	# def test_iterateOneEpoch_RandomBatched_1(self):
 	# 	reader = RandomBatchedDatasetReader(Reader(DummyDataset()))
@@ -105,7 +119,7 @@ class TestMergeBatchedDatasetReader:
 	# 	assert i == len(generator) - 1
 
 def main():
-	TestMergeBatchedDatasetReader().test_iterateOneEpoch_1()
+	TestMergeBatchedDatasetReader().test_iterateOneEpoch_3()
 	# TestBatchedDatasetReader().test_mergeItems_1()
 	# TestBatchedDatasetReader().test_splitItems_1()
 	# TestBatchedDatasetReader().test_mergeSplit_1()

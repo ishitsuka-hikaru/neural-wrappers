@@ -75,6 +75,12 @@ class TestRandomIndexBatchedDatasetReader:
 		reader3 = MergeBatchedDatasetReader(reader2, mergeFn=mergeFn)
 		reader4 = StaticBatchedDatasetReader(reader3, batchSize=10)
 
+		g1 = reader.iterate()
+		g2 = reader2.iterate()
+		g3 = reader3.iterate()
+		g4 = reader4.iterate()
+		breakpoint()
+
 		generator = reader4.iterateForever()
 		N = 10
 		items = []
