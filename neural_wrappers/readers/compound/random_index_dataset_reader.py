@@ -31,6 +31,6 @@ class RandomIndexDatasetReader(CompoundDatasetReader):
 	@overrides
 	def __str__(self) -> str:
 		summaryStr = "[RandomIndexDatasetReader]"
-		summaryStr += "\n - Seed: %d" % self.seed
+		summaryStr += "\n - Seed: %s" % self.seed
 		summaryStr += "\n %s" % super().__str__()
 		return summaryStr
