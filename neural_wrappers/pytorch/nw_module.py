@@ -286,6 +286,9 @@ class NWModule(nn.Module, ABC):
 		self.epochPrologue(epochResults, numEpochs=1, isTraining=False)
 		return epochResults
 
+	def testGenerator(self, generator, printMessage=None):
+		return self.test_generator(generator, len(generator), printMessage)
+
 	def test_model(self, data, labels, batchSize, printMessage=None):
 		dataGenerator = makeGenerator(data, labels, batchSize)
 		numIterations = data.shape[0] // batchSize + (data.shape[0] % batchSize != 0)
@@ -373,9 +376,9 @@ class NWModule(nn.Module, ABC):
 
 			self.epochPrologue(epochResults, numEpochs, isTraining=True)
 
-			# Update progress bar with new metrics
-			# pbar.update(n=1)
-		# pbar.close()
+	def trainGenerator(self, generator, numEpochs, validationGenerator=None, printMessage=True):
+		validationSteps = None if validationGenerator is None else len(validationGenerator)
+		self.train_generator(generator, len(generator), numEpochs, validationGenerator, validationSteps, printMessage)
 
 	def train_model(self, data, labels, batchSize, numEpochs, validationData=None, \
 		validationLabels=None, printMessage=None):
