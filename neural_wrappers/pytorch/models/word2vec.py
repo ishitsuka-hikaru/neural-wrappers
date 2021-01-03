@@ -1,10 +1,9 @@
 import torch as tr
 import torch.nn as nn
-from ..pytorch import FeedForwardNetwork
+from ..feed_forward_network import FeedForwardNetwork
+from ..utils import device
 
-device = tr.device("cuda") if tr.cuda.is_available() else tr.device("cpu")
-
-class ModelWord2Vec(FeedForwardNetwork):
+class Word2Vec(FeedForwardNetwork):
 	def __init__(self, dictionary, embeddingSize):
 		super().__init__()
 		self.dictionary = dictionary

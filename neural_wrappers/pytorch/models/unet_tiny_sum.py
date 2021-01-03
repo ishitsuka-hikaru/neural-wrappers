@@ -1,11 +1,10 @@
-import torch as tr
 import torch.nn as nn
 import torch.nn.functional as F
-from ..pytorch import FeedForwardNetwork
+from ..feed_forward_network import FeedForwardNetwork
 
-class ModelSafeUAVTinySum(FeedForwardNetwork):
-	def __init__(self, dIn, dOut, numFilters, **k):
-		super().__init__(**k)
+class UNetTinySum(FeedForwardNetwork):
+	def __init__(self, dIn, dOut, numFilters):
+		super().__init__()
 
 		# Model parameters
 		NF = numFilters
@@ -33,7 +32,6 @@ class ModelSafeUAVTinySum(FeedForwardNetwork):
 		self.finalConv = nn.Conv2d(in_channels=NF, out_channels=dOut, kernel_size=(1, 1))
 
 	def forward(self, x):
-		x = x.transpose(1, 3).transpose(2, 3)
 		y1 = F.relu(self.down1(x))
 		y1_pool = F.relu(self.down1pool(y1))
 		y2 = F.relu(self.down2(y1_pool))
@@ -49,15 +47,17 @@ class ModelSafeUAVTinySum(FeedForwardNetwork):
 		y_dilate6 = F.relu(self.dilate6(y_dilate5))
 		y_dilate_sum = y_dilate1 + y_dilate2 + y_dilate3 + y_dilate4 + y_dilate5 + y_dilate6
 
-		y_up3_tr = F.pad(F.relu(self.up3_tr(y_dilate_sum)), (0, 1, 0, 1)) + y3
-		y_up3 = F.relu(self.up3(y_up3_tr))
+		# Skip and padding for residual connection
+		def f(up_tr, y_up, y_down, up):
+			y = F.relu(up_tr(y_up))
+			diffUp, diffLeft = y_down.shape[-2] - y.shape[-2], y_down.shape[-1] - y.shape[-1]
+			yPad = F.pad(y, (0, diffLeft, 0, diffUp))
+			y_up_tr = yPad + y_down
+			y_up = F.relu(up(y_up_tr))
+			return y_up
 
-		y_up2_tr = F.pad(F.relu(self.up2_tr(y_up3)), (0, 1, 0, 1)) + y2
-		y_up2 = F.relu(self.up2(y_up2_tr))
-
-		y_up1_tr = F.pad(F.relu(self.up1_tr(y_up2)), (0, 1, 0, 1)) + y1
-		y_up1 = F.relu(self.up1(y_up1_tr))
-
+		y_up3 = f(self.up3_tr, y_dilate_sum, y3, self.up3)
+		y_up2 = f(self.up2_tr, y_up3, y2, self.up2)
+		y_up1 = f(self.up1_tr, y_up2, y1, self.up1)
 		y_final = self.finalConv(y_up1)
-		y_final = y_final.transpose(1, 3).transpose(1, 2)
 		return y_final

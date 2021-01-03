@@ -8,3 +8,6 @@ from .variational_autoencoder_network import VariationalAutoencoderNetwork
 
 from .utils import npGetData, trGetData, plotModelMetricHistory, getModelHistoryMessage, trModuleWrapper, device, \
 	trDetachData, npToTrCall, trToNpCall, getMetricScoreFromHistory
+
+from .layers import *
+from .models import *

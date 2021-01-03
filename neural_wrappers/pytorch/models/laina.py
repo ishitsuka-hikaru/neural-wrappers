@@ -2,11 +2,11 @@ import torch as tr
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .upsample import UpSampleLayer
-from ..pytorch import FeedForwardNetwork
+from ..layers.upsample import UpSampleLayer
+from ..feed_forward_network import FeedForwardNetwork
 
 # Implementation of the Laina model from https://arxiv.org/abs/1606.00373
-class ModelLaina(FeedForwardNetwork):
+class Laina(FeedForwardNetwork):
 	def __init__(self, baseModelType, upSampleType, baseModelPreTrained):
 		super().__init__()
 		assert baseModelType in ("resnet50", )

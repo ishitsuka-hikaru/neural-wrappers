@@ -2,7 +2,8 @@ import torch as tr
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
-from ..pytorch import FeedForwardNetwork, device
+from ..feed_forward_network import FeedForwardNetwork
+from ..utils import device
 
 # UnPool Layer as defined by Laina paper
 class UpSampleUnpool(FeedForwardNetwork):

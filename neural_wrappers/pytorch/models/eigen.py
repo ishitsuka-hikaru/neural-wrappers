@@ -1,7 +1,7 @@
 import torch as tr
 import torch.nn as nn
 import torch.nn.functional as F
-from ..pytorch import FeedForwardNetwork
+from ..feed_forward_network import FeedForwardNetwork
 
 # The top architeture in the original paper.
 class ModelDepthCoarse(FeedForwardNetwork):
@@ -52,7 +52,7 @@ class ModelDepthFine(FeedForwardNetwork):
 		return fine4
 
 # Implementation of the Eigen model from https://arxiv.org/abs/1406.2283
-class ModelEigen(FeedForwardNetwork):
+class Eigen(FeedForwardNetwork):
 	def __init__(self,  coarseOnly):
 		super().__init__()
 		self.coarseOnly = coarseOnly

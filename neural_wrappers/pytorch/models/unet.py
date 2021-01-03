@@ -1,8 +1,8 @@
 import torch as tr
 import torch.nn as nn
 import torch.nn.functional as F
-from .upsample import UpSampleLayer
-from ..pytorch import FeedForwardNetwork
+from ..layers.upsample import UpSampleLayer
+from ..feed_forward_network import FeedForwardNetwork
 
 # A simple block that implements the 2 convs + Relu layers
 class UNetBlock(FeedForwardNetwork):
@@ -44,7 +44,7 @@ class UNetConcatenateBlock(FeedForwardNetwork):
 		return out_cat
 
 # Implementation of the UNet model from https://arxiv.org/abs/1505.04597
-class ModelUNet(FeedForwardNetwork):
+class UNet(FeedForwardNetwork):
 	def __init__(self, dIn, dOut, upSampleType):
 		super(ModelUNet, self).__init__()
 		assert upSampleType in ("bilinear", "nearest", "conv_transposed", "conv_transposed_smooth")
