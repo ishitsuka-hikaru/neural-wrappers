@@ -7,32 +7,6 @@ from functools import reduce
 from .np_utils import npCloseEnough
 from .type_utils import NWNumber, NWSequence, NWDict, isBaseOf, T
 
-def minMaxImage(image):
-	Min, Max = image.min(), image.max()
-	return (image - Min) / (Max - Min + np.spacing(1))
-
-def standardizeData(data, mean, std):
-	data -= mean
-	data /= std
-	return data
-
-def minMaxNormalizeData(data, min, max):
-	data -= min
-	data /= (max - min)
-	data[data != data] = 0
-	data[np.isinf(data)] = 0
-	return data
-
-def toCategorical(data, numClasses):
-	data = np.array(data)
-	y = np.eye(numClasses)[data.reshape(-1)].astype(np.uint8)
-	# Some bugs for (1, 1) shapes return (1, ) instead of (1, NC)
-	MB = data.shape[0]
-	y = np.squeeze(y)
-	if MB == 1:
-		y = np.expand_dims(y, axis=0)
-	return y
-
 # Labels can be None, in that case only data is available (testing cases without labels)
 def makeGenerator(data, labels, batchSize):
 	while True:
