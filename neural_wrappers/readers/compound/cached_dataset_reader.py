@@ -28,7 +28,7 @@ class CachedDatasetReader(CompoundDatasetReader):
 	# @param[in] baseReader The base dataset reader which is used as composite for caching
 	# @param[in] cache The PyCache Cache object used for caching purposes
 	# @param[in] buildCache Whether to do a pass through the entire dataset once before starting the iteration
-	def __init__(self, baseReader:DatasetReader, cache:Cache, buildCache:bool=False):
+	def __init__(self, baseReader:DatasetReader, cache:Cache, buildCache:bool=True):
 		super().__init__(baseReader)
 		self.cache = cache
 		self.buildCache = buildCache
