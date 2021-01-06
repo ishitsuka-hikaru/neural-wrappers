@@ -1,23 +1,18 @@
+import torch as tr
 import torch.nn as nn
-import numpy as np
 from functools import partial
-from collections import OrderedDict
-from overrides import overrides
-from typing import Union, Callable
-from types import LambdaType
-
 from .node import MapNode, VectorNode
-from ..pytorch import FeedForwardNetwork, trModuleWrapper
-from ..pytorch.network_serializer import NetworkSerializer
+from ..pytorch import FeedForwardNetwork, trModuleWrapper, trGetData, npGetData
+from .graph_serializer import GraphSerializer
 from ..callbacks import CallbackName
-from ..metrics import Metric, MetricWrapper
+from overrides import overrides
 
 # Default loss of this edge goes through all ground truths and all outputs of the output node and computes the
 #  loss between them. This can be updated for a more specific edge algorithm for loss computation.
 def defaultLossFn(y, t, obj):
 	B = obj.outputNode
 	L = 0
-	t = B.getGroundTruth()
+	t = obj.getGroundTruth(t)
 	for y in obj.outputs:
 		res = obj.criterion(y, t)
 		if not res is None:
@@ -39,15 +34,17 @@ def defaultLossFn(y, t, obj):
 #  maintaing a history of its origin. This is used s.t. long graphs don't have to backpropagate to the source of each
 #  input.
 class Edge(FeedForwardNetwork):
-	def __init__(self, inputNode, outputNode, name=None, edgeType="edge-edge", forwardFn=None, \
-		lossFn=None, dependencies=[], blockGradients=False, hyperParameters={}):
+	def __init__(self, inputNode, outputNode, name=None, useMetrics=True, useLoss=True, edgeType="edge-edge", \
+		forwardFn=None, lossFn=None, dependencies=[], blockGradients=False, hyperParameters={}):
 		hyperParameters = self.getHyperParameters(hyperParameters, edgeType, blockGradients)
+		self.iterPrintMessageKeys = [CallbackName("Loss")]
 		self.strInputNode = str(inputNode)
 		self.strOutputNode = str(outputNode)
 		if name is None:
 			name = "%s -> %s" % (self.strInputNode, self.strOutputNode)
 		self.name = name
 		super().__init__(hyperParameters=hyperParameters)
+
 		assert edgeType in ("node-node", "node-edge", "edge-node", "edge-edge")
 		self.inputNode = inputNode
 		self.outputNode = outputNode
@@ -58,6 +55,8 @@ class Edge(FeedForwardNetwork):
 		self.model = None
 		self.forwardFn = forwardFn
 		self.lossFn = lossFn
+		self.useLoss = useLoss
+		self.useMetrics = useMetrics
 		self.setupModel()
 
 		self.inputs = []
@@ -65,12 +64,24 @@ class Edge(FeedForwardNetwork):
 
 		self.dependencies = dependencies
 		self.setBlockGradients(blockGradients)
+		self.serializer = GraphSerializer(self)
 
 	def getInputs(self, x):
+		self.fullGT = x
 		# print("[Edge::getInputs]", type(self.inputNode), type(self.inputNode).mro(), self.inputNode.getInputs(x))
 		inputs = self.inputNode.getInputs(x)
 		if self.blockGradients:
-			inputs = {k : inputs[k].detach() for k in inputs}
+			res = {}
+			for k in inputs:
+				item = inputs[k]
+				if isinstance(item, (tuple, list)):
+					item = [x.detach() for x in item]
+				elif isinstance(item, tr.Tensor):
+					item = item.detach()
+				else:
+					assert False
+				res[k] = item
+			inputs = res
 		return inputs
 
 	def forward(self, x):
@@ -82,9 +93,6 @@ class Edge(FeedForwardNetwork):
 
 	def loss(self, y, t):
 		return self.lossFn(y, t)
-
-	def getStrMapping(self):
-		return str(self)
 
 	def getGroundTruth(self, x):
 		return self.outputNode.getGroundTruthInput(x)
@@ -125,6 +133,35 @@ class Edge(FeedForwardNetwork):
 	def getNodes(self):
 		return [self.inputNode, self.outputNode]
 
+	def computePrintMessage(self, trainMetrics, validationMetrics, numEpochs, duration):
+		from .utils import getFormattedStr
+		messages = []
+		done = self.currentEpoch / numEpochs * 100
+		if len(trainMetrics) == 0:
+			return messages
+
+		messages.append("  - Metrics:")
+		# trainMetrics = dict(filter(lambda x, y : isinstance(x, CallbackName), trainMetrics.items()))
+		trainMetrics = {k : trainMetrics[k] \
+			for k in filter(lambda x : isinstance(x, CallbackName), trainMetrics)}
+		printableMetrics = filter(lambda x : x in self.iterPrintMessageKeys, sorted(trainMetrics))
+		trainMessage, validationMessage = "    - [Train]", "    - [Validation]"
+		for metric in printableMetrics:
+			formattedStr = getFormattedStr(trainMetrics[metric], precision=3)
+			trainMessage += " %s: %s." % (metric, formattedStr)
+			if not validationMetrics is None:
+				formattedStr = getFormattedStr(validationMetrics[metric], precision=3)
+				validationMessage += " %s: %s." % (metric, formattedStr)
+		messages.append(trainMessage)
+		if not validationMetrics is None:
+			messages.append(validationMessage)
+		return messages
+
+	@overrides
+	def addMetric(self, metricName, metric):
+		super().addMetric(metricName, metric)
+		self.iterPrintMessageKeys.append(metricName)
+
 	# Default model for this edge is just a sequential mapping between the A's encoder and B's decoder.
 	#  Other edges may requires additional edge-specific parameters or some more complicated views to convert the
 	#   output of A's encoder to the input of B's decoder.
@@ -136,11 +173,16 @@ class Edge(FeedForwardNetwork):
 		if not self.forwardFn:
 			from .utils import forwardUseAll
 			self.forwardFn = forwardUseAll
+
 		if not self.lossFn:
 			self.lossFn = partial(defaultLossFn, obj=self)
 
-		self.addMetrics(self.outputNode.getNodeMetrics())
-		self.setCriterion(self.outputNode.getNodeCriterion())
+		if not self.useLoss:
+			self.lossFn = lambda y, t : 0
+
+		if self.useMetrics:
+			self.addMetrics(self.outputNode.getMetrics())
+		self.setCriterion(self.outputNode.getCriterion())
 
 	def setBlockGradients(self, value):
 		self.blockGradients = value
@@ -152,50 +194,28 @@ class Edge(FeedForwardNetwork):
 		hyperParameters["blockGradients"] = blockGradients
 		return hyperParameters
 
-	@overrides
 	def callbacksOnIterationEnd(self, data, labels, results, loss, iteration, numIterations, \
 		metricResults, isTraining, isOptimizing):
+		results = list(results.values()) if isinstance(results, dict) else results
 		for i in range(len(results)):
-			metricResults = super().callbacksOnIterationEnd(data, labels, results[i], loss, iteration, \
-				numIterations, metricResults, isTraining, isOptimizing)
+			try:
+				metricResults = super().callbacksOnIterationEnd(data, labels, results[i], loss, iteration, \
+					numIterations, metricResults, isTraining, isOptimizing)
+			except Exception as e:
+				breakpoint()
+				metricResults = super().callbacksOnIterationEnd(data, labels, results[i], loss, iteration, \
+					numIterations, metricResults, isTraining, isOptimizing)
+		# res = []
+		# metricResults = super().callbacksOnIterationEnd(data, labels, results[0], loss, iteration, \
+		# 	numIterations, metricResults, isTraining, isOptimizing)
+		# for i in range(1, len(results)):
+		# 	item = results[i]
+		# 	_metricResults = super().callbacksOnIterationEnd(data, labels, item, loss, iteration, \
+		# 		numIterations, metricResults, isTraining, isOptimizing)
+		# 	for k in _metricResults:
+		# 		res = _metricResults[k].get()
+		# 		metricResults[k].update(res)
 		return metricResults
-
-	# TODO: Remove this and fix loadModel for partial edges.
-	def loadPretrainedEdge(self, path):
-		thisInputNode = self.inputNode.name.split("(")[0][0 : -1]
-		thisOutputNode = self.outputNode.name.split("(")[0][0 : -1]
-
-		print("Attempting to load pretrained edge %s from %s" % (self, path))
-		pklFile = NetworkSerializer.readPkl(path)
-		# Do a sanity check that this loaded model is a single_link containing desired edge
-		# Some parsing to find the relevant edge of the pkl file
-		relevantKeys = list(filter(lambda x : x.find("->") != -1, pklFile["model_state"].keys()))
-		relevantKeys = list(map(lambda x : x.split("->"), relevantKeys))
-		relevantKeys = list(map(lambda x : (x[0].split(" ")[0], x[1][1 : ].split(" ")[0]), relevantKeys))[0]
-		if relevantKeys[0] != thisInputNode:
-			print("Warning! Input node is different. Expected: %s. Got: %s." % (relevantKeys[0], thisInputNode))
-		if relevantKeys[1] != thisOutputNode:
-			print("Warning! Output node is different. Expected: %s. Got: %s." % (relevantKeys[1], thisOutputNode))
-		self.serializer.doLoadWeights(pklFile)
-
-	# We also override some methods on the Network class so it works with edges as well.
-	@overrides
-	def addMetric(self, metricName:Union[str, CallbackName], metric:Union[Callable, Metric]):
-		if isinstance(metricName, str): #type: ignore
-			metricName = CallbackName(metricName) #type: ignore
-		metricName = CallbackName((str(self), *metricName.name)) #type: ignore
-		super().addMetric(metricName, metric)
-
-	@overrides
-	def clearCallbacks(self):
-		metric = MetricWrapper(lambda y, t, **k : k["loss"])
-		metricName = CallbackName((str(self), "Loss"))
-		metric.setName(metricName)
-		self.callbacks = OrderedDict({metricName : metric})
-		self.iterPrintMessageKeys = [metricName]
-		self.topologicalSort = np.array([0], dtype=np.uint8)
-		self.topologicalKeys = np.array([metricName], dtype=str)
-		self.topologicalSortDirty = False
 
 	def __str__(self):
 		return self.name

@@ -1,12 +1,19 @@
 import torch as tr
 from functools import partial
 from ..edge import Edge, defaultLossFn
-from ..node import Node
+from ..node import Node, _getGroundTruth
 from ...pytorch import trModuleWrapper
 
 class ReduceNode(Edge):
-	def __init__(self, inputNode, forwardFn, *args, **kwargs):
-		super().__init__(inputNode, inputNode, forwardFn=forwardFn, *args, **kwargs)
+	def __init__(self, inputNode, forwardFn, name=None, useMetrics=False, groundTruthKey=None, \
+		useLoss=False, *args, **kwargs):
+		if name is None:
+			name = "ReduceNode %s" % (str(inputNode))
+		super().__init__(inputNode, inputNode, forwardFn=forwardFn, name=name, useMetrics=useMetrics, \
+			useLoss=useLoss, *args, **kwargs)
+		if groundTruthKey is None:
+			groundTruthKey = self.inputNode.groundTruthKey
+		self.groundTruthKey = groundTruthKey
 
 	def forward(self, x):
 		self.inputs = x
@@ -22,8 +29,5 @@ class ReduceNode(Edge):
 
 	def getEncoder(self):
 		return trModuleWrapper(lambda x : x)
-
-	def __str__(self):
-		return "ReduceNode %s" % (self.strInputNode)
 
 class ReduceEdge: pass

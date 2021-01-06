@@ -1,29 +1,41 @@
 from __future__ import annotations
 import torch as tr
-import torch.nn as nn
-from typing import Optional, Dict, Type, Union, Callable, Any
-from abc import ABC, abstractmethod
-from overrides import overrides
+from typing import Optional, Dict, Type, Union, Any
 from ..pytorch import trGetData, trDetachData, NWModule
-from ..metrics import Metric
+# from .utils import _getGroundTruth
 
-GTType = Optional[Union[Dict[Any, Any], tr.Tensor]]
+# TODO return type
+def _getGroundTruth(labels:dict, groundTruthKey:str): #type: ignore
+    # Combination of two functions. To be refactored :)
+    if groundTruthKey is None:
+        return None
+    elif groundTruthKey == "*":
+        return labels
+    elif isinstance(groundTruthKey, str):
+        return labels[groundTruthKey]
+    elif isinstance(groundTruthKey, (list, tuple)):
+        return {k : labels[k] for k in groundTruthKey}
+    raise Exception("Key %s required from GT data not in labels %s" % (groundTruthKey, list(labels.keys())))
 
-class Node(ABC, nn.Module):
+class Node:
 	# A dictionary that gives a unique tag to all nodes by appending an increasing number to name.
 	lastNodeID = 0
 
-	def __init__(self, name:str, groundTruthKey:str, hyperParameters:dict={}):
-		super().__init__()
+	def __init__(self, name : str, groundTruthKey : str, nodeEncoder : Optional[NWModule]=None, \
+		nodeDecoder : Optional[NWModule]=None, hyperParameters : dict={}):
 		assert name != "GT", "GT is a reserved keyword"
 		self.name = Node.getUniqueName(name)
 		self.groundTruthKey = groundTruthKey
 
 		# Set up hyperparameters for this node (used for saving/loading identical node)
 		self.hyperParameters = self.getHyperParameters(hyperParameters)
-		self.groundTruth:GTType = None
+		self.groundTruth:Any = None
 		# Messages are the items received at this node via all its incoming edges.
-		self.messages:Dict[str, tr.Tensor] = {}
+		self.messages : Dict[str, tr.Tensor] = {}
+
+		# Node-specific encoder and decoder instances. By default they are not instancicated.
+		self.nodeEncoder = nodeEncoder
+		self.nodeDecoder = nodeDecoder
 
 	# This function is called for getEncoder/getDecoder. By default we'll return the normal type of this function.
 	#  However, we are free to overwrite what type a node offers to be seen as. A concrete example is a
@@ -31,57 +43,55 @@ class Node(ABC, nn.Module):
 	def getType(self) -> Type[Node]:
 		return type(self)
 
-	@abstractmethod
-	def getEncoder(self, outputNodeType : Optional[Node]=None) -> NWModule:
-		pass
+	def getEncoder(self, outputNodeType : Optional[Node]=None):
+		if not self.nodeEncoder is None:
+			return self.nodeEncoder
+		raise Exception("Must be implemented by each node!")
 
-	@abstractmethod
-	def getDecoder(self, inputNodeType : Optional[Node]=None) -> NWModule:
-		pass
+	def getDecoder(self, inputNodeType : Optional[Node]=None) -> Optional[NWModule]:
+		if not self.getDecoder is None:
+			return self.nodeDecoder
+		raise Exception("Must be implemented by each node!")
 
-	@abstractmethod
-	def getNodeMetrics(self) -> Dict[str, Metric]:
-		pass
+	# TODO type
+	def getMetrics(self) -> dict:
+		raise Exception("Must be implemented by each node!")
 
-	@abstractmethod
-	def getNodeCriterion(self) -> Callable[[tr.Tensor, tr.Tensor, dict], tr.Tensor]:
-		pass
+	# TODO: Return callable
+	def getCriterion(self):
+		raise Exception("Must be implemented by each node!")
 
 	def getInputs(self, x : tr.Tensor) -> Dict[str, tr.Tensor]:
 		inputs = self.getMessages()
-		GT:Optional[Union[Dict[Any, tr.Tensor], tr.Tensor]] = self.groundTruth
+		GT : Optional[tr.Tensor] = self.groundTruth
 		if not GT is None:
-			inputs["GT"] = self.getGroundTruthInput(x).unsqueeze(0)
+			res = self.getGroundTruthInput(x)
+			if isinstance(res, (tuple, list)):
+				res = [x[None] for x in res]
+			elif isinstance(res, tr.Tensor):
+				res = res.unsqueeze(0)
+			inputs["GT"] = res
 		return inputs
 
 	def getMessages(self) -> Dict[str, tr.Tensor]:
 		return {k : trGetData(self.messages[k]) for k in self.messages}
 
-	def addMessage(self, edgeID : str, message : tr.Tensor) -> None:
+	def addMessage(self, edgeID:str, message:tr.Tensor) -> None:
+		from .edge import Edge
+		if isinstance(edgeID, Edge):
+			edgeID:str = str(edgeID)
 		self.messages[edgeID] = message
 
-	# TODO return type
-	def getNodeLabelOnly(self, labels : dict): #type: ignore
-		# Combination of two functions. To be refactored :)
-		if self.groundTruthKey is None:
-			return None
-		elif self.groundTruthKey == "*":
-			return labels
-		elif (type(self.groundTruthKey) is str) and (self.groundTruthKey != "*"):
-			return labels[self.groundTruthKey]
-		elif type(self.groundTruthKey) in (list, tuple):
-			return {k : labels[k] for k in self.groundTruthKey}
-		raise Exception("Key %s required from GT data not in labels %s" % (self.groundTruthKey, list(labels.keys())))
-
 	# TODO: labels type
-	def setGroundTruth(self, labels:GTType):
-		labels = self.getNodeLabelOnly(labels) #type: ignore
+	def setGroundTruth(self, labels:Any):
+		# labels = self.getNodeLabelOnly(labels) #type: ignore
+		labels = _getGroundTruth(labels, self.groundTruthKey)
 		# Ground truth is always detached from the graph, so we don't optimize both sides of the graph, if the GT of
 		#  one particular node was generated from other side.
 		labels = trDetachData(labels)
 		self.groundTruth = labels
 
-	def getGroundTruth(self) -> GTType:
+	def getGroundTruth(self) -> tr.Tensor:
 		return self.groundTruth
 
 	def getGroundTruthInput(self, inputs):
@@ -89,7 +99,7 @@ class Node(ABC, nn.Module):
 		if type(self.groundTruthKey) is str:
 			return inputs[self.groundTruthKey]
 		elif type(self.groundTruthKey) in (list, tuple):
-			return [inputs[key] for key in self.groundTruthKey]
+			return [inputs[k] for k in self.groundTruthKey]
 		assert False
 
 	@staticmethod

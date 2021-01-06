@@ -1,5 +1,5 @@
 import numpy as np
-import pycache
+import simple_caching
 from overrides import overrides
 from typing import Tuple, List, Any
 from neural_wrappers.readers import CachedDatasetReader, DatasetItem, DatasetIndex, StaticBatchedDatasetReader
@@ -22,11 +22,11 @@ class Reader(BaseReader):
 
 class TestCachedDatasetReader:
 	def test_constructor_1(self):
-		reader = CachedDatasetReader(Reader(), cache=pycache.DictMemory())
+		reader = CachedDatasetReader(Reader(), cache=simple_caching.DictMemory())
 		assert not reader is None
 
 	def test_getItem_1(self):
-		reader = CachedDatasetReader(Reader(), cache=pycache.DictMemory())
+		reader = CachedDatasetReader(Reader(), cache=simple_caching.DictMemory())
 		index = 0
 		assert reader.cache.check(reader.cacheKey(index)) == False
 		item = reader[index]
@@ -37,7 +37,7 @@ class TestCachedDatasetReader:
 		assert np.abs(rgb - rgbCache).sum() < 1e-5
 
 	def test_getItem_2(self):
-		reader = CachedDatasetReader(Reader(), cache=pycache.DictMemory(), buildCache=True)
+		reader = CachedDatasetReader(Reader(), cache=simple_caching.DictMemory(), buildCache=True)
 		index = 0
 		assert reader.cache.check(reader.cacheKey(index)) == True
 		item = reader[index]
@@ -48,7 +48,7 @@ class TestCachedDatasetReader:
 		assert np.abs(rgb - rgbCache).sum() < 1e-5
 
 	def test_iterateOneEpoch_1(self):
-		reader = CachedDatasetReader(Reader(), cache=pycache.DictMemory())
+		reader = CachedDatasetReader(Reader(), cache=simple_caching.DictMemory())
 		generator = reader.iterateOneEpoch()
 		rgbs = []
 		for i in range(len(generator)):
@@ -65,7 +65,7 @@ class TestCachedDatasetReader:
 			assert np.abs(rgbs[i] - rgb).sum() < 1e-5
 
 	def test_iterateForever_1(self):
-		reader = CachedDatasetReader(Reader(), cache=pycache.DictMemory())
+		reader = CachedDatasetReader(Reader(), cache=simple_caching.DictMemory())
 		generator = reader.iterateForever()
 
 		rgbs = []
@@ -89,11 +89,11 @@ class TestCachedDatasetReader:
 
 class TestCachedDatasetReaderBatched:
 	def test_constructor_1(self):
-		reader = CachedDatasetReader(BatchedReader(), cache=pycache.DictMemory())
+		reader = CachedDatasetReader(BatchedReader(), cache=simple_caching.DictMemory())
 		assert not reader is None
 
 	def test_getBatchItem_1(self):
-		reader = CachedDatasetReader(BatchedReader(), cache=pycache.DictMemory())
+		reader = CachedDatasetReader(BatchedReader(), cache=simple_caching.DictMemory())
 		batches = reader.getBatches()
 		index = batches[0]
 		assert reader.cache.check(reader.cacheKey(index)) == False
@@ -105,7 +105,7 @@ class TestCachedDatasetReaderBatched:
 		assert np.abs(rgb - rgbCache).sum() < 1e-5
 
 	def test_getBatchItem_2(self):
-		reader = CachedDatasetReader(BatchedReader(), cache=pycache.DictMemory(), buildCache=True)
+		reader = CachedDatasetReader(BatchedReader(), cache=simple_caching.DictMemory(), buildCache=True)
 		batches = reader.getBatches()
 		index = batches[0]
 		assert reader.cache.check(reader.cacheKey(index)) == True
@@ -117,7 +117,7 @@ class TestCachedDatasetReaderBatched:
 		assert np.abs(rgb - rgbCache).sum() < 1e-5
 
 	def test_iterateOneEpoch_1(self):
-		reader = CachedDatasetReader(BatchedReader(), cache=pycache.DictMemory())
+		reader = CachedDatasetReader(BatchedReader(), cache=simple_caching.DictMemory())
 		generator = reader.iterateOneEpoch()
 		rgbs = []
 		for i in range(len(generator)):
@@ -137,7 +137,7 @@ class TestCachedDatasetReaderBatched:
 
 	def test_iterateOneEpoch_2(self):
 		baseReader = BatchedReader(N=10)
-		reader = CachedDatasetReader(StaticBatchedDatasetReader(baseReader, 3), cache=pycache.DictMemory())
+		reader = CachedDatasetReader(StaticBatchedDatasetReader(baseReader, 3), cache=simple_caching.DictMemory())
 		generator = reader.iterateOneEpoch()
 		rgbs = []
 		for i in range(len(generator)):
@@ -156,7 +156,7 @@ class TestCachedDatasetReaderBatched:
 			rgb = item["data"]["rgb"]
 			assert np.abs(rgbs[i] - rgb).sum() < 1e-5
 
-		reader2 = CachedDatasetReader(StaticBatchedDatasetReader(baseReader, 3), cache=pycache.DictMemory())
+		reader2 = CachedDatasetReader(StaticBatchedDatasetReader(baseReader, 3), cache=simple_caching.DictMemory())
 		generator2 = reader2.iterateOneEpoch()
 		assert len(generator) == len(generator2)
 		for i in range(len(generator2)):
@@ -166,7 +166,7 @@ class TestCachedDatasetReaderBatched:
 			rgb = item["data"]["rgb"]
 			assert np.abs(rgbs[i] - rgb).sum() < 1e-5
 
-		reader3 = CachedDatasetReader(StaticBatchedDatasetReader(baseReader, 4), cache=pycache.DictMemory())
+		reader3 = CachedDatasetReader(StaticBatchedDatasetReader(baseReader, 4), cache=simple_caching.DictMemory())
 		generator3 = reader3.iterateOneEpoch()
 		assert len(generator) != len(generator3)
 		for i in range(len(generator3)):
@@ -184,7 +184,7 @@ class TestCachedDatasetReaderBatched:
 			assert reader4.cache.check(reader.cacheKey(batchIndex)) == True
 
 	def test_iterateForever_1(self):
-		reader = CachedDatasetReader(BatchedReader(), cache=pycache.DictMemory())
+		reader = CachedDatasetReader(BatchedReader(), cache=simple_caching.DictMemory())
 		generator = reader.iterateForever()
 		batches = generator.currentGenerator.batches
 		rgbs = []

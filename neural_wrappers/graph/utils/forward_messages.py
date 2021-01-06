@@ -1,9 +1,8 @@
 import torch as tr
-from typing import List
-from overrides import overrides
 from ..edge import Edge
 from ..node import Node
 from ...pytorch import trModuleWrapper
+from typing import Any
 
 # Simple wrapper that takes ALL inputs from the input node and put them in the outputNode's messages.
 class ForwardMessagesEdge(Edge):
@@ -11,7 +10,7 @@ class ForwardMessagesEdge(Edge):
 		self.forwardGT = forwardGT
 		super().__init__(inputNode=inputNode, outputNode=outputNode, *args, **kwargs)
 	
-	def forward(self, x : dict) -> List[dict]: #type: ignore[override]
+	def forward(self, x : dict) -> Any: #type: ignore[override]
 		assert type(x) == dict
 		# Redirect all messags as is.
 		res = {}

@@ -1,5 +1,4 @@
 import numpy as np
-import pycache
 from overrides import overrides
 from typing import Tuple, List, Any
 from neural_wrappers.readers import CachedDatasetReader, RandomIndexDatasetReader, \

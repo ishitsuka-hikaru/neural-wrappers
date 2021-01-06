@@ -10,7 +10,7 @@ import torch.optim as optim
 from neural_wrappers.pytorch import device, FeedForwardNetwork
 from neural_wrappers.graph import Graph, Edge, Node
 from neural_wrappers.utilities import pickTypeFromMRO
-from neural_wrappers.models import IdentityLayer
+from neural_wrappers.pytorch.layers import IdentityLayer
 from neural_wrappers.metrics import Metric
 from neural_wrappers.readers import BatchedDatasetReader, StaticBatchedDatasetReader
 
@@ -35,6 +35,9 @@ class Reader(BatchedDatasetReader):
 	def getDataset(self) -> Any:
 		return self.dataset
 
+	# @brief Returns the number of items in a given top level name
+	# @param[in] topLevel The top-level dimension that is iterated over (example: train, validation, test, etc.)
+	# @return The number of items in a given top level name
 	@overrides
 	def __len__(self) -> int:
 		return self.N
@@ -72,12 +75,10 @@ class MyNode(Node):
 	def getDecoder(self, inputNodeType : Optional[Node]=None) -> IdentityLayer:
 		return IdentityLayer().to(device)
 
-	@overrides
-	def getNodeMetrics(self) -> Dict[str, Metric]:
+	def getMetrics(self) -> Dict[str, Metric]:
 		return {}
 
-	@overrides
-	def getNodeCriterion(self) -> Callable[[tr.Tensor, tr.Tensor], tr.Tensor]:
+	def getCriterion(self) -> Callable[[tr.Tensor, tr.Tensor], tr.Tensor]:
 		return lambda y, t : ((y - t)**2).mean()	
 
 class A(MyNode):
@@ -100,7 +101,7 @@ class E(MyNode):
 	def __init__(self):
 		super().__init__(nDims=3, name="E", gtKey="E")
 
-class TestGraph:
+class TestGraphStable:
 	def test_get_inputs_1(self):
 		MB = 13
 		dataStuff = {A : 5, B : 7, C : 10, D : 6, E : 3}
@@ -150,5 +151,5 @@ class TestGraph:
 
 if __name__ == "__main__":
 	# TestGraph().test_get_inputs_1()
-	TestGraph().test_train_1()
+	TestGraphStable().test_train_1()
 	pass
