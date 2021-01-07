@@ -71,11 +71,12 @@ class CarlaH5PathsReader(H5BatchedDatasetReader):
 		neighbours = {"t%+d" % delta : self.getIdAtTimeDelta(ids, delta=delta) for delta in deltas}
 		Keys = copy(dataBuckets["data"])
 		for delta in deltas:
-			# optical_flow(t-1, t) for delta == -1
-			flowKey = "optical_flow(t%+d, t)" % delta
-			dimGetter[flowKey] = partial(flowReadFunction, neighbours=neighbours, delta=delta)
-			dimTransform["data"][flowKey] = partial(opticalFlowNorm, readerObj=self)
-			dataBuckets["data"].append(flowKey)
+			if "optical_flow" in dataBuckets:
+				# optical_flow(t-1, t) for delta == -1
+				flowKey = "optical_flow(t%+d, t)" % delta
+				dimGetter[flowKey] = partial(flowReadFunction, neighbours=neighbours, delta=delta)
+				dimTransform["data"][flowKey] = partial(opticalFlowNorm, readerObj=self)
+				dataBuckets["data"].append(flowKey)
 
 			# Add pose regardless for depth warping (if needed)
 			poseKey = "pose(t%+d)" % delta
