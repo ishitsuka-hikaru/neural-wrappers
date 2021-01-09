@@ -40,7 +40,7 @@ class TestCachedDatasetReader:
 		reader = CachedDatasetReader(Reader(), cache=simple_caching.DictMemory(), buildCache=True)
 		index = 0
 		g = reader.iterate()
-		assert reader.cache.check(reader.cacheKey(g.indexFn(index))) == False
+		assert reader.cache.check(reader.cacheKey(g.indexFn(index))) == True
 		item = g[index]
 		rgb = item["data"]["rgb"]
 		assert reader.cache.check(reader.cacheKey(g.indexFn(index))) == True
@@ -139,7 +139,7 @@ class TestCachedDatasetReaderBatched:
 		reader = CachedDatasetReader(BatchedReader(), cache=simple_caching.DictMemory(), buildCache=True)
 		index = 0
 		g = reader.iterate()
-		assert reader.cache.check(reader.cacheKey(g.indexFn(index))) == False
+		assert reader.cache.check(reader.cacheKey(g.indexFn(index))) == True
 		item = g[index]
 		rgb = item[0]["data"]["rgb"]
 		assert reader.cache.check(reader.cacheKey(g.indexFn(index))) == True
@@ -237,28 +237,22 @@ class TestCachedDatasetReaderBatched:
 		cache = simple_caching.DictMemory()
 		
 		baseReader = RandomIndexDatasetReader(BatchedReader(N=100), seed=42)
-		gBase = baseReader.iterateForever()
-		resBase = []
-		for i in range(len(gBase)):
-			resBase.append(next(gBase))
-		print(resBase)
 
 		reader1 = CachedDatasetReader(baseReader, cache=cache, buildCache=True)
 		reader2 = CachedDatasetReader(baseReader, cache=cache, buildCache=False)
 		
+		gBase = baseReader.iterateForever()
 		g1 = reader1.iterateForever()
 		g2 = reader2.iterateForever()
 
 		# First, check consistency (even though our dataset is theoretically not cachable!)
-		res1, res2 = [], []
+		resBase, res1, res2 = [], [], []
 		for i in range(len(gBase)):
+			resBase.append(next(gBase))
 			res1.append(next(g1))
 			res2.append(next(g2))
-		print(res1)
 		assert not deepCheckEqual(resBase, res1)
 		assert deepCheckEqual(res1, res2)
-
-		exit()
 		
 		# Then, rebuild the cache, it should be dirty, thus a new roll should've been generated
 		reader3 = CachedDatasetReader(baseReader, cache=cache, buildCache=True)
@@ -266,7 +260,6 @@ class TestCachedDatasetReaderBatched:
 		res3 = []
 		for i in range(len(g3)):
 			res3.append(next(g3))
-		breakpoint()
 		assert not deepCheckEqual(resBase, res3)
 		assert not deepCheckEqual(res1, res3)
 		assert not deepCheckEqual(res2, res3)
