@@ -43,7 +43,7 @@ class BatchedDatasetReader(DatasetReader):
 
 	@overrides
 	def __getitem__(self, index:DatasetIndex) -> DatasetItem:
-		assert not isinstance(index, int)
+		assert not isinstance(index, (int, np.integer))
 		return super().__getitem__(index)
 
 	@overrides

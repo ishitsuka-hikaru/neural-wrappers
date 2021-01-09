@@ -31,6 +31,9 @@ class DatasetGenerator:
 	def __iter__(self):
 		return self
 
+	def __getitem__(self, key):
+		return self.currentGenerator.__getitem__(key)
+
 	def __getattr__(self, key):
 		if isinstance(self.currentGenerator, BackgroundGenerator):
 			return getattr(self.currentGenerator.generator, key)

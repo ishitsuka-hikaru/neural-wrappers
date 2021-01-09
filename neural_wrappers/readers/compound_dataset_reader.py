@@ -19,24 +19,20 @@ class CompoundDatasetEpochIterator(DatasetEpochIterator):
 			self.batchLens = getBatchLens(batches)
 			self.len = len(self.batches)
 			self.isBatched = True
+			self.indexFn = lambda ix : self.batches[ix]
 		except Exception as e:
 			self.isBatched = False
 			self.len = len(self.reader)
+			self.indexFn = lambda ix : ix
 
 	@overrides
 	def __getitem__(self, ix):
+		index = self.indexFn(ix)
+		item = self.reader[index]
 		if self.isBatched:
-			batchIndex = self.batches[ix]
 			batchSize = self.batchLens[ix]
-			batchItem = self.reader[batchIndex]
-			item = batchItem, batchSize
-		else:
-			item = self.reader[ix]
+			item = item, batchSize
 		return item
-
-	@overrides
-	def __iter__(self):
-		return self
 
 # Helper class for batched algorithms (or even more (?))
 class CompoundDatasetReader(DatasetReader):

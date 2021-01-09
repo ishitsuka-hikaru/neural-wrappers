@@ -27,22 +27,24 @@ class TestCachedDatasetReader:
 	def test_getItem_1(self):
 		reader = CachedDatasetReader(Reader(), cache=simple_caching.DictMemory(), buildCache=False)
 		index = 0
-		assert reader.cache.check(reader.cacheKey(index)) == False
-		item = reader[index]
+		g = reader.iterate()
+		assert reader.cache.check(reader.cacheKey(g.indexFn(index))) == False
+		item = g[index]
 		rgb = item["data"]["rgb"]
-		assert reader.cache.check(reader.cacheKey(index)) == True
-		itemCache = reader[index]
+		assert reader.cache.check(reader.cacheKey(g.indexFn(index))) == True
+		itemCache = g[index]
 		rgbCache = itemCache["data"]["rgb"]
 		assert np.abs(rgb - rgbCache).sum() < 1e-5
 
 	def test_getItem_2(self):
 		reader = CachedDatasetReader(Reader(), cache=simple_caching.DictMemory(), buildCache=True)
 		index = 0
-		assert reader.cache.check(reader.cacheKey(index)) == True
-		item = reader[index]
+		g = reader.iterate()
+		assert reader.cache.check(reader.cacheKey(g.indexFn(index))) == False
+		item = g[index]
 		rgb = item["data"]["rgb"]
-		assert reader.cache.check(reader.cacheKey(index)) == True
-		itemCache = reader[index]
+		assert reader.cache.check(reader.cacheKey(g.indexFn(index))) == True
+		itemCache = g[index]
 		rgbCache = itemCache["data"]["rgb"]
 		assert np.abs(rgb - rgbCache).sum() < 1e-5
 
@@ -51,14 +53,14 @@ class TestCachedDatasetReader:
 		generator = reader.iterateOneEpoch()
 		rgbs = []
 		for i in range(len(generator)):
-			assert reader.cache.check(reader.cacheKey(i)) == False
+			assert reader.cache.check(reader.cacheKey(generator.indexFn(i))) == False
 			item = next(generator)
 			rgb = item["data"]["rgb"]
 			rgbs.append(rgb)
 
 		generator = reader.iterateOneEpoch()
 		for i in range(len(generator)):
-			assert reader.cache.check(reader.cacheKey(i)) == True
+			assert reader.cache.check(reader.cacheKey(generator.indexFn(i))) == True
 			item = next(generator)
 			rgb = item["data"]["rgb"]
 			assert np.abs(rgbs[i] - rgb).sum() < 1e-5
@@ -75,12 +77,12 @@ class TestCachedDatasetReader:
 				break
 
 			if i < n:
-				assert reader.cache.check(reader.cacheKey(i)) == False
+				assert reader.cache.check(reader.cacheKey(generator.indexFn(i))) == False
 				item = next(generator)
 				rgb = item["data"]["rgb"]
 				rgbs.append(rgb)
 			else:
-				assert reader.cache.check(reader.cacheKey(i - n)) == True
+				assert reader.cache.check(reader.cacheKey(generator.indexFn(i - n))) == True
 				item = next(generator)
 				rgb = item["data"]["rgb"]
 				assert np.abs(rgb - rgbs[i - n]).sum() < 1e-5
@@ -123,26 +125,26 @@ class TestCachedDatasetReaderBatched:
 
 	def test_getBatchItem_1(self):
 		reader = CachedDatasetReader(BatchedReader(), cache=simple_caching.DictMemory(), buildCache=False)
-		batches = reader.getBatches()
-		index = batches[0]
-		assert reader.cache.check(reader.cacheKey(index)) == False
-		item = reader[index]
-		rgb = item["data"]["rgb"]
-		assert reader.cache.check(reader.cacheKey(index)) == True
-		itemCache = reader[index]
-		rgbCache = itemCache["data"]["rgb"]
+		index = 0
+		g = reader.iterate()
+		assert reader.cache.check(reader.cacheKey(g.indexFn(index))) == False
+		item = g[index]
+		rgb = item[0]["data"]["rgb"]
+		assert reader.cache.check(reader.cacheKey(g.indexFn(index))) == True
+		itemCache = g[index]
+		rgbCache = itemCache[0]["data"]["rgb"]
 		assert np.abs(rgb - rgbCache).sum() < 1e-5
 
 	def test_getBatchItem_2(self):
 		reader = CachedDatasetReader(BatchedReader(), cache=simple_caching.DictMemory(), buildCache=True)
-		batches = reader.getBatches()
-		index = batches[0]
-		assert reader.cache.check(reader.cacheKey(index)) == True
-		item = reader[index]
-		rgb = item["data"]["rgb"]
-		assert reader.cache.check(reader.cacheKey(index)) == True
-		itemCache = reader[index]
-		rgbCache = itemCache["data"]["rgb"]
+		index = 0
+		g = reader.iterate()
+		assert reader.cache.check(reader.cacheKey(g.indexFn(index))) == False
+		item = g[index]
+		rgb = item[0]["data"]["rgb"]
+		assert reader.cache.check(reader.cacheKey(g.indexFn(index))) == True
+		itemCache = g[index]
+		rgbCache = itemCache[0]["data"]["rgb"]
 		assert np.abs(rgb - rgbCache).sum() < 1e-5
 
 	def test_iterateOneEpoch_1(self):
@@ -150,16 +152,14 @@ class TestCachedDatasetReaderBatched:
 		generator = reader.iterateOneEpoch()
 		rgbs = []
 		for i in range(len(generator)):
-			batchIndex = generator.batches[i]
-			assert reader.cache.check(reader.cacheKey(batchIndex)) == False
+			assert reader.cache.check(reader.cacheKey(generator.indexFn(i))) == False
 			item, B = next(generator)
 			rgb = item["data"]["rgb"]
 			rgbs.append(rgb)
 
 		generator = reader.iterateOneEpoch()
 		for i in range(len(generator)):
-			batchIndex = generator.batches[i]
-			assert reader.cache.check(reader.cacheKey(batchIndex)) == True
+			assert reader.cache.check(reader.cacheKey(generator.indexFn(i))) == True
 			item, B = next(generator)
 			rgb = item["data"]["rgb"]
 			assert np.abs(rgbs[i] - rgb).sum() < 1e-5
@@ -171,8 +171,7 @@ class TestCachedDatasetReaderBatched:
 		generator = reader.iterateOneEpoch()
 		rgbs = []
 		for i in range(len(generator)):
-			batchIndex = generator.batches[i]
-			assert reader.cache.check(reader.cacheKey(batchIndex)) == False
+			assert reader.cache.check(reader.cacheKey(generator.indexFn(i))) == False
 			item, B = next(generator)
 			rgb = item["data"]["rgb"]
 			rgbs.append(rgb)
@@ -180,8 +179,7 @@ class TestCachedDatasetReaderBatched:
 		generator1 = reader.iterateOneEpoch()
 		assert len(generator) == len(generator1)
 		for i in range(len(generator1)):
-			batchIndex = generator1.batches[i]
-			assert reader.cache.check(reader.cacheKey(batchIndex)) == True
+			assert reader.cache.check(reader.cacheKey(generator1.indexFn(i))) == True
 			item, B = next(generator1)
 			rgb = item["data"]["rgb"]
 			assert np.abs(rgbs[i] - rgb).sum() < 1e-5
@@ -191,8 +189,7 @@ class TestCachedDatasetReaderBatched:
 		generator2 = reader2.iterateOneEpoch()
 		assert len(generator) == len(generator2)
 		for i in range(len(generator2)):
-			batchIndex = generator2.batches[i]
-			assert reader.cache.check(reader.cacheKey(batchIndex)) == True
+			assert reader.cache.check(reader.cacheKey(generator2.indexFn(i))) == True
 			item, B = next(generator2)
 			rgb = item["data"]["rgb"]
 			assert np.abs(rgbs[i] - rgb).sum() < 1e-5
@@ -202,8 +199,7 @@ class TestCachedDatasetReaderBatched:
 		generator3 = reader3.iterateOneEpoch()
 		assert len(generator) != len(generator3)
 		for i in range(len(generator3)):
-			batchIndex = generator3.batches[i]
-			assert reader.cache.check(reader.cacheKey(batchIndex)) == False
+			assert reader.cache.check(reader.cacheKey(generator3.indexFn(i))) == False
 			item, B = next(generator3)
 			rgb = item["data"]["rgb"]
 			assert len(rgbs[i]) != len(rgb)
@@ -212,8 +208,7 @@ class TestCachedDatasetReaderBatched:
 		generator4 = reader4.iterateOneEpoch()
 		assert len(generator3) == len(generator4)
 		for i in range(len(generator4)):
-			batchIndex = generator4.batches[i]
-			assert reader4.cache.check(reader.cacheKey(batchIndex)) == True
+			assert reader4.cache.check(reader.cacheKey(generator4.indexFn(i))) == True
 
 	def test_iterateForever_1(self):
 		reader = CachedDatasetReader(BatchedReader(), cache=simple_caching.DictMemory(), buildCache=False)
@@ -241,36 +236,45 @@ class TestCachedDatasetReaderBatched:
 	def test_dirty_1(self):
 		cache = simple_caching.DictMemory()
 		
-		baseReader = RandomIndexDatasetReader(BatchedReader(N=100))
+		baseReader = RandomIndexDatasetReader(BatchedReader(N=100), seed=42)
+		gBase = baseReader.iterateForever()
+		resBase = []
+		for i in range(len(gBase)):
+			resBase.append(next(gBase))
+		print(resBase)
+
 		reader1 = CachedDatasetReader(baseReader, cache=cache, buildCache=True)
 		reader2 = CachedDatasetReader(baseReader, cache=cache, buildCache=False)
 		
-		gBase = baseReader.iterateForever()
 		g1 = reader1.iterateForever()
 		g2 = reader2.iterateForever()
 
 		# First, check consistency (even though our dataset is theoretically not cachable!)
-		resBase, res1, res2 = [], [], []
+		res1, res2 = [], []
 		for i in range(len(gBase)):
-			resBase.append(next(gBase))
 			res1.append(next(g1))
 			res2.append(next(g2))
+		print(res1)
 		assert not deepCheckEqual(resBase, res1)
 		assert deepCheckEqual(res1, res2)
+
+		exit()
 		
 		# Then, rebuild the cache, it should be dirty, thus a new roll should've been generated
-		# reader3 = CachedDatasetReader(baseReader, cache=cache, buildCache=True)
-		# g3 = reader3.iterate()
-		# res3 = []
-		# for i in range(len(g3)):
-		# 	res3.append(next(g3))
-		# assert not deepCheckEqual(resBase, res3)
-		# assert not deepCheckEqual(res1, res3)
-		# assert not deepCheckEqual(res2, res3)
+		reader3 = CachedDatasetReader(baseReader, cache=cache, buildCache=True)
+		g3 = reader3.iterate()
+		res3 = []
+		for i in range(len(g3)):
+			res3.append(next(g3))
+		breakpoint()
+		assert not deepCheckEqual(resBase, res3)
+		assert not deepCheckEqual(res1, res3)
+		assert not deepCheckEqual(res2, res3)
 
 def main():
-	# TestCachedDatasetReader().test_getItem_1()
-	TestCachedDatasetReaderBatched().test_dirty_1()
+	# TestCachedDatasetReaderBatched().test_iterateOneEpoch_2()
+	TestCachedDatasetReader().test_getItem_1()
+	# TestCachedDatasetReaderBatched().test_dirty_1()
 
 if __name__ == "__main__":
 	main()
