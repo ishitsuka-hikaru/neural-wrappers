@@ -1,10 +1,23 @@
 import numpy as np
-from overrides import overrides
-from typing import Any, Iterator, Dict, Callable
-from neural_wrappers.readers import CompoundDatasetReader, StaticBatchedDatasetReader, BatchedDatasetReader
+from typing import List, Any, Iterator, Dict, Callable
+from neural_wrappers.readers import CompoundDatasetReader, StaticBatchedDatasetReader, CachedDatasetReader, \
+	BatchedDatasetReader, MergeBatchedDatasetReader, DatasetItem
+from simple_caching import DictMemory
 
 from test_dataset_reader import DummyDataset
 from batched_dataset_reader.test_batched_dataset_reader import Reader as BatchedReader
+
+def mergeItems(items:List[DatasetItem]) -> DatasetItem:
+	rgbs = np.stack([item["data"]["rgb"] for item in items], axis=0)
+	classes = len(items) * [0]
+	item = {"data": {"rgb" : rgbs}, "labels" : {"class" : classes}}
+	return item
+
+def batchesFn() -> List[int]:
+	# batchSizes = [4, 1, 2, 3], so batch[0] has a size of 4, batch[2] a size of 2 etc.
+	batchSizes = np.array([4, 1, 2, 3], dtype=np.int32)
+	batches = batchIndexFromBatchSizes(batchSizes)
+	return batches
 
 class TestCompoundDatasetReader:
 	def test_constructor_1(self):
@@ -166,9 +179,28 @@ class TestCompoundDatasetReaderBatched:
 			if j == 100:
 				break
 
+class TestComboCompounds:
+	def test_combo_1(self):
+		reader1 = DummyDataset()
+		reader2 = CachedDatasetReader(reader1, cache=DictMemory(), buildCache=False)
+		reader3 = MergeBatchedDatasetReader(reader2, mergeFn=mergeItems)
+		reader4 = StaticBatchedDatasetReader(reader3, 3)
+
+		g2 = reader2.iterate()
+		for i in range(len(g2)):
+			assert reader2.cache.check(reader2.cacheKey(g2.indexFn(i))) == False
+
+		g4 = reader4.iterate()
+		for i in range(len(g4)):
+			_ = next(g4)
+
+		for i in range(len(g2)):
+			assert reader2.cache.check(reader2.cacheKey(g2.indexFn(i))) == True
+
 def main():
 	# TestDatasetReader().test_constructor_1()
-	TestCompoundDatasetReaderBatched().test_getBatchItem_3()
+	# TestCompoundDatasetReaderBatched().test_getBatchItem_3()
+	TestComboCompounds().test_combo_1()
 
 if __name__ == "__main__":
 	main()
