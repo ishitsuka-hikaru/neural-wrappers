@@ -2,7 +2,7 @@ import numpy as np
 import os
 import pickle
 from collections import OrderedDict
-from typing import Dict, Sequence, Union, Iterable, List
+from typing import Dict, Sequence, Union, Iterable, List, Optional
 from functools import reduce
 from .np_utils import npCloseEnough
 from .type_utils import NWNumber, NWSequence, NWDict, isBaseOf, T
@@ -47,7 +47,8 @@ def isSubsetOf(subset, set):
 			return False
 	return True
 
-def changeDirectory(Dir, expectExist=None):
+def changeDirectory(Dir:str, expectExist:Optional[bool]=None):
+	assert not Dir is None, ""
 	if expectExist in (True, False):
 		assert os.path.exists(Dir) == expectExist, "Exists: %s" % Dir
 	print("Changing to working directory:", Dir)

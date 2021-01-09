@@ -1,9 +1,8 @@
 import numpy as np
 import simple_caching
 from overrides import overrides
-from typing import Tuple, List, Any
-from neural_wrappers.readers import CachedDatasetReader, DatasetItem, DatasetIndex, StaticBatchedDatasetReader
-from neural_wrappers.utilities import getGenerators
+from neural_wrappers.readers import CachedDatasetReader, StaticBatchedDatasetReader, RandomIndexDatasetReader
+from neural_wrappers.utilities import deepCheckEqual
 
 import sys
 sys.path.append("..")
@@ -86,6 +85,36 @@ class TestCachedDatasetReader:
 				rgb = item["data"]["rgb"]
 				assert np.abs(rgb - rgbs[i - n]).sum() < 1e-5
 			i += 1
+
+	def test_dirty_1(self):
+		cache = simple_caching.DictMemory()
+		
+		baseReader = RandomIndexDatasetReader(Reader(N=100))
+		reader1 = CachedDatasetReader(baseReader, cache=cache, buildCache=True)
+		reader2 = CachedDatasetReader(baseReader, cache=cache, buildCache=False)
+		
+		gBase = baseReader.iterateForever()
+		g1 = reader1.iterateForever()
+		g2 = reader2.iterateForever()
+
+		# First, check consistency (even though our dataset is theoretically not cachable!)
+		resBase, res1, res2 = [], [], []
+		for i in range(len(gBase)):
+			resBase.append(next(gBase))
+			res1.append(next(g1))
+			res2.append(next(g2))
+		assert not deepCheckEqual(resBase, res1)
+		assert deepCheckEqual(res1, res2)
+		
+		# Then, rebuild the cache, it should be dirty, thus a new roll should've been generated
+		reader3 = CachedDatasetReader(baseReader, cache=cache, buildCache=True)
+		g3 = reader3.iterate()
+		res3 = []
+		for i in range(len(g3)):
+			res3.append(next(g3))
+		assert not deepCheckEqual(resBase, res3)
+		assert not deepCheckEqual(res1, res3)
+		assert not deepCheckEqual(res2, res3)
 
 class TestCachedDatasetReaderBatched:
 	def test_constructor_1(self):
@@ -209,8 +238,39 @@ class TestCachedDatasetReaderBatched:
 				assert np.abs(rgb - rgbs[i - n]).sum() < 1e-5
 			i += 1
 
+	def test_dirty_1(self):
+		cache = simple_caching.DictMemory()
+		
+		baseReader = RandomIndexDatasetReader(BatchedReader(N=100))
+		reader1 = CachedDatasetReader(baseReader, cache=cache, buildCache=True)
+		reader2 = CachedDatasetReader(baseReader, cache=cache, buildCache=False)
+		
+		gBase = baseReader.iterateForever()
+		g1 = reader1.iterateForever()
+		g2 = reader2.iterateForever()
+
+		# First, check consistency (even though our dataset is theoretically not cachable!)
+		resBase, res1, res2 = [], [], []
+		for i in range(len(gBase)):
+			resBase.append(next(gBase))
+			res1.append(next(g1))
+			res2.append(next(g2))
+		assert not deepCheckEqual(resBase, res1)
+		assert deepCheckEqual(res1, res2)
+		
+		# Then, rebuild the cache, it should be dirty, thus a new roll should've been generated
+		# reader3 = CachedDatasetReader(baseReader, cache=cache, buildCache=True)
+		# g3 = reader3.iterate()
+		# res3 = []
+		# for i in range(len(g3)):
+		# 	res3.append(next(g3))
+		# assert not deepCheckEqual(resBase, res3)
+		# assert not deepCheckEqual(res1, res3)
+		# assert not deepCheckEqual(res2, res3)
+
 def main():
-	TestCachedDatasetReader().test_getItem_1()
+	# TestCachedDatasetReader().test_getItem_1()
+	TestCachedDatasetReaderBatched().test_dirty_1()
 
 if __name__ == "__main__":
 	main()

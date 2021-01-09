@@ -4,7 +4,7 @@ from typing import Any, Iterator, Dict, Callable
 from neural_wrappers.readers import DatasetReader, DatasetIndex
 
 class DummyDataset(DatasetReader):
-	def __init__(self):
+	def __init__(self, N=10):
 		super().__init__(
 			dataBuckets = {"data" : ["rgb"], "labels" : ["class"]},
 			dimGetter = {
@@ -13,7 +13,7 @@ class DummyDataset(DatasetReader):
 			},
 			dimTransform = {}
 		)
-		self.dataset = np.random.randn(10, 3)
+		self.dataset = np.random.randn(N, 3)
 
 	@overrides
 	def getDataset(self) -> Any:

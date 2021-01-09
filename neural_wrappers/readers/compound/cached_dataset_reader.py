@@ -13,7 +13,9 @@ def buildRegular(iterator, cache):
 	for i in trange(N, desc="[CachedDatasetReader] Building regular"):
 		key = iterator.reader.cacheKey(i)
 		if not cache.check(key):
-			item = next(iterator)
+			item = iterator[i]
+			# item = next(iterator)
+			# item = super(type(iterator.reader), iterator.reader).__getitem__(i)
 			cache.set(key, item)
 
 def buildDirty(iterator, cache):
@@ -22,6 +24,7 @@ def buildDirty(iterator, cache):
 		key = iterator.reader.cacheKey(i)
 		# TODO: What about Compound(Compound...)
 		item = super(type(iterator.reader), iterator.reader).__getitem__(i)
+		# item = iterator[i]
 		cache.set(key, item)
 
 class CachedDatasetReader(CompoundDatasetReader):
