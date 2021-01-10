@@ -1,11 +1,12 @@
+import sys
+import os
 import numpy as np
 from overrides import overrides
 from typing import Tuple, List, Any
 from neural_wrappers.readers import StaticSizedBatchedDatasetReader, DatasetItem, DatasetIndex
 from neural_wrappers.utilities import getGenerators
 
-import sys
-sys.path.append("..")
+sys.path.append(os.path.realpath(os.path.abspath(os.path.dirname(__file__))) + "/..")
 from test_batched_dataset_reader import Reader as BaseReader
 
 class TestStaticSizedBatchedDatasetReader:
@@ -15,22 +16,21 @@ class TestStaticSizedBatchedDatasetReader:
 
 	def test_getItem_1(self):
 		reader = StaticSizedBatchedDatasetReader(BaseReader(), batchSize=1)
-		batches = reader.getBatches()
-		item = reader[batches[0]]
+		item = reader.iterate()[0][0]
 		rgb = item["data"]["rgb"]
 		assert rgb.shape[0] == 1
-		assert reader.batchLens[0] == 1
+		assert reader.iterate().batchLens[0] == 1
 		assert np.abs(rgb - reader.baseReader.dataset[0:1]).sum() < 1e-5
 
 	def test_getItem_2(self):
 		reader = StaticSizedBatchedDatasetReader(BaseReader(), batchSize=1)
-		batches = reader.getBatches()
-		n = len(batches)
+		g = reader.iterate()
+		n = len(g)
+		batches = g.batches
 		for j in range(100):
-			batchIndex = batches[j % n]
-			batchItem = reader[batchIndex]
-			rgb = batchItem["data"]["rgb"]
 			index = batches[j % n]
+			batchItem = g[j % n][0]
+			rgb = batchItem["data"]["rgb"]
 			assert len(rgb) == reader.batchLens[j % n]
 			assert np.abs(rgb - reader.baseReader.dataset[index.start : index.stop]).sum() < 1e-5
 
