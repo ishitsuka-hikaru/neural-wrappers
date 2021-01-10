@@ -11,9 +11,15 @@ class BatchedDatasetEpochIterator(DatasetEpochIterator):
 		# Each iterator has it's own batches (can change for some readers, such as RandomBatchedDatasetReader, where
 		#  each epoch has its own set of batches).
 		super().__init__(reader)
-		self.batches = reader.getBatches()
-		self.batchLens = getBatchLens(self.batches)
-		self.len = len(self.batches)
+		try:
+			self.batches = reader.getBatches()
+			self.batchLens = getBatchLens(self.batches)
+			self.len = len(self.batches)
+		except Exception:
+			# Must be updated from somewhere else (i.e. CompoundDatasetEpochIterator)
+			self.batches = None
+			self.batchLens = None
+			self.len = None
 
 	# We update the logic of getting as follows. For plain (non-batched) datasets we had
 	#  - items = reader[mapping(ix)] for ix in [0 : len(self) - 1]
@@ -28,6 +34,7 @@ class BatchedDatasetEpochIterator(DatasetEpochIterator):
 	#    index = mapping(ix)
 	@overrides
 	def __getitem__(self, ix):
+		assert not self.batches is None, "Batches must be computed before accessing data."
 		batchIndex = self.batches[ix]
 		batchSize = self.batchLens[ix]
 		batchItem = self.reader[batchIndex]

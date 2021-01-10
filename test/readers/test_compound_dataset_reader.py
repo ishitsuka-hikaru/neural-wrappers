@@ -164,10 +164,11 @@ class TestCompoundDatasetReaderBatched:
 
 	def test_iterateForever_2(self):
 		reader = CompoundDatasetReader(CompoundDatasetReader(CompoundDatasetReader(BatchedReader())))
-		batches = reader.getBatches()
-		batchSizes = [(x.stop - x.start) for x in batches]
+		g = reader.iterate()
+		batches = g.batches
+		batchSizes = g.batchLens
 		n = len(batches)
-		for j, (batchItem, B) in enumerate(reader.iterateForever()):
+		for j, (batchItem, B) in enumerate(g):
 			try:
 				assert B == batchSizes[j % n]
 			except Exception as e:
@@ -200,8 +201,8 @@ class TestComboCompounds:
 
 def main():
 	# TestDatasetReader().test_constructor_1()
-	# TestCompoundDatasetReaderBatched().test_getBatchItem_3()
+	TestCompoundDatasetReaderBatched().test_getBatchItem_3()
 	# TestComboCompounds().test_combo_1()
-	TestCompoundDatasetReaderBatched().test_iterateForever_1()
+	# TestCompoundDatasetReaderBatched().test_iterateForever_2()
 if __name__ == "__main__":
 	main()
