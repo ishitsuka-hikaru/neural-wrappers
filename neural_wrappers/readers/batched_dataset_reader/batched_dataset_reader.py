@@ -34,11 +34,13 @@ class BatchedDatasetEpochIterator(DatasetEpochIterator):
 	#    index = mapping(ix)
 	@overrides
 	def __getitem__(self, ix):
-		assert not self.batches is None, "Batches must be computed before accessing data."
-		batchIndex = self.batches[ix]
-		batchSize = self.batchLens[ix]
-		batchItem = super().__getitem__(batchIndex)
-		return batchItem, batchSize
+		# assert not self.batches is None, "Batches must be computed before accessing data."
+		# batchIndex = self.batches[ix]
+		# batchSize = self.batchLens[ix]
+		# batchItem = super().__getitem__(batchIndex)
+		# return batchItem, batchSize
+		ix = (ix, self.batches, self.batchLens)
+		return self.reader[ix]
 
 class BatchedDatasetReader(DatasetReader):
 	def getBatches(self) -> List[int]:
@@ -50,7 +52,11 @@ class BatchedDatasetReader(DatasetReader):
 
 	@overrides
 	def __getitem__(self, index:DatasetIndex) -> DatasetItem:
-		assert False
+		ix, batches, batchLens = index
+		batchIndex = batches[ix]
+		batchSize = batchLens[ix]
+		batchItem = super().__getitem__(batchIndex)
+		return batchItem, batchSize
 
 	@overrides
 	def __str__(self) -> str:

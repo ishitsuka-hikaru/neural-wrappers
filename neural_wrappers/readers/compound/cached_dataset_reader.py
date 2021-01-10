@@ -11,12 +11,6 @@ from ...utilities import deepCheckEqual
 class CachedDatasetEpochIterator(CompoundDatasetEpochIterator):
 	def __init__(self, reader):
 		super().__init__(reader)
-	
-	def __next__(self):
-		self.ix += 1
-		if self.ix < len(self):
-			return self.__getitem__(self.ix)
-		raise StopIteration
 
 	@overrides
 	def __getitem__(self, ix):

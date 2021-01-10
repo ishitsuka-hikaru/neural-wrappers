@@ -52,17 +52,18 @@ class CompoundDatasetEpochIterator(DatasetEpochIterator):
 			self.baseIterator.indexFn = lambda ix : ix
 
 	def __next__(self):
-		return next(self.baseIterator)
+		self.ix += 1
+		if self.ix < len(self):
+			return self.__getitem__(self.ix)
+		raise StopIteration
+
+
+	# def __next__(self):
+	# 	return next(self.baseIterator)
 
 	@overrides
 	def __getitem__(self, ix):
 		return self.baseIterator.__getitem__(ix)
-		# index = self.baseIterator.indexFn(ix)
-		# item = self.baseIterator[index]
-		# if self.baseIterator.isBatched:
-		# 	batchSize = self.baseIterator.batchLens[ix]
-		# 	item = item, batchSize
-		# return item
 
 	@overrides
 	def __len__(self):

@@ -11,15 +11,6 @@ from ..dataset_reader import DatasetReader
 from ..dataset_types import *
 
 class MergeBatchedDatasetEpochIterator(CompoundDatasetEpochIterator):
-	# @brief Gets the items of this batch, one by one, from the base reader, and then
-	#  merges them together using the provided merge method.
-	# @reutrn The current batch of items.
-	def __next__(self):
-		self.ix += 1
-		if self.ix < len(self):
-			return self.__getitem__(self.ix)
-		raise StopIteration
-
 	@overrides
 	def __getitem__(self, ix):
 		index = self.indexFn(ix)

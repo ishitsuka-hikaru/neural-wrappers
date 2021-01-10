@@ -95,7 +95,7 @@ class TestRandomIndexBatchedDatasetReader:
 		assert sum(equal) != N - 1
 
 def main():
-	TestRandomIndexBatchedDatasetReader().test_iterateForever_2()
+	TestRandomIndexDatasetReader().test_iterateForever_1()
 
 if __name__ == "__main__":
 	main()

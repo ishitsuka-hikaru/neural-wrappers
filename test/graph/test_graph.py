@@ -44,8 +44,8 @@ class Reader(BatchedDatasetReader):
 
 	@overrides
 	def __getitem__(self, index):
-		item = super().__getitem__(index)
-		return item["data"], item["data"]
+		item, B = super().__getitem__(index)
+		return (item["data"], item["data"]), B
 
 class Model(FeedForwardNetwork):
 	def __init__(self, inDims, outDims):
