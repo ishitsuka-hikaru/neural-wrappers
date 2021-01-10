@@ -200,7 +200,7 @@ class TestComboCompounds:
 def main():
 	# TestDatasetReader().test_constructor_1()
 	# TestCompoundDatasetReaderBatched().test_getBatchItem_3()
-	TestComboCompounds().test_combo_1()
-
+	# TestComboCompounds().test_combo_1()
+	TestCompoundDatasetReaderBatched().test_iterateForever_1()
 if __name__ == "__main__":
 	main()

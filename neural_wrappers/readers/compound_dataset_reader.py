@@ -3,36 +3,74 @@ from overrides import overrides
 from .dataset_reader import DatasetReader, DatasetEpochIterator
 from .dataset_types import *
 
+# class DatasetEpochIterator:
+# 	def __init__(self, reader:DatasetReader):
+# 		self.reader = reader
+# 		self.ix = -1
+# 		self.len = len(self.reader)
+
+# 	def __len__(self):
+# 		return self.len
+
+# 	def __getitem__(self, ix):
+# 		return self.reader[ix]
+
+# 	# The logic of getting an item is. ix is a number going in range [0 : len(self) - 1]. Then, we call dataset's
+# 	#  __getitem__ on this. So item = self[index], where __getitem__(ix) = self.reader[ix].
+# 	# One-liner: items = self[ix] for ix in [0 : len(self) - 1]
+# 	def __next__(self):
+# 		self.ix += 1
+# 		if self.ix < len(self):
+# 			return self.__getitem__(self.ix)
+# 		raise StopIteration
+
+# 	def __iter__(self):
+# 		return self
+
 class CompoundDatasetEpochIterator(DatasetEpochIterator):
 	def __init__(self, reader):
-		super().__init__(reader)
+	# 	super().__init__(reader)
+		self.reader = reader
 		self.baseReader = reader.baseReader
+		self.baseIterator = self.baseReader.iterateOneEpoch()
 
-		# Some compound algorithms require to call their iterateOneEpoch method too for initializations, for example
-		#  RandomIndexDatasetReader, to initialize the epoch's permutation for __getitem__.
-		if isinstance(reader.baseReader, CompoundDatasetReader):
-			_ = reader.baseReader.iterateOneEpoch()
 		try:
 			from .batched_dataset_reader.utils import getBatchLens
 			batches = self.reader.getBatches()
-			self.batches = batches
-			self.batchLens = getBatchLens(batches)
-			self.len = len(self.batches)
-			self.isBatched = True
-			self.indexFn = lambda ix : self.batches[ix]
+			self.baseIterator.batches = batches
+			self.baseIterator.batchLens = getBatchLens(batches)
+			self.baseIterator.len = len(batches)
 		except Exception as e:
-			self.isBatched = False
-			self.len = len(self.reader)
-			self.indexFn = lambda ix : ix
+			pass
+
+		if hasattr(self.baseIterator, "batches"):
+			self.baseIterator.isBatched = True
+			self.baseIterator.indexFn = lambda ix : self.baseIterator.batches[ix]
+		else:
+			self.baseIterator.isBatched = False
+			self.baseIterator.len = len(self.baseReader)
+			self.baseIterator.indexFn = lambda ix : ix
+
+	def __next__(self):
+		self.baseIterator.ix += 1
+		if self.baseIterator.ix < len(self.baseIterator):
+			return next(self.baseIterator)
 
 	@overrides
 	def __getitem__(self, ix):
-		index = self.indexFn(ix)
-		item = self.reader[index]
-		if self.isBatched:
-			batchSize = self.batchLens[ix]
+		index = self.baseIterator.indexFn(ix)
+		item = self.baseIterator[index]
+		if self.baseIterator.isBatched:
+			batchSize = self.baseIterator.batchLens[ix]
 			item = item, batchSize
 		return item
+
+	@overrides
+	def __len__(self):
+		return self.baseIterator.__len__()
+
+	def __getattr__(self, key):
+		return getattr(self.baseIterator, key)
 
 # Helper class for batched algorithms (or even more (?))
 class CompoundDatasetReader(DatasetReader):

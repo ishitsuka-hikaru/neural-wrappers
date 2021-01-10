@@ -15,7 +15,7 @@ class DatasetEpochIterator:
 		self.reader = reader
 		self.ix = -1
 		self.len = len(self.reader)
-	
+
 	def __len__(self):
 		return self.len
 
