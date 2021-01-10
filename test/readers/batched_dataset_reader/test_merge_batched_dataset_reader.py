@@ -45,27 +45,29 @@ class TestMergeBatchedDatasetReader:
 
 	def test_getBatchItem_1(self):
 		reader = MergeBatchedDatasetReader(DummyDataset(), mergeItems, batchesFn)
-		batches = reader.getBatches()
-		item = reader[batches[0]]
+		g = reader.iterate()
+		item = g[0][0]
 		rgb = item["data"]["rgb"]
 		assert rgb.shape[0] == 4
 		assert np.abs(rgb - reader.dataset[0:4]).sum() < 1e-5
 
 	def test_getBatchItem_2(self):
 		reader = MergeBatchedDatasetReader(DummyDataset(), mergeItems, batchesFn)
-		batches = reader.getBatches()
-		item = reader[batches[0]]
+		g = reader.iterate()
+		batches = g.batches
+		item = g[0]
 		n = len(batches)
 		for j in range(100):
 			index = batches[j % n]
-			batchItem = reader[index]
+			batchItem = g[j % n][0]
 			rgb = batchItem["data"]["rgb"]
 			assert np.abs(rgb - reader.dataset[index.start : index.stop]).sum() < 1e-5
 
 	def test_mergeItems_1(self):
 		reader = MergeBatchedDatasetReader(DummyDataset(), mergeItems, batchesFn)
-		item1 = reader.baseReader[0]
-		item2 = reader.baseReader[1]
+		gBase = reader.baseReader.iterate()
+		item1 = gBase[0]
+		item2 = gBase[1]
 		itemMerged = mergeItems([item1, item2])
 		rgb1 = item1["data"]["rgb"]
 		rgb2 = item2["data"]["rgb"]
@@ -89,7 +91,7 @@ class TestMergeBatchedDatasetReader:
 		reader.baseReader.getBatches = reader.getBatches
 		batches = reader.getBatches()
 		assert reader.batchLens == [4, 4, 2]
-		item = reader[batches[0]]
+		item = reader.iterate()[0][0]
 		rgb = item["data"]["rgb"]
 		assert len(rgb) == 4
 
