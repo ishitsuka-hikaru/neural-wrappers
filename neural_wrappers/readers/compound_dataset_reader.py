@@ -56,16 +56,17 @@ class CompoundDatasetEpochIterator(DatasetEpochIterator):
 
 	@overrides
 	def __getitem__(self, ix):
-		index = self.baseIterator.indexFn(ix)
-		item = self.baseIterator[index]
-		if self.baseIterator.isBatched:
-			batchSize = self.baseIterator.batchLens[ix]
-			item = item, batchSize
-		return item
+		return self.baseIterator.__getitem__(ix)
+		# index = self.baseIterator.indexFn(ix)
+		# item = self.baseIterator[index]
+		# if self.baseIterator.isBatched:
+		# 	batchSize = self.baseIterator.batchLens[ix]
+		# 	item = item, batchSize
+		# return item
 
 	@overrides
 	def __len__(self):
-		return self.baseIterator.__len__()
+		return self.len
 
 	def __getattr__(self, key):
 		return getattr(self.baseIterator, key)
@@ -96,7 +97,7 @@ class CompoundDatasetReader(DatasetReader):
 
 	@overrides
 	def __getitem__(self, key):
-		return self.baseReader.__getitem__(key)
+		assert False
 
 	def __getattr__(self, key):
 		return getattr(self.baseReader, key)

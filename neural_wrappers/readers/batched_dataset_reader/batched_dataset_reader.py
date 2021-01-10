@@ -37,7 +37,7 @@ class BatchedDatasetEpochIterator(DatasetEpochIterator):
 		assert not self.batches is None, "Batches must be computed before accessing data."
 		batchIndex = self.batches[ix]
 		batchSize = self.batchLens[ix]
-		batchItem = self.reader[batchIndex]
+		batchItem = super().__getitem__(batchIndex)
 		return batchItem, batchSize
 
 class BatchedDatasetReader(DatasetReader):
@@ -50,8 +50,7 @@ class BatchedDatasetReader(DatasetReader):
 
 	@overrides
 	def __getitem__(self, index:DatasetIndex) -> DatasetItem:
-		assert not isinstance(index, (int, np.integer))
-		return super().__getitem__(index)
+		assert False
 
 	@overrides
 	def __str__(self) -> str:

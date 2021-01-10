@@ -38,7 +38,7 @@ class TestCompoundDatasetReader:
 
 	def test_getItem_1(self):
 		reader = CompoundDatasetReader(DummyDataset())
-		item = reader[0]
+		item = reader.iterate()[0]
 		rgb = item["data"]["rgb"]
 		assert np.abs(reader.dataset[0] - rgb).sum() < 1e-5
 
@@ -106,21 +106,22 @@ class TestCompoundDatasetReaderBatched:
 
 	def test_getBatchItem_1(self):
 		reader = CompoundDatasetReader(BatchedReader())
-		batches = reader.getBatches()
-		item = reader[batches[0]]
-		rgb = item["data"]["rgb"]
+		# batches = reader.getBatches()
+		g = reader.iterate()
+		item = g[0]
+		rgb = item[0]["data"]["rgb"]
 		assert rgb.shape[0] == 4
 		assert np.abs(rgb - reader.dataset[0:4]).sum() < 1e-5
 
 	def test_getBatchItem_2(self):
 		reader = CompoundDatasetReader(BatchedReader())
-		batches = reader.getBatches()
-		item = reader[batches[0]]
-		n = len(batches)
+		g = reader.iterate()
+		item = g[0]
+		n = len(g)
 		for j in range(100):
-			index = batches[j % n]
-			batchItem = reader[index]
-			rgb = batchItem["data"]["rgb"]
+			batchItem = g[j % n]
+			rgb = batchItem[0]["data"]["rgb"]
+			index = g.batches[j % n]
 			assert np.abs(rgb - reader.dataset[index.start : index.stop]).sum() < 1e-5
 
 	def test_getBatchItem_3(self):
@@ -139,8 +140,8 @@ class TestCompoundDatasetReaderBatched:
 		assert len(batches) == len(generator)
 		for i in range(len(generator)):
 			index = batches[i]
-			batchItem = reader[index]
-			rgb = batchItem["data"]["rgb"]
+			batchItem = generator[i]
+			rgb = batchItem[0]["data"]["rgb"]
 			assert np.abs(rgb - reader.dataset[index.start : index.stop]).sum() < 1e-5
 
 	def test_iterateForever_1(self):
@@ -199,10 +200,33 @@ class TestComboCompounds:
 		for i in range(len(g2)):
 			assert reader2.cache.check(reader2.cacheKey(g2.indexFn(i))) == True
 
+	def test_combo_2(self):
+		reader1 = DummyDataset()
+		reader2 = CachedDatasetReader(reader1, cache=DictMemory(), buildCache=True)
+		reader3 = MergeBatchedDatasetReader(reader2, mergeFn=mergeItems)
+		reader4 = StaticBatchedDatasetReader(reader3, 3)
+
+		rgbs4 = []
+		g4 = reader4.iterate()
+		for i in range(len(g4)):
+			items, B = next(g4)
+			assert B == g4.batchLens[i]
+			rgbs4.append(items["data"]["rgb"])
+		rgbs4 = np.concatenate(rgbs4)
+
+		rgbs2 = []
+		g2 = reader2.iterate()
+		for i in range(len(g2)):
+			assert reader2.cache.check(reader2.cacheKey(g2.indexFn(i))) == True
+			item = next(g2)
+			rgbs2.append(item["data"]["rgb"][None])
+		rgbs2 = np.concatenate(rgbs2)
+		assert np.abs(rgbs2 - rgbs4).sum() <= 1e-5
+
 def main():
 	# TestDatasetReader().test_constructor_1()
-	# TestCompoundDatasetReaderBatched().test_getBatchItem_3()
-	TestComboCompounds().test_combo_1()
+	TestCompoundDatasetReaderBatched().test_getBatchItem_1()
+	# TestComboCompounds().test_combo_2()
 	# TestCompoundDatasetReaderBatched().test_iterateForever_2()
 if __name__ == "__main__":
 	main()

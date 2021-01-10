@@ -25,7 +25,7 @@ class CachedDatasetEpochIterator(CompoundDatasetEpochIterator):
 		if self.reader.cache.check(key):
 			return self.reader.cache.get(key)
 		else:
-			item = super().__getitem__(ix)
+			item = self.baseIterator.__getitem__(ix)
 			self.reader.cache.set(key, item)
 			return item
 

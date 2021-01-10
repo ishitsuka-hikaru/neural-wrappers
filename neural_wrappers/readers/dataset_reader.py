@@ -20,7 +20,29 @@ class DatasetEpochIterator:
 		return self.len
 
 	def __getitem__(self, ix):
-		return self.reader[ix]
+		dataBuckets = self.reader.datasetFormat.dataBuckets
+		allDims = self.reader.datasetFormat.allDims
+		dimGetter = self.reader.datasetFormat.dimGetter
+		dimTransforms = self.reader.datasetFormat.dimTransform
+		dimToDataBuckets = self.reader.datasetFormat.dimToDataBuckets
+		dataset = self.reader.getDataset()
+
+		# The result is simply a dictionary that follows the (shallow, for now) dataBuckets of format.
+		result = {k : {k2 : None for k2 in dataBuckets[k]} for k in dataBuckets}
+		# rawItems = {k : None for k in allDims}
+		for dim in allDims:
+			getterFn = dimGetter[dim]
+			# Call the getter only once for efficiency
+			rawItem = getterFn(dataset, ix)
+			# rawItems[dim] = rawItem
+			# Call the transformer for each data bucket independently (labels and data may use same
+			#  dim but do a different transformation (such as normalized in data and unnormalized in
+			#  labels for metrics or plotting or w/e.
+			for bucket in dimToDataBuckets[dim]:
+				transformFn = dimTransforms[bucket][dim]
+				item = transformFn(deepcopy(rawItem))
+				result[bucket][dim] = item
+		return result
 
 	# The logic of getting an item is. ix is a number going in range [0 : len(self) - 1]. Then, we call dataset's
 	#  __getitem__ on this. So item = self[index], where __getitem__(ix) = self.reader[ix].
@@ -84,29 +106,7 @@ class DatasetReader(ABC):
 	#  and will call dimGetter for each dimension for this index.
 	# @return The item at index i
 	def __getitem__(self, index):
-		dataBuckets = self.datasetFormat.dataBuckets
-		allDims = self.datasetFormat.allDims
-		dimGetter = self.datasetFormat.dimGetter
-		dimTransforms = self.datasetFormat.dimTransform
-		dataset = self.getDataset()
-		dimToDataBuckets = self.datasetFormat.dimToDataBuckets
-
-		# The result is simply a dictionary that follows the (shallow, for now) dataBuckets of format.
-		result = {k : {k2 : None for k2 in dataBuckets[k]} for k in dataBuckets}
-		# rawItems = {k : None for k in allDims}
-		for dim in allDims:
-			getterFn = dimGetter[dim]
-			# Call the getter only once for efficiency
-			rawItem = getterFn(dataset, index)
-			# rawItems[dim] = rawItem
-			# Call the transformer for each data bucket independently (labels and data may use same
-			#  dim but do a different transformation (such as normalized in data and unnormalized in
-			#  labels for metrics or plotting or w/e.
-			for bucket in dimToDataBuckets[dim]:
-				transformFn = dimTransforms[bucket][dim]
-				item = transformFn(deepcopy(rawItem))
-				result[bucket][dim] = item
-		return result
+		assert False
 
 	def __iter__(self):
 		return self.iterateOneEpoch()
