@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from neural_wrappers.pytorch import FeedForwardNetwork, device
 from neural_wrappers.metrics import Accuracy
-from neural_wrappers.graph_stable import Graph, Edge, Node, ReduceNode
+from neural_wrappers.graph import Graph, Edge, Node, ReduceNode
 
 def f(obj, x):
 	del x["GT"]

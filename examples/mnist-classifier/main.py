@@ -1,6 +1,6 @@
 import sys
 import h5py
-import pycache
+from simple_caching import NpyFS
 import numpy as np
 import torch as tr
 import torch.optim as optim
@@ -39,8 +39,8 @@ def getArgs():
 # Small wrapper used for current NWModule implementation of runOneEpoch. Will update when NWModule is updated.
 class Reader(MNISTReader):
 	def __getitem__(self, index):
-		item = super().__getitem__(index)
-		return item["data"], item["labels"]["labels"]
+		item, B = super().__getitem__(index)
+		return (item["data"], item["labels"]["labels"]), B
 
 def lossFn(y, t):
 	# Negative log-likeklihood (used for softmax+NLL for classification), expecting targets are one-hot encoded
@@ -55,8 +55,9 @@ def main():
 	validationReader = StaticBatchedDatasetReader(Reader(h5py.File(args.dataset_path, "r")["test"]), args.batchSize)
 	# trainReader = RandomBatchedDatasetReader(Reader(h5py.File(args.dataset_path, "r")["train"]))
 	# validationReader = RandomBatchedDatasetReader(Reader(h5py.File(args.dataset_path, "r")["test"]))
-	trainReader = CachedDatasetReader(trainReader, cache=pycache.NpyFS(".cache/%s" % hash(trainReader)))
-	validationReader = CachedDatasetReader(validationReader, cache=pycache.NpyFS(".cache/%s" % hash(validationReader)))
+	trainReader = CachedDatasetReader(trainReader, cache=NpyFS(".cache/%s" % hash(trainReader)), buildCache=False)
+	validationReader = CachedDatasetReader(validationReader, cache=NpyFS(".cache/%s" % hash(validationReader)), \
+		buildCache=False)
 	print(trainReader)
 	print(validationReader)
 

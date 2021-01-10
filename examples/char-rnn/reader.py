@@ -61,9 +61,9 @@ class Reader(BatchedDatasetReader):
 		return self.stepsPerEpoch
 
 	def __getitem__(self, index):
-		item = super().__getitem__(index)
+		item, batchSize = super().__getitem__(index)
 		item = item["data"]["sentence"]
-		batchSize = len(item)
+		# batchSize = len(item)
 
 		X = np.zeros((self.sequenceSize, batchSize, len(self.charToIx)), dtype=np.float32)
 		t = np.zeros((self.sequenceSize, batchSize, len(self.charToIx)), dtype=np.bool)
@@ -73,4 +73,4 @@ class Reader(BatchedDatasetReader):
 			_X, _t = sentence[0 : -1], sentence[1 : ]
 			X[:, j] = self.sentenceToVector(_X)
 			t[:, j] = self.sentenceToVector(_t)
-		return (X, None), t
+		return ((X, None), t), batchSize

@@ -59,5 +59,5 @@ class Reader(H5BatchedDatasetReader):
 
 	@overrides
 	def __getitem__(self, key):
-		item = super().__getitem__(key)
-		return item["data"], item["data"]
+		item, B = super().__getitem__(key)
+		return (item["data"], item["data"]), B
