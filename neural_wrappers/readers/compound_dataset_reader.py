@@ -52,9 +52,7 @@ class CompoundDatasetEpochIterator(DatasetEpochIterator):
 			self.baseIterator.indexFn = lambda ix : ix
 
 	def __next__(self):
-		self.baseIterator.ix += 1
-		if self.baseIterator.ix < len(self.baseIterator):
-			return next(self.baseIterator)
+		return next(self.baseIterator)
 
 	@overrides
 	def __getitem__(self, ix):

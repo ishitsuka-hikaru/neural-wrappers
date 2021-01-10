@@ -145,17 +145,18 @@ class TestCompoundDatasetReaderBatched:
 
 	def test_iterateForever_1(self):
 		reader = CompoundDatasetReader(BatchedReader())
-		batches = reader.getBatches()
-		batchSizes = [(x.stop - x.start) for x in batches]
-		n = len(batches)
-		for j, (batchItem, B) in enumerate(reader.iterateForever()):
+		g = reader.iterate()
+		batches = g.batches
+		batchSizes = g.batchLens
+		for j in range(len(g)):
+			batchItem, B = next(g)
 			try:
-				assert B == batchSizes[j % n]
+				assert B == batchSizes[j % len(g)]
 			except Exception as e:
 				print(str(e))
 				breakpoint()
 			rgb = batchItem["data"]["rgb"]
-			index = batches[j % n]
+			index = batches[j % len(g)]
 			assert np.abs(rgb - reader.dataset[index.start : index.stop]).sum() < 1e-5
 
 			if j == 100:
