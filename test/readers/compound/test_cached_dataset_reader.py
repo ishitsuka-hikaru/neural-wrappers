@@ -1,11 +1,12 @@
+import sys
+import os
 import numpy as np
 import simple_caching
 from overrides import overrides
 from neural_wrappers.readers import CachedDatasetReader, StaticBatchedDatasetReader, RandomIndexDatasetReader
 from neural_wrappers.utilities import deepCheckEqual
 
-import sys
-sys.path.append("..")
+sys.path.append(os.path.realpath(os.path.abspath(os.path.dirname(__file__))) + "/..")
 from batched_dataset_reader.test_batched_dataset_reader import Reader as BaseBatchedReader
 from test_dataset_reader import DummyDataset as BaseReader
 
