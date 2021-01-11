@@ -64,8 +64,8 @@ class DatasetReader(ABC):
 		from .dataset_generator import DatasetGenerator
 		return DatasetGenerator(self, maxPrefetch)
 
-	def iterate(self):
-		return self.iterateForever()
+	def iterate(self, maxPrefetch:int=0):
+		return self.iterateForever(maxPrefetch)
 
 	# Used by CachedDatasetReader to cache a key. By default, we call str(key), but this can be overriden by readers.
 	def cacheKey(self, key):
