@@ -38,6 +38,12 @@ class CarlaH5PathsReader(H5BatchedDatasetReader):
 		rawReadFunction = tryReadNpy
 		depthReadFunction = tryReadNpy
 		flowReadFunction = opticalFlowReader
+		hasOpticalFlow = False
+
+		# Real name is optical_flow(t+k, t), so we remove the generic one because of name mismatch.
+		if "optical_flow" in dataBuckets["data"]:
+			hasOpticalFlow = True
+			dataBuckets["data"].remove("optical_flow")
 
 		dimGetter = {
 			"rgb" : partial(pathsReader, readFunction=rawReadFunction, dim="rgb"),
@@ -70,8 +76,9 @@ class CarlaH5PathsReader(H5BatchedDatasetReader):
 		ids = datasetPath["ids"][()]
 		neighbours = {"t%+d" % delta : self.getIdAtTimeDelta(ids, delta=delta) for delta in deltas}
 		Keys = copy(dataBuckets["data"])
+
 		for delta in deltas:
-			if "optical_flow" in dataBuckets:
+			if hasOpticalFlow:
 				# optical_flow(t-1, t) for delta == -1
 				flowKey = "optical_flow(t%+d, t)" % delta
 				dimGetter[flowKey] = partial(flowReadFunction, neighbours=neighbours, delta=delta)
@@ -110,8 +117,8 @@ class CarlaH5PathsReader(H5BatchedDatasetReader):
 		return closest
 
 	def __getitem__(self, key):
-		item = super().__getitem__(key)
-		return item["data"], item["data"]
+		item, B = super().__getitem__(key)
+		return (item["data"], item["data"]), B
 
 	def __len__(self) -> int:
 		return len(self.getDataset()["rgb"])

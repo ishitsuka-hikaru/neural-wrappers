@@ -140,10 +140,7 @@ class NetworkSerializer:
 		loadedState = NetworkSerializer.readPkl(path)
 
 		print("Loading model from %s" % (path))
-		if not "model_state" in stateKeys:
-			print("YOLO MODE")
-		else:
-			self.checkModelState(loadedState)
+		self.checkModelState(loadedState)
 
 		for key in stateKeys:
 			if key == "weights":
@@ -166,7 +163,7 @@ class NetworkSerializer:
 		print("Finished loading model")
 
 	# Handles loading weights from a model.
-	def doLoadWeights(self, loadedParams):
+	def doLoadWeights(self, loadedParams, allowNamedMismatch=False):
 		trainableParams = getTrainableParameters(self.model)
 		numTrainableParams = _computeNumParams(trainableParams)
 		numLoadedParams = _computeNumParams(loadedParams)
@@ -175,17 +172,20 @@ class NetworkSerializer:
 
 		namedTrainableParams = sorted(list(trainableParams.keys()))
 		namedLoadedParams = sorted(list(loadedParams.keys()))
-		# Loading in natural way, because keys are identical
-		assert namedTrainableParams == namedLoadedParams, "Old behaviour model not supported anymore."
-		for key in namedTrainableParams:
-			assert trainableParams[key].shape == loadedParams[key].shape, "This: %s:%s. Loaded:%s" % \
-				(nameLoadedParam, str(trainableParam.shape), str(loadedParam.shape))
-		newParams = loadedParams
 
-		# This may come in handy at some points when we have renamed/reclassed a model that is already trained.
-		# newParams = {}
-		# for param, loadedParam in zip(namedTrainableParams, namedLoadedParams):
-		# 	newParams[param] = loadedParams[loadedParam]
+		try:
+			assert namedTrainableParams == namedLoadedParams, "Old behaviour model not supported anymore."
+			for key in namedTrainableParams:
+				assert trainableParams[key].shape == loadedParams[key].shape, "This: %s:%s. Loaded:%s" % \
+					(nameLoadedParam, str(trainableParam.shape), str(loadedParam.shape))
+			newParams = loadedParams
+		except Exception as e:
+			if not allowNamedMismatch:
+				raise Exception(e)
+			# This may come in handy at some points when we have renamed/reclassed a model that is already trained.
+			newParams = {}
+			for param, loadedParam in zip(namedTrainableParams, namedLoadedParams):
+				newParams[param] = loadedParams[loadedParam]
 
 		# TODO: Make strict=True and add fake params in the if above (including BN/Dropout).
 		missing, unexpected = self.model.load_state_dict(newParams, strict=False)

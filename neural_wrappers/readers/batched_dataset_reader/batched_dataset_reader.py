@@ -21,6 +21,11 @@ class BatchedDatasetEpochIterator(DatasetEpochIterator):
 			self.batchLens = None
 			self.len = None
 
+	@overrides
+	def __len__(self):
+		assert not self.batches is None, "Must be set before calling iterate()/iterateOneEpoch()"
+		return super().__len__()
+
 	# We update the logic of getting as follows. For plain (non-batched) datasets we had
 	#  - items = reader[mapping(ix)] for ix in [0 : len(self) - 1]
 	# However, we are in a batched situation, so for each index, we are receiving a batch of items

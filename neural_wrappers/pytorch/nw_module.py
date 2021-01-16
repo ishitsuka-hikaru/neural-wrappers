@@ -456,10 +456,13 @@ class NWModule(nn.Module, ABC):
 		return self.serializer.saveModel(path, stateKeys=["weights", "model_state"])
 
 	def loadWeights(self, path, yolo=False):
-		stateKeys = ["weights"]
-		if yolo == False:
-			stateKeys.append("model_state")
-		self.serializer.loadModel(path, stateKeys=stateKeys)
+		if yolo:
+			loadedState = NetworkSerializer.readPkl(path)
+			assert "weights" in loadedState
+			print("[NWModule::loadWeights] YOLO mode. No state & named params check.")
+			self.serializer.doLoadWeights(loadedState["weights"], allowNamedMismatch=True)
+		else:
+			self.serializer.loadModel(path, stateKeys=["model_state", "weights"])
 
 	def saveModel(self, path):
 		return self.serializer.saveModel(path, stateKeys=["weights", "optimizer", \

@@ -17,6 +17,7 @@ class DatasetEpochIterator:
 		self.len = len(self.reader)
 
 	def __len__(self):
+		assert not self.len is None, "Must be set before calling iterate()/iterateOneEpoch()"
 		return self.len
 
 	def __getitem__(self, ix):
