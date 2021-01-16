@@ -1,5 +1,4 @@
 import os
-import sys
 import h5py
 import pytest
 import numpy as np
@@ -68,7 +67,6 @@ class TestMNISTVAE:
 			lossWeights={"latent" : 1 / (1000), "decoder" : 1}).to(device)
 		model.setOptimizer(optim.SGD, lr=0.01)
 		model.trainGenerator(reader.iterate(), numEpochs=1, printMessage=None)
-		sys.path.pop()
 
 def main():
 	TestMNISTVAE().test()

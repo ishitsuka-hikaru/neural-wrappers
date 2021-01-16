@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 import torch as tr
 import numpy as np
-import sys
 from collections import OrderedDict
 
 device = tr.device("cuda") if tr.cuda.is_available() else tr.device("cpu")
@@ -9,13 +8,15 @@ device = tr.device("cuda") if tr.cuda.is_available() else tr.device("cpu")
 def trModuleWrapper(module):
 	from .feed_forward_network import FeedForwardNetwork
 	class Model(FeedForwardNetwork):
-		def __init__(self, module):
+		def __init__(self, _module):
 			super().__init__()
-			self.module = module
+			self._module = _module
 
-		def forward(self, x):
-			return self.module(x)
-	return Model(module)
+		def forward(self, *args, **kwargs):
+			return self._module(*args, **kwargs)
+
+	res = Model(module)
+	return res
 
 # Used by NWModule so that we enter a block, we can apply train/eval and when we leave it, we restore the
 #  previous state.
