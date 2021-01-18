@@ -51,11 +51,15 @@ class CombinedDatasetReader(CompoundDatasetReader):
 		DatasetReader.__init__(self, dataBuckets=firstReader.datasetFormat.dataBuckets, \
 			dimGetter=firstReader.datasetFormat.dimGetter, dimTransform=firstReader.datasetFormat.dimTransform)
 		self.baseReaders = [CompoundDatasetReader(reader) for reader in baseReaders]
-		self.baseReader = None
+		self.baseReader = self.baseReaders
 
 	@overrides
 	def iterateOneEpoch(self):
 		return CombinedDatasetReaderIterator(self)
+
+	@overrides
+	def __len__(self):
+		return sum([len(reader) for reader in self.baseReaders])
 
 	@overrides
 	def __str__(self) -> str:
