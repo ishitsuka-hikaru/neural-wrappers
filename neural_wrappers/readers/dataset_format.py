@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Dict, List, Callable
 from ..utilities import flattenList
 from .dataset_types import *
@@ -53,3 +54,6 @@ class DatasetFormat:
 						("dimTransforms. Adding identity.")) % (dataBucket, dim))
 					dimTransform[dataBucket][dim] = lambda x : x
 		return dimTransform
+
+	def __eq__(self, other:DatasetFormat) -> bool:
+		return self.allDims == other.allDims and self.dataBuckets == other.dataBuckets

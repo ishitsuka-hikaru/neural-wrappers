@@ -76,7 +76,6 @@ class GANReader(H5BatchedDatasetReader):
 
 	def __getitem__(self, index):
 		item, MB = super().__getitem__(index)
-		# MB = index.stop - index.start
 		return (np.random.randn(MB, self.latentSpaceSize).astype(np.float32), item["data"]["rgb"]), MB
 
 try:

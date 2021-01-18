@@ -9,9 +9,6 @@ from ..dataset_types import *
 from ...utilities import deepCheckEqual
 
 class CachedDatasetEpochIterator(CompoundDatasetEpochIterator):
-	def __init__(self, reader):
-		super().__init__(reader)
-
 	@overrides
 	def __getitem__(self, ix):
 		index = self.indexFn(ix)
@@ -29,6 +26,7 @@ class CachedDatasetReader(CompoundDatasetReader):
 	# @param[in] buildCache Whether to do a pass through the entire dataset once before starting the iteration
 	def __init__(self, baseReader:DatasetReader, cache:Cache, buildCache:bool=True):
 		super().__init__(baseReader)
+		assert baseReader.datasetFormat.isCacheable == True
 		self.cache = cache
 		self.buildCache = buildCache
 
