@@ -91,8 +91,9 @@ class TestCachedDatasetReader:
 
 	def test_dirty_1(self):
 		cache = simple_caching.DictMemory()
-		
+
 		baseReader = RandomIndexDatasetReader(Reader(N=100))
+		baseReader.datasetFormat.isCacheable = True
 		reader1 = CachedDatasetReader(baseReader, cache=cache, buildCache=True)
 		reader2 = CachedDatasetReader(baseReader, cache=cache, buildCache=False)
 		
@@ -238,7 +239,7 @@ class TestCachedDatasetReaderBatched:
 		cache = simple_caching.DictMemory()
 		
 		baseReader = RandomIndexDatasetReader(BatchedReader(N=100), seed=42)
-
+		baseReader.datasetFormat.isCacheable = True
 		reader1 = CachedDatasetReader(baseReader, cache=cache, buildCache=True)
 		reader2 = CachedDatasetReader(baseReader, cache=cache, buildCache=False)
 		

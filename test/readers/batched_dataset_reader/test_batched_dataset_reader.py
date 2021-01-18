@@ -14,6 +14,7 @@ class Reader(BatchedDatasetReader):
 			},
 			dimTransform = {}
 		)
+		self.datasetFormat.isCacheable = True
 		self.dataset = np.random.randn(N, 3)
 
 	@overrides

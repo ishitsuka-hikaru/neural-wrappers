@@ -10,6 +10,7 @@ class StaticSizedBatchedDatasetReader(CompoundDatasetReader):
 	def __init__(self, baseReader:BatchedDatasetReader, batchSize:int):
 		super().__init__(baseReader)
 		self.setBatchSize(batchSize)
+		self.datasetFormat.isCacheable = True
 
 	# @param[in] batchSize The static batch size required to iterate one epoch. If the batch size is not divisible by
 	#  the number of items, the last batch will trimmed accordingly. If the provided value is -1, it is set to the

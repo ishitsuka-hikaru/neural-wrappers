@@ -13,13 +13,13 @@ class RandomIndexDatasetEpochIterator(CompoundDatasetEpochIterator):
 		index = self.permutation[ix]
 		return super().__getitem__(index)
 
-# @brief A composite dataset reader that has a base reader attribute which it can partially use based on the percent
-#  defined in the constructor
+# @brief A composite dataset reader that provides an interface to iterate through a dataset in a randomized way.
 class RandomIndexDatasetReader(CompoundDatasetReader):
 	def __init__(self, baseReader:DatasetReader, seed:int=None):
 		super().__init__(baseReader)
 		np.random.seed(seed)
 		self.seed = seed
+		self.datasetFormat.isCacheable = False
 
 	@overrides
 	def iterateOneEpoch(self):

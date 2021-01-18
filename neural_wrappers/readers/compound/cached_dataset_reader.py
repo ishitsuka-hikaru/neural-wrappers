@@ -26,7 +26,7 @@ class CachedDatasetReader(CompoundDatasetReader):
 	# @param[in] buildCache Whether to do a pass through the entire dataset once before starting the iteration
 	def __init__(self, baseReader:DatasetReader, cache:Cache, buildCache:bool=True):
 		super().__init__(baseReader)
-		assert baseReader.datasetFormat.isCacheable == True
+		assert baseReader.datasetFormat.isCacheable == True, "%s is not cacheable!" % type(baseReader)
 		self.cache = cache
 		self.buildCache = buildCache
 
