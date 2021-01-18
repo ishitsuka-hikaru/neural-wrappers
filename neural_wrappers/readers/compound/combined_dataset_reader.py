@@ -1,15 +1,40 @@
+import numpy as np
 from overrides import overrides
+from typing import List
 from ..dataset_reader import DatasetReader
 from ..compound_dataset_reader import CompoundDatasetReader, CompoundDatasetEpochIterator
-from typing import List
 
 class CombinedDatasetReaderIterator(CompoundDatasetEpochIterator):
 	def __init__(self, reader):
-		self.baseIterators = [CompoundDatasetEpochIterator(reader) for reader in reader.baseReaders]
+		self.baseIterators = [CompoundDatasetEpochIterator(baseReader) for baseReader in reader.baseReaders]
+		self.ix = -1
+		self.Mappings = self.getMappings()
+
+	def getMappings(self):
+		Mappings = np.zeros((len(self), 2), dtype=np.uint32)
+		ix = 0
+		for i in range(len(self.baseIterators)):
+			g = self.baseIterators[i]
+			Range = np.arange(len(g))
+			Mappings[ix : ix + len(g), 0] = np.repeat([i], len(g))
+			Mappings[ix : ix + len(g), 1] = Range
+			ix += len(g)
+		return Mappings
 
 	@overrides
 	def __len__(self) -> bool:
 		return sum([len(x) for x in self.baseIterators])
+
+	def __next__(self):
+		self.ix += 1
+		if self.ix < len(self):
+			return self.__getitem__(self.ix)
+		raise StopIteration
+
+	@overrides
+	def __getitem__(self, ix):
+		readerIx, readerInnerIx = self.Mappings[ix]
+		return self.baseIterators[readerIx].__getitem__(readerInnerIx)
 
 # @brief A composite dataset reader that has a base reader attribute which it can partially use based on the percent
 #  defined in the constructor
