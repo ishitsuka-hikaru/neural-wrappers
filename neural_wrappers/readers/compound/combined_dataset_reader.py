@@ -9,6 +9,7 @@ class CombinedDatasetReaderIterator(CompoundDatasetEpochIterator):
 		self.baseIterators = [CompoundDatasetEpochIterator(baseReader) for baseReader in reader.baseReaders]
 		self.ix = -1
 		self.Mappings = self.getMappings()
+		self.len = len(self)
 
 	def getMappings(self):
 		Mappings = np.zeros((len(self), 2), dtype=np.uint32)
@@ -25,16 +26,15 @@ class CombinedDatasetReaderIterator(CompoundDatasetEpochIterator):
 	def __len__(self) -> bool:
 		return sum([len(x) for x in self.baseIterators])
 
-	def __next__(self):
-		self.ix += 1
-		if self.ix < len(self):
-			return self.__getitem__(self.ix)
-		raise StopIteration
-
 	@overrides
 	def __getitem__(self, ix):
 		readerIx, readerInnerIx = self.Mappings[ix]
 		return self.baseIterators[readerIx].__getitem__(readerInnerIx)
+
+	@overrides
+	def __getattr__(self, key):
+		X = [getattr(baseIterator, key) for baseIterator in self.baseIterators]
+		return X
 
 # @brief A composite dataset reader that has a base reader attribute which it can partially use based on the percent
 #  defined in the constructor
@@ -51,23 +51,17 @@ class CombinedDatasetReader(CompoundDatasetReader):
 		DatasetReader.__init__(self, dataBuckets=firstReader.datasetFormat.dataBuckets, \
 			dimGetter=firstReader.datasetFormat.dimGetter, dimTransform=firstReader.datasetFormat.dimTransform)
 		self.baseReaders = [CompoundDatasetReader(reader) for reader in baseReaders]
+		self.baseReader = None
 
 	@overrides
 	def iterateOneEpoch(self):
 		return CombinedDatasetReaderIterator(self)
 
 	@overrides
-	def getBatches(self):
-		pass
-		# pass
-		# batches = super().getBatches()
-		# N = len(batches)
-		# newN = int(N * self.percent / 100)
-		# return batches[0 : newN]
-
-	@overrides
 	def __str__(self) -> str:
 		summaryStr = "[CombinedDatasetReader]"
-		# summaryStr += "\n - Percent: %2.2f%%" % self.percent
-		# summaryStr += "\n %s" % super().__str__()
+		summaryStr += "\n - Num datasets: %d" % (len(self.baseReaders))
+		for i, reader in enumerate(self.baseReaders):
+			summaryStr += "\n----------- %d -----------" % (i + 1)
+			summaryStr += "\n%s" % str(reader)
 		return summaryStr
