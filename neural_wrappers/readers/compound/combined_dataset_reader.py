@@ -5,11 +5,11 @@ from typing import List
 
 class CombinedDatasetReaderIterator(CompoundDatasetEpochIterator):
 	def __init__(self, reader):
-		pass
-	
+		self.baseIterators = [CompoundDatasetEpochIterator(reader) for reader in reader.baseReaders]
+
 	@overrides
 	def __len__(self) -> bool:
-		return 0
+		return sum([len(x) for x in self.baseIterators])
 
 # @brief A composite dataset reader that has a base reader attribute which it can partially use based on the percent
 #  defined in the constructor
@@ -25,7 +25,7 @@ class CombinedDatasetReader(CompoundDatasetReader):
 
 		DatasetReader.__init__(self, dataBuckets=firstReader.datasetFormat.dataBuckets, \
 			dimGetter=firstReader.datasetFormat.dimGetter, dimTransform=firstReader.datasetFormat.dimTransform)
-		self.baseReader = baseReaders
+		self.baseReaders = [CompoundDatasetReader(reader) for reader in baseReaders]
 
 	@overrides
 	def iterateOneEpoch(self):
