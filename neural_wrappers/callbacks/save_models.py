@@ -39,6 +39,7 @@ class SaveModels(Callback):
 			return
 		fileName = "model_improvement_%d_%s_%s.pkl" % (kwargs["epoch"], self.metricName, score)
 		kwargs["model"].saveModel(fileName)
+		# TODO: dprint
 		tqdm.write("[SaveModels] Epoch %d. Improvement (%s) from %s to %s" % \
 				(kwargs["epoch"], self.metricName, self.best, score))
 		self.best = score

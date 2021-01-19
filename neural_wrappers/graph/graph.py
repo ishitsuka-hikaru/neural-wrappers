@@ -12,14 +12,21 @@ from ..callbacks import CallbackName
 from ..pytorch import FeedForwardNetwork, npGetData, trGetData, npToTrCall, trToNpCall
 from ..pytorch.utils import StorePrevState
 
+def getNodesFromEdges(edges):
+	nodes = set()
+	for edge in edges:
+		# edge can be an actual Graph.
+		for node in edge.getNodes():
+			nodes.add(node)
+	return nodes
+
 class Graph(FeedForwardNetwork):
 	def __init__(self, edges, hyperParameters={}):
-		self.edges =edges
-		self.nodes = self.getNodes()
-		hyperParameters = self.getHyperParameters(hyperParameters)
+		hyperParameters = self.getHyperParameters(hyperParameters, edges)
 		super().__init__(hyperParameters=hyperParameters)
 
-		self.edges = nn.ModuleList(self.getEdges())
+		self.edges = nn.ModuleList(edges)
+		self.nodes = getNodesFromEdges(edges)
 		self.edgeLoss = {}
 		self.linePrinter = MessagePrinter(None)
 		self.setCriterion(self.loss)
@@ -68,12 +75,7 @@ class Graph(FeedForwardNetwork):
 		return edges
 
 	def getNodes(self):
-		nodes = set()
-		for edge in self.edges:
-			# edge can be an actual Graph.
-			for node in edge.getNodes():
-				nodes.add(node)
-		return nodes
+		return getNodesFromEdges(self.edges)
 
 	def initializeEpochMetrics(self):
 		res = super().initializeEpochMetrics()
@@ -121,6 +123,7 @@ class Graph(FeedForwardNetwork):
 		#  inputs, they can be packed together (stacked) or put into a list, in which case the ntwork will receive the
 		#  same list, but every element in the list is tranasformed in torch format.
 		startTime = datetime.now()
+		i = 0
 		for i, (items, b) in enumerate(generator):
 			npInputs, npLabels = items
 			npResults, npLoss = self.mainLoop(npInputs, npLabels, isTraining, isOptimizing)
@@ -133,8 +136,8 @@ class Graph(FeedForwardNetwork):
 		took = datetime.now() - startTime
 
 		if i != stepsPerEpoch - 1:
-			self.linePrinter(("Warning! Number of iterations (%d) does not match expected ") + \
-				("iterations in reader (%d)") % (i, stepsPerEpoch - 1))
+			self.linePrinter(("Warning! Number of iterations (%d) does not match expected " + \
+				"iterations in reader (%d)") % (i, stepsPerEpoch - 1))
 
 		res = self.reduceEpochMetrics(metricResults)
 		res["duration"] = took
@@ -388,13 +391,13 @@ class Graph(FeedForwardNetwork):
 	def draw(self, fileName, cleanup=True, view=False):
 		drawGraph(self.nodes, self.edges, fileName, cleanup, view)
 
-	def getHyperParameters(self, hyperParameters):
+	def getHyperParameters(self, hyperParameters, edges):
 		# Set up hyperparameters for every node
 		hyperParameters = {k : hyperParameters[k] for k in hyperParameters}
-		for node in self.nodes:
-			hyperParameters[node.name] = node.hyperParameters
-		for edge in self.edges:
+		for edge in edges:
 			hyperParameters[str(edge)] = edge.hyperParameters
+		for node in getNodesFromEdges(edges):
+			hyperParameters[node.name] = node.hyperParameters
 		return hyperParameters
 
 	def graphStr(self, depth=1):

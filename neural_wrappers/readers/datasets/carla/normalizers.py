@@ -133,14 +133,14 @@ def opticalFlowNorm(x : np.ndarray, readerObj:CarlaH5PathsReader) -> np.ndarray:
 # 	x[..., 1] = np.float32(np.int32(x[..., 1] * height))
 # 	return x
 
-def normalNorm(x : np.ndarray, readerObj:CarlaH5PathsReader) -> np.ndarray:
+def normalNorm(x:np.ndarray, readerObj:CarlaH5PathsReader) -> np.ndarray:
 	x = imgResize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], \
 		resizeLib="opencv", onlyUint8=False)
 	# Normals are stored as [0 - 255] on 3 channels, representing orientation of the 3 axes.
 	x = x.astype(np.float32) / 255
 	return x
 
-def semanticSegmentationNorm(x : np.ndarray, readerObj:CarlaH5PathsReader) -> np.ndarray:
+def semanticSegmentationNorm(x:np.ndarray, readerObj:CarlaH5PathsReader) -> np.ndarray:
 	labelKeys = list({
 		(0, 0, 0): "Unlabeled",
 		(70, 70, 70): "Building",
