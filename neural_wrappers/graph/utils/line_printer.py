@@ -18,7 +18,7 @@ def getFormattedStr(item : Union[np.ndarray, NWNumber, NWSequence, NWDict], prec
 
 class MessagePrinter:
 	def __init__(self, type):
-		assert type in (None, "v1", "v2")
+		assert type in (None, "v1", "v2", "tqdm")
 
 		if type == None:
 			self.printer = NonePrinter()
@@ -29,6 +29,9 @@ class MessagePrinter:
 		elif type == "v2":
 			self.printer = MultiLinePrinter()
 			self.function = MessagePrinter.printV2
+		elif type == "tqdm":
+			self.printer = NonePrinter()
+			self.function = lambda x : x
 
 	# For V1 printing, if we receive a list of messages, concatenate them by ". " and send them to line printer.
 	def printV1(message):
