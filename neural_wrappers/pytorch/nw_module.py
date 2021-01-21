@@ -347,8 +347,7 @@ class NWModule(nn.Module, ABC):
 		self.numEpochs = numEpochs
 		dprint("Training for %d epochs starting from epoch %d\n" % (N, self.currentEpoch))
 
-		Range = trange(N, initial=self.currentEpoch, total=numEpochs, position=0, desc="Epoch") \
-			if printMessage else range(N)
+		Range = drange(N, initial=self.currentEpoch, total=numEpochs, position=0, desc="Epoch")
 		for i in Range:
 			if len(self.trainHistory) != self.currentEpoch - 1:
 				breakpoint()
