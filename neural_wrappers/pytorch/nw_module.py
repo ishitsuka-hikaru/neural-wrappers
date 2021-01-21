@@ -13,8 +13,8 @@ from tqdm.auto import trange, tqdm
 from abc import abstractmethod, ABC
 from .network_serializer import NetworkSerializer
 from .utils import getNumParams, npGetData, trGetData, StorePrevState, _getOptimizerStr
-from ..utilities import makeGenerator, isBaseOf, RunningMean, \
-	topologicalSort, deepCheckEqual, getFormattedStr, dprint
+from ..utilities import makeGenerator, isBaseOf, RunningMean, topologicalSort, deepCheckEqual, \
+	getFormattedStr, dprint, drange
 from ..callbacks import Callback, CallbackName
 from ..metrics import Metric, MetricWrapper
 
@@ -30,6 +30,7 @@ class NWModule(nn.Module, ABC):
 		self.optimizerScheduler = None
 		self.criterion = None
 		self.currentEpoch = 1
+		self.numEpochs = 0
 
 		# Setup print message keys, callbacks & topological sort variables
 		self.clearCallbacks()

@@ -170,8 +170,8 @@ def plotModelMetricHistory(trainHistory, metricName, plotBestBullet, dpi=120):
 	# Set the y axis to have some space above and below the plot min/max values so it looks prettier.
 	minValue = min(np.min(usedValues), np.min(trainValues))
 	maxValue = max(np.max(usedValues), np.max(trainValues))
-	minValue = -100 if np.isnan(minValue) else minValue
-	maxValue = 100 if np.isnan(maxValue) else maxValue
+	minValue = -100 if (np.isnan(minValue) or np.isinf(minValue)) else minValue
+	maxValue = 100 if (np.isnan(maxValue) or np.isinf(maxValue)) else maxValue
 	diff = maxValue - minValue
 	plt.gca().set_ylim(minValue - diff / 10, maxValue + diff / 10)
 
