@@ -4,7 +4,6 @@ from datetime import datetime
 from functools import partial
 from overrides import overrides
 from copy import copy
-from tqdm import trange
 
 from .utils import MessagePrinter, getFormattedStr
 from .draw_graph import drawGraph
@@ -132,8 +131,7 @@ class Graph(FeedForwardNetwork):
 		#  same list, but every element in the list is tranasformed in torch format.
 		startTime = datetime.now()
 		i = 0
-		Range = drange(len(generator)) if kwargs["printMessage"] == "tqdm" else range(len(generator))
-		# for i, (items, b) in enumerate(generator):
+		Range = drange(len(generator), desc="Iteration") if kwargs["printMessage"] == "tqdm" else range(len(generator))
 		for i in Range:
 			items, b = next(generator)
 			npInputs, npLabels = items
@@ -166,9 +164,8 @@ class Graph(FeedForwardNetwork):
 		N = numEpochs - self.currentEpoch + 1
 		dprint("Training for %d epochs starting from epoch %d\n" % (N, self.currentEpoch))
 
-		Range = range(N)
 		startTime = datetime.now()
-		for i in Range:
+		for i in drange(N, desc="Epoch"):
 			if len(self.trainHistory) != self.currentEpoch - 1:
 				breakpoint()
 				assert False
