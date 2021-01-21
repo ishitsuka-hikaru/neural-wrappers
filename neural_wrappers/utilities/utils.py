@@ -6,6 +6,7 @@ from typing import Dict, Sequence, Union, Iterable, List, Optional
 from functools import reduce
 from .np_utils import npCloseEnough
 from .type_utils import NWNumber, NWSequence, NWDict, isBaseOf, T
+from .debug import dprint
 
 # Labels can be None, in that case only data is available (testing cases without labels)
 def makeGenerator(data, labels, batchSize):
@@ -51,7 +52,7 @@ def changeDirectory(Dir:str, expectExist:Optional[bool]=None):
 	assert not Dir is None, ""
 	if expectExist in (True, False):
 		assert os.path.exists(Dir) == expectExist, "Exists: %s" % Dir
-	print("Changing to working directory:", Dir)
+	dprint("Changing to working directory: %s" % Dir)
 	if expectExist == False or (expectExist == None and not os.path.isdir(Dir)):
 		os.makedirs(Dir)
 	os.chdir(Dir)
@@ -104,7 +105,7 @@ def getGenerators(reader, batchSize:int=None, maxPrefetch:int=1):
 #  method
 def deepCheckEqual(a, b):
 	if type(a) != type(b):
-		print("Types %s and %s differ." % (type(a), type(b)))
+		dprint("Types %s and %s differ." % (type(a), type(b)))
 		return False
 	Type = type(a)
 	if Type in (dict, OrderedDict):
@@ -133,7 +134,7 @@ def isPicklable(item):
 		_ = pickle.dumps(item)
 		return True
 	except Exception as e:
-		print("Item is not pickable: %s" % (e))
+		dprint("Item is not pickable: %s" % (e))
 		return False
 
 # Flatten the indexes [[1, 3], [15, 13]] => [1, 3, 15, 13] and then calls f(data, 1), f(data, 3), ..., step by step

@@ -61,9 +61,9 @@ class Node:
 	def getCriterion(self):
 		raise Exception("Must be implemented by each node!")
 
-	def getInputs(self, x : tr.Tensor) -> Dict[str, tr.Tensor]:
+	def getInputs(self, x:tr.Tensor) -> Dict[str, tr.Tensor]:
 		inputs = self.getMessages()
-		GT : Optional[tr.Tensor] = self.groundTruth
+		GT:Optional[tr.Tensor] = self.groundTruth
 		if not GT is None:
 			res = self.getGroundTruthInput(x)
 			if isinstance(res, (tuple, list)):

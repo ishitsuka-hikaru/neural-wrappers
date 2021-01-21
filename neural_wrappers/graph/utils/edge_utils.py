@@ -12,7 +12,7 @@ fwdFuncInput = Dict[str, Sequence[tr.Tensor]]
 # @param[in] x The input to the input node
 # @return The outputs (which are also stored in self.outputs). This is to preserve PyTorch's interface, while also
 #  storing the intermediate results.
-def forwardUseAll(self : Edge, x : fwdFuncInput) -> tr.Tensor:
+def forwardUseAll(self:Edge, x:fwdFuncInput) -> tr.Tensor:
 	outputs = []
 	for key in x:
 		nMessages = len(x[key])
@@ -27,7 +27,7 @@ def forwardUseAll(self : Edge, x : fwdFuncInput) -> tr.Tensor:
 # @param[in] x The input to the input node
 # @return The outputs (which are also stored in self.outputs). This is to preserve PyTorch's interface, while also
 #  storing the intermediate results.
-def forwardUseGT(self : Edge, x : fwdFuncInput) -> tr.Tensor:
+def forwardUseGT(self:Edge, x:fwdFuncInput) -> tr.Tensor:
 	y = self.model.forward(x["GT"][0]).unsqueeze(0)
 	return y
 
@@ -37,7 +37,7 @@ def forwardUseGT(self : Edge, x : fwdFuncInput) -> tr.Tensor:
 # @param[in] x The input to the input node
 # @return The outputs (which are also stored in self.outputs). This is to preserve PyTorch's interface, while also
 #  storing the intermediate results.
-def forwardUseIntermediateResult(self : Edge, x : fwdFuncInput) -> tr.Tensor:
+def forwardUseIntermediateResult(self:Edge, x:fwdFuncInput) -> tr.Tensor:
 	outputs = []
 	for key in x:
 		if key == "GT":
@@ -51,10 +51,10 @@ def forwardUseIntermediateResult(self : Edge, x : fwdFuncInput) -> tr.Tensor:
 
 # @brief Transforms the GT of a node into a running mean of computed GT under "computed", as well as storing
 #  original one in "GT".
-def updateRunningMeanNodeGT(node : Node, result : tr.Tensor) -> None:
+def updateRunningMeanNodeGT(node:Node, result:tr.Tensor) -> None:
 	GT = node.getGroundTruth()
 	if not type(GT) is dict:
-		newGT = {"GT" : GT, "computed" : result}
+		newGT = {"GT":GT, "computed":result}
 		node.setGroundTruth(newGT)
 		node.count = 1 #type: ignore
 	else:
@@ -64,19 +64,19 @@ def updateRunningMeanNodeGT(node : Node, result : tr.Tensor) -> None:
 		node.count += 1 #type: ignore
 
 	# Single link only to output node
-def forwardUseAllStoreAvgGT(self : Edge, x :  fwdFuncInput) -> tr.Tensor:
+def forwardUseAllStoreAvgGT(self:Edge, x: fwdFuncInput) -> tr.Tensor:
 	res = forwardUseAll(self, x)
 	for i in range(res.shape[0]):
 		updateRunningMeanNodeGT(self.outputNode, res[i])
 	return res
 
-def forwardUseGTStoreAvgGT(self : Edge, x : fwdFuncInput) -> tr.Tensor:
+def forwardUseGTStoreAvgGT(self:Edge, x:fwdFuncInput) -> tr.Tensor:
 	res = forwardUseGT(self, x)
 	for i in range(res.shape[0]):
 		updateRunningMeanNodeGT(self.outputNode, res[i])
 	return res
 
-def forwardUseIntermediateResultStoreAvgGT(self : Edge, x : fwdFuncInput) -> tr.Tensor:
+def forwardUseIntermediateResultStoreAvgGT(self:Edge, x:fwdFuncInput) -> tr.Tensor:
 	res = forwardUseIntermediateResult(self, x)
 	for i in range(res.shape[0]):
 		updateRunningMeanNodeGT(self.outputNode, res[i])

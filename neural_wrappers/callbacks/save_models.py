@@ -40,8 +40,8 @@ class SaveModels(Callback):
 		fileName = "model_improvement_%d_%s_%s.pkl" % (kwargs["epoch"], self.metricName, score)
 		kwargs["model"].saveModel(fileName)
 		# TODO: dprint
-		tqdm.write("[SaveModels] Epoch %d. Improvement (%s) from %s to %s" % \
-				(kwargs["epoch"], self.metricName, self.best, score))
+		# tqdm.write("[SaveModels] Epoch %d. Improvement (%s) from %s to %s" % \
+				# (kwargs["epoch"], self.metricName, self.best, score))
 		self.best = score
 
 	def saveModelsBest(self, score, **kwargs):
@@ -50,14 +50,14 @@ class SaveModels(Callback):
 			return
 		fileName = "model_best_%s.pkl" % (self.metricName)
 		kwargs["model"].saveModel(fileName)
-		tqdm.write("[SaveModels] Epoch %d. Improvement (%s) from %s to %s" % \
-				(kwargs["epoch"], self.metricName, self.best, score))
+		# tqdm.write("[SaveModels] Epoch %d. Improvement (%s) from %s to %s" % \
+				# (kwargs["epoch"], self.metricName, self.best, score))
 		self.best = score
 
 	def saveModelsLast(self, **kwargs):
 		fileName = "model_last.pkl"
 		kwargs["model"].saveModel(fileName)
-		tqdm.write("[SaveModels] Epoch %d. Saved last model" % (kwargs["epoch"]))
+		# tqdm.write("[SaveModels] Epoch %d. Saved last model" % (kwargs["epoch"]))
 
 	# Saving by best train loss is validation is not available, otherwise validation. Nasty situation can occur if one
 	#  epoch there is a validation loss and the next one there isn't, so we need formats to avoid this and error out

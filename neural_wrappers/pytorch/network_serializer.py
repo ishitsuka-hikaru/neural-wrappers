@@ -6,7 +6,7 @@ from collections import OrderedDict
 
 from .utils import getNumParams, getTrainableParameters, _computeNumParams, device
 from ..metrics import Metric
-from ..utilities import isBaseOf, deepCheckEqual, isPicklable, npCloseEnough
+from ..utilities import isBaseOf, deepCheckEqual, isPicklable, npCloseEnough, dprint
 
 class NetworkSerializer:
 	# @param[in] The model upon which this serializer works.
@@ -108,7 +108,7 @@ class NetworkSerializer:
 		try:
 			loadedState = tr.load(path)
 		except Exception:
-			print("Exception raised while loading model with tr.load(). Forcing CPU load")
+			dprint("Exception raised while loading model with tr.load(). Forcing CPU load")
 			loadedState = tr.load(path, map_location=lambda storage, loc: storage)
 		return loadedState
 
@@ -139,14 +139,14 @@ class NetworkSerializer:
 		assert len(stateKeys) > 0
 		loadedState = NetworkSerializer.readPkl(path)
 
-		print("Loading model from %s" % (path))
+		dprint("Loading model from %s" % (path))
 		self.checkModelState(loadedState)
 
 		for key in stateKeys:
 			if key == "weights":
 				assert "weights" in loadedState
 				self.doLoadWeights(loadedState["weights"])
-				print("Succesfully loaded weights (%d parameters) " % (_computeNumParams(loadedState["weights"])))
+				dprint("Succesfully loaded weights (%d parameters) " % (_computeNumParams(loadedState["weights"])))
 			elif key == "optimizer":
 				assert "optimizer" in loadedState
 				self.doLoadOptimizer(loadedState["optimizer"])
@@ -160,7 +160,7 @@ class NetworkSerializer:
 				pass
 			else:
 				assert False, "Got unknown key %s" % (key)
-		print("Finished loading model")
+		dprint("Finished loading model")
 
 	# Handles loading weights from a model.
 	def doLoadWeights(self, loadedParams, allowNamedMismatch=False):
@@ -190,9 +190,9 @@ class NetworkSerializer:
 		# TODO: Make strict=True and add fake params in the if above (including BN/Dropout).
 		missing, unexpected = self.model.load_state_dict(newParams, strict=False)
 		if len(missing) > 0:
-			print("Loaded partial model. Missing %d keys (got %d keys)" % (len(missing), len(newParams)))
+			dprint("Loaded partial model. Missing %d keys (got %d keys)" % (len(missing), len(newParams)))
 		if len(unexpected):
-			print("Unexpected %d keys in the loaded model" % (len(unexpected)))
+			dprint("Unexpected %d keys in the loaded model" % (len(unexpected)))
 
 	def doLoadOptimizer(self, optimizerDict):
 		assert "kwargs" in optimizerDict
@@ -201,7 +201,7 @@ class NetworkSerializer:
 		assert optimizerDict["type"] == loadedType, "Optimizers: %s vs %s" % (optimizerDict["type"], loadedType)
 		self.model.getOptimizer().load_state_dict(optimizerDict["state"])
 		self.model.getOptimizer().storedArgs = optimizerDict["kwargs"]
-		print("Succesfully loaded optimizer: %s" % (self.model.getOptimizerStr()))
+		dprint("Succesfully loaded optimizer: %s" % (self.model.getOptimizerStr()))
 
 		if "scheduler_state" in optimizerDict:
 			assert not self.model.optimizerScheduler is None, "Set scheduler first before loading the model."
@@ -210,12 +210,12 @@ class NetworkSerializer:
 				"Schedulers: %s vs %s" % (optimizerDict["scheduler_type"], loadedSchedulerType)
 			self.model.optimizerScheduler.load_state_dict(optimizerDict["scheduler_state"])
 			self.model.optimizerScheduler.storedArgs = optimizerDict["scheduler_kwargs"]
-			print("Succesfully loaded optimizer scheduler: %s" % (self.model.optimizerScheduler))
+			dprint("Succesfully loaded optimizer scheduler: %s" % (self.model.optimizerScheduler))
 
 	def doLoadHistoryDict(self, trainHistory):
 		self.model.trainHistory = deepcopy(trainHistory)
 		self.model.currentEpoch = len(trainHistory) + 1
-		print("Succesfully loaded model history (epoch %d)" % (len(trainHistory)))
+		dprint("Succesfully loaded model history (epoch %d)" % (len(trainHistory)))
 
 	def doLoadCallbacks(self, loadedState):
 		callbacks = loadedState["state"]
@@ -266,4 +266,4 @@ class NetworkSerializer:
 
 		numMetrics = len(self.model.getMetrics())
 		numAll = len(self.model.callbacks)
-		print("Succesfully loaded %d callbacks (%d metrics)" % (numAll, numMetrics))
+		dprint("Succesfully loaded %d callbacks (%d metrics)" % (numAll, numMetrics))

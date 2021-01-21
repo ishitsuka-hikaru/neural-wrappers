@@ -2,7 +2,7 @@ import torch as tr
 import torch.nn as nn
 from functools import partial
 from .node import MapNode, VectorNode
-from ..pytorch import FeedForwardNetwork, trModuleWrapper, trGetData, npGetData
+from ..pytorch import FeedForwardNetwork, trModuleWrapper, trGetData, npGetData, trDetachData
 from .graph_serializer import GraphSerializer
 from ..callbacks import CallbackName
 from overrides import overrides
@@ -71,17 +71,7 @@ class Edge(FeedForwardNetwork):
 		# print("[Edge::getInputs]", type(self.inputNode), type(self.inputNode).mro(), self.inputNode.getInputs(x))
 		inputs = self.inputNode.getInputs(x)
 		if self.blockGradients:
-			res = {}
-			for k in inputs:
-				item = inputs[k]
-				if isinstance(item, (tuple, list)):
-					item = [x.detach() for x in item]
-				elif isinstance(item, tr.Tensor):
-					item = item.detach()
-				else:
-					assert False
-				res[k] = item
-			inputs = res
+			inputs = trDetachData(inputs)
 		return inputs
 
 	def forward(self, x):
@@ -205,16 +195,6 @@ class Edge(FeedForwardNetwork):
 				breakpoint()
 				metricResults = super().callbacksOnIterationEnd(data, labels, results[i], loss, iteration, \
 					numIterations, metricResults, isTraining, isOptimizing)
-		# res = []
-		# metricResults = super().callbacksOnIterationEnd(data, labels, results[0], loss, iteration, \
-		# 	numIterations, metricResults, isTraining, isOptimizing)
-		# for i in range(1, len(results)):
-		# 	item = results[i]
-		# 	_metricResults = super().callbacksOnIterationEnd(data, labels, item, loss, iteration, \
-		# 		numIterations, metricResults, isTraining, isOptimizing)
-		# 	for k in _metricResults:
-		# 		res = _metricResults[k].get()
-		# 		metricResults[k].update(res)
 		return metricResults
 
 	def __str__(self):

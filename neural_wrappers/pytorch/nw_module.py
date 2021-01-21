@@ -14,7 +14,7 @@ from abc import abstractmethod, ABC
 from .network_serializer import NetworkSerializer
 from .utils import getNumParams, npGetData, trGetData, StorePrevState, _getOptimizerStr
 from ..utilities import makeGenerator, isBaseOf, RunningMean, \
-	topologicalSort, deepCheckEqual, getFormattedStr
+	topologicalSort, deepCheckEqual, getFormattedStr, dprint
 from ..callbacks import Callback, CallbackName
 from ..metrics import Metric, MetricWrapper
 
@@ -166,7 +166,7 @@ class NWModule(nn.Module, ABC):
 		callbacksKeys = list(self.callbacks.keys())
 		self.topologicalSort = np.array([callbacksKeys.index(x) for x in order])
 		self.topologicalKeys = np.array(list(self.callbacks.keys()))[self.topologicalSort]
-		print("Successfully done topological sort!")
+		dprint("Successfully done topological sort!")
 
 	### Callbacks for training purposes
 
@@ -242,7 +242,7 @@ class NWModule(nn.Module, ABC):
 	def run_one_epoch(self, generator, stepsPerEpoch, isTraining, isOptimizing, Prefix, printMessage=True):
 		assert stepsPerEpoch > 0
 		if isOptimizing == False and tr.is_grad_enabled():
-			print("Warning! Not optimizing, but grad is enabled.")
+			dprint("Warning! Not optimizing, but grad is enabled.")
 		metricResults = self.initializeEpochMetrics()
 
 		# The protocol requires the generator to have 2 items, inputs and labels (both can be None). If there are more
@@ -339,13 +339,13 @@ class NWModule(nn.Module, ABC):
 		assert stepsPerEpoch > 0
 
 		if self.currentEpoch > numEpochs:
-			print("Warning. Current epoch (%d) <= requested epochs (%d). Doing nothing.\n" % \
+			dprint("Warning. Current epoch (%d) <= requested epochs (%d). Doing nothing.\n" % \
 				(self.currentEpoch, numEpochs))
 			return
 
 		N = numEpochs - self.currentEpoch + 1
-		if printMessage:
-			print("Training for %d epochs starting from epoch %d\n" % (N, self.currentEpoch))
+		self.numEpochs = numEpochs
+		dprint("Training for %d epochs starting from epoch %d\n" % (N, self.currentEpoch))
 
 		Range = trange(N, initial=self.currentEpoch, total=numEpochs, position=0, desc="Epoch") \
 			if printMessage else range(N)
@@ -459,7 +459,7 @@ class NWModule(nn.Module, ABC):
 		if yolo:
 			loadedState = NetworkSerializer.readPkl(path)
 			assert "weights" in loadedState
-			print("[NWModule::loadWeights] YOLO mode. No state & named params check.")
+			dprint("[NWModule::loadWeights] YOLO mode. No state & named params check.")
 			self.serializer.doLoadWeights(loadedState["weights"], allowNamedMismatch=True)
 		else:
 			self.serializer.loadModel(path, stateKeys=["model_state", "weights"])
@@ -484,7 +484,7 @@ class NWModule(nn.Module, ABC):
 				return False
 
 			if not key in state:
-				print("Warning. Model has unknown state key: %s=%s, possibly added after training. Skipping." % \
+				dprint("Warning. Model has unknown state key: %s=%s, possibly added after training. Skipping." % \
 					(key, str(self.hyperParameters[key])))
 				continue
 			loadedState = state[key]

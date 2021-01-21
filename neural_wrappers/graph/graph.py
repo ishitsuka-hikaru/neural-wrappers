@@ -12,6 +12,7 @@ from .graph_serializer import GraphSerializer
 from ..callbacks import CallbackName
 from ..pytorch import FeedForwardNetwork, npGetData, trGetData, npToTrCall, trToNpCall
 from ..pytorch.utils import StorePrevState
+from ..utilities import dprint, drange
 
 def getNodesFromEdges(edges):
 	nodes = set()
@@ -56,6 +57,12 @@ class Graph(FeedForwardNetwork):
 	#  and redundant, since the forward of the subgraphs will call getInputs of each edge anyway.
 	def getInputs(self, trInputs):
 		return trInputs
+
+	def setNodesGroundTruth(self, trInputs):
+		for node in self.nodes:
+			node.messages = {}
+			if node.groundTruthKey in trInputs:
+				node.setGroundTruth(trInputs)
 
 	def forward(self, trInputs):
 		trResults = {}
@@ -113,7 +120,7 @@ class Graph(FeedForwardNetwork):
 	def run_one_epoch(self, generator, stepsPerEpoch, isTraining, isOptimizing, **kwargs):
 		assert stepsPerEpoch > 0
 		if isOptimizing == False and tr.is_grad_enabled():
-			print("Warning! Not optimizing, but grad is enabled.")
+			dprint("Warning! Not optimizing, but grad is enabled.")
 		if isTraining and isOptimizing:
 			assert not self.optimizer is None, "Set optimizer before training"
 		assert not self.criterion is None, "Set criterion before training or testing"
@@ -125,7 +132,7 @@ class Graph(FeedForwardNetwork):
 		#  same list, but every element in the list is tranasformed in torch format.
 		startTime = datetime.now()
 		i = 0
-		Range = trange(len(generator)) if kwargs["printMessage"] == "tqdm" else range(len(generator))
+		Range = drange(len(generator)) if kwargs["printMessage"] == "tqdm" else range(len(generator))
 		# for i, (items, b) in enumerate(generator):
 		for i in Range:
 			items, b = next(generator)
@@ -152,12 +159,12 @@ class Graph(FeedForwardNetwork):
 		assert stepsPerEpoch > 0
 
 		if self.currentEpoch > numEpochs:
-			print("Warning. Current epoch (%d) <= requested epochs (%d). Doing nothing.\n" % \
+			dprint("Warning. Current epoch (%d) <= requested epochs (%d). Doing nothing.\n" % \
 				(self.currentEpoch, numEpochs))
 			return
 
 		N = numEpochs - self.currentEpoch + 1
-		print("Training for %d epochs starting from epoch %d\n" % (N, self.currentEpoch))
+		dprint("Training for %d epochs starting from epoch %d\n" % (N, self.currentEpoch))
 
 		Range = range(N)
 		startTime = datetime.now()
