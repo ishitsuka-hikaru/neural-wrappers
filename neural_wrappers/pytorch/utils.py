@@ -153,9 +153,12 @@ def plotModelMetricHistory(trainHistory, metricName, plotBestBullet, dpi=120):
 		usedValues = np.array(validationValues)
 	else:
 		usedValues = trainValues
+
 	# Against NaNs killing the training for low data count.
-	trainValues[np.isnan(trainValues)] = 0
-	usedValues[np.isnan(usedValues)] = 0
+	allValues = np.concatenate([usedValues, trainValues])
+	Median = np.median(allValues[np.isfinite(allValues)])
+	trainValues[~np.isfinite(trainValues)] = Median
+	usedValues[~np.isfinite(usedValues)] = Median
 
 	assert plotBestBullet in ("none", "min", "max"), "%s" % plotBestBullet
 	if plotBestBullet == "min":
@@ -168,12 +171,9 @@ def plotModelMetricHistory(trainHistory, metricName, plotBestBullet, dpi=120):
 		plt.plot([maxX + 1], [maxValue], "o")
 
 	# Set the y axis to have some space above and below the plot min/max values so it looks prettier.
-	minValue = min(np.min(usedValues), np.min(trainValues))
-	maxValue = max(np.max(usedValues), np.max(trainValues))
-	minValue = -100 if (np.isnan(minValue) or np.isinf(minValue)) else minValue
-	maxValue = 100 if (np.isnan(maxValue) or np.isinf(maxValue)) else maxValue
-	diff = maxValue - minValue
-	plt.gca().set_ylim(minValue - diff / 10, maxValue + diff / 10)
+	minValue, maxValue = np.min(allValues), np.max(allValues)
+	diff = (maxValue - minValue) / 10
+	plt.gca().set_ylim(minValue - diff, maxValue + diff)
 
 	# Finally, save the figure with the name of the metric
 	plt.xlabel("Epoch")
