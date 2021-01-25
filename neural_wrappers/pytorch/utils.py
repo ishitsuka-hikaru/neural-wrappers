@@ -159,6 +159,7 @@ def plotModelMetricHistory(trainHistory, metricName, plotBestBullet, dpi=120):
 	Median = np.median(allValues[np.isfinite(allValues)])
 	trainValues[~np.isfinite(trainValues)] = Median
 	usedValues[~np.isfinite(usedValues)] = Median
+	allValues[~np.isfinite(allValues)] = Median
 
 	assert plotBestBullet in ("none", "min", "max"), "%s" % plotBestBullet
 	if plotBestBullet == "min":
