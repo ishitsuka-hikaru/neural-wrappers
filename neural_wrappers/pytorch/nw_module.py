@@ -456,6 +456,7 @@ class NWModule(nn.Module, ABC):
 		return self.serializer.saveModel(path, stateKeys=["weights", "model_state"])
 
 	def loadWeights(self, path, yolo=False):
+		dprint("[NWModule::loadWeights] Loading weights from %s" % path)
 		if yolo:
 			loadedState = NetworkSerializer.readPkl(path)
 			assert "weights" in loadedState
