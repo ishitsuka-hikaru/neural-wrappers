@@ -120,8 +120,29 @@ class TestMergeBatchedDatasetReader:
 			assert len(rgb) == generator.batchLens[i]
 		assert i == len(generator) - 1
 
+class TestRegression:
+	def test_regression_1(self):
+		B = 4
+		N = 10
+
+		try:
+			baseReader = DummyDataset(N=10)
+			reader = CompoundDatasetReader(baseReader)
+			reader = StaticBatchedDatasetReader(MergeBatchedDatasetReader(reader, mergeFn=mergeItems), B)
+		except Exception:
+			assert False
+
+		try:
+			baseReader = StaticBatchedDatasetReader(MergeBatchedDatasetReader(baseReader, mergeFn=mergeItems), B)
+			reader = CompoundDatasetReader(baseReader)
+			reader = StaticBatchedDatasetReader(MergeBatchedDatasetReader(reader, mergeFn=mergeItems), B)
+			assert False
+		except Exception:
+			pass
+
 def main():
-	TestMergeBatchedDatasetReader().test_iterateOneEpoch_3()
+	TestRegression().test_regression_1()
+	# TestMergeBatchedDatasetReader().test_iterateOneEpoch_3()
 	# TestBatchedDatasetReader().test_mergeItems_1()
 	# TestBatchedDatasetReader().test_splitItems_1()
 	# TestBatchedDatasetReader().test_mergeSplit_1()

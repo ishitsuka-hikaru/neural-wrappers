@@ -9,22 +9,20 @@ from ...dataset_types import *
 class StaticSizedBatchedDatasetReader(CompoundDatasetReader):
 	def __init__(self, baseReader:BatchedDatasetReader, batchSize:int):
 		super().__init__(baseReader)
-		self.setBatchSize(batchSize)
+		assert batchSize == -1 or batchSize > 0
+		self.batchSize = len(self) if batchSize == -1 else batchSize
+		self.setBatches()
 		self.datasetFormat.isCacheable = True
 
 	# @param[in] batchSize The static batch size required to iterate one epoch. If the batch size is not divisible by
 	#  the number of items, the last batch will trimmed accordingly. If the provided value is -1, it is set to the
 	#  default value of the entire dataset, based on self.getNumData()
-	def setBatchSize(self, batchSize:int):
-		assert batchSize == 1 or batchSize > 0
+	def setBatches(self):
 		N = len(self)
-		if batchSize == -1:
-			batchSize = N
-		n = N // batchSize
-		batchLens = n * [batchSize]
-		if N % batchSize != 0:
-			batchLens.append(N % batchSize)
-		self.batchSize = batchSize
+		B = self.batchSize
+		n = N // B + (N % B != 0)
+		batchLens = n * [B]
+		batchLens[-1] -= n * B - N
 		self.batchLens = batchLens
 		self.batches = batchIndexFromBatchSizes(self.batchLens)
 

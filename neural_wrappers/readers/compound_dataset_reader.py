@@ -26,6 +26,7 @@ class CompoundDatasetEpochIterator(DatasetEpochIterator):
 			self.baseIterator.len = len(self.baseReader)
 			self.baseIterator.indexFn = lambda ix : ix
 
+
 	def __next__(self):
 		self.ix += 1
 		if self.ix < len(self):
@@ -65,7 +66,8 @@ class CompoundDatasetReader(DatasetReader):
 
 	@overrides
 	def __len__(self):
-		return len(self.baseReader)
+		res = len(self.baseReader)
+		return res
 
 	@overrides
 	def __getitem__(self, key):

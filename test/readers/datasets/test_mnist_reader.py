@@ -108,8 +108,8 @@ def main():
 	pass
 	# TestMNISTReader().test_mnist_construct_1()
 	# TestMNISTReader().test_mnist_construct_2()
-	TestMNISTReader().test_getNumData_1()
-	# TestMNISTReader().test_getNumIterations_1()
+	# TestMNISTReader().test_getNumData_1()
+	TestMNISTReader().test_getNumIterations_1()
 	# TestMNISTReader().test_iterate_1()
 	# TestMNISTReader().test_iterate_2()
 	# TestMNISTReader().test_iterate_3()

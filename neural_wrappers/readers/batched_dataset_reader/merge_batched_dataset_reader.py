@@ -26,15 +26,20 @@ class MergeBatchedDatasetEpochIterator(CompoundDatasetEpochIterator):
 		return items, len(listItems)
 
 class MergeBatchedDatasetReader(CompoundDatasetReader):
-	def __init__(self, baseReader:DatasetReader, mergeFn:Callable[[List[DatasetItem]], DatasetItem], \
-		batchesFn=lambda: BatchedDatasetReader.getBatches(self)):
-
+	def __init__(self, baseReader:DatasetReader, mergeFn:Callable[[List[DatasetItem]], DatasetItem], batchesFn=None):
 		try:
 			batches = baseReader.getBatches()
-			assert False, "Already a batched dataset, sir!"
-		except Exception:
-			pass
+			alreadyBatched = True
+		except Exception as e:
+			alreadyBatched = False
+		assert not alreadyBatched, "[MergeBatchDatasetReader] Already a batched dataset, sir!"
 		super().__init__(baseReader)
+
+		if batchesFn is None:
+			def f():
+				assert False, "Must be provided or overridden somewhere"
+			batchesFn = f
+
 		self.mergeFn = mergeFn
 		self.batchesFn = batchesFn
 
@@ -43,6 +48,10 @@ class MergeBatchedDatasetReader(CompoundDatasetReader):
 
 	def iterateOneEpoch(self):
 		return MergeBatchedDatasetEpochIterator(self)
+
+	def __len__(self):
+		ret = super().__len__()
+		return ret
 
 	def __str__(self) -> str:
 		summaryStr = "[MergeBatchedDatasetReader]"
