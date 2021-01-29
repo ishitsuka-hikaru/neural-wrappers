@@ -4,18 +4,21 @@ from simple_caching import NpyFS
 import numpy as np
 import torch as tr
 import torch.optim as optim
-import torch.nn as nn
 import torch.nn.functional as F
+import matplotlib.pyplot as plt
 from argparse import ArgumentParser
 from functools import partial
 from models import ModelFC, ModelConv
 from neural_wrappers.readers import MNISTReader, StaticBatchedDatasetReader, \
 	RandomBatchedDatasetReader, CachedDatasetReader
-from neural_wrappers.callbacks import SaveModels, SaveHistory, ConfusionMatrix, PlotMetrics, EarlyStopping
+from neural_wrappers.callbacks import SaveModels, SaveHistory, ConfusionMatrix, PlotMetrics, EarlyStopping, \
+	RandomPlotEachEpoch
 from neural_wrappers.schedulers import ReduceLRAndBacktrackOnPlateau
 from neural_wrappers.utilities import getGenerators
 from neural_wrappers.metrics import Accuracy
 from neural_wrappers.pytorch import device
+from media_processing_lib.image import toImage
+from scipy.special import softmax
 
 def getArgs():
 	parser = ArgumentParser()
@@ -48,6 +51,23 @@ def lossFn(y, t):
 	t = t.type(tr.bool)
 	return (-tr.log(y[t] + 1e-5)).mean()
 
+def plotFn(x, y, t):
+	cnt = 0
+	MB = len(y)
+	x = x["images"]
+	y = softmax(y, axis=-1)
+	plt.figure()
+	for i in range(MB):
+		cnt += 1
+		ix = np.argmax(t[i], axis=-1)
+		thisPred = y[i][ix]
+		thisImg = toImage(x[i])
+		plt.imshow(thisImg)
+		plt.title("Label: %s. Result: %2.3f" % (ix, thisPred))
+		plt.axis("off")
+		plt.savefig("%d.png" % cnt, bbox_inches="tight", pad_inches=0)
+	plt.close()
+
 def main():
 	args = getArgs()
 
@@ -72,7 +92,8 @@ def main():
 	model.addMetrics({"Accuracy" : Accuracy()})
 	model.setOptimizer(optim.SGD, momentum=0.5, lr=0.1)
 	model.setOptimizerScheduler(ReduceLRAndBacktrackOnPlateau(model, "Loss", 2, 10))
-	callbacks = [SaveHistory("history.txt"), PlotMetrics(["Loss", "Accuracy"]), SaveModels("best", "Loss")]
+	callbacks = [SaveHistory("history.txt"), PlotMetrics(["Loss", "Accuracy"]), SaveModels("best", "Loss"), \
+		RandomPlotEachEpoch(plotFn)]
 	model.addCallbacks(callbacks)
 	print(model.summary())
 
