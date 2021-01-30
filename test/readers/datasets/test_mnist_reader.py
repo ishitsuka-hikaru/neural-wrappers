@@ -55,7 +55,7 @@ class TestMNISTReader:
 		assert not items is None
 		assert B == MB
 
-		rgb, labels = items["data"]["images"], items["labels"]["labels"]
+		rgb, labels = items[0]["images"], items[1]
 		assert rgb.shape == (MB, 28, 28, 1)
 		assert labels.shape == (MB, 10)
 
@@ -76,11 +76,11 @@ class TestMNISTReader:
 		reader = StaticBatchedDatasetReader(MNISTReader(h5py.File(MNIST_READER_PATH, "r")["train"]), 30)
 		generator, numIters = getGenerators(reader,maxPrefetch=0)
 		firstItem, B = next(generator)
-		firstRgb, firstLabels = firstItem["data"]["images"], firstItem["labels"]["labels"]
+		firstRgb, firstLabels = firstItem[0]["images"], firstItem[1]
 		for _ in range(numIters - 1):
 			_ = next(generator)
 		firstItem2, B2 = next(generator)
-		firstRgbEpoch2, firstLabelsEpoch2 = firstItem2["data"]["images"], firstItem2["labels"]["labels"]
+		firstRgbEpoch2, firstLabelsEpoch2 = firstItem2[0]["images"], firstItem2[1]
 
 		assert B == B2
 		assert npCloseEnough(firstRgb, firstRgbEpoch2)
@@ -91,7 +91,7 @@ class TestMNISTReader:
 		reader = StaticBatchedDatasetReader(
 			MNISTReader(h5py.File(MNIST_READER_PATH, "r")["train"], normalization="none"), 30)
 		generator, numIters = getGenerators(reader, maxPrefetch=0)
-		firstRGBs = next(generator)[0]["data"]["images"]
+		firstRGBs = next(generator)[0][0]["images"]
 
 		assert firstRGBs.dtype == np.uint8 and firstRGBs.min() == 0 and firstRGBs.max() == 255
 
@@ -100,7 +100,7 @@ class TestMNISTReader:
 		reader = StaticBatchedDatasetReader(
 			MNISTReader(h5py.File(MNIST_READER_PATH, "r")["train"], normalization="min_max_0_1"), 30)
 		generator, numIters = getGenerators(reader, maxPrefetch=0)
-		firstRGBs = next(generator)[0]["data"]["images"]
+		firstRGBs = next(generator)[0][0]["images"]
 
 		assert firstRGBs.dtype == np.float32 and firstRGBs.min() == 0 and firstRGBs.max() == 1
 
@@ -109,8 +109,8 @@ def main():
 	# TestMNISTReader().test_mnist_construct_1()
 	# TestMNISTReader().test_mnist_construct_2()
 	# TestMNISTReader().test_getNumData_1()
-	TestMNISTReader().test_getNumIterations_1()
-	# TestMNISTReader().test_iterate_1()
+	# TestMNISTReader().test_getNumIterations_1()
+	TestMNISTReader().test_iterate_1()
 	# TestMNISTReader().test_iterate_2()
 	# TestMNISTReader().test_iterate_3()
 	# TestMNISTReader().test_normalization_1()

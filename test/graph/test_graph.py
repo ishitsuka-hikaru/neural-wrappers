@@ -101,7 +101,7 @@ class E(MyNode):
 	def __init__(self):
 		super().__init__(nDims=3, name="E", gtKey="E")
 
-class TestGraphStable:
+class TestGraph:
 	def test_get_inputs_1(self):
 		MB = 13
 		dataStuff = {A : 5, B : 7, C : 10, D : 6, E : 3}
@@ -147,9 +147,9 @@ class TestGraphStable:
 
 		generator = reader.iterateForever()
 		numSteps = len(generator)
-		graph.train_generator(generator, numSteps, numEpochs=5)
+		graph.trainGenerator(generator, numEpochs=5)
 
 if __name__ == "__main__":
 	# TestGraph().test_get_inputs_1()
-	TestGraphStable().test_train_1()
+	TestGraph().test_train_1()
 	pass
