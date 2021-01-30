@@ -26,3 +26,8 @@ class MNISTReader(H5BatchedDatasetReader):
 	@overrides
 	def __len__(self) -> int:
 		return len(self.getDataset()["images"])
+
+	@overrides
+	def __getitem__(self, index):
+		item, B = super().__getitem__(index)
+		return (item["data"], item["labels"]["labels"]), B

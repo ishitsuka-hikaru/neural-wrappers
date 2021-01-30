@@ -9,7 +9,6 @@ class RandomPlotEachEpoch(Callback):
 	def __init__(self, plotFn:Callable, baseDir:str="samples"):
 		super().__init__(name="RandomPlotEachEpoch (Dir='%s')" % baseDir)
 		self.baseDir = baseDir
-		Path(self.baseDir).mkdir(exist_ok=False, parents=True)
 		self.plotFn = plotFn
 
 	@overrides
@@ -27,12 +26,3 @@ class RandomPlotEachEpoch(Callback):
 			os.chdir(self.epochDir)
 			self.plotFn(kwargs["data"], results, labels)
 			os.chdir(cwd)
-
-	@overrides
-	def onCallbackSave(self, model):
-		pass
-		# self.plotFn = None
-
-	@overrides
-	def onCallbackLoad(self, additional, **kwargs):
-		pass

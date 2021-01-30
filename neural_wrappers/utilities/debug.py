@@ -1,18 +1,44 @@
 import os
 from tqdm import trange
 
-def dprint(msg):
-    assert "NW_QUIET" in os.environ
-    quiet = int(os.environ["NW_QUIET"])
-    assert quiet in (0, 1)
-    if quiet == 0:
-        print(msg)
+class Debug:
+    envVar = "NW_LOGLEVEL"
+    logLevels = {
+        "print" : 1,
+        "tqdm" : 1,
+        "default" : 1
+    }
 
-def drange(*args, **kwargs):
-    assert "NW_QUIET" in os.environ
-    quiet = int(os.environ["NW_QUIET"])
-    assert quiet in (0, 1)
-    if quiet == 0:
-        return trange(*args, **kwargs)
-    else:
-        return range(*args)
+    @staticmethod
+    def getMinLogLevel(check):
+        if not check in Debug.logLevels:
+            Debug.print("Warning! '%s' not in log levels. Using 'default'." % check)
+            return Debug.logLevels["default"]
+        return Debug.logLevels[check]
+
+    @staticmethod
+    def getLogLevel():
+        assert Debug.envVar in os.environ, "%s not in environment variables." % Debug.envVar
+        ret = int(os.environ[Debug.envVar])
+        assert ret >= 0
+        return ret
+
+    @staticmethod
+    def use(check):
+        return Debug.getLogLevel() >= Debug.getMinLogLevel(check)
+
+    @staticmethod
+    def print(msg):
+        return Debug.log(Debug.getMinLogLevel("print"), msg)
+
+    @staticmethod
+    def log(level, msg):
+        if Debug.getLogLevel() >= level:
+            print(msg)
+
+    @staticmethod
+    def range(*args, **kwargs):
+        if Debug.use("tqdm"):
+            return trange(*args, **kwargs)
+        else:
+            return range(*args)

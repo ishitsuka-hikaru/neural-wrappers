@@ -14,7 +14,7 @@ from neural_wrappers.readers import MNISTReader, StaticBatchedDatasetReader, \
 from neural_wrappers.callbacks import SaveModels, SaveHistory, ConfusionMatrix, PlotMetrics, EarlyStopping, \
 	RandomPlotEachEpoch
 from neural_wrappers.schedulers import ReduceLRAndBacktrackOnPlateau
-from neural_wrappers.utilities import getGenerators
+from neural_wrappers.utilities import changeDirectory
 from neural_wrappers.metrics import Accuracy
 from neural_wrappers.pytorch import device
 from media_processing_lib.image import toImage
@@ -28,6 +28,7 @@ def getArgs():
 	parser.add_argument("--weightsFile")
 	parser.add_argument("--numEpochs", type=int, default=100)
 	parser.add_argument("--batchSize", type=int, default=20)
+	parser.add_argument("--dir")
 
 	args = parser.parse_args()
 
@@ -38,12 +39,6 @@ def getArgs():
 	if args.type in ("train", "retrain"):
 		assert not args.numEpochs is None
 	return args
-
-# Small wrapper used for current NWModule implementation of runOneEpoch. Will update when NWModule is updated.
-class Reader(MNISTReader):
-	def __getitem__(self, index):
-		item, B = super().__getitem__(index)
-		return (item["data"], item["labels"]["labels"]), B
 
 def lossFn(y, t):
 	# Negative log-likeklihood (used for softmax+NLL for classification), expecting targets are one-hot encoded
@@ -68,22 +63,15 @@ def plotFn(x, y, t):
 		plt.savefig("%d.png" % cnt, bbox_inches="tight", pad_inches=0)
 	plt.close()
 
-def main():
-	args = getArgs()
+def getReader(args, type):
+	reader = MNISTReader(h5py.File(args.dataset_path, "r")["train"])
+	reader = StaticBatchedDatasetReader(reader, args.batchSize)
+	# reader = RandomBatchedDatasetReader(reader)
+	reader = CachedDatasetReader(reader, cache=NpyFS(".cache/%s" % hash(reader)), buildCache=False)
+	print(reader)
+	return reader
 
-	trainReader = StaticBatchedDatasetReader(Reader(h5py.File(args.dataset_path, "r")["train"]), args.batchSize)
-	validationReader = StaticBatchedDatasetReader(Reader(h5py.File(args.dataset_path, "r")["test"]), args.batchSize)
-	# trainReader = RandomBatchedDatasetReader(Reader(h5py.File(args.dataset_path, "r")["train"]))
-	# validationReader = RandomBatchedDatasetReader(Reader(h5py.File(args.dataset_path, "r")["test"]))
-	trainReader = CachedDatasetReader(trainReader, cache=NpyFS(".cache/%s" % hash(trainReader)), buildCache=False)
-	validationReader = CachedDatasetReader(validationReader, cache=NpyFS(".cache/%s" % hash(validationReader)), \
-		buildCache=False)
-	print(trainReader)
-	print(validationReader)
-
-	trainGenerator, trainSteps = getGenerators(trainReader, maxPrefetch=0)
-	validationGenerator, validationSteps = getGenerators(validationReader, maxPrefetch=0)
-
+def getModel(args):
 	model = {
 		"model_fc" : ModelFC(inputShape=(28, 28, 1), outputNumClasses=10),
 		"model_conv" : ModelConv(inputShape=(28, 28, 1), outputNumClasses=10)
@@ -96,17 +84,28 @@ def main():
 		RandomPlotEachEpoch(plotFn)]
 	model.addCallbacks(callbacks)
 	print(model.summary())
+	return model
+
+def main():
+	args = getArgs()
+
+	trainReader = getReader(args, "train")
+	validationReader = getReader(args, "test")
+	trainGenerator = trainReader.iterate()
+	validationGenerator = validationReader.iterate()
+
+	model = getModel(args)
 
 	if args.type == "train":
-		model.train_generator(trainGenerator, trainSteps, numEpochs=args.numEpochs, \
-			validationGenerator=validationGenerator, validationSteps=validationSteps)
+		changeDirectory(args.dir, expectExist=False)
+		model.trainGenerator(trainGenerator, numEpochs=args.numEpochs, validationGenerator=validationGenerator)
 	elif args.type == "retrain":
 		model.loadModel(args.weightsFile)
-		model.train_generator(trainGenerator, trainSteps, numEpochs=args.numEpochs, \
-			validationGenerator=validationGenerator, validationSteps=validationSteps)
+		changeDirectory(args.dir)
+		model.trainGenerator(trainGenerator, numEpochs=args.numEpochs, validationGenerator=validationGenerator)
 	elif args.type == "test":
 		model.loadModel(args.weightsFile)
-		metrics = model.test_generator(validationGenerator, validationSteps)
+		metrics = model.testGenerator(validationGenerator)
 		print("Metrics: %s" % (metrics))
 
 if __name__ == "__main__":
