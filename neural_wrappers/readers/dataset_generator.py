@@ -4,6 +4,7 @@ from .dataset_reader import DatasetReader
 # @brief Infinite generator that goes, epoch by epoch, through the provided dataset reader.
 # @param[in] reader The DatasetReader we are iterating forever upon
 # @param[in] maxPrefetch The number of threads (based on BackgroundGenerator module) to use for iterating purposes
+# TODO: See if can be replaced by utilities/NWGenerator
 class DatasetGenerator:
 	def __init__(self, reader:DatasetReader, maxPrefetch:int):
 		assert maxPrefetch >= 0

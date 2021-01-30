@@ -265,9 +265,15 @@ class NWModule(nn.Module, ABC):
 			npResults, npLoss = npGetData(trResults), npGetData(trLoss)
 			self.iterationPrologue(npInputs, npLabels, npResults, npLoss, i, stepsPerEpoch, \
 				metricResults, isTraining, isOptimizing, startTime)
+
 			# For performance reasons we update the shown loss less often.
 			if Debug.use("tqdm") and (i % 30 == 0 or i == stepsPerEpoch - 1):
-				currentResults = {str(k) : "%2.3f" % metricResults[k].get() for k in metricResults}
+				# TODO: some architectures (i.e. graph) have deep results (so dict[dict[running_mean]])
+				currentResults = {}
+				for k in metricResults:
+					if not isinstance(metricResults, RunningMean):
+						continue
+					currentResults[k] = "%2.3f" % metricResults[k].get()
 				Range.set_postfix(currentResults)
 
 		res = self.reduceEpochMetrics(metricResults)

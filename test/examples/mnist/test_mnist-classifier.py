@@ -33,12 +33,6 @@ def lossFn(y, t):
 	t = t.type(tr.bool)
 	return (-tr.log(y[t] + 1e-5)).mean()
 
-# Small wrapper used for current NWModule implementation of runOneEpoch. Will update when NWModule is updated.
-class Reader(MNISTReader):
-	def __getitem__(self, index):
-		item, B = super().__getitem__(index)
-		return (item["data"], item["labels"]["labels"]), B
-
 try:
 	# This path must be supplied manually in order to pass these tests
 	MNIST_READER_PATH = os.environ["MNIST_READER_PATH"]
@@ -50,13 +44,13 @@ class TestMNISTClassifier:
 	def test(self):
 		trainReader = PercentDatasetReader(
 			StaticBatchedDatasetReader(
-				Reader(h5py.File(MNIST_READER_PATH, "r")["train"]),
+				MNISTReader(h5py.File(MNIST_READER_PATH, "r")["train"]),
 			batchSize=10),
 		percent=1)
 		model = ModelFC(inputShape=(28, 28, 1), outputNumClasses=10).to(device)
 		model.setCriterion(lossFn)
 		model.setOptimizer(optim.SGD, lr=0.01)
-		model.trainGenerator(trainReader.iterate(), numEpochs=1, printMessage=None)
+		model.trainGenerator(trainReader.iterate(), numEpochs=1)
 
 def main():
 	TestMNISTClassifier().test()

@@ -68,6 +68,7 @@ class Graph(NWModule):
 
 		# TODO: Execution order. (synchronus vs asynchronus as well as topological sort at various levels.)
 		# For now, the execution is synchronous and linear as defined by the list of edges
+		trResults = {}
 		for edge in self.edges:
 			edgeID = str(edge)
 			edgeInputs = edge.getInputs(trInputs)

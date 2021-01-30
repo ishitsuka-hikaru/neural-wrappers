@@ -209,7 +209,7 @@ class TestMNISTGraph:
 
 		model = getModel().to(device)
 		model.setOptimizer(optim.SGD, lr=0.01)
-		model.trainGenerator(reader.iterate(), numEpochs=1, printMessage=None)
+		model.trainGenerator(reader.iterate(), numEpochs=1)
 
 def main():
 	TestMNISTGraph().test()

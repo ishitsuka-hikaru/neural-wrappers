@@ -96,7 +96,7 @@ class TestMNISTGAN:
 		# Define model
 		model = GenerativeAdversarialNetwork(generator=generatorModel, discriminator=discriminatorModel).to(device)
 		model.setOptimizer(optim.SGD, lr=0.01)
-		model.trainGenerator(reader.iterate(), numEpochs=1, printMessage=None)
+		model.trainGenerator(reader.iterate(), numEpochs=1)
 
 def main():
 	TestMNISTGAN().test()

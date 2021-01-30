@@ -45,7 +45,7 @@ class Decoder(FeedForwardNetwork):
 class BinaryMNISTReader(MNISTReader):
 	def __getitem__(self, index):
 		item, B = super().__getitem__(index)
-		images = item["data"]["images"]
+		images = item[0]["images"]
 		images = np.float32(images > 0)
 		return (images, images), B
 
@@ -66,7 +66,7 @@ class TestMNISTVAE:
 		model = VariationalAutoencoderNetwork(encoder, decoder, \
 			lossWeights={"latent" : 1 / (1000), "decoder" : 1}).to(device)
 		model.setOptimizer(optim.SGD, lr=0.01)
-		model.trainGenerator(reader.iterate(), numEpochs=1, printMessage=None)
+		model.trainGenerator(reader.iterate(), numEpochs=1)
 
 def main():
 	TestMNISTVAE().test()
