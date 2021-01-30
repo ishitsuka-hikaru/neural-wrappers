@@ -1,15 +1,17 @@
-import torch.optim as optim
 import h5py
+import numpy as np
+import torch.optim as optim
+import matplotlib.pyplot as plt
 from argparse import ArgumentParser
+from functools import partial
 from neural_wrappers.pytorch import GenerativeAdversarialNetwork, device
-from neural_wrappers.callbacks import SaveModels, PlotMetrics
+from neural_wrappers.callbacks import SaveModels, PlotMetrics, RandomPlotEachEpoch
 from neural_wrappers.utilities import getGenerators, changeDirectory
 from neural_wrappers.readers import StaticBatchedDatasetReader
 
 from mnist_models import GeneratorLinear as Generator, DiscriminatorLinear as Discriminator
 from reader import GANReader
 from test_model import test_model
-from utils import PlotCallback
 
 def getArgs():
 	parser = ArgumentParser()
@@ -27,6 +29,21 @@ def getArgs():
 
 	return args
 
+def plotFn(x, y, t, model, latentSpaceSize):
+	# Generate 20 random gaussian inputs
+	randomNoise = np.random.randn(20, latentSpaceSize).astype(np.float32)
+	npRandomOutG = model.generator.npForward(randomNoise)[..., 0] / 2 + 0.5
+
+	# Plot the inputs and discriminator's confidence in them
+	items = [npRandomOutG[j] for j in range(len(npRandomOutG))]
+	
+	ax = plt.subplots(4, 5)[1]
+	for i in range(4):
+		for j in range(5):
+			ax[i, j].imshow(npRandomOutG[i * 4 + j], cmap="gray")
+	plt.savefig("results.png")
+	plt.close()
+
 def main():
 	args = getArgs()
 
@@ -43,15 +60,15 @@ def main():
 	model = GenerativeAdversarialNetwork(generator=generatorModel, discriminator=discriminatorModel).to(device)
 	model.setOptimizer(optim.SGD, lr=0.01)
 	model.addCallbacks([SaveModels("last", "GLoss"), PlotMetrics(["Loss", "GLoss", "DLoss"]), \
-		PlotCallback(args.latent_space_size)])
+		RandomPlotEachEpoch(partial(plotFn, model=model, latentSpaceSize=args.latent_space_size))])
 	print(model.summary())
 
 	if args.type == "train":
 		changeDirectory(args.dir, expectExist=False)
-		model.train_generator(generator, numIterations, numEpochs=args.num_epochs)
+		model.trainGenerator(generator, numEpochs=args.num_epochs)
 	elif args.type == "retrain":
 		model.loadModel(args.weights_file)
-		model.train_generator(generator, numIterations, numEpochs=args.num_epochs)
+		model.trainGenerator(generator, numEpochs=args.num_epochs)
 	elif args.type == "test_model":
 		model.loadModel(args.weights_file)
 		test_model(args, model)

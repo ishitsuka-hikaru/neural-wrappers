@@ -5,11 +5,15 @@ from overrides import overrides
 from .callback import Callback
 from ..utilities import changeDirectory
 
+_plotFn = None
+
 class RandomPlotEachEpoch(Callback):
 	def __init__(self, plotFn:Callable, baseDir:str="samples"):
 		super().__init__(name="RandomPlotEachEpoch (Dir='%s')" % baseDir)
 		self.baseDir = baseDir
 		self.plotFn = plotFn
+		global _plotFn
+		_plotFn = plotFn
 
 	@overrides
 	def onEpochStart(self, **kwargs):
@@ -26,3 +30,10 @@ class RandomPlotEachEpoch(Callback):
 			os.chdir(self.epochDir)
 			self.plotFn(kwargs["data"], results, labels)
 			os.chdir(cwd)
+
+	def onCallbackLoad(self, additional, **kwargs):
+		global _plotFn
+		self.plotFn = _plotFn
+
+	def onCallbackSave(self, **kwargs):
+		self.plotFn = None
