@@ -116,7 +116,7 @@ def getModel():
 	rgbTopRight2Label = Edge(rgbTopRight, label)
 	rgbBottomLeft2Label = Edge(rgbBottomLeft, label)
 	rgbBottomRight2Label = Edge(rgbBottomRight, label)
-	reduceNode = ReduceNode(label, forwardFn=f)
+	reduceNode = ReduceNode(label, forwardFn=f, name="Result")
 	graph = Graph([
 		rgb2label,
 		rgbTopLeft2Label,

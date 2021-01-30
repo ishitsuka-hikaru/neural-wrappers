@@ -271,9 +271,9 @@ class NWModule(nn.Module, ABC):
 				# TODO: some architectures (i.e. graph) have deep results (so dict[dict[running_mean]])
 				currentResults = {}
 				for k in metricResults:
-					if not isinstance(metricResults, RunningMean):
+					if not isinstance(metricResults[k], RunningMean):
 						continue
-					currentResults[k] = "%2.3f" % metricResults[k].get()
+					currentResults[str(k)] = "%2.3f" % metricResults[k].get()
 				Range.set_postfix(currentResults)
 
 		res = self.reduceEpochMetrics(metricResults)
