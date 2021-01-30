@@ -8,20 +8,6 @@ from .np_utils import npCloseEnough
 from .type_utils import NWNumber, NWSequence, NWDict, isBaseOf, T
 from .debug import Debug
 
-# Labels can be None, in that case only data is available (testing cases without labels)
-def makeGenerator(data, labels, batchSize):
-	while True:
-		numData = data.shape[0]
-		numIterations = numData // batchSize + (numData % batchSize != 0)
-		for i in range(numIterations):
-			startIndex = i * batchSize
-			endIndex = np.minimum((i + 1) * batchSize, numData)
-			b = endIndex - startIndex
-			if not labels is None:
-				yield (data[startIndex : endIndex], labels[startIndex : endIndex]), b
-			else:
-				yield data[startIndex : endIndex], b
-
 def NoneAssert(conndition, noneCheck, message=""):
 	if noneCheck:
 		assert conndition, message

@@ -21,7 +21,6 @@ class DatasetEpochIterator:
 		return self.len
 
 	def __getitem__(self, ix):
-		# return self.__getitem__(self.reader, ix)
 		return self.reader[ix]
 
 	# The logic of getting an item is. ix is a number going in range [0 : len(self) - 1]. Then, we call dataset's

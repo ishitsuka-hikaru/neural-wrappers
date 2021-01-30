@@ -27,7 +27,7 @@ class DatasetGenerator:
 		except StopIteration:
 			self.newEpoch()
 			return next(self.currentGenerator)
-	
+
 	def __iter__(self):
 		return self
 

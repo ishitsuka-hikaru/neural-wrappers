@@ -1,11 +1,12 @@
-from neural_wrappers.pytorch import FeedForwardNetwork, device
-from neural_wrappers.callbacks import Callback, SaveModels, SaveHistory
 import numpy as np
 import torch as tr
-
 import torch.nn as nn
 from torch.optim import Adam, SGD
+
+from neural_wrappers.pytorch import FeedForwardNetwork, device
+from neural_wrappers.callbacks import Callback, SaveModels, SaveHistory
 from neural_wrappers.schedulers import ReduceLROnPlateau
+from neural_wrappers.utilities import makeGenerator
 
 class Model(FeedForwardNetwork):
 	def __init__(self, inputSize, hiddenSize, outputSize):
@@ -91,14 +92,14 @@ class TestNetwork:
 		model.setOptimizer(Adam, lr=0.001)
 		model.setCriterion(lambda y, t : tr.sum((y - t)**2))
 
-		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=5, printMessage=None)
+		model.trainGenerator(makeGenerator(inputs, targets, batchSize=10), numEpochs=5)
 		model.saveModel("test_model.pkl")
-		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=5, printMessage=None)
+		model.trainGenerator(makeGenerator(inputs, targets, batchSize=10), numEpochs=5)
 		model_new = Model(I, H, O).to(device)
 		model_new.setOptimizer(Adam, lr=0.001)
 		model_new.loadModel("test_model.pkl")
 		model_new.setCriterion(lambda y, t : tr.sum((y - t)**2))
-		model_new.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=5, printMessage=None)
+		model_new.trainGenerator(makeGenerator(inputs, targets, batchSize=10), numEpochs=5)
 
 		weights_model = list(model.parameters())
 		weights_model_new = list(model_new.parameters())
@@ -120,9 +121,9 @@ class TestNetwork:
 		model.setCriterion(lambda y, t : tr.sum((y - t)**2))
 		model.setOptimizerScheduler(ReduceLROnPlateau, metric="Loss")
 
-		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=10, printMessage=None)
+		model.trainGenerator(makeGenerator(inputs, targets, batchSize=10), numEpochs=10)
 		model.saveModel("test_model.pkl")
-		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=20, printMessage=None)
+		model.trainGenerator(makeGenerator(inputs, targets, batchSize=10), numEpochs=20)
 		assert model.optimizerScheduler.optimizer == model.optimizer
 
 		model_new = Model(I, H, O).to(device)
@@ -131,7 +132,7 @@ class TestNetwork:
 		model_new.setOptimizerScheduler(ReduceLROnPlateau, metric="Loss")
 		model_new.loadModel("test_model.pkl")
 		assert model_new.optimizerScheduler.optimizer == model_new.optimizer
-		model_new.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=20, printMessage=None)
+		model_new.trainGenerator(makeGenerator(inputs, targets, batchSize=10), numEpochs=20)
 		assert model.optimizerScheduler.num_bad_epochs == model_new.optimizerScheduler.num_bad_epochs
 
 		weights_model = list(model.parameters())
@@ -156,7 +157,7 @@ class TestNetwork:
 		model.addCallbacks(callbacks)
 		model.addMetrics({"Test" : lambda x, y, **k : 0.5})
 		beforeKeys = list(model.callbacks.keys())
-		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=10, printMessage=None)
+		model.trainGenerator(makeGenerator(inputs, targets, batchSize=10), numEpochs=10)
 		model.saveModel("test_model.pkl")
 		model.loadModel("test_model.pkl")
 		afterKeys = list(model.callbacks.keys())
@@ -176,9 +177,9 @@ class TestNetwork:
 		model.setCriterion(lambda y, t : tr.sum((y - t)**2))
 		model.setOptimizerScheduler(ReduceLROnPlateau, metric="Loss")
 
-		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=10, printMessage=None)
+		model.trainGenerator(makeGenerator(inputs, targets, batchSize=10), numEpochs=10)
 		model.saveModel("test_model.pkl")
-		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=20, printMessage=None)
+		model.trainGenerator(makeGenerator(inputs, targets, batchSize=10), numEpochs=20)
 		assert model.optimizerScheduler.optimizer == model.optimizer
 
 		model_new = ModelConvWithBatchNormalization(bn=False).to(device)
@@ -187,7 +188,7 @@ class TestNetwork:
 		model_new.setOptimizerScheduler(ReduceLROnPlateau, metric="Loss")
 		model_new.loadModel("test_model.pkl")
 		assert model_new.optimizerScheduler.optimizer == model_new.optimizer
-		model_new.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=20, printMessage=None)
+		model_new.trainGenerator(makeGenerator(inputs, targets, batchSize=10), numEpochs=20)
 		assert model.optimizerScheduler.num_bad_epochs == model_new.optimizerScheduler.num_bad_epochs
 
 		weights_model = list(model.parameters())
@@ -210,9 +211,9 @@ class TestNetwork:
 		model.setCriterion(lambda y, t : tr.sum((y - t)**2))
 		model.setOptimizerScheduler(ReduceLROnPlateau, metric="Loss")
 
-		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=10, printMessage=None)
+		model.trainGenerator(makeGenerator(inputs, targets, batchSize=10), numEpochs=10)
 		model.saveModel("test_model.pkl")
-		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=20, printMessage=None)
+		model.trainGenerator(makeGenerator(inputs, targets, batchSize=10), numEpochs=20)
 		assert model.optimizerScheduler.optimizer == model.optimizer
 
 		model_new = ModelConvWithBatchNormalization(bn=True).to(device)
@@ -221,7 +222,7 @@ class TestNetwork:
 		model_new.setOptimizerScheduler(ReduceLROnPlateau, metric="Loss")
 		model_new.loadModel("test_model.pkl")
 		assert model_new.optimizerScheduler.optimizer == model_new.optimizer
-		model_new.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=20, printMessage=None)
+		model_new.trainGenerator(makeGenerator(inputs, targets, batchSize=10), numEpochs=20)
 		assert model.optimizerScheduler.num_bad_epochs == model_new.optimizerScheduler.num_bad_epochs
 
 		weights_model = list(model.parameters())
@@ -243,9 +244,9 @@ class TestNetwork:
 		model.setOptimizer(Adam, lr=0.001)
 		model.setCriterion(lambda y, t : tr.sum((y - t)**2))
 
-		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=5, printMessage=None)
+		model.trainGenerator(makeGenerator(inputs, targets, batchSize=10), numEpochs=5)
 		model.saveModel("test_model.pkl")
-		model.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=5, printMessage=None)
+		model.trainGenerator(makeGenerator(inputs, targets, batchSize=10), numEpochs=5)
 		model_new = Model(I, H, O).to(device)
 		try:
 			model_new.setOptimizer(SGD, lr=0.001)
@@ -256,7 +257,7 @@ class TestNetwork:
 		model_new.setOptimizer(Adam, lr=0.001)
 		model_new.loadModel("test_model.pkl")
 		model_new.setCriterion(lambda y, t : tr.sum((y - t)**2))
-		model_new.train_model(data=inputs, labels=targets, batchSize=10, numEpochs=5, printMessage=None)
+		model_new.trainGenerator(makeGenerator(inputs, targets, batchSize=10), numEpochs=5)
 
 		weights_model = list(model.parameters())
 		weights_model_new = list(model_new.parameters())
@@ -426,9 +427,9 @@ if __name__ == "__main__":
 	pass
 	# TestNetwork().test_save_weights_1()
 	# TestNetwork().test_save_model_1()
-	TestNetwork().test_save_model_2()
+	# TestNetwork().test_save_model_2()
 	# TestNetwork().test_save_model_3()
-	# TestNetwork().test_save_model_4()
+	TestNetwork().test_save_model_4()
 	# TestNetwork().test_save_model_5()
 	# TestNetwork().test_save_model_6()
 	# TestNetwork().test_add_merics_1()
