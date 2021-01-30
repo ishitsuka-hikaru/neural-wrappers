@@ -45,7 +45,7 @@ def main():
 	print(model.summary())
 
 	if args.type == "train":
-		model.train_generator(generator, stepsPerEpoch=len(generator), numEpochs=args.numEpochs)
+		model.trainGenerator(generator, numEpochs=args.numEpochs)
 	elif args.type == "test":
 		model.loadModel(sys.argv[3])
 
