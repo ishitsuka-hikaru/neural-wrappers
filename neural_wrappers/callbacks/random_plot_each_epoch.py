@@ -17,7 +17,10 @@ class RandomPlotEachEpoch(Callback):
 
 	@overrides
 	def onEpochStart(self, **kwargs):
-		Dir = "%s/%d" % (self.baseDir, kwargs["epoch"])
+		if kwargs["isTraining"]:
+			Dir = "%s/%d" % (self.baseDir, kwargs["epoch"])
+		else:
+			Dir = "%s/test" % self.baseDir
 		Path(Dir).mkdir(exist_ok=True, parents=True)
 		self.currentEpoch = kwargs["epoch"]
 		self.epochDir = Dir
