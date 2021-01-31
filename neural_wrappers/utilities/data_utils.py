@@ -36,4 +36,5 @@ def toCategorical(data, numClasses):
 	y = np.squeeze(y)
 	if MB == 1:
 		y = np.expand_dims(y, axis=0)
+	y = y.reshape(*data.shape, numClasses)
 	return y

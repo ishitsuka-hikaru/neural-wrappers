@@ -1,10 +1,11 @@
 import numpy as np
-from .metric_with_threshold import MetricWithThreshold
 from .metric import Metric
 from ..utilities import NWNumber
 
+recallObj = None
+
 # Based on https://towardsdatascience.com/multi-class-metrics-made-simple-part-i-recall-and-recall-9250280bddc2
-class ThresholdRecall(MetricWithThreshold):
+class Recall(Metric):
 	def __init__(self):
 		super().__init__("max")
 
@@ -23,10 +24,11 @@ class ThresholdRecall(MetricWithThreshold):
 		res = res * whereOk
 		return res
 
-	def __call__(self, results : np.ndarray, labels : np.ndarray, threshold : np.ndarray, **kwargs) -> NWNumber: #type: ignore[override]
-		results = np.uint8(results >= threshold)
+	def __call__(self, results:np.ndarray, labels:np.ndarray, **kwargs) -> NWNumber: #type: ignore[override]
+		Max = results.max(axis=-1, keepdims=True)
+		results = np.uint8(results >= Max)
 		# Nans are used to specify classes with no labels for this batch
-		recall = ThresholdRecall.computeRecall(results, labels)
+		recall = Recall.computeRecall(results, labels)
 		# Keep only position where recall is not nan.
 		whereNotNaN = ~np.isnan(recall)
 		recall = recall[whereNotNaN]
@@ -39,14 +41,8 @@ class ThresholdRecall(MetricWithThreshold):
 		whereOk = whereOk[whereNotNaN]
 		return (recall * whereOk).sum() / whereOk.sum()
 
-class Recall(Metric):
-	def __init__(self):
-		super().__init__("max")
-		self.thresholdRecall = ThresholdRecall()
-
-	# @brief Since we don't care about a particular threshold, just to get the highest activation for each prediction,
-	#  we can compute the max on the last axis (classes axis) and send this as threshold to the ThresholdAccuracy
-	#  class.
-	def __call__(self, results : np.ndarray, labels : np.ndarray, **kwargs): #type: ignore[override]
-		Max = results.max(axis=-1, keepdims=True)
-		return self.thresholdRecall(results, labels, Max)
+def recall(y, t):
+	global recallObj
+	if not recallObj:
+		recallObj = Recall()
+	return recallObj(y, t)

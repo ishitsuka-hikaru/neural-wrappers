@@ -1,7 +1,6 @@
 import os
 from overrides import overrides
 from .callback import Callback
-from ..pytorch.utils import _getOptimizerStr
 
 # TODO: add format to saving files
 class SaveHistory(Callback):
@@ -20,6 +19,7 @@ class SaveHistory(Callback):
 
 	@overrides
 	def onEpochEnd(self, **kwargs):
+		from ..pytorch.utils import _getOptimizerStr
 		# SaveHistory should be just in training mode.
 		if not kwargs["trainHistory"]:
 			print("Warning! Using SaveHistory callback with no history (probably testing mode).")

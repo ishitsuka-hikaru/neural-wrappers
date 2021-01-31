@@ -1,46 +1,36 @@
 import numpy as np
-from scipy.special import softmax
 from overrides import overrides
 from typing import Dict
-from .metric_with_threshold import MetricWithThreshold
 from .metric import Metric
 from ..utilities import NWNumber
 
-class ThresholdAccuracy(MetricWithThreshold):
-	def __init__(self):
-		super().__init__(direction="max")
-
-	# @brief results and labels are two arrays of shape: (MB, N, C), where N is a variable shape (images, or just
-	#  numbers), while C is the number of classes. The number of classes must coincide to both cases. We assume that
-	#  the labels are one-hot encoded (1 on correct class, 0 on others), while we make no assumption about the results.
-	#  This means that it can be before or after softmax or any other function. However, we also receive a threshold
-	#  against which we compare this result and extract the "activations" (results > threshold, since it's a
-	#  maximinzing metric). Then, we can get a bunch of such activations for each result, but we're only interested
-	#  in the one that corresponds to the correct class, as said by label (result[labels == 1] == 1?). We sum those
-	#  and divide by the number of items to get the thresholded accuracy.
-	def __call__(self, results : np.ndarray, labels : np.ndarray, threshold : np.ndarray, **kwargs) -> float: #type: ignore[override]
-		results = results >= threshold
-		whereCorrect = labels == 1
-		results = results[whereCorrect]
-		return results.mean()
+accObj = None
 
 class Accuracy(Metric):
-	def __init__(self):
+	def __init__(self, meanResult:bool=True):
 		super().__init__(direction="max")
-		self.thresholdAccuracy = ThresholdAccuracy()
+		self.meanResult = meanResult
 
 	@overrides
 	def getExtremes(self) -> Dict[str, NWNumber]:
 		return {"min" : 0, "max" : 1}
 
-	# @brief Since we don't care about a particular threshold, just to get the highest activation for each prediction,
-	#  we can compute the max on the last axis (classes axis) and send this as threshold to the ThresholdAccuracy
-	#  class.
-	def __call__(self, results : np.ndarray, labels : np.ndarray, **kwargs) -> float: #type: ignore[override]
+	def __call__(self, results:np.ndarray, labels:np.ndarray, **kwargs) -> float: #type: ignore[override]
 		Max = results.max(axis=-1, keepdims=True)
-		return self.thresholdAccuracy(results, labels, Max)
+		binaryResults = results >= Max
+		whereCorrect = labels == 1
+		
+		maskedResults = binaryResults[whereCorrect]
+		maskedResults = maskedResults.reshape(*labels.shape[0 : -1])
+		if self.meanResult:
+			maskedResults = maskedResults.mean()
+		return maskedResults
 
-class ThresholdSoftmaxAccuracy(ThresholdAccuracy):
-	def __call__(self, results : np.ndarray, labels : np.ndarray, threshold : np.ndarray, **kwargs) -> float: #type: ignore[override]
-		results = softmax(results, axis=-1)
-		return super().__call__(results, labels, threshold)
+# Simple wrapper for the Accuracy class
+# @param[in] y Predictions (After softmax). Shape: MBx(Shape)xNC
+# @param[in] t Class labels. Shape: MBx(Shape) and values of 0 and 1.
+def accuracy(y:np.ndarray, t:np.ndarray):
+	global accObj
+	if accObj is None:
+		accObj = Accuracy(meanResult=False)
+	return accObj(y, t)

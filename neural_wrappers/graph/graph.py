@@ -68,17 +68,20 @@ class Graph(NWModule):
 
 		# TODO: Execution order. (synchronus vs asynchronus as well as topological sort at various levels.)
 		# For now, the execution is synchronous and linear as defined by the list of edges
-		trResults = {}
-		for edge in self.edges:
-			edgeID = str(edge)
-			edgeInputs = edge.getInputs(trInputs)
-			edgeOutput = edge.forward(edgeInputs)
-			# Update the outputs of the whole graph as well
-			trResults[edgeID] = edgeOutput
-
+		trResults = self.forward(trInputs)
 		trLoss = self.criterion(trResults, trLabels)
 		self.updateOptimizer(trLoss, isTraining, isOptimizing)
 		return trResults, trLoss
+
+	def forward(self, x):
+		trResults = {}
+		for edge in self.edges:
+			edgeID = str(edge)
+			edgeInputs = edge.getInputs(x)
+			edgeOutput = edge.forward(edgeInputs)
+			# Update the outputs of the whole graph as well
+			trResults[edgeID] = edgeOutput
+		return trResults
 
 	def getEdges(self):
 		edges = []

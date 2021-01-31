@@ -1,5 +1,5 @@
 import numpy as np
-from neural_wrappers.metrics import ThresholdPrecision, Precision
+from neural_wrappers.metrics import Precision, precision
 from neural_wrappers.utilities import toCategorical, npCloseEnough
 
 class TestPrecision:
@@ -7,15 +7,14 @@ class TestPrecision:
 		results = toCategorical([0, 1, 2, 3, 1], numClasses=5)
 		labels = toCategorical([0, 0, 2, 2, 3], numClasses=5)
 
-		res = ThresholdPrecision.computePrecision(results, labels)
+		res = Precision.computePrecision(results, labels)
 		assert npCloseEnough(res, np.array([1, 0, 1, 0, np.nan]))
 
 	def test_call_precision_1(self):
 		results = toCategorical([0, 1, 2, 3, 1], numClasses=5)
 		labels = toCategorical([0, 0, 2, 2, 3], numClasses=5)
 
-		obj = Precision()
-		res = obj(results, labels)
+		res = precision(results, labels)
 		assert npCloseEnough(res, np.array([0.8]))
 
 	# Example from: https://towardsdatascience.com/multi-class-metrics-made-simple-part-ii-the-f1-score-ebe8b2c2ca1
@@ -26,9 +25,7 @@ class TestPrecision:
 		results = toCategorical(results, numClasses=3)
 		labels = toCategorical(labels, numClasses=3)
 
-		obj = Precision()
-		res = obj(results, labels)
-		print(res)
+		res = precision(results, labels)
 		assert npCloseEnough(res, np.array([0.58051]))
 
 def main():

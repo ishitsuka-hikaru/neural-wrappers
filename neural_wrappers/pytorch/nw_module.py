@@ -253,6 +253,7 @@ class NWModule(nn.Module, ABC):
 
 		desc = "[%s] Iteration" % Prefix
 		postfix = {str(k) : 0.000 for k in metricResults}
+		stepsPerEpoch = 5
 		Range = Debug.range(stepsPerEpoch, desc=desc, postfix=postfix)
 		for i in Range:
 			# TODO: we still assume inputs, labels = data. Update this to be generic!

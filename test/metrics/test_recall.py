@@ -1,5 +1,5 @@
 import numpy as np
-from neural_wrappers.metrics import Recall
+from neural_wrappers.metrics import Recall, recall
 from neural_wrappers.utilities import toCategorical, npCloseEnough
 
 class TestRecall:
@@ -11,9 +11,7 @@ class TestRecall:
 		results = toCategorical(results, numClasses=3)
 		labels = toCategorical(labels, numClasses=3)
 
-		obj = Recall()
-		res = obj(results, labels)
-		print(res)
+		res = recall(results, labels)
 		assert npCloseEnough(res, np.array([0.48]))
 
 def main():

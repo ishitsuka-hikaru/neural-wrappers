@@ -2,6 +2,8 @@ import numpy as np
 from scipy.special import softmax
 from .metric import Metric
 
+meanIoUObj = None
+
 # Compute the batch (local) mean iou, which is an approximation of the actual mean iou over entire dataset, however
 #  it is faster to compute. This allows us to use the running mean of the network class.
 class LocalMeanIoU(Metric):
@@ -69,7 +71,6 @@ class MeanIoU(Metric):
 		}[mode]()
 		self.returnMean = returnMean
 
-
 	def iterationReduceFunction(self, results):
 		return self.obj.iterationReduceFunction(results).mean()
 
@@ -81,3 +82,9 @@ class MeanIoU(Metric):
 
 	def __call__(self, y, t, **k):
 		return self.obj(y, t, **k)
+
+def mean_iou(y, t):
+	global meanIoUObj
+	if meanIoUObj is None:
+		meanIoUObj = MeanIoU(mode="local", returnMean=True)
+	return meanIoUObj(y, t)

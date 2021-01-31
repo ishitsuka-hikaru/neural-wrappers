@@ -2,7 +2,6 @@ from overrides import overrides
 from typing import List, Union, Tuple, Optional
 from .callback import Callback
 from .callback_name import CallbackName
-from ..pytorch.utils import plotModelMetricHistory
 
 class PlotMetrics(Callback):
 	def __init__(self, metricNames : List[CallbackName], **kwargs):
@@ -24,6 +23,7 @@ class PlotMetrics(Callback):
 
 	@overrides
 	def onEpochEnd(self, **kwargs):
+		from ..pytorch.utils import plotModelMetricHistory
 		self.setup(kwargs["model"])
 		trainHistory = kwargs["trainHistory"]
 		if not kwargs["isTraining"] or len(trainHistory) == 1:

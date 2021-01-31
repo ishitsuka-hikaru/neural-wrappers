@@ -45,7 +45,7 @@ class Metric(Callback):
 
 	@overrides
 	def onEpochEnd(self, **kwargs):
-		pass
+		pass  
 
 	@overrides
 	def onIterationStart(self, **kwargs):
