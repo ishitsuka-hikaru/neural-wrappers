@@ -7,3 +7,4 @@ from .precision import Precision, precision
 from .recall import Recall, recall
 from .inter_class_accuracy import InterClassAccuracy, inter_class_accuracy
 from .mean_iou import MeanIoU, mean_iou
+from .nll import nll

@@ -1,4 +1,5 @@
 from __future__ import annotations
+import numpy as np
 from abc import ABC, abstractmethod
 from typing import Union, Optional, Callable, Dict
 from overrides import overrides
@@ -27,7 +28,7 @@ class Metric(Callback):
 		return 0.0
 
 	def getExtremes(self) -> Dict[str, NWNumber]:
-		return {"min" : -1<<31, "max" : 1<<31}
+		return {"min" : -np.inf, "max" : np.inf}
 
 	# @brief Provides a sane way of comparing two results of this metric
 	# @return Returns a callback that can compare two results and returns a bool value. Returns true if
