@@ -21,7 +21,7 @@ class RandomPlotEachEpoch(Callback):
 		self.currentEpoch = None
 		self.plotIteration = None
 
-		global _plotFn, _plotIteration
+		global _plotFn, _plotIterationFn
 		_plotFn = plotFn
 		_plotIterationFn = plotIterationFn
 

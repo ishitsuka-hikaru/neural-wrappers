@@ -156,16 +156,20 @@ def semanticSegmentationNorm(x:np.ndarray, readerObj:CarlaH5PathsReader) -> np.n
 		(156, 102, 102): "Wall",
 		(0, 220, 220): "Traffic sign"
 	}.keys())
-	numClasses = len(labelKeys)
-	sumLabelKeys = list(map(lambda x : x[0] + x[1] * 256 + x[2] * 256 * 256, labelKeys))
+	NC = len(labelKeys)
 
-	x = x.astype(np.uint32)
-	x = x[..., 0] + x[..., 1] * 256 + x[..., 2] * 256 * 256
-	for i in range(numClasses):
-		x[x == sumLabelKeys[i]] = i
-	x = x.astype(np.uint8)
-	x = imgResize_batch(x, interpolation="nearest", height=readerObj.desiredShape[0], \
-		width=readerObj.desiredShape[1], resizeLib="opencv", onlyUint8=False)
+	if readerObj.hyperParameters["semanticNumClasses"] == NC and x.shape[-1] == NC:
+		assert x.min() >= 0 and x.max() <= 1
+	else:
+		sumLabelKeys = list(map(lambda x : x[0] + x[1] * 256 + x[2] * 256 * 256, labelKeys))
+		x = x.astype(np.uint32)
+		x = x[..., 0] + x[..., 1] * 256 + x[..., 2] * 256 * 256
+		for i in range(NC):
+			x[x == sumLabelKeys[i]] = i
+		x = x.astype(np.uint8)
+		x = imgResize_batch(x, interpolation="nearest", height=readerObj.desiredShape[0], \
+			width=readerObj.desiredShape[1], resizeLib="opencv", onlyUint8=False)
+		# Some fancy way of doing one-hot encoding.
+		x = np.eye(NC)[x].astype(np.float32)
 
-	# Some fancy way of doing one-hot encoding.
-	return np.eye(numClasses)[x].astype(np.float32)
+	return x
