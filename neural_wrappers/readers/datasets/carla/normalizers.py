@@ -1,7 +1,7 @@
 import numpy as np
 import transforms3d.euler as txe
 from typing import Dict, Union
-from media_processing_lib.image import imgResize_batch
+from media_processing_lib.image import imgResize
 
 from .carla_h5_paths_reader import CarlaH5PathsReader
 from ....utilities import h5ReadDict, npGetInfo
@@ -11,7 +11,7 @@ from ....utilities import h5ReadDict, npGetInfo
 
 def rgbNorm(x : np.ndarray, readerObj:CarlaH5PathsReader) -> np.ndarray:
 	# x [MBx854x854x3] => [MBx256x256x3] :: [0 : 255]
-	x = imgResize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], \
+	x = imgResize(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], \
 		resizeLib="opencv", onlyUint8=False)
 	# x :: [0 : 255] => [0: 1]
 	x = x.astype(np.float32) / 255
@@ -24,7 +24,7 @@ def wireframeNorm(x : np.ndarray, readerObj:CarlaH5PathsReader) -> np.ndarray:
 	# Binarize it x :: [0 : 255] => [0 : 1]
 	x = (x > 0).astype(np.uint8)
 	# Resize it to desired shape
-	x = imgResize_batch(x, interpolation="nearest", height=readerObj.desiredShape[0], \
+	x = imgResize(x, interpolation="nearest", height=readerObj.desiredShape[0], \
 		width=readerObj.desiredShape[1], resizeLib="opencv", onlyUint8=False)
 	return x.astype(np.float32)
 
@@ -37,7 +37,7 @@ def halftoneNorm(x : np.ndarray, readerObj:CarlaH5PathsReader) -> np.ndarray:
 def depthNorm(x : np.ndarray, readerObj:CarlaH5PathsReader) -> np.ndarray:
 	depthStats = {"min" : 0, "max" : readerObj.hyperParameters["maxDepthMeters"]}
 
-	x = imgResize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], \
+	x = imgResize(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], \
 		resizeLib="opencv", onlyUint8=False)
 	# Depth is stored in [0 : 1] representing up to 1000m from simulator
 	x = np.clip(x * 1000, depthStats["min"], depthStats["max"])
@@ -111,7 +111,7 @@ def opticalFlowNorm(x : np.ndarray, readerObj:CarlaH5PathsReader) -> np.ndarray:
 		return np.expand_dims(norm, axis=-1)
 
 	# Data in [0 : 1]
-	x = imgResize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], \
+	x = imgResize(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], \
 		resizeLib="opencv", onlyUint8=False)
 
 	if readerObj.hyperParameters["opticalFlowPercentage"] != (100, 100):
@@ -128,13 +128,13 @@ def opticalFlowNorm(x : np.ndarray, readerObj:CarlaH5PathsReader) -> np.ndarray:
 # def opticalFlowNorm(x : np.ndarray, readerObj:CarlaH5PathsReader) -> np.ndarray:
 # 	# Data in [0 : 1]
 # 	width, height = readerObj.desiredShape
-# 	x = imgResize_batch(x, height=height, width=width, resizeLib="opencv", onlyUint8=False)
+# 	x = imgResize(x, height=height, width=width, resizeLib="opencv", onlyUint8=False)
 # 	x[..., 0] = np.float32(np.int32(x[..., 0] * width))
 # 	x[..., 1] = np.float32(np.int32(x[..., 1] * height))
 # 	return x
 
 def normalNorm(x:np.ndarray, readerObj:CarlaH5PathsReader) -> np.ndarray:
-	x = imgResize_batch(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], \
+	x = imgResize(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], \
 		resizeLib="opencv", onlyUint8=False)
 	# Normals are stored as [0 - 255] on 3 channels, representing orientation of the 3 axes.
 	x = x.astype(np.float32) / 255
@@ -167,7 +167,7 @@ def semanticSegmentationNorm(x:np.ndarray, readerObj:CarlaH5PathsReader) -> np.n
 		for i in range(NC):
 			x[x == sumLabelKeys[i]] = i
 		x = x.astype(np.uint8)
-		x = imgResize_batch(x, interpolation="nearest", height=readerObj.desiredShape[0], \
+		x = imgResize(x, interpolation="nearest", height=readerObj.desiredShape[0], \
 			width=readerObj.desiredShape[1], resizeLib="opencv", onlyUint8=False)
 		# Some fancy way of doing one-hot encoding.
 		x = np.eye(NC)[x].astype(np.float32)

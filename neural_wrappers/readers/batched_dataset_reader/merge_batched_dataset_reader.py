@@ -16,9 +16,9 @@ class MergeBatchedDatasetEpochIterator(CompoundDatasetEpochIterator):
 		index = self.indexFn(ix)
 		if isinstance(index, slice):
 			index = np.arange(index.start, index.stop)
-		if isinstance(index, int):
+		if isinstance(index, (int, np.integer)):
 			index = [index]
-		assert isinstance(index, Iterable), "Got type: %s" % type(i)
+		assert isinstance(index, Iterable), "Got type: %s" % type(index)
 
 		listItems = [self.baseIterator[j] for j in index]
 		assert len(listItems) == self.batchLens[ix]
