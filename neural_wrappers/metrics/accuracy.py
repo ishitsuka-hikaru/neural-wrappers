@@ -4,7 +4,7 @@ from typing import Dict
 from .metric import Metric
 from ..utilities import NWNumber
 
-accObj = None
+accObj = {}
 
 class Accuracy(Metric):
 	def __init__(self, meanResult:bool=True):
@@ -15,13 +15,12 @@ class Accuracy(Metric):
 	def getExtremes(self) -> Dict[str, NWNumber]:
 		return {"min" : 0, "max" : 1}
 
-	def __call__(self, results:np.ndarray, labels:np.ndarray, **kwargs) -> float: #type: ignore[override]
-		Max = results.max(axis=-1, keepdims=True)
-		binaryResults = results >= Max
-		whereCorrect = labels == 1
-		
-		maskedResults = binaryResults[whereCorrect]
-		maskedResults = maskedResults.reshape(*labels.shape[0 : -1])
+	def __call__(self, results:np.ndarray, labels:np.ndarray, **kwargs) -> float: #type: ignore[override]	
+		assert len(np.unique(labels)) == 2
+		Shape = labels.shape[0 : -1]
+		labels = labels.astype(np.bool)
+		binaryResults = results == results.max(axis=-1, keepdims=True)
+		maskedResults = binaryResults[labels].reshape(*Shape)
 		if self.meanResult:
 			maskedResults = maskedResults.mean()
 		return maskedResults
@@ -29,8 +28,8 @@ class Accuracy(Metric):
 # Simple wrapper for the Accuracy class
 # @param[in] y Predictions (After softmax). Shape: MBx(Shape)xNC
 # @param[in] t Class labels. Shape: MBx(Shape) and values of 0 and 1.
-def accuracy(y:np.ndarray, t:np.ndarray):
+def accuracy(y:np.ndarray, t:np.ndarray, meanResult:bool=False):
 	global accObj
-	if accObj is None:
-		accObj = Accuracy(meanResult=False)
-	return accObj(y, t)
+	if not meanResult in accObj:
+		accObj[meanResult] = Accuracy(meanResult=meanResult)
+	return accObj[meanResult](y, t)

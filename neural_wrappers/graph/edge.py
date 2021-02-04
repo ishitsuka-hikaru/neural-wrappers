@@ -188,13 +188,8 @@ class Edge(FeedForwardNetwork):
 		metricResults, isTraining, isOptimizing):
 		results = list(results.values()) if isinstance(results, dict) else results
 		for i in range(len(results)):
-			try:
-				metricResults = super().callbacksOnIterationEnd(data, labels, results[i], loss, iteration, \
-					numIterations, metricResults, isTraining, isOptimizing)
-			except Exception as e:
-				breakpoint()
-				metricResults = super().callbacksOnIterationEnd(data, labels, results[i], loss, iteration, \
-					numIterations, metricResults, isTraining, isOptimizing)
+			metricResults = super().callbacksOnIterationEnd(data, labels, results[i], loss, iteration, \
+				numIterations, metricResults, isTraining, isOptimizing)
 		return metricResults
 
 	def __str__(self):

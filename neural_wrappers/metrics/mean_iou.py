@@ -2,7 +2,7 @@ import numpy as np
 from scipy.special import softmax
 from .metric import Metric
 
-meanIoUObj = None
+meanIoUObj = {}
 
 # Compute the batch (local) mean iou, which is an approximation of the actual mean iou over entire dataset, however
 #  it is faster to compute. This allows us to use the running mean of the network class.
@@ -29,11 +29,15 @@ class GlobalMeanIoU(Metric):
 		self.unions = None
 		self.intersections = None
 
-	def epochReduceFunction(self, results):
+	def fReturn(self):
 		if self.unions is None:
 			return 0
 		whereNotZero = self.unions != 0
 		res = (self.intersections[whereNotZero] / self.unions[whereNotZero])
+		return res
+
+	def epochReduceFunction(self, results):
+		res = self.fReturn()
 		self.intersections *= 0
 		self.unions *= 0
 		return res
@@ -59,7 +63,7 @@ class GlobalMeanIoU(Metric):
 			cU = union[..., i].sum()
 			self.intersections[i] += cI
 			self.unions[i] += cU
-		return 0
+		return self.fReturn()
 
 class MeanIoU(Metric):
 	def __init__(self, mode="local", returnMean=True):
@@ -83,8 +87,9 @@ class MeanIoU(Metric):
 	def __call__(self, y, t, **k):
 		return self.obj(y, t, **k)
 
-def mean_iou(y, t):
+def mean_iou(y, t, mode:str="local", returnMean:bool=False):
 	global meanIoUObj
-	if meanIoUObj is None:
-		meanIoUObj = MeanIoU(mode="local", returnMean=True)
-	return meanIoUObj(y, t)
+	singletonKey = (mode, returnMean)
+	if not singletonKey in meanIoUObj:
+		meanIoUObj[singletonKey] = MeanIoU(mode=mode, returnMean=returnMean)
+	return meanIoUObj[singletonKey](y, t)
