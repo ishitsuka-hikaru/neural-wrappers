@@ -7,6 +7,27 @@ from ...batched_dataset_reader import H5BatchedDatasetReader
 from ...batched_dataset_reader.h5_batched_dataset_reader import defaultH5DimGetter
 from ....utilities import tryReadNpy, tryStr
 
+# Append base directory to all paths read from the h5, and then call the reading function for each full path.
+def pathsReader(dataset:h5py._hl.group.Group, index:np.ndarray, \
+	readFunction:Callable[[str], np.ndarray], dim:str) -> np.ndarray:
+	baseDirectory = dataset.file["others"]["baseDirectory"][()]
+	try:
+		baseDirectory = str(baseDirectory, "utf8")
+	except Exception:
+		pass
+
+	try:
+		paths = dataset[dim][index]
+	except Exception:
+		paths = smartIndexWrapper(dataset[dim], index)
+
+	results = []
+	for path in paths:
+		path = "%s/%s" % (baseDirectory, str(path, "utf8"))
+		results.append(readFunction(path))
+	return np.array(results)
+
+
 def prevReader(dataset:h5py._hl.group.Group, index, dimGetter, neighbours, delta) -> np.ndarray:
 	assert delta != 0
 	Key = "t%+d" % delta
@@ -33,7 +54,6 @@ class CarlaH5PathsReader(H5BatchedDatasetReader):
 		deltas:List[int]=[], hyperParameters:Dict[str, Any]={}):
 		from .normalizers import rgbNorm, depthNorm, poseNorm, opticalFlowNorm, normalNorm, \
 			semanticSegmentationNorm, wireframeNorm, halftoneNorm, wireframeRegressionNorm
-		from .utils import pathsReader
 
 		rawReadFunction = tryReadNpy
 		depthReadFunction = tryReadNpy

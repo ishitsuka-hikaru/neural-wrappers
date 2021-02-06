@@ -104,18 +104,19 @@ def opticalFlowNorm(x : np.ndarray, readerObj:CarlaH5PathsReader) -> np.ndarray:
 		return flow
 
 	def opticalFlowMagnitude(x):
-		# flow :: [0 : 1] => [-1 : 1]
-		x = (x - 0.5) * 2
+		# flow :: [-1 : 1] => [0 : sqrt(2)]
+		x = np.hypot(x[..., 0], x[..., 1])
 		# norm :: [0 : sqrt(2)] => [0 : 1]
-		norm = np.hypot(x[..., 0], x[..., 1]) / np.sqrt(2)
-		return np.expand_dims(norm, axis=-1)
+		x = x / np.sqrt(2)
+		return np.expand_dims(x, axis=-1)
 
-	# Data in [0 : 1]
+	# x :: [0 : 1] => [-1 : 1]
+	x = (x - 0.5) * 2
 	x = imgResize(x, height=readerObj.desiredShape[0], width=readerObj.desiredShape[1], \
 		resizeLib="opencv", onlyUint8=False)
 
-	if readerObj.hyperParameters["opticalFlowPercentage"] != (100, 100):
-		x = opticalFlowPercentageTransform(x, readerObj.hyperParameters["opticalFlowPercentage"])
+	# if readerObj.hyperParameters["opticalFlowPercentage"] != (100, 100):
+	# 	x = opticalFlowPercentageTransform(x, readerObj.hyperParameters["opticalFlowPercentage"])
 
 	if readerObj.hyperParameters["opticalFlowMode"] == "xy":
 		return x
