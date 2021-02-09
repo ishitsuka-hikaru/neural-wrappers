@@ -1,7 +1,8 @@
 import numpy as np
 import cv2
+import flow_vis
 from matplotlib.cm import plasma
-from neural_wrappers.utilities import npGetInfo
+from neural_wrappers.utilities import npGetInfo, minMaxPercentile
 from media_processing_lib.image import toImage
 
 def semanticToImage(x):
@@ -42,8 +43,10 @@ def normalToImage(x):
 	return x
 
 def opticalFlowToImage(x):
-	if x.shape[-1] == 2:
-		x = np.hypot(x[..., 0], x[..., 1])
+	if x.shape[-1] > 1:
+		x = minMaxPercentile(x[..., 0 : 2], 5, 95)
+		x = (x - 0.5) * 2
+		x = np.array(flow_vis.flow_to_color(x))
 	x = toImage(x)
 	return x
 
