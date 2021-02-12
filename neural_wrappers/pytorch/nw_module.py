@@ -12,7 +12,7 @@ from tqdm.auto import trange, tqdm
 
 from abc import abstractmethod, ABC
 from .network_serializer import NetworkSerializer
-from .utils import getNumParams, npGetData, trGetData, StorePrevState, _getOptimizerStr
+from .utils import getNumParams, npGetData, trGetData, _getOptimizerStr
 from ..utilities import makeGenerator, isBaseOf, RunningMean, topologicalSort, deepCheckEqual, \
 	getFormattedStr, Debug
 from ..callbacks import Callback, CallbackName
@@ -287,12 +287,10 @@ class NWModule(nn.Module, ABC):
 	# @param[in] The generator used to yield testing data
 	def testGenerator(self, generator:Generator):
 		self.epochEpilogue(isTraining=False)
-		with StorePrevState(self):
-			self.eval()
-			with tr.no_grad():
-				N = len(generator)
-				res = self.run_one_epoch(generator, N, isTraining=False, isOptimizing=False, Prefix="Test")
-				epochResults = {"Test" : res}
+		with tr.no_grad():
+			N = len(generator)
+			res = self.run_one_epoch(generator, N, isTraining=False, isOptimizing=False, Prefix="Test")
+			epochResults = {"Test" : res}
 		self.epochPrologue(epochResults, numEpochs=1, isTraining=False)
 		return epochResults
 
@@ -353,19 +351,18 @@ class NWModule(nn.Module, ABC):
 			# Run for training data and append the results
 			# No iteration callbacks are used if there is a validation set (so iteration callbacks are only
 			#  done on validation set). If no validation set is used, the iteration callbacks are used on train set.
-			with StorePrevState(self):
-				# self.train()
-				res = self.run_one_epoch(generator, len(generator), isTraining=True, isOptimizing=True, Prefix="Train")
-				epochResults["Train"] = res
+			res = self.run_one_epoch(generator, len(generator), isTraining=True, isOptimizing=True, Prefix="Train")
+			epochResults["Train"] = res
 
 			# Run for validation data and append the results
 			if not validationGenerator is None:
-				with StorePrevState(self):
-					self.eval()
-					with tr.no_grad():
-						res = self.run_one_epoch(validationGenerator, len(validationGenerator), \
-								isTraining=True, isOptimizing=False, Prefix="Validation")
-						epochResults["Validation"] = res
+				prevState = self.train if self.training else self.eval
+				self.eval()
+				with tr.no_grad():
+					res = self.run_one_epoch(validationGenerator, len(validationGenerator), \
+							isTraining=True, isOptimizing=False, Prefix="Validation")
+					epochResults["Validation"] = res
+				prevState()
 
 			self.epochPrologue(epochResults, numEpochs, isTraining=True)
 

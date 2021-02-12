@@ -18,18 +18,6 @@ def trModuleWrapper(module):
 	res = Model(module)
 	return res
 
-# Used by NWModule so that we enter a block, we can apply train/eval and when we leave it, we restore the
-#  previous state.
-class StorePrevState:
-	def __init__(self, moduleObj):
-		self.moduleObj = moduleObj
-
-	def __enter__(self):
-		self.prevState = self.moduleObj.train if self.moduleObj.training else self.moduleObj.eval
-
-	def __exit__(self, type, value, traceback):
-		self.prevState()
-
 def getTrainableParameters(model):
 	if not model.training:
 		return {}

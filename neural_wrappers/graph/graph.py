@@ -109,13 +109,15 @@ class Graph(NWModule):
 	def getGroundTruth(self, x):
 		return x
 
-	@overrides
-	def epochPrologue(self, epochMetrics, numEpochs, isTraining):
-		self.trainHistory.append(epochMetrics)
-		self.callbacksOnEpochEnd(isTraining=isTraining)
-		if not self.optimizerScheduler is None:
-			self.optimizerScheduler.step()
-		self.currentEpoch += 1
+	# @overrides
+	# def epochPrologue(self, epochMetrics, numEpochs, isTraining):
+
+
+	# 	self.trainHistory.append(epochMetrics)
+	# 	self.callbacksOnEpochEnd(isTraining=isTraining)
+	# 	if not self.optimizerScheduler is None:
+	# 		self.optimizerScheduler.step()
+	# 	self.currentEpoch += 1
 
 	def iterationPrologue(self, inputs, labels, results, loss, iteration, \
 		stepsPerEpoch, metricResults, isTraining, isOptimizing, startTime):
