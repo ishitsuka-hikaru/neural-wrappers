@@ -1,16 +1,13 @@
 import torch as tr
 import torch.nn as nn
 from datetime import datetime
-from functools import partial
 from overrides import overrides
-from copy import copy
 
 from .utils import getFormattedStr
 from .draw_graph import drawGraph
 from .graph_serializer import GraphSerializer
 from ..callbacks import CallbackName
-from ..pytorch import NWModule, npGetData, trGetData
-from ..pytorch.utils import StorePrevState
+from ..pytorch import NWModule, npGetData
 from ..utilities import Debug
 
 def getNodesFromEdges(edges):
@@ -108,16 +105,6 @@ class Graph(NWModule):
 
 	def getGroundTruth(self, x):
 		return x
-
-	# @overrides
-	# def epochPrologue(self, epochMetrics, numEpochs, isTraining):
-
-
-	# 	self.trainHistory.append(epochMetrics)
-	# 	self.callbacksOnEpochEnd(isTraining=isTraining)
-	# 	if not self.optimizerScheduler is None:
-	# 		self.optimizerScheduler.step()
-	# 	self.currentEpoch += 1
 
 	def iterationPrologue(self, inputs, labels, results, loss, iteration, \
 		stepsPerEpoch, metricResults, isTraining, isOptimizing, startTime):
