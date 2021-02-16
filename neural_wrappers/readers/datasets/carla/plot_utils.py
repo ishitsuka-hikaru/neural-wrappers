@@ -60,5 +60,6 @@ toImageFuncs = {
 	"WireframeRegression" : default,
 	"Halftone" : default,
 	"OpticalFlow": opticalFlowToImage,
-	"Edges": default
+	"Edges": default,
+	"SemanticGB": default
 }
