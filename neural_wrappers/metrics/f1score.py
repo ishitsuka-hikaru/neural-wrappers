@@ -9,7 +9,58 @@ f1ScoreObj = None
 
 class GlobalF1Score(Metric):
 	def __init__(self):
-		assert False, "TODO"
+		super().__init__(direction="max")
+		self.TP = None
+		self.FP = None
+		self.FN = None
+
+	def fReturn(self):
+		if self.TP is None or self.FP is None or self.FN is None:
+			return 0
+
+		precision = self.TP / (self.TP + self.FP + np.spacing(1))
+		recall = self.TP / (self.TP + self.FN + np.spacing(1))
+		f1 = 2 * precision * recall / (precision + recall + np.spacing(1))
+		return f1
+
+	def onEpochStart(self, **kwargs):
+		self.TP = None
+		self.FP = None
+		self.FN = None
+
+	def epochReduceFunction(self, results):
+		res = self.fReturn()
+		self.TP = None
+		self.FP = None
+		self.FN = None
+		return res
+
+	def iterationReduceFunction(self, results):
+		return self.fReturn()
+
+	def __call__(self, y, t, **k):
+		NC = y.shape[-1]
+		Max = y.max(axis=-1, keepdims=True)
+		y = y >= Max
+		t = t.astype(np.bool)
+
+		# Compute local TP, FP, FN per class
+		TP = y * t
+		FP = y * (1 - t)
+		FN = (1 - y) * t
+		if self.TP is None:
+			self.TP = np.zeros((NC, ), dtype=np.int64)
+			self.FP = np.zeros((NC, ), dtype=np.int64)
+			self.FN = np.zeros((NC, ), dtype=np.int64)
+		# Sanity check to ensure we get the same amount of classes during iterations.
+		assert len(self.TP.shape) == 1 and self.TP.shape[0] == NC
+
+		for i in range(NC):
+			where = t[..., i]
+			self.TP[i] += TP[where].sum()
+			self.FP[i] += FP[where].sum()
+			self.FN[i] += FN[where].sum()
+		return np.zeros((NC, ))
 
 class LocalF1Score(Metric):
 	def __init__(self):
@@ -38,9 +89,11 @@ class LocalF1Score(Metric):
 
 # Based on https://towardsdatascience.com/multi-class-metrics-made-simple-part-i-f1Score-and-f1Score-9250280bddc2
 class F1Score(Metric):
-	def __init__(self, mode="local"):
+	def __init__(self, mode="local", returnMean:bool=True):
 		super().__init__("max")
 		assert mode in ("local", "global")
+		self.returnMean = returnMean
+		self.mode = mode
 		self.obj = {
 			"local" : LocalF1Score,
 			"global" : GlobalF1Score

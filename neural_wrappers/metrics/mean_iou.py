@@ -63,7 +63,6 @@ class GlobalMeanIoU(Metric):
 			cU = union[..., i].sum()
 			self.intersections[i] += cI
 			self.unions[i] += cU
-		# return self.fReturn()
 		return np.array([0])
 
 class MeanIoU(Metric):
