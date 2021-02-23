@@ -22,7 +22,7 @@ class LocalMeanIoU(Metric):
 		union = (results + labels) > 0
 		return intersection.sum(axis=0) / (union.sum(axis=0) + 1e-5)
 
-# Compute the global mean iou, which is updated on a per
+# Compute the global mean iou, which is updated on a per epoch mode.
 class GlobalMeanIoU(Metric):
 	def __init__(self):
 		super().__init__(direction="max")
@@ -88,9 +88,10 @@ class MeanIoU(Metric):
 	def __call__(self, y, t, **k):
 		return self.obj(y, t, **k)
 
-def mean_iou(y, t, mode:str="local", returnMean:bool=False):
+def mean_iou(y, t, returnMean:bool=False):
 	global meanIoUObj
-	singletonKey = (mode, returnMean)
+	singletonKey = (returnMean, )
+	# We can only use local mIoU using this. For global mIoU, use the Callback itself.
 	if not singletonKey in meanIoUObj:
-		meanIoUObj[singletonKey] = MeanIoU(mode=mode, returnMean=returnMean)
+		meanIoUObj[singletonKey] = MeanIoU(mode="local", returnMean=returnMean)
 	return meanIoUObj[singletonKey](y, t)

@@ -7,22 +7,23 @@ from ..utilities import npGetInfo
 
 f1ScoreObj = None
 
-# Based on https://towardsdatascience.com/multi-class-metrics-made-simple-part-i-f1Score-and-f1Score-9250280bddc2
-class F1Score(Metric):
+class GlobalF1Score(Metric):
 	def __init__(self):
-		super().__init__("max")
+		assert False, "TODO"
 
-	def computeF1Score(results: np.ndarray, labels : np.ndarray) -> np.ndarray:
+class LocalF1Score(Metric):
+	def __init__(self):
+		super().__init__(direction="max")
+		
+	def __call__(self, results:np.ndarray, labels:np.ndarray, **kwargs) -> float: #type: ignore[override]
+		Max = results.max(axis=-1, keepdims=True)
+		results = np.uint8(results >= Max)
+
+		# Get Precision and Recall for this batch and apply the formula
 		precision = Precision.computePrecision(results, labels)
 		recall = Recall.computeRecall(results, labels)
 		f1Score = 2 * precision * recall / (precision + recall + np.spacing(1))
-		return f1Score
-		
-	def __call__(self, results : np.ndarray, labels : np.ndarray, **kwargs) -> float: #type: ignore[override]
-		Max = results.max(axis=-1, keepdims=True)
-		results = np.uint8(results >= Max)
-		# Nans are used to specify classes with no labels for this batch
-		f1Score = F1Score.computeF1Score(results, labels)
+
 		# Keep only position where f1Score is not nan.
 		whereNotNaN = ~np.isnan(f1Score)
 		f1Score = f1Score[whereNotNaN]
@@ -35,8 +36,30 @@ class F1Score(Metric):
 		whereOk = whereOk[whereNotNaN]
 		return (f1Score * whereOk).sum() / whereOk.sum()
 
+# Based on https://towardsdatascience.com/multi-class-metrics-made-simple-part-i-f1Score-and-f1Score-9250280bddc2
+class F1Score(Metric):
+	def __init__(self, mode="local"):
+		super().__init__("max")
+		assert mode in ("local", "global")
+		self.obj = {
+			"local" : LocalF1Score,
+			"global" : GlobalF1Score
+		}[mode]()
+
+	def iterationReduceFunction(self, results):
+		return self.obj.iterationReduceFunction(results).mean()
+
+	def epochReduceFunction(self, results):
+		results = self.obj.epochReduceFunction(results)
+		if self.returnMean:
+			results = results.mean()
+		return results
+
+	def __call__(self, y, t, **k):
+		return self.obj(y, t, **k)
+
 def f1score(y, t):
 	global f1ScoreObj
 	if f1ScoreObj is None:
-		f1ScoreObj = F1Score()
+		f1ScoreObj = F1Score(mode="local")
 	return f1ScoreObj(y, t)
