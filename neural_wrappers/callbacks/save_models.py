@@ -81,6 +81,7 @@ class SaveModels(Callback):
 		Key = "Validation" if "Validation" in trainHistory and (not trainHistory["Validation"] is None) else "Train"
 		trainHistory = trainHistory[Key]
 		score = deepDictGet(trainHistory, self.metricName.name)
+		score = score.mean() if isinstance(score, np.ndarray) else score
 
 		f = {
 			"improvements" : self.saveImprovements,
