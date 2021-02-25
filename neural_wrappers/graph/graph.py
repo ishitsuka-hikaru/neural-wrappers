@@ -171,6 +171,11 @@ class Graph(NWModule):
 
 	@overrides
 	def getMetric(self, metricName) -> Metric:
+		if isinstance(metricName, CallbackName):
+			metricName = metricName.name
+		if isinstance(metricName, tuple) and len(metricName) == 1:
+			metricName = metricName[0]
+
 		if isinstance(metricName, tuple):
 			edge = self.getEdge(metricName[0])
 			innerName = metricName[1 :]

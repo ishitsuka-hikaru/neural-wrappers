@@ -114,76 +114,12 @@ def npToTrCall(fn, *args, **kwargs):
 def trToNpCall(fn, *args, **kwargs):
 	return trGetData(fn(*npGetData(args), **npGetData(kwargs)))
 
-def plotModelMetricHistory(trainHistory, metricName, plotBestBullet, dpi=120):
-	# Aggregate all the values from trainHistory into a list and plot them
-	numEpochs = len(trainHistory)
-	# trainValues = np.array([trainHistory[i]["Train"][metric] for i in range(numEpochs)])
-
-	trainValues, validationValues = np.zeros((2, numEpochs), dtype=np.float32)
-	hasValidation = ("Validation" in trainHistory[0]) and (not trainHistory[0]["Validation"] is None)
-	for i in range(numEpochs):
-		X = getMetricScoreFromHistory(trainHistory[i]["Train"], metricName)
-		# Apply mean in case the metric returned a tuple.
-		trainValues[i] = X.mean()
-		
-		if hasValidation:
-			X = getMetricScoreFromHistory(trainHistory[i]["Validation"], metricName)
-			validationValues[i] = X.mean()
-
-	x = np.arange(len(trainValues)) + 1
-	metricName = str(metricName)
-	plt.gcf().clf()
-	plt.gca().cla()
-	plt.plot(x, trainValues, label="Train %s" % (metricName))
-
-	if hasValidation:
-		plt.plot(x, validationValues, label="Val %s" % (metricName))
-		usedValues = np.array(validationValues)
-	else:
-		usedValues = trainValues
-
-	# Against NaNs killing the training for low data count.
-	allValues = np.concatenate([usedValues, trainValues])
-	Median = np.median(allValues[np.isfinite(allValues)])
-	trainValues[~np.isfinite(trainValues)] = Median
-	usedValues[~np.isfinite(usedValues)] = Median
-	allValues[~np.isfinite(allValues)] = Median
-
-	assert plotBestBullet in ("none", "min", "max"), "%s" % plotBestBullet
-	if plotBestBullet == "min":
-		minX, minValue = np.argmin(usedValues), np.min(usedValues)
-		plt.annotate("Epoch %d\nMin %2.2f" % (minX + 1, minValue), xy=(minX + 1, minValue))
-		plt.plot([minX + 1], [minValue], "o")
-	elif plotBestBullet == "max":
-		maxX, maxValue = np.argmax(usedValues), np.max(usedValues)
-		plt.annotate("Epoch %d\nMax %2.2f" % (maxX + 1, maxValue), xy=(maxX + 1, maxValue))
-		plt.plot([maxX + 1], [maxValue], "o")
-
-	# Set the y axis to have some space above and below the plot min/max values so it looks prettier.
-	minValue, maxValue = np.min(allValues), np.max(allValues)
-	diff = (maxValue - minValue) / 10
-	plt.gca().set_ylim(minValue - diff, maxValue + diff)
-
-	# Finally, save the figure with the name of the metric
-	plt.xlabel("Epoch")
-	plt.ylabel(metricName)
-	plt.legend()
-	plt.savefig("%s.png" % (metricName), dpi=dpi)
-
 def getModelHistoryMessage(model):
 		Str = model.summary() + "\n"
 		trainHistory = model.trainHistory
 		for i in range(len(trainHistory)):
 			Str += trainHistory[i]["message"] + "\n"
 		return Str
-
-# Metrics may be stored as tuples for graph/complex networks.
-def getMetricScoreFromHistory(trainHistory, metricName):
-	score = trainHistory
-	for i in range(len(metricName.name) - 1):
-		score = score[metricName.name[i]]
-	score = score[metricName]
-	return score
 
 def _getOptimizerStr(optimizer):
 	if isinstance(optimizer, dict):

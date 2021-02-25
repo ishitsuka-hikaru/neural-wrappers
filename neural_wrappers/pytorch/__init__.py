@@ -6,8 +6,8 @@ from .variational_autoencoder_network import VariationalAutoencoderNetwork
 # from .self_supervised_network import SelfSupervisedNetwork
 # from .data_parallel_network import DataParallelNetwork
 
-from .utils import npGetData, trGetData, plotModelMetricHistory, getModelHistoryMessage, trModuleWrapper, device, \
-	trDetachData, npToTrCall, trToNpCall, getMetricScoreFromHistory
+from .utils import npGetData, trGetData, getModelHistoryMessage, trModuleWrapper, device, \
+	trDetachData, npToTrCall, trToNpCall
 
 from .layers import *
 from .models import *
