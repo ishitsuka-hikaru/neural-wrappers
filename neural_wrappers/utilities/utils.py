@@ -159,3 +159,16 @@ def tryStr(x) -> str:
 		return str(x, "utf8")
 	except Exception:
 		return x
+
+# @brief Return the value of a nested dictionary key
+# @param[in] d The potentially nested dictionary
+# @param[in] k The potentially nested lookup key
+# @return The value of the potentially nested key
+def deepDictGet(d:Dict, k):
+	if isinstance(k, (tuple, list)):
+		if len(k) == 1:
+			return d[k]
+		else:
+			return deepDictGet(d[k[0]], k[1 :])
+	else:
+		return d[k]

@@ -7,6 +7,7 @@ from .utils import getFormattedStr
 from .draw_graph import drawGraph
 from .graph_serializer import GraphSerializer
 from ..callbacks import CallbackName
+from ..metrics import Metric
 from ..pytorch import NWModule, npGetData
 from ..utilities import Debug
 
@@ -86,6 +87,15 @@ class Graph(NWModule):
 			edges.append(edge)
 		return edges
 
+	def getEdge(self, edgeName:str):
+		found = False
+		for edge in self.edges:
+			if edge.name == edgeName:
+				found = True
+				break
+		assert found == True, "Couldn't find edge %s" % edgeName
+		return edge
+
 	def getNodes(self):
 		return getNodesFromEdges(self.edges)
 
@@ -158,6 +168,17 @@ class Graph(NWModule):
 			formattedStr = getFormattedStr(metrics[key], precision=3)
 			message += " %s: %s." % (key, formattedStr)
 		return message
+
+	@overrides
+	def getMetric(self, metricName) -> Metric:
+		if isinstance(metricName, tuple):
+			edge = self.getEdge(metricName[0])
+			innerName = metricName[1 :]
+			if len(innerName) == 1:
+				innerName = innerName[0]
+			return edge.getMetric(innerName)
+		else:
+			return super().getMetric(metricName)
 
 	def trainValMetricsStr(trainMetrics, validationMetrics, depth):
 		def padding(depth):

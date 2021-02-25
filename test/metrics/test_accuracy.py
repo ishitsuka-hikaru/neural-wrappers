@@ -6,7 +6,7 @@ class TestPrecision:
 	def test_call_accuracy_1(self):
 		results = toCategorical([0, 1, 2, 3, 1], numClasses=5)
 		labels = toCategorical([0, 0, 2, 2, 3], numClasses=5)
-		expected = np.array([1, 0, 1, 0, 0], dtype=np.bool)
+		expected = np.array([1, 0, 1, 0, 0], dtype=bool)
 
 		res = accuracy(results, labels)
 		assert npCloseEnough(res, expected)

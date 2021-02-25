@@ -5,85 +5,88 @@ from overrides import overrides
 
 from .callback import Callback
 from .callback_name import CallbackName
-from ..utilities import Debug
+from ..utilities import Debug, deepDictGet
 
 # TODO: add format to saving files
 # Note: This callback should be called after all (relevant) callbacks were called, otherwise we risk of storing a model
 #  that hasn't updated all it's callbacks. This is relevant, for example in EarlyStopping, where we'd save the state
 #  of the N-1th epoch instead of last, causing it to lead to different behavioiur pre/post loading.
 class SaveModels(Callback):
-	def __init__(self, mode:str, metricName:CallbackName, **kwargs):
+	def __init__(self, mode:str, metricName:str, **kwargs):
 		assert mode in ("all", "improvements", "last", "best")
 		self.mode = mode
-		self.metricName = CallbackName(metricName)
+		if isinstance(metricName, Callback):
+			metricName = CallbackName(metricName.getName())
+		self.metricName = metricName
 		self.best = None
-		self.metric = None
-		# self.metricFunc = None
 		super().__init__(**kwargs)
 
-	# Do the setup at the end of the first epoch, so we know direction. This is expected to not change ever afterwards.
-	def setup(self, model):
-		if not self.best is None:
+	def saveImprovements(self, model, metric, score, epoch):
+		if self.best is None:
+			direction = metric.getDirection()
+			extremes = metric.getExtremes()
+			self.best = {
+				"max" : extremes["min"],
+				"min" : extremes["max"]
+			}[direction]
+
+		compareResult = self.metric.compareFunction(score, self.best)
+		if compareResult == False:
+			Debug.log(2, "[SaveModels] Epoch %d. Metric %s did not improve best score %s with %s" % \
+				(epoch, metricName, self.best, score))
 			return
 
-		self.metric = model.getMetric(self.metricName)
-		direction = self.metric.getDirection()
-		extremes = self.metric.getExtremes()
-		self.best = {
-			"max" : extremes["min"],
-			"min" : extremes["max"]
-		}[direction]
-
-	def saveModelsImprovements(self, score, **kwargs):
-		if not self.metric.compareFunction(score, self.best):
-			return
-		fileName = "model_improvement_%d_%s_%s.pkl" % (kwargs["epoch"], self.metricName, score)
-		kwargs["model"].saveModel(fileName)
-		Debug.log(2, "[SaveModels] Epoch %d. Improvement (%s) from %s to %s" % \
-			(kwargs["epoch"], self.metricName, self.best, score))
+		Debug.log(2, "[SaveModels::saveImprovements] Epoch %d. Metric %s improved best score from %s to %s" % \
+			(epoch, metricName, self.best, score))
 		self.best = score
+		model.saveModel("model_improvement_%s_epoch-%d_score-%s" % (self.metricName, epoch, score))
 
-	def saveModelsBest(self, score, **kwargs):
-		res = self.metric.compareFunction(score, self.best)
-		if not res:
+	def saveBest(self, model, metric, score, epoch):
+		if self.best is None:
+			direction = metric.getDirection()
+			extremes = metric.getExtremes()
+			self.best = {
+				"max" : extremes["min"],
+				"min" : extremes["max"]
+			}[direction]
+
+		compareResult = metric.compareFunction(score, self.best)
+		if compareResult == False:
+			Debug.log(2, "[SaveModels] Epoch %d. Metric %s did not improve best score %s with %s" % \
+				(epoch, self.metricName, self.best, score))
 			return
-		fileName = "model_best_%s.pkl" % (self.metricName)
-		kwargs["model"].saveModel(fileName)
-		Debug.log(2, "[SaveModels] Epoch %d. Improvement (%s) from %s to %s" % \
-			(kwargs["epoch"], self.metricName, self.best, score))
-		self.best = score
 
-	def saveModelsLast(self, **kwargs):
-		fileName = "model_last.pkl"
-		kwargs["model"].saveModel(fileName)
-		Debug.log(2, "[SaveModels] Epoch %d. Saved last model" % kwargs["epoch"])
+		Debug.log(2, "[SaveModels::saveBest] Epoch %d. Metric %s improved best score from %s to %s" % \
+			(epoch, self.metricName, self.best, score))
+		self.best = score
+		model.saveModel("model_best_%s.pkl" % self.metricName)
+	
+	def saveLast(self, model, metric, score, epoch):
+		model.saveModel("model_last.pkl")
+		Debug.log(2, "[SaveModels::saveLast] Epoch %d. Saved last model." % epoch)
 
 	# Saving by best train loss is validation is not available, otherwise validation. Nasty situation can occur if one
 	#  epoch there is a validation loss and the next one there isn't, so we need formats to avoid this and error out
 	#  nicely if the format asks for validation loss and there's not validation metric reported.
 	@overrides
 	def onEpochEnd(self, **kwargs):
-		from ..pytorch import getMetricScoreFromHistory
 		if not kwargs["isTraining"]:
 			return
-		self.setup(kwargs["model"])
-
+		model = kwargs["model"]
 		trainHistory = kwargs["trainHistory"][-1]
-		if (not "Validation" in trainHistory) or (trainHistory["Validation"] is None):
-			trainHistory = trainHistory["Train"]
-		else:
-			trainHistory = trainHistory["Validation"]
+		epoch = kwargs["epoch"]
 
-		score = getMetricScoreFromHistory(trainHistory, self.metricName)
-		fileName = "model_weights_%d_%s_%s.pkl" % (kwargs["epoch"], self.metricName, score)
-		if self.mode == "improvements":
-			self.saveModelsImprovements(score, **kwargs)
-		elif self.mode == "best":
-			self.saveModelsBest(score, **kwargs)
-		elif self.mode == "last":
-			self.saveModelsLast(**kwargs)
-		else:
-			assert False
+		metric = model.getMetric(self.metricName)
+		Key = "Validation" if "Validation" in trainHistory and (not trainHistory["Validation"] is None) else "Train"
+		trainHistory = trainHistory[Key]
+		score = deepDictGet(trainHistory, CallbackName(self.metricName))
+
+		f = {
+			"improvements" : self.saveImprovements,
+			"best" : self.saveBest,
+			"last" : self.saveLast
+		}[self.mode]
+		f(model, metric, score, epoch)
 
 	@overrides
 	def onEpochStart(self, **kwargs):
@@ -99,11 +102,11 @@ class SaveModels(Callback):
 
 	@overrides
 	def onCallbackLoad(self, additional, **kwargs):
-		self.metric = kwargs["model"].getMetric(self.metricName)
+		pass
 
 	@overrides
 	def onCallbackSave(self, **kwargs):
-		self.metric = None
+		pass
 
 	@overrides
 	def __str__(self):

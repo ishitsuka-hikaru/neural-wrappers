@@ -18,7 +18,7 @@ class Accuracy(Metric):
 	def __call__(self, results:np.ndarray, labels:np.ndarray, **kwargs) -> float: #type: ignore[override]	
 		assert len(np.unique(labels)) == 2
 		Shape = labels.shape[0 : -1]
-		labels = labels.astype(np.bool)
+		labels = labels.astype(bool)
 		binaryResults = results == results.max(axis=-1, keepdims=True)
 		maskedResults = binaryResults[labels].reshape(*Shape)
 		if self.meanResult:
