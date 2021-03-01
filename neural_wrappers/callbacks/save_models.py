@@ -70,12 +70,11 @@ class SaveModels(Callback):
 	#  nicely if the format asks for validation loss and there's not validation metric reported.
 	@overrides
 	def onEpochEnd(self, **kwargs):
+		if not kwargs["isTraining"]:
+			return
 		model = kwargs["model"]
 		trainHistory = kwargs["trainHistory"][-1]
 		epoch = kwargs["epoch"]
-
-		if not kwargs["isTraining"]:
-			return
 
 		metric = model.getMetric(self.metricName)
 		Key = "Validation" if "Validation" in trainHistory and (not trainHistory["Validation"] is None) else "Train"
