@@ -172,3 +172,7 @@ def deepDictGet(d:Dict, k):
 			return deepDictGet(d[k[0]], k[1 :])
 	else:
 		return d[k]
+
+# Given a path to a file/directory, return the absolute real path.
+def fullPath(x:str):
+	return os.path.abspath(os.path.realpath(x))
