@@ -49,8 +49,6 @@ class GlobalMeanIoU(Metric):
 		Max = y.max(axis=-1, keepdims=True)
 		y = y >= Max
 		t = t.astype(np.bool)
-		intersection = y * t
-		union = (y + t) > 0
 
 		NC = y.shape[-1]
 		if self.intersections is None:
@@ -59,10 +57,14 @@ class GlobalMeanIoU(Metric):
 		assert len(self.unions.shape) == 1 and self.unions.shape[0] == NC
 
 		for i in range(NC):
-			cI = intersection[..., i].sum()
-			cU = union[..., i].sum()
-			self.intersections[i] += cI
-			self.unions[i] += cU
+			tClass = t[..., i]
+			yClass = y[..., i]
+
+			intersectionClass = (yClass * tClass).sum()
+			unionClass = ((yClass + tClass) > 0).sum()
+
+			self.intersections[i] += intersectionClass
+			self.unions[i] += unionClass
 		return np.array([0])
 
 class MeanIoU(Metric):

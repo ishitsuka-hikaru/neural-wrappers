@@ -7,9 +7,9 @@ from ..utilities import NWNumber
 accObj = {}
 
 class Accuracy(Metric):
-	def __init__(self, meanResult:bool=True):
+	def __init__(self, returnMean:bool=True):
 		super().__init__(direction="max")
-		self.meanResult = meanResult
+		self.returnMean = returnMean
 
 	@overrides
 	def getExtremes(self) -> Dict[str, NWNumber]:
@@ -21,15 +21,15 @@ class Accuracy(Metric):
 		labels = labels.astype(bool)
 		binaryResults = results == results.max(axis=-1, keepdims=True)
 		maskedResults = binaryResults[labels].reshape(*Shape)
-		if self.meanResult:
+		if self.returnMean:
 			maskedResults = maskedResults.mean()
 		return maskedResults
 
 # Simple wrapper for the Accuracy class
 # @param[in] y Predictions (After softmax). Shape: MBx(Shape)xNC
-# @param[in] t Class labels. Shape: MBx(Shape) and values of 0 and 1.
-def accuracy(y:np.ndarray, t:np.ndarray, meanResult:bool=False):
+# @param[in] t Class labels. Shape: MBx(Shape)xNC and values of 0 and 1.
+def accuracy(y:np.ndarray, t:np.ndarray, returnMean:bool=False):
 	global accObj
-	if not meanResult in accObj:
-		accObj[meanResult] = Accuracy(meanResult=meanResult)
-	return accObj[meanResult](y, t)
+	if not returnMean in accObj:
+		accObj[returnMean] = Accuracy(returnMean=returnMean)
+	return accObj[returnMean](y, t)

@@ -44,10 +44,6 @@ class GlobalF1Score(Metric):
 		y = y >= Max
 		t = t.astype(np.bool)
 
-		# Compute local TP, FP, FN per class
-		TP = y * t
-		FP = y * (1 - t)
-		FN = (1 - y) * t
 		if self.TP is None:
 			self.TP = np.zeros((NC, ), dtype=np.int64)
 			self.FP = np.zeros((NC, ), dtype=np.int64)
@@ -56,10 +52,15 @@ class GlobalF1Score(Metric):
 		assert len(self.TP.shape) == 1 and self.TP.shape[0] == NC
 
 		for i in range(NC):
-			where = t[..., i]
-			self.TP[i] += TP[where].sum()
-			self.FP[i] += FP[where].sum()
-			self.FN[i] += FN[where].sum()
+			tClass = t[..., i]
+			yClass = y[..., i]
+			TPClass = (yClass * tClass).sum()
+			FPClass = (yClass * (1 - tClass)).sum()
+			FNClass = ((1 - yClass) * tClass).sum()
+
+			self.TP[i] += TPClass
+			self.FP[i] += FPClass
+			self.FN[i] += FNClass
 		return np.zeros((NC, ))
 
 class LocalF1Score(Metric):
