@@ -7,36 +7,29 @@ from ..utilities import npGetInfo
 
 f1ScoreObj = None
 
-class GlobalF1Score(Metric):
+class GlobalScores(Metric):
 	def __init__(self):
-		super().__init__(direction="max")
-		self.TP = None
-		self.FP = None
-		self.FN = None
+		super().__init__()
+		self.reset()
 
 	def fReturn(self):
-		if self.TP is None or self.FP is None or self.FN is None:
-			return 0
+		if self.TP is None or self.FP is None or self.FN is None or self.TN is None:
+			return 0, 0, 0, 0
+		return self.TP, self.FP, self.FN, self.TN
 
-		precision = self.TP / (self.TP + self.FP + np.spacing(1))
-		recall = self.TP / (self.TP + self.FN + np.spacing(1))
-		f1 = 2 * precision * recall / (precision + recall + np.spacing(1))
-		return f1
-
-	def onEpochStart(self, **kwargs):
+	def reset(self):
 		self.TP = None
 		self.FP = None
 		self.FN = None
+		self.TN = None
+
+	def onEpochStart(self, **kwargs):
+		self.reset()
 
 	def epochReduceFunction(self, results):
 		res = self.fReturn()
-		self.TP = None
-		self.FP = None
-		self.FN = None
+		self.reset()
 		return res
-
-	def iterationReduceFunction(self, results):
-		return self.fReturn()
 
 	def __call__(self, y, t, **k):
 		NC = y.shape[-1]
@@ -48,6 +41,7 @@ class GlobalF1Score(Metric):
 			self.TP = np.zeros((NC, ), dtype=np.int64)
 			self.FP = np.zeros((NC, ), dtype=np.int64)
 			self.FN = np.zeros((NC, ), dtype=np.int64)
+			self.TN = np.zeros((NC, ), dtype=np.int64)
 		# Sanity check to ensure we get the same amount of classes during iterations.
 		assert len(self.TP.shape) == 1 and self.TP.shape[0] == NC
 
@@ -57,11 +51,40 @@ class GlobalF1Score(Metric):
 			TPClass = (yClass * tClass).sum()
 			FPClass = (yClass * (1 - tClass)).sum()
 			FNClass = ((1 - yClass) * tClass).sum()
+			TNClass = ((1 - yClass) * (1 - tClass)).sum()
 
 			self.TP[i] += TPClass
 			self.FP[i] += FPClass
 			self.FN[i] += FNClass
+			self.TN[i] += TNClass
 		return np.zeros((NC, ))
+
+class GlobalF1Score(Metric):
+	def __init__(self):
+		super().__init__(direction="max")
+		self.globalScores = GlobalScores()
+
+	def fReturn(self):
+		TP, FP, FN, _ = self.globalScores.fReturn()
+		precision = TP / (TP + FP + np.spacing(1))
+		recall = TP / (TP + FN + np.spacing(1))
+		f1 = 2 * precision * recall / (precision + recall + np.spacing(1))
+		return f1
+
+	def onEpochStart(self, **kwargs):
+		self.globalScores.onEpochStart(**kwargs)
+
+	def epochReduceFunction(self, results):
+		res = self.fReturn()
+		self.globalScores.epochReduceFunction(results)
+		return res
+
+	def iterationReduceFunction(self, results):
+		return self.fReturn()
+
+	def __call__(self, y, t, **k):
+		self.globalScores.__call__(y, t, **k)
+		return np.zeros((y.shape[-1], ))
 
 class LocalF1Score(Metric):
 	def __init__(self):
