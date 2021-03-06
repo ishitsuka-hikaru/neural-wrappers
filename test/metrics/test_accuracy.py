@@ -16,7 +16,7 @@ class TestPrecision:
 		labels = toCategorical([0, 0, 2, 2, 3], numClasses=5)
 
 		res1 = accuracy(results, labels)
-		res2 = accuracy(results, labels, meanResult=True)
+		res2 = accuracy(results, labels, returnMean=True)
 		assert res1.mean() == 0.4
 		assert res2 == 0.4
 
