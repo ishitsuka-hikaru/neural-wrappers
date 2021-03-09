@@ -4,23 +4,30 @@ from .metric import Metric
 
 meanIoUObj = {}
 
-# Compute the batch (local) mean iou, which is an approximation of the actual mean iou over entire dataset, however
-#  it is faster to compute. This allows us to use the running mean of the network class.
-class LocalMeanIoU(Metric):
+class GlobalF1Score(Metric):
 	def __init__(self):
 		super().__init__(direction="max")
+		self.globalScores = GlobalScores()
 
-	# @brief results and labels are two arrays of shape: (MB, N, C), where N is a variable shape (images, or just
-	#  numbers), while C is the number of classes. The number of classes must coincide to both cases. We assume that
-	#  the labels are one-hot encoded (1 on correct class, 0 on others), while we make no assumption about the results.
-	# Thus: intersection is if both label and result are 1 while reunion is if either result or label are 1
-	def __call__(self, results : np.ndarray, labels : np.ndarray, **kwargs) -> float: #type: ignore[override]
-		Max = results.max(axis=-1, keepdims=True)
-		results = results >= Max
-		
-		intersection = results * labels
-		union = (results + labels) > 0
-		return intersection.sum(axis=0) / (union.sum(axis=0) + 1e-5)
+	def fReturn(self):
+		TP, FP, FN, _ = self.globalScores.fReturn()
+		IoU = TP / (TP + FP + FN + np.spacing(1))
+		return IoU
+
+	def onEpochStart(self, **kwargs):
+		self.globalScores.onEpochStart(**kwargs)
+
+	def epochReduceFunction(self, results):
+		res = self.fReturn()
+		self.globalScores.epochReduceFunction(results)
+		return res
+
+	def iterationReduceFunction(self, results):
+		return self.fReturn()
+
+	def __call__(self, y, t, **k):
+		self.globalScores.__call__(y, t, **k)
+		return np.zeros((y.shape[-1], ))
 
 # Compute the global mean iou, which is updated on a per epoch mode.
 class GlobalMeanIoU(Metric):
@@ -66,6 +73,24 @@ class GlobalMeanIoU(Metric):
 			self.intersections[i] += intersectionClass
 			self.unions[i] += unionClass
 		return np.array([0])
+
+# Compute the batch (local) mean iou, which is an approximation of the actual mean iou over entire dataset, however
+#  it is faster to compute. This allows us to use the running mean of the network class.
+class LocalMeanIoU(Metric):
+	def __init__(self):
+		super().__init__(direction="max")
+
+	# @brief results and labels are two arrays of shape: (MB, N, C), where N is a variable shape (images, or just
+	#  numbers), while C is the number of classes. The number of classes must coincide to both cases. We assume that
+	#  the labels are one-hot encoded (1 on correct class, 0 on others), while we make no assumption about the results.
+	# Thus: intersection is if both label and result are 1 while reunion is if either result or label are 1
+	def __call__(self, results : np.ndarray, labels : np.ndarray, **kwargs) -> float: #type: ignore[override]
+		Max = results.max(axis=-1, keepdims=True)
+		results = results >= Max
+
+		intersection = results * labels
+		union = (results + labels) > 0
+		return intersection.sum(axis=0) / (union.sum(axis=0) + 1e-5)
 
 class MeanIoU(Metric):
 	def __init__(self, mode="local", returnMean=True):
