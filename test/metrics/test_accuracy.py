@@ -1,24 +1,34 @@
 import numpy as np
-from neural_wrappers.metrics import accuracy
+from neural_wrappers.metrics import accuracy, Accuracy
 from neural_wrappers.utilities import toCategorical, npCloseEnough
 
 class TestPrecision:
+	# For now accuracy returns only meaned results. We'll use other classes for per-class results!
 	def test_call_accuracy_1(self):
 		results = toCategorical([0, 1, 2, 3, 1], numClasses=5)
 		labels = toCategorical([0, 0, 2, 2, 3], numClasses=5)
-		expected = np.array([1, 0, 1, 0, 0], dtype=bool)
 
 		res = accuracy(results, labels)
-		assert npCloseEnough(res, expected)
+		assert res == 0.4
 
 	def test_call_accuracy_2(self):
 		results = toCategorical([0, 1, 2, 3, 1], numClasses=5)
 		labels = toCategorical([0, 0, 2, 2, 3], numClasses=5)
+		accObj = Accuracy(mode="local")
 
-		res1 = accuracy(results, labels)
-		res2 = accuracy(results, labels, returnMean=True)
-		assert res1.mean() == 0.4
-		assert res2 == 0.4
+		res = accObj(results, labels)
+		assert res == 0.4
+
+	def test_call_accuracy_3(self):
+		results = toCategorical([0, 1, 2, 3, 1], numClasses=5)
+		labels = toCategorical([0, 0, 2, 2, 3], numClasses=5)
+		accObj = Accuracy(mode="global")
+
+		accObj(results, labels)
+		res = accObj.epochReduceFunction(None)
+		assert res == 0.4
+		res = accObj.epochReduceFunction(None)
+		assert res == 0.0
 
 	# # Example from: https://towardsdatascience.com/multi-class-metrics-made-simple-part-ii-the-f1-score-ebe8b2c2ca1
 	# def test_call_accuracy_2(self):
