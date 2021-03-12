@@ -33,7 +33,7 @@ class GlobalAccuracy(Metric):
 		y = y[t]
 		self.globalCorrect += y.sum()
 		self.globalAll += t.sum()
-		return 0
+		return self.fReturn()
 
 class LocalAccuracy(Metric):
 	def __init__(self):

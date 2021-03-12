@@ -4,6 +4,7 @@ import pickle
 from collections import OrderedDict
 from typing import Dict, Sequence, Union, Iterable, List, Optional
 from functools import reduce
+from pathlib import Path
 from .np_utils import npCloseEnough
 from .type_utils import NWNumber, NWSequence, NWDict, isBaseOf, T
 from .debug import Debug
@@ -175,4 +176,4 @@ def deepDictGet(d:Dict, k):
 
 # Given a path to a file/directory, return the absolute real path.
 def fullPath(x:str):
-	return os.path.abspath(os.path.realpath(x))
+	return Path(os.path.abspath(os.path.realpath(x)))
