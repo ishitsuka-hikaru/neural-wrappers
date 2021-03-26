@@ -6,3 +6,4 @@ from .cached_dataset_reader import CachedDatasetReader
 from .percent_dataset_reader import PercentDatasetReader
 from .random_index_dataset_reader import RandomIndexDatasetReader
 from .combined_dataset_reader import CombinedDatasetReader
+from .debug_reader import DebugReader

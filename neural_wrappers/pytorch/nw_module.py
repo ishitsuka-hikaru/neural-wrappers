@@ -212,7 +212,7 @@ class NWModule(nn.Module, ABC):
 
 	##### Traiming / testing functions
 
-	def updateOptimizer(self, trLoss, isTraining, isOptimizing, retain_graph=False):
+	def updateOptimizer(self, trLoss, isTraining:bool, isOptimizing:bool, retain_graph=False):
 		if not trLoss is None:
 			if isTraining and isOptimizing:
 				assert not self.getOptimizer() is None, "Set optimizer when training"
