@@ -7,7 +7,7 @@ requirements = open("requirements.txt").read().splitlines()
 
 setuptools.setup(
     name="neural_wrappers", # Replace with your own username
-    version="0.31",
+    version="0.4",
     author="Mihai Cristian Pîrvu",
     author_email="mihaicristianpirvu@gmail.com",
     description="Generic PyTorch high level wrapper",
