@@ -13,7 +13,7 @@ setuptools.setup(
     description="Generic PyTorch high level wrapper",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://gitlab.com/mihaicristianpirvu/neural-wrappers",
+    url="https://gitlab.com/neuralwrappers/neural-wrappers",
     keywords = ["PyTorch", "neural network", "high level api"],
     packages=setuptools.find_packages(),
     install_requires=requirements,
